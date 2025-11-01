@@ -1,0 +1,13 @@
+[package]
+name = "foundry-interactive"
+description = "Interactive prompt system for Foundry CLI"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+dialoguer.workspace = true
+anyhow.workspace = true
+thiserror.workspace = true
+rustyline.workspace = true

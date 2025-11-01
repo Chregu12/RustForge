@@ -7,6 +7,7 @@ mod database_setup;
 mod env;
 mod event;
 mod graphql;
+mod key;
 mod list;
 mod maintenance;
 mod optimize;
@@ -37,6 +38,7 @@ pub use database::{
 pub use database_setup::DatabaseCreateCommand;
 pub use env::EnvCommand;
 pub use event::EventListCommand;
+pub use key::{KeyGenerateCommand, KeyShowCommand};
 pub use list::ListCommand;
 pub use maintenance::{DownCommand, UpCommand};
 pub use optimize::OptimizeCommand;
@@ -245,6 +247,13 @@ impl BootstrapCommands {
 
         let http_request = Arc::new(HttpRequestCommand);
         registry.register(http_request)?;
+
+        // Key Management Commands
+        let key_generate = Arc::new(KeyGenerateCommand);
+        registry.register(key_generate)?;
+
+        let key_show = Arc::new(KeyShowCommand);
+        registry.register(key_show)?;
 
         Ok(())
     }

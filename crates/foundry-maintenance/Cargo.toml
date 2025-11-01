@@ -1,0 +1,21 @@
+[package]
+name = "foundry-maintenance"
+description = "Maintenance mode management for Foundry applications"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+async-trait.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+chrono.workspace = true
+foundry-plugins = { path = "../foundry-plugins" }
+axum.workspace = true
+tower.workspace = true
+
+[dev-dependencies]
+tempfile = "3.10"

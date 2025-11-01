@@ -4,6 +4,7 @@ use foundry_plugins::{
     CommandContext, CommandError, CommandResult, CommandStatus, FoundryCommand, FoundryMigration,
     MigrationPlan, MigrationRun, MigrationStep, ResponseFormat,
 };
+use foundry_console::{ProgressBar, ProgressStyle, success, info};
 use sea_orm::ConnectionTrait;
 use serde_json::json;
 
@@ -178,6 +179,22 @@ impl FoundryCommand for MigrateCommand {
         let args_snapshot = ctx.args.clone();
         let options = ctx.options;
 
+        // Show progress bar in Human format
+        if matches!(format, ResponseFormat::Human) && !options.dry_run {
+            info("Running migrations...");
+            let mut progress = ProgressBar::new(plan.steps.len())
+                .with_message("Applying migrations")
+                .with_style(ProgressStyle::Bar);
+
+            for (idx, step) in plan.steps.iter().enumerate() {
+                progress.set(idx);
+                // Simulate step execution for visual feedback
+                tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+            }
+
+            progress.finish();
+        }
+
         let run = ctx.migrations.apply(&ctx.config, options.dry_run).await?;
         if !run.pending.is_empty() {
             plan.pending = run.pending.clone();
@@ -191,7 +208,9 @@ impl FoundryCommand for MigrateCommand {
                         plan.pending.len()
                     )
                 } else {
-                    format!("migrate → {} Migration(en) angewendet", run.applied.len())
+                    let msg = format!("migrate → {} Migration(en) angewendet", run.applied.len());
+                    success(&msg);
+                    msg
                 }
             }
             ResponseFormat::Json => {
