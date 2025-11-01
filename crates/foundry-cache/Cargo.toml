@@ -1,0 +1,39 @@
+[package]
+name = "foundry-cache"
+description = "Multi-backend caching system with Redis, file, database, and in-memory support"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+async-trait.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+tokio.workspace = true
+
+# Cache backends
+redis = { version = "0.25", features = ["tokio-comp", "connection-manager"] }
+deadpool-redis = "0.15"
+
+# Time and serialization
+chrono.workspace = true
+uuid.workspace = true
+md5 = "0.7"
+
+# In-memory cache
+moka = { version = "0.12", features = ["future"] }
+
+# Database (optional)
+sea-orm = { workspace = true, optional = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "test-util", "rt"] }
+tempfile = "3.10"
+
+[features]
+default = []
+database = ["sea-orm"]

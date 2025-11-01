@@ -1,0 +1,29 @@
+[package]
+name = "foundry-testing"
+description = "Testing utilities and helpers for Foundry Framework"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+tokio.workspace = true
+sea-orm.workspace = true
+axum.workspace = true
+tower = { version = "0.4", features = ["util"] }
+serde.workspace = true
+serde_json.workspace = true
+async-trait.workspace = true
+tempfile = "3.10"
+once_cell = "1"
+foundry-infra = { path = "../foundry-infra" }
+foundry-api = { path = "../foundry-api" }
+
+# Advanced testing features
+fake = "2.9"
+chrono.workspace = true
+uuid.workspace = true
+rand = "0.8"
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["test-util"] }

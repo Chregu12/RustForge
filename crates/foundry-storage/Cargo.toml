@@ -1,0 +1,20 @@
+[package]
+name = "foundry-storage"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+async-trait.workspace = true
+bytes = "1.0"
+chrono = { workspace = true, features = ["serde", "clock"] }
+mime = "0.3"
+mime_guess = "2.0"
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
+thiserror.workspace = true
+tokio = { workspace = true, features = ["full"] }
+tokio-util = { version = "0.7", features = ["io"] }
+uuid = { version = "1.8", features = ["v4", "serde"] }

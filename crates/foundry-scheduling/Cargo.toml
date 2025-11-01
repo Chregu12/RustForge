@@ -1,0 +1,25 @@
+[package]
+name = "foundry-scheduling"
+description = "Task scheduling system with cron expressions and job management"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+async-trait.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+tokio.workspace = true
+chrono.workspace = true
+uuid.workspace = true
+
+# Cron support
+cron = "0.12"
+chrono-tz = "0.9"
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "test-util", "rt"] }

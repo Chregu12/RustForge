@@ -1,0 +1,70 @@
+[workspace]
+members = [
+    "crates/foundry-cli",
+    "crates/foundry-application",
+    "crates/foundry-domain",
+    "crates/foundry-infra",
+    "crates/foundry-plugins",
+    "crates/foundry-api",
+    "crates/foundry-storage",
+    "crates/foundry-graphql",
+    "crates/foundry-testing",
+    # Tier 1 Features (NEW)
+    "crates/foundry-mail",
+    "crates/foundry-cache",
+    "crates/foundry-scheduling",
+    "crates/foundry-notifications",
+    "crates/foundry-tenancy",
+    # Tier 2 Features
+    "crates/foundry-resources",
+    "crates/foundry-soft-deletes",
+    "crates/foundry-audit",
+    "crates/foundry-search",
+    "crates/foundry-oauth",
+    "crates/foundry-config",
+    "crates/foundry-ratelimit",
+    "crates/foundry-i18n",
+    "crates/foundry-broadcast",
+    # Tier 3 Features
+    "crates/foundry-admin",
+    "crates/foundry-export",
+    "crates/foundry-forms",
+    "crates/foundry-http-client",
+]
+resolver = "2"
+
+[workspace.package]
+edition = "2021"
+version = "0.1.0"
+license = "MIT OR Apache-2.0"
+authors = ["Foundry Core Team <dev@foundry.rs>"]
+
+[workspace.dependencies]
+anyhow = "1.0"
+async-trait = "0.1"
+clap = { version = "4.5", features = ["derive"] }
+color-eyre = "0.6"
+dialoguer = "0.11"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+thiserror = "1.0"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+tokio = { version = "1.37", features = ["macros", "rt-multi-thread", "signal"] }
+dotenvy = "0.15"
+chrono = { version = "0.4", features = ["serde", "clock"] }
+sea-orm = { version = "0.12", default-features = false, features = ["runtime-tokio-rustls", "sqlx-sqlite", "sqlx-postgres"] }
+axum = { version = "0.7", features = ["macros", "json", "multipart", "ws"] }
+toml = "0.8"
+rustyline = "14.0"
+regex = "1.10"
+tokio-tungstenite = "0.21"
+futures = "0.3"
+tower = "0.4"
+uuid = { version = "1.10", features = ["v4", "serde"] }
+jsonwebtoken = "9.2"
+argon2 = "0.5"
+tower-sessions = "0.12"
+bcrypt = "0.15"
+async-graphql = { version = "7.0", features = ["chrono", "dataloader"] }
+async-graphql-axum = "7.0"

@@ -1,0 +1,28 @@
+[package]
+name = "foundry-graphql"
+description = "GraphQL support for Foundry Framework"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+async-trait.workspace = true
+async-graphql.workspace = true
+async-graphql-axum.workspace = true
+axum.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tracing.workspace = true
+tokio.workspace = true
+chrono.workspace = true
+sea-orm.workspace = true
+foundry-domain = { path = "../foundry-domain" }
+foundry-infra = { path = "../foundry-infra" }
+rust_decimal = "1.33"
+url = "2.5"
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["test-util"] }
+tower = { version = "0.4", features = ["util"] }

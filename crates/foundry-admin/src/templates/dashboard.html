@@ -1,0 +1,49 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<h1 class="text-3xl font-bold mb-8">Dashboard</h1>
+
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    {% for widget in widgets %}
+    <div class="bg-white rounded-lg shadow p-6">
+        <h2 class="text-xl font-semibold mb-4">{{ widget.title }}</h2>
+
+        {% if widget.widget_type == "metric" %}
+        <div class="text-4xl font-bold text-blue-600">{{ widget.data.value }}</div>
+        <div class="text-gray-600 mt-2">{{ widget.data.label }}</div>
+        {% if widget.data.trend %}
+        <div class="mt-2 {% if widget.data.trend.direction == 'up' %}text-green-600{% else %}text-red-600{% endif %}">
+            <i class="fas fa-arrow-{{ widget.data.trend.direction }}"></i>
+            {{ widget.data.trend.percentage }}%
+        </div>
+        {% endif %}
+
+        {% elif widget.widget_type == "chart" %}
+        <div id="chart-{{ widget.id }}" class="h-64"></div>
+
+        {% elif widget.widget_type == "table" %}
+        <div class="overflow-x-auto">
+            <table class="min-w-full">
+                <thead>
+                    <tr>
+                        {% for header in widget.data.headers %}
+                        <th class="px-4 py-2 text-left">{{ header }}</th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in widget.data.rows %}
+                    <tr>
+                        {% for cell in row %}
+                        <td class="px-4 py-2">{{ cell }}</td>
+                        {% endfor %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

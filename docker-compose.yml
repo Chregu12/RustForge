@@ -1,0 +1,120 @@
+version: '3.8'
+
+services:
+  # RustForge Application
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: rustforge-app
+    ports:
+      - "${APP_PORT:-8000}:8000"
+    environment:
+      - DATABASE_URL=${DATABASE_URL:-postgres://postgres:secret@db:5432/rustforge}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379}
+      - APP_ENV=${APP_ENV:-development}
+      - APP_DEBUG=${APP_DEBUG:-true}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./storage:/app/storage
+      - ./public:/app/public
+    networks:
+      - rustforge-network
+    restart: unless-stopped
+
+  # PostgreSQL Database
+  db:
+    image: postgres:16-alpine
+    container_name: rustforge-db
+    environment:
+      - POSTGRES_DB=${DB_NAME:-rustforge}
+      - POSTGRES_USER=${DB_USER:-postgres}
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-secret}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - rustforge-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: rustforge-redis
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - rustforge-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # MySQL Database (alternative to PostgreSQL)
+  mysql:
+    image: mysql:8
+    container_name: rustforge-mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-secret}
+      - MYSQL_DATABASE=${DB_NAME:-rustforge}
+      - MYSQL_USER=${DB_USER:-rustforge}
+      - MYSQL_PASSWORD=${DB_PASSWORD:-secret}
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    networks:
+      - rustforge-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    profiles:
+      - mysql
+
+  # Nginx Reverse Proxy (optional)
+  nginx:
+    image: nginx:alpine
+    container_name: rustforge-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./public:/var/www/public:ro
+    depends_on:
+      - app
+    networks:
+      - rustforge-network
+    restart: unless-stopped
+    profiles:
+      - production
+
+volumes:
+  postgres-data:
+    driver: local
+  mysql-data:
+    driver: local
+  redis-data:
+    driver: local
+
+networks:
+  rustforge-network:
+    driver: bridge

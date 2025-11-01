@@ -1,0 +1,40 @@
+[package]
+name = "foundry-application"
+description = "Application layer orchestration for Foundry Core"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+async-trait.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+foundry-domain = { path = "../foundry-domain" }
+foundry-plugins = { path = "../foundry-plugins" }
+foundry-storage = { path = "../foundry-storage" }
+foundry-infra = { path = "../foundry-infra" }
+chrono.workspace = true
+sea-orm.workspace = true
+rand = "0.8"
+sha2 = "0.10"
+hex = "0.4"
+tokio.workspace = true
+toml = { workspace = true }
+dialoguer = "0.11"
+rpassword = "7.3"
+rustyline.workspace = true
+regex.workspace = true
+jsonwebtoken.workspace = true
+argon2.workspace = true
+bcrypt.workspace = true
+uuid.workspace = true
+axum.workspace = true
+tower.workspace = true
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros"] }
+tempfile = "3.10"

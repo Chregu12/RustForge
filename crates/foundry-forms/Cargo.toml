@@ -1,0 +1,28 @@
+[package]
+name = "foundry-forms"
+description = "Form builder and validation for Foundry Core"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+
+# Template rendering
+tera = "1.19"
+
+# Validation
+validator = { version = "0.18", features = ["derive"] }
+regex.workspace = true
+
+# CSRF protection
+uuid.workspace = true
+chrono.workspace = true
+
+foundry-plugins = { path = "../foundry-plugins" }
+
+[dev-dependencies]
+tokio.workspace = true

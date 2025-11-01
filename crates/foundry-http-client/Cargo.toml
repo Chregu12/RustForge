@@ -1,0 +1,30 @@
+[package]
+name = "foundry-http-client"
+description = "HTTP client with request builder for Foundry Core"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+async-trait.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+
+# HTTP client
+reqwest = { version = "0.12", features = ["json", "multipart", "cookies", "gzip"] }
+
+# Authentication
+base64 = "0.22"
+
+# Logging
+tracing.workspace = true
+
+foundry-plugins = { path = "../foundry-plugins" }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+wiremock = "0.6"

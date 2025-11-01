@@ -1,0 +1,21 @@
+[package]
+name = "foundry-cli"
+description = "Foundry Core CLI entrypoint"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+clap.workspace = true
+color-eyre.workspace = true
+dialoguer.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+tokio.workspace = true
+foundry-application = { path = "../foundry-application" }
+foundry-plugins = { path = "../foundry-plugins" }
+foundry-api = { path = "../foundry-api" }
+foundry-infra = { path = "../foundry-infra" }

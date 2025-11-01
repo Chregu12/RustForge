@@ -1,0 +1,39 @@
+[package]
+name = "foundry-export"
+description = "PDF, Excel, and CSV export for Foundry Core"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+async-trait.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+chrono.workspace = true
+
+# PDF generation
+printpdf = "0.7"
+lopdf = "0.32"
+
+# Excel/XLSX
+rust_xlsxwriter = "0.70"
+
+# CSV
+csv = "1.3"
+
+# Template rendering
+tera = "1.19"
+handlebars = "5.1"
+
+# Styling and formatting
+comfy-table = "7.1"
+
+foundry-plugins = { path = "../foundry-plugins" }
+
+[dev-dependencies]
+tempfile = "3.10"
+tokio.workspace = true

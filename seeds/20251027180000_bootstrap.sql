@@ -1,0 +1,3 @@
+INSERT INTO account (id, created_at)
+SELECT 1, CURRENT_TIMESTAMP
+WHERE NOT EXISTS (SELECT 1 FROM account WHERE id = 1);

@@ -1,0 +1,94 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <h1 class="text-3xl font-bold mb-6">{{ title }}</h1>
+
+    {% if errors %}
+    <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+        <ul>
+            {% for field, messages in errors %}
+            {% for message in messages %}
+            <li>{{ field }}: {{ message }}</li>
+            {% endfor %}
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
+    <form method="POST" class="bg-white rounded-lg shadow p-6">
+        {% for field in fields %}
+        <div class="mb-4">
+            <label class="block text-gray-700 text-sm font-bold mb-2" for="{{ field.name }}">
+                {{ field.label }}
+                {% if field.required %}<span class="text-red-500">*</span>{% endif %}
+            </label>
+
+            {% if field.field_type == "text" or field.field_type == "email" or field.field_type == "password" %}
+            <input
+                type="{{ field.field_type }}"
+                id="{{ field.name }}"
+                name="{{ field.name }}"
+                value="{{ data[field.name] }}"
+                {% if field.required %}required{% endif %}
+                {% if field.readonly %}readonly{% endif %}
+                class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+            >
+
+            {% elif field.field_type == "number" %}
+            <input
+                type="number"
+                id="{{ field.name }}"
+                name="{{ field.name }}"
+                value="{{ data[field.name] }}"
+                {% if field.required %}required{% endif %}
+                {% if field.readonly %}readonly{% endif %}
+                class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+            >
+
+            {% elif field.field_type == "textarea" %}
+            <textarea
+                id="{{ field.name }}"
+                name="{{ field.name }}"
+                rows="4"
+                {% if field.required %}required{% endif %}
+                {% if field.readonly %}readonly{% endif %}
+                class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+            >{{ data[field.name] }}</textarea>
+
+            {% elif field.field_type == "boolean" %}
+            <input
+                type="checkbox"
+                id="{{ field.name }}"
+                name="{{ field.name }}"
+                value="1"
+                {% if data[field.name] %}checked{% endif %}
+                {% if field.readonly %}disabled{% endif %}
+                class="mr-2 leading-tight"
+            >
+
+            {% endif %}
+
+            {% if field.help_text %}
+            <p class="text-gray-600 text-xs italic mt-1">{{ field.help_text }}</p>
+            {% endif %}
+        </div>
+        {% endfor %}
+
+        <div class="flex items-center justify-between mt-6">
+            <button
+                type="submit"
+                class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+            >
+                Save
+            </button>
+            <a
+                href="{{ config.prefix }}/resources/{{ resource_name }}"
+                class="text-gray-600 hover:text-gray-800"
+            >
+                Cancel
+            </a>
+        </div>
+    </form>
+</div>
+{% endblock %}

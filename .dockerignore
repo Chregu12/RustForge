@@ -1,0 +1,62 @@
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Target and build artifacts
+target/
+**/target/
+**/*.rs.bk
+*.pdb
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Documentation
+*.md
+docs/
+CONTRIBUTING.md
+CHANGELOG.md
+CODE_OF_CONDUCT.md
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml
+
+# Testing
+tests/
+**/tests/
+coverage/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Logs
+*.log
+logs/
+
+# Storage (exclude user data)
+storage/*
+!storage/.gitkeep
+
+# Docker
+docker-compose.override.yml
+Dockerfile.dev
+
+# Node (if using frontend build tools)
+node_modules/
+package-lock.json
+yarn.lock

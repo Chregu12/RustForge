@@ -1,0 +1,36 @@
+[package]
+name = "foundry-infra"
+description = "Infrastructure adapters for Foundry Core"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+async-trait.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+chrono.workspace = true
+tracing.workspace = true
+thiserror.workspace = true
+foundry-domain = { path = "../foundry-domain" }
+foundry-plugins = { path = "../foundry-plugins" }
+dotenvy.workspace = true
+sea-orm.workspace = true
+url = "2.5"
+sea-query = "0.30"
+tokio.workspace = true
+bytes = "1.5"
+foundry-storage = { path = "../foundry-storage" }
+regex = "1.10"
+reqwest = { version = "0.12", features = ["json"] }
+toml.workspace = true
+
+
+
+[dev-dependencies]
+
+tokio = { version = "1.37", features = ["rt-multi-thread", "macros"] }
+
+tempfile = "3.10"

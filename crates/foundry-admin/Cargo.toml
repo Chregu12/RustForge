@@ -1,0 +1,35 @@
+[package]
+name = "foundry-admin"
+description = "Admin Panel & Dashboard for Foundry Core"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+async-trait.workspace = true
+axum.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tracing.workspace = true
+tokio.workspace = true
+tower.workspace = true
+tower-sessions.workspace = true
+tera = "1.19"
+minijinja = "2.0"
+askama = "0.12"
+axum-extra = { version = "0.9", features = ["typed-header"] }
+mime = "0.3"
+include_dir = "0.7"
+foundry-application = { path = "../foundry-application" }
+foundry-plugins = { path = "../foundry-plugins" }
+foundry-domain = { path = "../foundry-domain" }
+sea-orm.workspace = true
+chrono.workspace = true
+uuid.workspace = true
+
+[dev-dependencies]
+tokio.workspace = true
+tower = { version = "0.4", features = ["util"] }
+tempfile = "3.10"
