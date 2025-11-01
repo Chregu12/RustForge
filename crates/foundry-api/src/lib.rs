@@ -9,6 +9,7 @@ pub mod input;
 pub mod invocation;
 pub mod isolatable;
 pub mod mcp;
+pub mod queued_commands;
 pub mod request;
 pub mod response;
 pub mod stubs;
