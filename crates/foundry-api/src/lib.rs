@@ -10,6 +10,8 @@ pub mod invocation;
 pub mod mcp;
 pub mod request;
 pub mod response;
+pub mod stubs;
+pub mod stub_publisher;
 pub mod upload;
 pub mod verbosity;
 pub mod websocket;
@@ -24,4 +26,6 @@ pub use input::{InputParser, InputValidator, ValidationRule, Rule, ValidationVio
 pub use invocation::{FoundryInvoker, InvocationRequest};
 pub use request::AppJson;
 pub use response::{ApiResult, JsonResponse, ResponseEnvelope};
+pub use stubs::{Stub, StubManager, StubVariables, StubError};
+pub use stub_publisher::{StubPublisher, PublishConfig, PublishedStub, PublishError};
 pub use verbosity::{Verbosity, VerbosityLevel};
