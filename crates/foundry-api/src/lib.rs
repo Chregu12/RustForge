@@ -7,6 +7,7 @@ pub mod events;
 pub mod http;
 pub mod input;
 pub mod invocation;
+pub mod isolatable;
 pub mod mcp;
 pub mod request;
 pub mod response;
