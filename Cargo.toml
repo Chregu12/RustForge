@@ -39,6 +39,9 @@ members = [
     "crates/foundry-health",
     "crates/foundry-env",
     "crates/foundry-assets",
+    # Critical Infrastructure
+    "crates/foundry-command-executor",
+    "crates/foundry-signal-handler",
 ]
 resolver = "2"
 
