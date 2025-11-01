@@ -20,6 +20,12 @@ foundry-infra = { path = "../foundry-infra" }
 foundry-service-container = { path = "../foundry-service-container" }
 foundry-interactive = { path = "../foundry-interactive" }
 foundry-console = { path = "../foundry-console" }
+# Tier 3 Advanced Features
+foundry-tinker-enhanced = { path = "../foundry-tinker-enhanced" }
+foundry-maintenance = { path = "../foundry-maintenance" }
+foundry-health = { path = "../foundry-health" }
+foundry-env = { path = "../foundry-env" }
+foundry-assets = { path = "../foundry-assets" }
 chrono.workspace = true
 sea-orm.workspace = true
 rand = "0.8"

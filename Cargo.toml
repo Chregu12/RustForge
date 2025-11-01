@@ -33,6 +33,12 @@ members = [
     "crates/foundry-export",
     "crates/foundry-forms",
     "crates/foundry-http-client",
+    # Tier 3 Advanced Features
+    "crates/foundry-tinker-enhanced",
+    "crates/foundry-maintenance",
+    "crates/foundry-health",
+    "crates/foundry-env",
+    "crates/foundry-assets",
 ]
 resolver = "2"
 
