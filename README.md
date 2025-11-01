@@ -949,6 +949,587 @@ MIT License - siehe `LICENSE` für Details
 
 ---
 
+## 📖 TIER 2 Advanced Features Guide
+
+RustForge hat alle TIER 2 Features implementiert und bietet ~95% Parity mit Laravel 12 Artisan.
+
+### 1. Programmatic Command Execution
+
+Execute RustForge commands programmatically from Rust code, similar to Laravel's `Artisan::call()` method.
+
+#### Basic Usage
+
+```rust
+use foundry_api::Artisan;
+use foundry_application::FoundryApp;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let app = FoundryApp::new(config)?;
+    let invoker = FoundryInvoker::new(app);
+    let artisan = Artisan::new(invoker);
+
+    // Execute a simple command
+    let result = artisan.call("list").dispatch().await?;
+
+    println!("Status: {:?}", result.status);
+    println!("Message: {}", result.message.unwrap_or_default());
+
+    Ok(())
+}
+```
+
+#### Command with Arguments
+
+```rust
+let result = artisan
+    .call("make:command")
+    .with_args(vec!["TestCommand".to_string()])
+    .dispatch()
+    .await?;
+
+println!("Command created: {}", result.message.unwrap_or_default());
+```
+
+#### Command Chaining
+
+```rust
+let results = artisan
+    .chain()
+    .add("migrate")
+    .add_with_args("seed:run", vec!["--class".to_string(), "DatabaseSeeder".to_string()])
+    .add("cache:clear")
+    .dispatch()
+    .await?;
+
+println!("Executed {} commands", results.len());
+```
+
+#### Output Capture
+
+```rust
+artisan.call("migrate").dispatch().await?;
+artisan.call("seed:run").dispatch().await?;
+
+// Get captured output
+let output = artisan.output();
+let output_str = artisan.output_string();
+artisan.clear_output();
+```
+
+#### Event System
+
+```rust
+use foundry_api::{EventDispatcher, CommandEvent};
+
+let dispatcher = EventDispatcher::new();
+let mut rx = dispatcher.subscribe();
+
+tokio::spawn(async move {
+    while let Ok(event) = rx.recv().await {
+        match event {
+            CommandEvent::Starting(e) => println!("📍 Command starting: {}", e.command),
+            CommandEvent::Finished(e) => println!("✅ Command finished: {} ({}ms)", e.command, e.duration_ms),
+            CommandEvent::Failed(e) => println!("❌ Command failed: {}", e.command),
+        }
+    }
+});
+```
+
+#### Advanced Patterns
+
+```rust
+// Conditional execution
+let migrate_result = artisan.call("migrate").dispatch().await?;
+if migrate_result.status == CommandStatus::Success {
+    artisan.call("seed:run").dispatch().await?;
+}
+
+// Dry run mode
+let result = artisan
+    .call("migrate")
+    .dry_run(true)
+    .dispatch()
+    .await?;
+
+// Force mode
+let result = artisan
+    .call("migrate")
+    .force(true)
+    .dispatch()
+    .await?;
+```
+
+---
+
+### 2. Verbosity Levels System
+
+Control output verbosity with -q, -v, -vv, -vvv flags.
+
+#### Verbosity Levels
+
+- **Quiet** (`-q`, `--quiet`): Level 0 - Suppress most output
+- **Normal**: Level 1 (default) - Standard output
+- **Verbose** (`-v`): Level 2 - Additional information
+- **Very Verbose** (`-vv`): Level 3 - Much more details
+- **Debug** (`-vvv`, `--debug`): Level 4 - All debug information
+
+#### Usage in Commands
+
+```rust
+use foundry_api::Verbosity;
+
+async fn execute(ctx: CommandContext) -> Result<CommandResult, CommandError> {
+    let verbosity = Verbosity::from_args(&ctx.args);
+
+    if verbosity.is_verbose() {
+        println!("Verbose output");
+    }
+
+    if verbosity.is_debug() {
+        println!("Debug information");
+    }
+
+    Ok(CommandResult::success("Done"))
+}
+```
+
+#### Console Helper
+
+```rust
+use foundry_api::Console;
+
+async fn execute(ctx: CommandContext) -> Result<CommandResult, CommandError> {
+    let verbosity = Verbosity::from_args(&ctx.args);
+    let console = Console::new(verbosity.level());
+
+    console.line("Always shown");
+    console.info("Shown unless quiet");
+    console.verbose("Details shown with -v");
+    console.very_verbose("Very detailed with -vv");
+    console.debug("Debug info shown with -vvv");
+
+    console.success("✓ Operation successful");
+    console.warn("⚠ Warning message");
+    console.error("✗ Error occurred");
+
+    Ok(CommandResult::success("Done"))
+}
+```
+
+#### Structured Output
+
+```rust
+let console = Console::new(verbosity.level());
+
+// Sections
+console.section("Configuration");
+
+// Items
+console.item("Database", "postgresql://localhost/db");
+console.item("Port", "5432");
+
+// Lists
+console.list_item("First item");
+console.list_item("Second item");
+
+// Tables
+console.table_row(&["Name", "Value", "Status"]);
+console.table_row(&["connection", "active", "✓"]);
+
+// Progress
+let progress = console.progress(5, 10, "Processing files");
+console.info(progress);
+```
+
+#### Conditional Output
+
+```rust
+console.line("Always shown");
+console.line_if(true, "Shown if condition is true");
+console.info_if(console.is_verbose(), "Shown only if verbose");
+```
+
+---
+
+### 3. Advanced Input Handling
+
+Parse and validate command arguments with flexibility.
+
+#### Basic Parsing
+
+```rust
+use foundry_api::input::InputParser;
+
+let args = vec![
+    "create".to_string(),
+    "--name=John".to_string(),
+    "--age".to_string(),
+    "30".to_string(),
+    "--admin".to_string(),
+];
+
+let parser = InputParser::from_args(&args);
+
+// Get positional argument
+let command = parser.first_argument();
+
+// Get single option
+let name = parser.option("name");
+
+// Get option with default
+let city = parser.option_with_default("city", "New York");
+
+// Check for flags
+if parser.has_flag("admin") {
+    println!("Admin mode enabled");
+}
+```
+
+#### Option Arrays
+
+```rust
+let args = vec![
+    "--tag".to_string(), "admin".to_string(),
+    "--tag".to_string(), "user".to_string(),
+    "--tag".to_string(), "moderator".to_string(),
+];
+
+let parser = InputParser::from_args(&args);
+let tags = parser.option_array("tag");
+// tags = ["admin", "user", "moderator"]
+```
+
+#### Input Validation
+
+```rust
+use foundry_api::input::{InputParser, InputValidator, Rule};
+
+let validator = InputValidator::new()
+    .required("email")
+    .string_length("name", 2, 50);
+
+validator.validate(&parser)?;
+```
+
+#### Enum-like Validation
+
+```rust
+let validator = InputValidator::new()
+    .rule("status", vec![
+        Rule::Required,
+        Rule::OneOf(vec![
+            "active".to_string(),
+            "inactive".to_string(),
+            "pending".to_string(),
+        ]),
+    ]);
+
+validator.validate(&parser)?;
+```
+
+#### In Command Context
+
+```rust
+use foundry_api::input::{InputParser, InputValidator};
+
+async fn execute(ctx: CommandContext) -> Result<CommandResult, CommandError> {
+    let parser = InputParser::from_args(&ctx.args);
+
+    let validator = InputValidator::new()
+        .required("email")
+        .string_length("name", 2, 50);
+
+    validator.validate(&parser).map_err(|violations| {
+        let msg = violations
+            .iter()
+            .map(|v| format!("{}: {}", v.field, v.message))
+            .collect::<Vec<_>>()
+            .join("; ");
+        CommandError::Message(msg)
+    })?;
+
+    let email = parser.option("email").unwrap();
+    let name = parser.option("name");
+    let roles = parser.option_array("role");
+    let is_admin = parser.has_flag("admin");
+
+    Ok(CommandResult::success("User created successfully"))
+}
+```
+
+---
+
+### 4. Stub Customization
+
+Customize code generation stubs for `make:*` commands.
+
+#### Publishing Stubs
+
+```bash
+# Publish all stubs
+foundry vendor:publish --tag=stubs
+
+# Publish specific stubs
+foundry vendor:publish --tag=model_stubs
+
+# Force overwrite
+foundry vendor:publish --tag=stubs --force
+```
+
+#### Available Variables
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `{{namespace}}` | Class namespace | `App\Models` |
+| `{{name}}` | Class name | `User` |
+| `{{table}}` | Table name | `users` |
+| `{{fillable}}` | Fillable fields | `'name', 'email'` |
+| `{{command}}` | Command name | `make:model` |
+| `{{timestamp}}` | Current timestamp | `2024-11-01T10:30:00` |
+| `{{year}}` | Current year | `2024` |
+
+#### Programmatic API
+
+```rust
+use foundry_api::{StubManager, StubVariables, Stub};
+
+let mut manager = StubManager::new("stubs");
+
+let stub = Stub::new(
+    "model",
+    "Model",
+    "class {{name}} { ... }",
+    "rs"
+);
+manager.register(stub);
+
+let mut vars = StubVariables::new();
+vars.set("name", "User");
+vars.set("namespace", "App\\Models");
+
+let rendered = stub.render(&vars)?;
+```
+
+#### Loading from Filesystem
+
+```rust
+let mut manager = StubManager::new("stubs");
+manager.load_from_filesystem()?;
+
+for stub_id in manager.list() {
+    println!("Available stub: {}", stub_id);
+}
+```
+
+#### Publishing Stubs Programmatically
+
+```rust
+use foundry_api::{StubManager, StubPublisher, PublishConfig};
+
+let manager = StubManager::new("stubs");
+let config = PublishConfig::new("stubs", "app/stubs").force(true);
+let publisher = StubPublisher::new(manager, config);
+
+let published = publisher.publish()?;
+for pub_stub in published {
+    println!("Published: {}", pub_stub.id);
+}
+```
+
+---
+
+### 5. Isolatable Commands
+
+Prevent concurrent execution of commands using locks.
+
+#### File-based Locking (Default)
+
+```rust
+use foundry_api::isolatable::{CommandIsolation, LockStrategy};
+
+let isolation = CommandIsolation::new("migrate");
+
+match isolation.lock() {
+    Ok(_guard) => {
+        println!("Lock acquired");
+        // Your command logic here
+        // Lock is automatically released when guard is dropped
+    }
+    Err(e) => eprintln!("Could not acquire lock: {}", e),
+}
+```
+
+#### Memory-based Locking
+
+```rust
+let isolation = CommandIsolation::new("cache:clear")
+    .with_strategy(LockStrategy::Memory);
+
+match isolation.lock() {
+    Ok(_guard) => println!("Lock acquired"),
+    Err(e) => eprintln!("Already running: {}", e),
+}
+```
+
+#### Lock Timeout
+
+```rust
+use std::time::Duration;
+
+let isolation = CommandIsolation::new("migrate")
+    .with_timeout(Duration::from_secs(300));
+
+match isolation.lock_with_timeout(Duration::from_secs(60)) {
+    Ok(_guard) => println!("Acquired lock"),
+    Err(e) => eprintln!("Timeout: {}", e),
+}
+```
+
+#### Custom Lock Directory
+
+```rust
+let isolation = CommandIsolation::new("migrate")
+    .with_lock_dir(".foundry/locks");
+
+let guard = isolation.lock()?;
+```
+
+#### In Command Context
+
+```rust
+use foundry_api::isolatable::CommandIsolation;
+
+async fn execute(ctx: CommandContext) -> Result<CommandResult, CommandError> {
+    let isolation = CommandIsolation::new("migrate");
+
+    let _guard = isolation.lock().map_err(|e| {
+        CommandError::Message(format!("Could not acquire lock: {}", e))
+    })?;
+
+    // Run your command
+    println!("Running migration...");
+
+    Ok(CommandResult::success("Migration completed"))
+}
+```
+
+---
+
+### 6. Queued Commands
+
+Dispatch commands to a queue for asynchronous execution.
+
+#### Basic Dispatch
+
+```rust
+use foundry_api::queued_commands::{QueuedCommand, CommandQueue};
+
+let queue = CommandQueue::default();
+
+let cmd = QueuedCommand::new("import:data")
+    .with_args(vec!["users.csv".to_string()]);
+
+let job_id = queue.dispatch(cmd).await?;
+println!("Job dispatched: {}", job_id);
+```
+
+#### With Delay
+
+```rust
+use std::time::Duration;
+
+let cmd = QueuedCommand::new("send:emails")
+    .with_delay(Duration::from_secs(300)); // Delay 5 minutes
+
+let job_id = queue.dispatch(cmd).await?;
+```
+
+#### With Retry Configuration
+
+```rust
+let cmd = QueuedCommand::new("sync:external-api")
+    .with_max_attempts(5);  // Retry up to 5 times
+
+let job_id = queue.dispatch(cmd).await?;
+```
+
+#### Multiple Queues
+
+```rust
+use foundry_api::queued_commands::CommandQueue;
+
+let urgent = CommandQueue::new("urgent");
+let cmd = QueuedCommand::new("alert:critical");
+urgent.dispatch(cmd).await?;
+
+let background = CommandQueue::new("background");
+let cmd = QueuedCommand::new("report:generate");
+background.dispatch(cmd).await?;
+```
+
+#### Queue Manager
+
+```rust
+use foundry_api::queued_commands::QueueManager;
+
+let mut manager = QueueManager::new();
+manager.add_queue("high");
+manager.add_queue("normal");
+manager.add_queue("low");
+
+if let Some(queue) = manager.queue("high") {
+    let cmd = QueuedCommand::new("urgent:task");
+    queue.dispatch(cmd).await?;
+}
+
+let queues = manager.list();
+println!("Available queues: {:?}", queues);
+```
+
+#### Advanced Features
+
+```rust
+// Timeout configuration
+let cmd = QueuedCommand::new("data:process")
+    .with_timeout(Duration::from_secs(600));
+
+// Custom metadata
+let cmd = QueuedCommand::new("export:users")
+    .with_metadata("export_type", serde_json::Value::String("pdf".to_string()));
+
+// Batch dispatch
+let commands = vec![
+    QueuedCommand::new("clean:cache"),
+    QueuedCommand::new("optimize:images"),
+    QueuedCommand::new("generate:sitemap"),
+];
+let job_ids = queue.dispatch_many(commands).await?;
+```
+
+#### Real-World Example: Email Campaign
+
+```rust
+async fn queue_emails() -> Result<(), Box<dyn std::error::Error>> {
+    let queue = CommandQueue::new("emails");
+
+    for user_id in 1..=1000 {
+        let delay = Duration::from_millis(100 * user_id);
+
+        let cmd = QueuedCommand::new("email:send")
+            .with_arg(format!("--user={}", user_id))
+            .with_delay(delay)
+            .with_max_attempts(3);
+
+        queue.dispatch(cmd).await?;
+    }
+
+    Ok(())
+}
+```
+
+---
+
 ## 💬 Danksagungen
 
 Gebaut mit Technologien von:
