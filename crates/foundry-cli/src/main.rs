@@ -1,6 +1,5 @@
 use clap::{Parser, ValueEnum};
 use color_eyre::eyre::{bail, eyre, Result, WrapErr};
-use dialoguer::{Confirm, Input, Select};
 use foundry_api::http::HttpServer;
 use foundry_api::invocation::FoundryInvoker;
 use foundry_api::mcp::McpServer;
@@ -10,6 +9,8 @@ use foundry_infra::{
     SeaOrmMigrationService, SeaOrmSeedService,
 };
 use foundry_plugins::{CommandResult, CommandStatus, ExecutionOptions, ResponseFormat};
+use foundry_interactive::{ask_with_default, choice, confirm, SelectOption};
+use foundry_console::{success, error, info as console_info, warning};
 use serde_json::Value;
 use std::fs;
 use std::net::SocketAddr;
@@ -205,55 +206,45 @@ fn parse_serve_args(args: Vec<String>) -> Result<ServeMode> {
 }
 
 fn run_init() -> Result<()> {
+    console_info("Initializing new Foundry project...");
+
     if PathBuf::from(".env").exists() {
-        let overwrite = Confirm::new()
-            .with_prompt(".env-Datei existiert bereits. Überschreiben?")
-            .default(false)
-            .interact()?;
+        let overwrite = confirm(".env file already exists. Overwrite?", false)
+            .map_err(|e| eyre!("Failed to get confirmation: {}", e))?;
         if !overwrite {
-            println!("Initialisierung abgebrochen.");
+            warning("Initialization cancelled.");
             return Ok(());
         }
     }
 
-    let drivers = &["SQLite", "PostgreSQL"];
-    let selection = Select::new()
-        .with_prompt("Welchen Datenbank-Treiber möchten Sie verwenden?")
-        .items(drivers)
-        .default(0)
-        .interact()?;
+    let options = vec![
+        SelectOption::new("SQLite", "Lightweight embedded database"),
+        SelectOption::new("PostgreSQL", "Production-ready relational database"),
+    ];
+
+    let driver = choice("Which database driver would you like to use?", &options, 0)
+        .map_err(|e| eyre!("Failed to get database choice: {}", e))?;
 
     let mut env_content = String::new();
 
-    match selection {
-        0 => {
-            let db_path: String = Input::<String>::new()
-                .with_prompt("Pfad zur SQLite-Datenbank")
-                .default("foundry.db".to_owned())
-                .interact_text()?;
+    match driver.as_str() {
+        "SQLite" => {
+            let db_path = ask_with_default("Path to SQLite database", "foundry.db")
+                .map_err(|e| eyre!("Failed to get database path: {}", e))?;
             env_content.push_str("DB_CONNECTION=sqlite\n");
             env_content.push_str(&format!("DATABASE_URL=sqlite:{}", db_path));
         }
-        1 => {
-            let host: String = Input::<String>::new()
-                .with_prompt("Datenbank-Host")
-                .default("localhost".to_owned())
-                .interact_text()?;
-            let port: String = Input::<String>::new()
-                .with_prompt("Datenbank-Port")
-                .default("5432".to_owned())
-                .interact_text()?;
-            let username: String = Input::<String>::new()
-                .with_prompt("Benutzername")
-                .default("postgres".to_owned())
-                .interact_text()?;
-            let password: String = Input::<String>::new()
-                .with_prompt("Passwort")
-                .interact_text()?;
-            let db_name: String = Input::<String>::new()
-                .with_prompt("Datenbankname")
-                .default("foundry".to_owned())
-                .interact_text()?;
+        "PostgreSQL" => {
+            let host = ask_with_default("Database host", "localhost")
+                .map_err(|e| eyre!("Failed to get host: {}", e))?;
+            let port = ask_with_default("Database port", "5432")
+                .map_err(|e| eyre!("Failed to get port: {}", e))?;
+            let username = ask_with_default("Username", "postgres")
+                .map_err(|e| eyre!("Failed to get username: {}", e))?;
+            let password = foundry_interactive::password("Password")
+                .map_err(|e| eyre!("Failed to get password: {}", e))?;
+            let db_name = ask_with_default("Database name", "foundry")
+                .map_err(|e| eyre!("Failed to get database name: {}", e))?;
 
             env_content.push_str("DB_CONNECTION=postgres\n");
             env_content.push_str(&format!(
@@ -265,7 +256,7 @@ fn run_init() -> Result<()> {
     }
 
     fs::write(".env", env_content)?;
-    println!(".env-Datei erfolgreich erstellt.");
+    success(".env file successfully created!");
 
     Ok(())
 }

@@ -19,3 +19,5 @@ foundry-application = { path = "../foundry-application" }
 foundry-plugins = { path = "../foundry-plugins" }
 foundry-api = { path = "../foundry-api" }
 foundry-infra = { path = "../foundry-infra" }
+foundry-interactive = { path = "../foundry-interactive" }
+foundry-console = { path = "../foundry-console" }

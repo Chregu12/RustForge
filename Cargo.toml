@@ -10,12 +10,15 @@ members = [
     "crates/foundry-graphql",
     "crates/foundry-testing",
     # Tier 1 Features (NEW)
+    "crates/foundry-interactive",
+    "crates/foundry-console",
     "crates/foundry-mail",
     "crates/foundry-cache",
     "crates/foundry-scheduling",
     "crates/foundry-notifications",
     "crates/foundry-tenancy",
     # Tier 2 Features
+    "crates/foundry-service-container",
     "crates/foundry-resources",
     "crates/foundry-soft-deletes",
     "crates/foundry-audit",

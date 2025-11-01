@@ -1,0 +1,11 @@
+[package]
+name = "foundry-console"
+description = "Console output formatting and styling for Foundry CLI"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+thiserror.workspace = true

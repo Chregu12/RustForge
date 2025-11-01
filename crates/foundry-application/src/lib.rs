@@ -9,6 +9,13 @@ pub use commands::{ListCommand, TestCommand};
 pub use error::ApplicationError;
 pub use registry::CommandRegistry;
 
+// Re-export service container
+pub use foundry_service_container::{
+    Container, ProviderRegistry, ServiceProvider, ApplicationServiceProvider,
+    AuthServiceProvider, CacheServiceProvider, DatabaseServiceProvider,
+    MailServiceProvider,
+};
+
 use commands::BootstrapCommands;
 use foundry_infra::{
     FileStorageAdapter, InMemoryCacheStore, InMemoryEventBus, InMemoryQueue,
@@ -37,6 +44,8 @@ pub struct FoundryApp {
     cache: Arc<dyn CachePort>,
     queue: Arc<dyn QueuePort>,
     events: Arc<dyn EventPort>,
+    container: Container,
+    providers: ProviderRegistry,
 }
 
 impl FoundryApp {
@@ -72,6 +81,14 @@ impl FoundryApp {
 
     pub fn validation(&self) -> Arc<dyn ValidationPort> {
         self.validation.clone()
+    }
+
+    pub fn container(&self) -> Container {
+        self.container.clone()
+    }
+
+    pub fn providers(&self) -> ProviderRegistry {
+        self.providers.clone()
     }
 
     pub async fn dispatch(
@@ -129,6 +146,8 @@ pub struct FoundryAppBuilder {
     cache: Option<Arc<dyn CachePort>>,
     queue: Option<Arc<dyn QueuePort>>,
     events: Option<Arc<dyn EventPort>>,
+    container: Option<Container>,
+    providers: Option<ProviderRegistry>,
 }
 
 impl FoundryAppBuilder {
@@ -148,6 +167,8 @@ impl FoundryAppBuilder {
             cache: None,
             queue: None,
             events: None,
+            container: None,
+            providers: None,
         }
     }
 
@@ -176,6 +197,16 @@ impl FoundryAppBuilder {
         self
     }
 
+    pub fn with_container(mut self, container: Container) -> Self {
+        self.container = Some(container);
+        self
+    }
+
+    pub fn with_providers(mut self, providers: ProviderRegistry) -> Self {
+        self.providers = Some(providers);
+        self
+    }
+
     pub fn build(self) -> Result<FoundryApp, ApplicationError> {
         let FoundryAppBuilder {
             config,
@@ -187,6 +218,8 @@ impl FoundryAppBuilder {
             cache,
             queue,
             events,
+            container,
+            providers,
         } = self;
 
         let registry = CommandRegistry::default();
@@ -197,6 +230,10 @@ impl FoundryAppBuilder {
             StorageManager::new(storage_config)
                 .map_err(|e| ApplicationError::StorageError(e.to_string()))?,
         );
+
+        // Initialize service container and providers
+        let container = container.unwrap_or_else(Container::new);
+        let providers = providers.unwrap_or_else(ProviderRegistry::new);
 
         Ok(FoundryApp {
             registry,
@@ -211,6 +248,8 @@ impl FoundryAppBuilder {
             cache: cache.unwrap_or_else(|| Arc::new(InMemoryCacheStore::default())),
             queue: queue.unwrap_or_else(|| Arc::new(InMemoryQueue::default())),
             events: events.unwrap_or_else(|| Arc::new(InMemoryEventBus::default())),
+            container,
+            providers,
         })
     }
 }
