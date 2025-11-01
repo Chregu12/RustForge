@@ -255,6 +255,28 @@ impl BootstrapCommands {
         let key_show = Arc::new(KeyShowCommand);
         registry.register(key_show)?;
 
+        // Tier 3 Advanced Features
+        let app_down = Arc::new(foundry_maintenance::AppDownCommand);
+        registry.register(app_down)?;
+
+        let app_up = Arc::new(foundry_maintenance::AppUpCommand);
+        registry.register(app_up)?;
+
+        let health_check = Arc::new(foundry_health::HealthCheckCommand);
+        registry.register(health_check)?;
+
+        let doctor = Arc::new(foundry_health::DoctorCommand);
+        registry.register(doctor)?;
+
+        let env_validate = Arc::new(foundry_env::EnvValidateCommand);
+        registry.register(env_validate)?;
+
+        let env_reload = Arc::new(foundry_env::EnvReloadCommand);
+        registry.register(env_reload)?;
+
+        let asset_publish = Arc::new(foundry_assets::AssetPublishCommand);
+        registry.register(asset_publish)?;
+
         Ok(())
     }
 }
