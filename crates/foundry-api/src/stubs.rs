@@ -222,10 +222,15 @@ impl StubManager {
 
     /// Load stubs from filesystem
     pub fn load_from_filesystem(&mut self) -> Result<(), StubError> {
-        for path in &self.stub_paths {
-            if path.exists() && path.is_dir() {
-                self.load_directory(path)?;
-            }
+        // Collect paths first to avoid borrow checker issues
+        let paths: Vec<_> = self.stub_paths
+            .iter()
+            .filter(|p| p.exists() && p.is_dir())
+            .cloned()
+            .collect();
+
+        for path in paths {
+            self.load_directory(&path)?;
         }
         Ok(())
     }

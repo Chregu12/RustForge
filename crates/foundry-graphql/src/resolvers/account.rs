@@ -1,11 +1,11 @@
 use crate::context::GraphQLContext;
 use crate::error::{database_error, not_found, validation_error};
-use crate::types::account::{Account, AccountEntity, AccountInput, UpdateAccountInput};
+use crate::types::account::{Account, AccountEntity, AccountColumn, AccountActiveModel, AccountInput, UpdateAccountInput};
 use async_graphql::{Context, Object, Result};
 use chrono::Utc;
 use sea_orm::{
     ActiveModelTrait, ActiveValue, ColumnTrait, EntityTrait, PaginatorTrait, QueryFilter,
-    QueryOrder,
+    QueryOrder, QuerySelect,
 };
 
 #[derive(Default)]
@@ -38,7 +38,7 @@ impl AccountQuery {
         let db = context.db();
 
         let accounts = AccountEntity::find()
-            .order_by_asc(crate::types::account::Column::Id)
+            .order_by_asc(AccountColumn::Id)
             .offset(offset)
             .limit(limit)
             .all(db)
@@ -65,7 +65,7 @@ impl AccountQuery {
         let db = context.db();
 
         let account = AccountEntity::find()
-            .filter(crate::types::account::Column::Email.eq(email.clone()))
+            .filter(AccountColumn::Email.eq(email.clone()))
             .one(db)
             .await
             .map_err(database_error)?
@@ -84,7 +84,7 @@ impl AccountQuery {
         let db = context.db();
 
         let accounts = AccountEntity::find()
-            .filter(crate::types::account::Column::Active.eq(true))
+            .filter(AccountColumn::Active.eq(true))
             .limit(limit)
             .all(db)
             .await
@@ -104,7 +104,7 @@ impl AccountQuery {
         let db = context.db();
 
         let accounts = AccountEntity::find()
-            .filter(crate::types::account::Column::Role.eq(role))
+            .filter(AccountColumn::Role.eq(role))
             .limit(limit)
             .all(db)
             .await
@@ -131,7 +131,7 @@ impl AccountMutation {
 
         // Check if email already exists
         let existing = AccountEntity::find()
-            .filter(crate::types::account::Column::Email.eq(&input.email))
+            .filter(AccountColumn::Email.eq(&input.email))
             .one(db)
             .await
             .map_err(database_error)?;
@@ -144,7 +144,7 @@ impl AccountMutation {
         }
 
         let now = Utc::now().naive_utc();
-        let account = crate::types::account::ActiveModel {
+        let account = AccountActiveModel {
             email: ActiveValue::Set(input.email),
             name: ActiveValue::Set(input.name),
             role: ActiveValue::Set(input.role),
@@ -175,7 +175,7 @@ impl AccountMutation {
             .map_err(database_error)?
             .ok_or_else(|| not_found(format!("Account with id {} not found", id)))?;
 
-        let mut active: crate::types::account::ActiveModel = account.into();
+        let mut active: AccountActiveModel = account.into();
 
         // Update fields if provided
         if let Some(email) = input.email {
@@ -186,8 +186,8 @@ impl AccountMutation {
 
             // Check if new email already exists
             let existing = AccountEntity::find()
-                .filter(crate::types::account::Column::Email.eq(&email))
-                .filter(crate::types::account::Column::Id.ne(id))
+                .filter(AccountColumn::Email.eq(&email))
+                .filter(AccountColumn::Id.ne(id))
                 .one(db)
                 .await
                 .map_err(database_error)?;
@@ -227,7 +227,7 @@ impl AccountMutation {
             .map_err(database_error)?
             .ok_or_else(|| not_found(format!("Account with id {} not found", id)))?;
 
-        let active: crate::types::account::ActiveModel = account.into();
+        let active: AccountActiveModel = account.into();
         active.delete(db).await.map_err(database_error)?;
 
         Ok(true)

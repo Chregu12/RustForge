@@ -1,0 +1,18 @@
+[package]
+name = "foundry-command-pipeline"
+description = "Command chaining and pipeline execution for batch operations"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+tokio.workspace = true
+thiserror.workspace = true
+futures.workspace = true
+async-trait.workspace = true
+serde = { workspace = true, optional = true }
+
+[features]
+default = []
+serde = ["dep:serde"]

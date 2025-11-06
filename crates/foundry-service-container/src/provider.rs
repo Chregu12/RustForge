@@ -34,6 +34,7 @@ pub trait ServiceProvider: Send + Sync {
 }
 
 /// Registry for managing service providers
+#[derive(Clone)]
 pub struct ProviderRegistry {
     providers: Arc<RwLock<Vec<Arc<dyn ServiceProvider>>>>,
     registered: Arc<RwLock<HashMap<String, bool>>>,

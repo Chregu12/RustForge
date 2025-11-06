@@ -3,12 +3,12 @@
 use crate::command::TinkerCommand;
 use crate::completer::TinkerCompleter;
 use crate::helpers::TinkerHelpers;
-use crate::highlighter::TinkerHighlighter;
 use crate::history::TinkerHistory;
 use crate::session::{SessionManager, SessionScript};
 use anyhow::Result;
 use colored::Colorize;
 use rustyline::error::ReadlineError;
+use rustyline::history::DefaultHistory;
 use rustyline::Editor;
 use std::path::PathBuf;
 
@@ -42,18 +42,18 @@ impl Default for TinkerReplConfig {
 /// Enhanced Tinker REPL
 pub struct TinkerRepl {
     config: TinkerReplConfig,
-    history: TinkerHistory,
+    history_manager: TinkerHistory,
     helpers: TinkerHelpers,
     session_manager: SessionManager,
     session_commands: Vec<String>,
-    editor: Editor<TinkerCompleter, TinkerHistory>,
+    editor: Editor<TinkerCompleter, DefaultHistory>,
 }
 
 impl TinkerRepl {
     /// Create a new Tinker REPL
     pub fn new(config: TinkerReplConfig) -> Result<Self> {
-        let mut history = TinkerHistory::new(config.history_path.clone());
-        history.load()?;
+        let mut history_manager = TinkerHistory::new(config.history_path.clone());
+        history_manager.load()?;
 
         let helpers = TinkerHelpers::new();
         let session_manager = SessionManager::new(config.sessions_dir.clone());
@@ -65,7 +65,7 @@ impl TinkerRepl {
 
         Ok(Self {
             config,
-            history,
+            history_manager,
             helpers,
             session_manager,
             session_commands,
@@ -85,7 +85,8 @@ impl TinkerRepl {
                         continue;
                     }
 
-                    self.history.add(trimmed)?;
+                    let _ = self.editor.add_history_entry(trimmed);
+                    self.history_manager.add(trimmed)?;
                     self.session_commands.push(trimmed.to_string());
 
                     let command = TinkerCommand::parse(trimmed);
@@ -115,7 +116,7 @@ impl TinkerRepl {
             }
         }
 
-        self.history.save()?;
+        self.history_manager.save()?;
         Ok(())
     }
 
@@ -203,7 +204,7 @@ impl TinkerRepl {
 
     /// Show command history
     fn show_history(&self) {
-        let entries = self.history.last_n(20);
+        let entries = self.history_manager.last_n(20);
         println!("\n{}\n", "Recent History:".bold());
         for (i, entry) in entries.iter().enumerate() {
             println!("  {:3}. {}", i + 1, entry);

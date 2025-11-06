@@ -41,11 +41,13 @@ pub mod store;
 pub mod stores;
 pub mod manager;
 pub mod tags;
+pub mod zero_copy;
 
 pub use store::{CacheStore, CacheValue, CacheStats, CacheError};
 pub use stores::{MemoryStore, RedisStore, FileStore};
 pub use manager::{CacheManager, CacheConfig};
 pub use tags::TaggedCache;
+pub use zero_copy::{ZeroCopyCache, CachedData, ZeroCopyError};
 
 /// Prelude module for convenient imports
 pub mod prelude {

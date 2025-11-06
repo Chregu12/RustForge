@@ -3,6 +3,10 @@ use chrono::{DateTime, Utc};
 use sea_orm::entity::prelude::*;
 use serde::{Deserialize, Serialize};
 
+// Type aliases for SeaORM
+pub type Decimal = rust_decimal::Decimal;
+pub type DateTimeUtc = chrono::NaiveDateTime;
+
 /// Product Entity for Sea-ORM
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Serialize, Deserialize)]
 #[sea_orm(table_name = "products")]
@@ -76,4 +80,7 @@ pub struct UpdateProductInput {
     pub active: Option<bool>,
 }
 
-pub use Entity as ProductEntity;
+// Type aliases for the generated SeaORM types
+pub type ProductEntity = Entity;
+pub type ProductColumn = Column;
+pub type ProductActiveModel = ActiveModel;

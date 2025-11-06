@@ -1,6 +1,7 @@
 //! Application Layer für Foundry Core.
 
 pub mod auth;
+pub mod lazy_config;
 mod commands;
 mod error;
 mod registry;
@@ -30,6 +31,7 @@ use std::sync::Arc;
 
 use foundry_storage::config::StorageConfig;
 use foundry_storage::manager::StorageManager;
+use tracing::{info, instrument};
 
 #[derive(Clone)]
 pub struct FoundryApp {
@@ -91,6 +93,7 @@ impl FoundryApp {
         self.providers.clone()
     }
 
+    #[instrument(skip(self, args), fields(command, num_args = args.len()))]
     pub async fn dispatch(
         &self,
         command: &str,
@@ -98,12 +101,14 @@ impl FoundryApp {
         format: ResponseFormat,
         options: ExecutionOptions,
     ) -> Result<CommandResult, ApplicationError> {
+        info!("Dispatching command: {}", command);
+
         let handle = self
             .registry
-            .resolve(command)
+            .resolve(command)?
             .ok_or_else(|| ApplicationError::CommandNotFound(command.to_string()))?;
 
-        let catalog = self.registry.descriptors();
+        let catalog = self.registry.descriptors()?;
         let args_snapshot = args.clone();
         let metadata = serde_json::json!({
             "invocation": {

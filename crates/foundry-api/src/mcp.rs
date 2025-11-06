@@ -151,6 +151,8 @@ fn format_application_error(err: ApplicationError) -> String {
         }
         ApplicationError::CommandExecution(inner) => inner.to_string(),
         ApplicationError::StorageError(message) => format!("Storage Error: {message}"),
+        ApplicationError::RegistryCorrupted => "Registry corrupted: lock poisoned".to_string(),
+        ApplicationError::LockPoisoned(msg) => format!("Lock poisoned: {msg}"),
     }
 }
 

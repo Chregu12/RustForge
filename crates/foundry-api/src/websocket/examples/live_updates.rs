@@ -56,7 +56,7 @@ impl LiveUpdate {
 
     /// Konvertiert zu WebSocket-Nachricht
     pub fn to_websocket_message(&self) -> serde_json::Result<WebSocketMessage> {
-        WebSocketMessage::event(&self.event_type, json!(self))
+        Ok(WebSocketMessage::event(&self.event_type, json!(self)))
     }
 }
 

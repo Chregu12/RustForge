@@ -4,7 +4,8 @@ pub mod error;
 pub use error::{AppError, AppResult, ErrorContextField};
 
 use async_trait::async_trait;
-use foundry_domain::CommandDescriptor;
+// Re-export CommandDescriptor for convenience
+pub use foundry_domain::CommandDescriptor;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::fmt;

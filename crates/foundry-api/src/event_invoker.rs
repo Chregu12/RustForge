@@ -7,13 +7,14 @@ use crate::events::{CommandEvent, EventDispatcher};
 use crate::invocation::{CommandInvoker, InvocationRequest};
 use foundry_application::ApplicationError;
 use foundry_plugins::CommandResult;
+use std::sync::Arc;
 use std::time::Instant;
 use tracing::{debug, info};
 
 /// A command invoker that dispatches events during command execution
 #[derive(Clone)]
 pub struct EventDispatchingInvoker {
-    inner: Box<dyn CommandInvoker>,
+    inner: Arc<dyn CommandInvoker>,
     dispatcher: EventDispatcher,
 }
 
@@ -24,7 +25,7 @@ impl EventDispatchingInvoker {
     ///
     /// * `inner` - The underlying command invoker to delegate to
     /// * `dispatcher` - The event dispatcher to publish events to
-    pub fn new(inner: Box<dyn CommandInvoker>, dispatcher: EventDispatcher) -> Self {
+    pub fn new(inner: Arc<dyn CommandInvoker>, dispatcher: EventDispatcher) -> Self {
         Self { inner, dispatcher }
     }
 
@@ -87,6 +88,12 @@ impl CommandInvoker for EventDispatchingInvoker {
                     ),
                     ApplicationError::StorageError(msg) => {
                         foundry_plugins::AppError::new("STORAGE_ERROR", msg)
+                    }
+                    ApplicationError::RegistryCorrupted => {
+                        foundry_plugins::AppError::new("REGISTRY_CORRUPTED", "Registry corrupted: lock poisoned")
+                    }
+                    ApplicationError::LockPoisoned(msg) => {
+                        foundry_plugins::AppError::new("LOCK_POISONED", format!("Lock poisoned: {}", msg))
                     }
                 };
 

@@ -27,6 +27,10 @@ uuid.workspace = true
 tower-sessions.workspace = true
 jsonwebtoken.workspace = true
 lazy_static = "1.5"
+prometheus = "0.13"
+smallvec.workspace = true
+rustc-hash.workspace = true
+colored = "2.1"
 
 [dev-dependencies]
 axum.workspace = true

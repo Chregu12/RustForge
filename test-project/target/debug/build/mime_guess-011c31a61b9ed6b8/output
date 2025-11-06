@@ -1,0 +1,1 @@
+cargo:rustc-env=MIME_TYPES_GENERATED_PATH=/Users/christian/Developer/Github_Projekte/Rust_DX-Framework/test-project/target/debug/build/mime_guess-011c31a61b9ed6b8/out/mime_types_generated.rs

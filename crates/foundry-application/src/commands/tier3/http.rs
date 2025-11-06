@@ -1,24 +1,30 @@
 //! HTTP client commands
 
 use async_trait::async_trait;
-use foundry_domain::CommandDescriptor;
+use foundry_domain::{CommandDescriptor, CommandKind};
 use foundry_plugins::{CommandContext, CommandError, CommandResult, FoundryCommand};
 
 /// http:request <method> <url>
-pub struct HttpRequestCommand;
+pub struct HttpRequestCommand {
+    descriptor: CommandDescriptor,
+}
+
+impl HttpRequestCommand {
+    pub fn new() -> Self {
+        Self {
+            descriptor: CommandDescriptor::builder("http:request", "http:request")
+                .summary("Make an HTTP request")
+                .description("Make an HTTP request (GET, POST, etc.) using the HTTP client")
+                .category(CommandKind::Utility)
+                .build(),
+        }
+    }
+}
 
 #[async_trait]
 impl FoundryCommand for HttpRequestCommand {
     fn descriptor(&self) -> &CommandDescriptor {
-        &CommandDescriptor {
-            name: "http:request".to_string(),
-            description: "Make an HTTP request (GET, POST, etc.)".to_string(),
-            usage: "http:request <METHOD> <URL> [--header KEY=VALUE] [--body JSON]".to_string(),
-            examples: vec![
-                "http:request GET https://api.example.com/users".to_string(),
-                "http:request POST https://api.example.com/users --body '{\"name\":\"John\"}'".to_string(),
-            ],
-        }
+        &self.descriptor
     }
 
     async fn execute(&self, ctx: CommandContext) -> Result<CommandResult, CommandError> {

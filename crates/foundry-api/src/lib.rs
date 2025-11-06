@@ -4,11 +4,14 @@ pub mod context_extensions;
 pub mod error;
 pub mod event_invoker;
 pub mod events;
+pub mod health_endpoint;
 pub mod http;
 pub mod input;
 pub mod invocation;
 pub mod isolatable;
 pub mod mcp;
+pub mod metrics_endpoint;
+pub mod optimized_input;
 pub mod queued_commands;
 pub mod request;
 pub mod response;
@@ -23,9 +26,13 @@ pub use console::Console;
 pub use context_extensions::CommandContextExt;
 pub use event_invoker::EventDispatchingInvoker;
 pub use events::{CommandEvent, CommandEventListener, EventDispatcher};
+pub use health_endpoint::{
+    health_check, health_check_detailed, liveness_check, readiness_check,
+};
 pub use http::{app_router, AppRouter, AppState, HttpServer};
 pub use input::{InputParser, InputValidator, ValidationRule, Rule, ValidationViolation};
 pub use invocation::{FoundryInvoker, InvocationRequest};
+pub use metrics_endpoint::metrics_handler;
 pub use request::AppJson;
 pub use response::{ApiResult, JsonResponse, ResponseEnvelope};
 pub use stubs::{Stub, StubManager, StubVariables, StubError};

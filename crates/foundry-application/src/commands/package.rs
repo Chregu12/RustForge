@@ -19,7 +19,7 @@ impl PackageInstallCommand {
             descriptor: CommandDescriptor::builder("package.install", "package:install")
                 .summary("Installiert ein Package")
                 .description("Installiert ein Rust Package von crates.io")
-                .category(CommandKind::System)
+                .category(CommandKind::Utility)
                 .build(),
         }
     }
@@ -33,9 +33,9 @@ impl FoundryCommand for PackageInstallCommand {
 
     async fn execute(&self, ctx: CommandContext) -> Result<CommandResult, CommandError> {
         let package_name = ctx.args.get("package")
-            .ok_or_else(|| CommandError::MissingArgument("package".to_string()))?
+            .ok_or_else(|| CommandError::Message("Missing argument: package".to_string()))?
             .as_str()
-            .ok_or_else(|| CommandError::InvalidArgument("package".to_string()))?;
+            .ok_or_else(|| CommandError::Message("Invalid argument: package".to_string()))?;
 
         let version = ctx.args.get("version")
             .and_then(|v| v.as_str());
@@ -43,7 +43,7 @@ impl FoundryCommand for PackageInstallCommand {
         let pm = PackageManager::new(".");
         pm.install(package_name, version)
             .await
-            .map_err(|e| CommandError::Execution(e.to_string()))?;
+            .map_err(|e| CommandError::Message(e.to_string()))?;
 
         Ok(CommandResult {
             status: CommandStatus::Success,
@@ -74,7 +74,7 @@ impl PackageRemoveCommand {
             descriptor: CommandDescriptor::builder("package.remove", "package:remove")
                 .summary("Entfernt ein Package")
                 .description("Entfernt ein installiertes Package")
-                .category(CommandKind::System)
+                .category(CommandKind::Utility)
                 .build(),
         }
     }
@@ -88,14 +88,14 @@ impl FoundryCommand for PackageRemoveCommand {
 
     async fn execute(&self, ctx: CommandContext) -> Result<CommandResult, CommandError> {
         let package_name = ctx.args.get("package")
-            .ok_or_else(|| CommandError::MissingArgument("package".to_string()))?
+            .ok_or_else(|| CommandError::Message("Missing argument: package".to_string()))?
             .as_str()
-            .ok_or_else(|| CommandError::InvalidArgument("package".to_string()))?;
+            .ok_or_else(|| CommandError::Message("Invalid argument: package".to_string()))?;
 
         let pm = PackageManager::new(".");
         pm.remove(package_name)
             .await
-            .map_err(|e| CommandError::Execution(e.to_string()))?;
+            .map_err(|e| CommandError::Message(e.to_string()))?;
 
         Ok(CommandResult {
             status: CommandStatus::Success,
@@ -123,7 +123,7 @@ impl PackageUpdateCommand {
             descriptor: CommandDescriptor::builder("package.update", "package:update")
                 .summary("Aktualisiert Packages")
                 .description("Aktualisiert alle oder ein spezifisches Package")
-                .category(CommandKind::System)
+                .category(CommandKind::Utility)
                 .build(),
         }
     }
@@ -143,7 +143,7 @@ impl FoundryCommand for PackageUpdateCommand {
         if let Some(package) = package_name {
             pm.update_package(package)
                 .await
-                .map_err(|e| CommandError::Execution(e.to_string()))?;
+                .map_err(|e| CommandError::Message(e.to_string()))?;
 
             Ok(CommandResult {
                 status: CommandStatus::Success,
@@ -154,7 +154,7 @@ impl FoundryCommand for PackageUpdateCommand {
         } else {
             pm.update()
                 .await
-                .map_err(|e| CommandError::Execution(e.to_string()))?;
+                .map_err(|e| CommandError::Message(e.to_string()))?;
 
             Ok(CommandResult {
                 status: CommandStatus::Success,
@@ -183,7 +183,7 @@ impl PackageListCommand {
             descriptor: CommandDescriptor::builder("package.list", "package:list")
                 .summary("Listet installierte Packages")
                 .description("Zeigt alle installierten Packages an")
-                .category(CommandKind::Monitoring)
+                .category(CommandKind::Utility)
                 .build(),
         }
     }
@@ -199,7 +199,7 @@ impl FoundryCommand for PackageListCommand {
         let pm = PackageManager::new(".");
         let packages = pm.list()
             .await
-            .map_err(|e| CommandError::Execution(e.to_string()))?;
+            .map_err(|e| CommandError::Message(e.to_string()))?;
 
         Ok(CommandResult {
             status: CommandStatus::Success,
@@ -227,7 +227,7 @@ impl PackageSearchCommand {
             descriptor: CommandDescriptor::builder("package.search", "package:search")
                 .summary("Sucht nach Packages")
                 .description("Sucht auf crates.io nach Packages")
-                .category(CommandKind::System)
+                .category(CommandKind::Utility)
                 .build(),
         }
     }
@@ -241,14 +241,14 @@ impl FoundryCommand for PackageSearchCommand {
 
     async fn execute(&self, ctx: CommandContext) -> Result<CommandResult, CommandError> {
         let query = ctx.args.get("query")
-            .ok_or_else(|| CommandError::MissingArgument("query".to_string()))?
+            .ok_or_else(|| CommandError::Message("Missing argument: query".to_string()))?
             .as_str()
-            .ok_or_else(|| CommandError::InvalidArgument("query".to_string()))?;
+            .ok_or_else(|| CommandError::Message("Invalid argument: query".to_string()))?;
 
         let pm = PackageManager::new(".");
         let results = pm.search(query)
             .await
-            .map_err(|e| CommandError::Execution(e.to_string()))?;
+            .map_err(|e| CommandError::Message(e.to_string()))?;
 
         Ok(CommandResult {
             status: CommandStatus::Success,
@@ -276,7 +276,7 @@ impl PackageOutdatedCommand {
             descriptor: CommandDescriptor::builder("package.outdated", "package:outdated")
                 .summary("Zeigt veraltete Packages")
                 .description("Listet alle veralteten Packages auf")
-                .category(CommandKind::Monitoring)
+                .category(CommandKind::Utility)
                 .build(),
         }
     }
@@ -292,7 +292,7 @@ impl FoundryCommand for PackageOutdatedCommand {
         let pm = PackageManager::new(".");
         let outdated = pm.outdated()
             .await
-            .map_err(|e| CommandError::Execution(e.to_string()))?;
+            .map_err(|e| CommandError::Message(e.to_string()))?;
 
         if outdated.is_empty() {
             Ok(CommandResult {

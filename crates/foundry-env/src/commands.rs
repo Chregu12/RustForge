@@ -1,25 +1,26 @@
 //! Environment management commands
 
 use crate::validator::{EnvRule, EnvValidator, VarType};
-use anyhow::Result;
 use async_trait::async_trait;
-use foundry_plugins::{CommandExecutor, CommandResult, ExecutionContext};
+use foundry_plugins::{FoundryCommand, CommandResult, CommandContext, CommandError};
 use std::path::PathBuf;
 
 /// Validate environment variables
 pub struct EnvValidateCommand;
 
 #[async_trait]
-impl CommandExecutor for EnvValidateCommand {
-    fn name(&self) -> &'static str {
-        "env:validate"
+impl FoundryCommand for EnvValidateCommand {
+    fn descriptor(&self) -> &foundry_domain::CommandDescriptor {
+        use std::sync::OnceLock;
+        static DESCRIPTOR: OnceLock<foundry_domain::CommandDescriptor> = OnceLock::new();
+        DESCRIPTOR.get_or_init(|| {
+            foundry_domain::CommandDescriptor::builder("env:validate", "validate")
+                .description("Validate environment variables against requirements")
+                .build()
+        })
     }
 
-    fn description(&self) -> &'static str {
-        "Validate environment variables against requirements"
-    }
-
-    async fn execute(&self, ctx: &ExecutionContext) -> Result<CommandResult> {
+    async fn execute(&self, _ctx: CommandContext) -> Result<CommandResult, CommandError> {
         // Common required variables
         let rules = vec![
             EnvRule {
@@ -42,7 +43,8 @@ impl CommandExecutor for EnvValidateCommand {
 
         // Load current environment
         let env_path = PathBuf::from(".env");
-        let env_vars = crate::load_env(&env_path)?;
+        let env_vars = crate::load_env(&env_path)
+            .map_err(|e| CommandError::Other(e))?;
 
         let results = validator.validate(&env_vars);
         let output = validator.format_results(&results);
@@ -52,7 +54,7 @@ impl CommandExecutor for EnvValidateCommand {
         if all_valid {
             Ok(CommandResult::success(&output))
         } else {
-            Ok(CommandResult::error(&output))
+            Err(CommandError::Message(output))
         }
     }
 }
@@ -61,23 +63,26 @@ impl CommandExecutor for EnvValidateCommand {
 pub struct EnvReloadCommand;
 
 #[async_trait]
-impl CommandExecutor for EnvReloadCommand {
-    fn name(&self) -> &'static str {
-        "env:reload"
+impl FoundryCommand for EnvReloadCommand {
+    fn descriptor(&self) -> &foundry_domain::CommandDescriptor {
+        use std::sync::OnceLock;
+        static DESCRIPTOR: OnceLock<foundry_domain::CommandDescriptor> = OnceLock::new();
+        DESCRIPTOR.get_or_init(|| {
+            foundry_domain::CommandDescriptor::builder("env:reload", "reload")
+                .description("Reload environment variables from .env file")
+                .build()
+        })
     }
 
-    fn description(&self) -> &'static str {
-        "Reload environment variables from .env file"
-    }
-
-    async fn execute(&self, _ctx: &ExecutionContext) -> Result<CommandResult> {
+    async fn execute(&self, _ctx: CommandContext) -> Result<CommandResult, CommandError> {
         let env_path = PathBuf::from(".env");
 
         if !env_path.exists() {
-            return Ok(CommandResult::error(".env file not found"));
+            return Err(CommandError::Message(".env file not found".to_string()));
         }
 
-        let count = crate::reload_env(&env_path)?;
+        let count = crate::reload_env(&env_path)
+            .map_err(|e| CommandError::Other(e))?;
 
         Ok(CommandResult::success(&format!(
             "Reloaded {} environment variables",
@@ -102,7 +107,7 @@ mod tests {
         fs::write(".env", "APP_ENV=production\n").unwrap();
 
         let cmd = EnvValidateCommand;
-        let ctx = ExecutionContext {
+        let ctx = CommandContext {
             args: vec![],
             format: ResponseFormat::Human,
             options: ExecutionOptions {
@@ -111,7 +116,7 @@ mod tests {
             },
         };
 
-        let result = cmd.execute(&ctx).await.unwrap();
+        let result = cmd.execute(ctx).await.unwrap();
         assert!(result.message.is_some());
 
         std::env::set_current_dir(original_dir).unwrap();
@@ -126,7 +131,7 @@ mod tests {
         fs::write(".env", "TEST_VAR=test_value\n").unwrap();
 
         let cmd = EnvReloadCommand;
-        let ctx = ExecutionContext {
+        let ctx = CommandContext {
             args: vec![],
             format: ResponseFormat::Human,
             options: ExecutionOptions {
@@ -135,7 +140,7 @@ mod tests {
             },
         };
 
-        let result = cmd.execute(&ctx).await.unwrap();
+        let result = cmd.execute(ctx).await.unwrap();
         assert!(result.is_success());
 
         std::env::set_current_dir(original_dir).unwrap();

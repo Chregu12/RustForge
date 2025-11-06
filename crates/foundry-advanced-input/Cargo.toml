@@ -1,0 +1,21 @@
+[package]
+name = "foundry-advanced-input"
+description = "Advanced input handling with array support and validation"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+thiserror.workspace = true
+regex.workspace = true
+serde = { workspace = true, optional = true }
+serde_json = { workspace = true, optional = true }
+
+[features]
+default = []
+serde = ["dep:serde", "dep:serde_json"]
+
+[dev-dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }

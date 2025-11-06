@@ -25,7 +25,10 @@ impl Dashboard {
     }
 
     pub async fn render(&self) -> anyhow::Result<DashboardData> {
-        let widgets = self.widgets.read().unwrap();
+        let widgets = {
+            let widgets_lock = self.widgets.read().unwrap();
+            widgets_lock.clone()
+        };
         let mut rendered = Vec::new();
 
         for widget in widgets.iter() {

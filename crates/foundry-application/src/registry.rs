@@ -3,6 +3,7 @@ use foundry_domain::CommandDescriptor;
 use foundry_plugins::DynCommand;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
+use tracing::{debug, instrument};
 
 #[derive(Clone, Default)]
 pub struct CommandRegistry {
@@ -17,9 +18,11 @@ struct RegistryState {
 
 
 impl CommandRegistry {
+    #[instrument(skip(self, command), fields(command_name = %command.descriptor().name))]
     pub fn register(&self, command: DynCommand) -> Result<(), ApplicationError> {
         let descriptor = command.descriptor().clone();
-        let mut inner = self.inner.lock().expect("registry poisoned");
+        let mut inner = self.inner.lock()
+            .map_err(|_| ApplicationError::RegistryCorrupted)?;
         let index = inner.commands.len();
         let mut keys = Vec::new();
         keys.push(descriptor.id.as_str().to_lowercase());
@@ -44,29 +47,41 @@ impl CommandRegistry {
         Ok(())
     }
 
-    pub fn resolve(&self, command: &str) -> Option<DynCommand> {
-        let inner = self.inner.lock().expect("registry poisoned");
+    #[instrument(skip(self), fields(command))]
+    pub fn resolve(&self, command: &str) -> Result<Option<DynCommand>, ApplicationError> {
+        let inner = self.inner.lock()
+            .map_err(|_| ApplicationError::RegistryCorrupted)?;
         let key = command.to_lowercase();
-        let index = inner.lookup.get(&key)?;
-        inner.commands.get(*index).cloned()
+        let index = inner.lookup.get(&key);
+        let result = index.and_then(|idx| inner.commands.get(*idx).cloned());
+
+        if result.is_some() {
+            debug!("Command resolved successfully");
+        } else {
+            debug!("Command not found in registry");
+        }
+
+        Ok(result)
     }
 
-    pub fn descriptors(&self) -> Vec<CommandDescriptor> {
-        let inner = self.inner.lock().expect("registry poisoned");
-        inner
+    pub fn descriptors(&self) -> Result<Vec<CommandDescriptor>, ApplicationError> {
+        let inner = self.inner.lock()
+            .map_err(|_| ApplicationError::RegistryCorrupted)?;
+        Ok(inner
             .commands
             .iter()
             .map(|cmd| cmd.descriptor().clone())
-            .collect()
+            .collect())
     }
 
-    pub fn len(&self) -> usize {
-        let inner = self.inner.lock().expect("registry poisoned");
-        inner.commands.len()
+    pub fn len(&self) -> Result<usize, ApplicationError> {
+        let inner = self.inner.lock()
+            .map_err(|_| ApplicationError::RegistryCorrupted)?;
+        Ok(inner.commands.len())
     }
 
     #[allow(dead_code)]
-    pub fn is_empty(&self) -> bool {
-        self.len() == 0
+    pub fn is_empty(&self) -> Result<bool, ApplicationError> {
+        Ok(self.len()? == 0)
     }
 }

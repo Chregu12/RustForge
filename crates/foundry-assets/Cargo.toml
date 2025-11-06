@@ -10,8 +10,10 @@ authors.workspace = true
 anyhow.workspace = true
 async-trait.workspace = true
 foundry-plugins = { path = "../foundry-plugins" }
+foundry-domain = { path = "../foundry-domain" }
 serde.workspace = true
 serde_json.workspace = true
+chrono.workspace = true
 sha2 = "0.10"
 hex = "0.4"
 walkdir = "2.5"

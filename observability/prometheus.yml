@@ -1,0 +1,138 @@
+# Prometheus Configuration for RustForge Framework
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'rustforge-production'
+    environment: 'production'
+
+# Alertmanager configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - alertmanager:9093
+
+# Load rules
+rule_files:
+  - '/etc/prometheus/rules/*.yml'
+
+# Scrape configurations
+scrape_configs:
+  # RustForge Application Metrics
+  - job_name: 'rustforge-app'
+    static_configs:
+      - targets:
+          - 'localhost:9090'
+        labels:
+          service: 'rustforge'
+          tier: 'application'
+
+    metrics_path: '/metrics'
+    scrape_interval: 10s
+    scrape_timeout: 5s
+
+  # RustForge API Metrics
+  - job_name: 'rustforge-api'
+    static_configs:
+      - targets:
+          - 'localhost:8000'
+        labels:
+          service: 'rustforge-api'
+          tier: 'api'
+
+    metrics_path: '/api/metrics'
+    scrape_interval: 10s
+
+  # Database Metrics (PostgreSQL)
+  - job_name: 'postgres'
+    static_configs:
+      - targets:
+          - 'postgres-exporter:9187'
+        labels:
+          service: 'postgres'
+          tier: 'database'
+
+  # Redis Metrics
+  - job_name: 'redis'
+    static_configs:
+      - targets:
+          - 'redis-exporter:9121'
+        labels:
+          service: 'redis'
+          tier: 'cache'
+
+  # Node Exporter (System Metrics)
+  - job_name: 'node'
+    static_configs:
+      - targets:
+          - 'node-exporter:9100'
+        labels:
+          tier: 'infrastructure'
+
+  # Docker Metrics
+  - job_name: 'docker'
+    static_configs:
+      - targets:
+          - 'cadvisor:8080'
+        labels:
+          tier: 'infrastructure'
+
+  # Nginx Metrics
+  - job_name: 'nginx'
+    static_configs:
+      - targets:
+          - 'nginx-exporter:9113'
+        labels:
+          service: 'nginx'
+          tier: 'proxy'
+
+  # Custom Application Metrics
+  - job_name: 'rustforge-custom'
+    static_configs:
+      - targets:
+          - 'localhost:8000'
+        labels:
+          service: 'rustforge-custom'
+
+    metrics_path: '/internal/metrics'
+    scrape_interval: 30s
+
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: 'rustforge_.*'
+        action: keep
+
+# Service discovery for Kubernetes (optional)
+  - job_name: 'kubernetes-pods'
+    kubernetes_sd_configs:
+      - role: pod
+
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+        action: keep
+        regex: true
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+        action: replace
+        target_label: __metrics_path__
+        regex: (.+)
+      - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+        action: replace
+        regex: ([^:]+)(?::\d+)?;(\d+)
+        replacement: $1:$2
+        target_label: __address__
+
+# Remote write for long-term storage (optional)
+# remote_write:
+#   - url: "https://prometheus-remote-write-endpoint/api/v1/write"
+#     basic_auth:
+#       username: "user"
+#       password: "password"
+
+# Remote read for long-term storage (optional)
+# remote_read:
+#   - url: "https://prometheus-remote-read-endpoint/api/v1/read"
+#     basic_auth:
+#       username: "user"
+#       password: "password"

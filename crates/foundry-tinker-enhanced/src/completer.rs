@@ -2,7 +2,10 @@
 
 use crate::command::TinkerCommand;
 use rustyline::completion::{Completer, Pair};
-use rustyline::Context;
+use rustyline::highlight::Highlighter;
+use rustyline::hint::Hinter;
+use rustyline::validate::Validator;
+use rustyline::{Helper, Context};
 use rustyline::Result as RustylineResult;
 
 /// Tab completer for Tinker
@@ -101,6 +104,22 @@ impl Completer for TinkerCompleter {
         Ok((0, completions))
     }
 }
+
+// Implement Helper trait (required by rustyline 14.0)
+impl Helper for TinkerCompleter {}
+
+// Implement required traits for Helper
+impl Hinter for TinkerCompleter {
+    type Hint = String;
+
+    fn hint(&self, _line: &str, _pos: usize, _ctx: &Context<'_>) -> Option<String> {
+        None
+    }
+}
+
+impl Highlighter for TinkerCompleter {}
+
+impl Validator for TinkerCompleter {}
 
 #[cfg(test)]
 mod tests {

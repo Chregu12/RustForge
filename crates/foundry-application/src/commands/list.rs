@@ -33,7 +33,8 @@ impl FoundryCommand for ListCommand {
     }
 
     async fn execute(&self, ctx: CommandContext) -> Result<CommandResult, CommandError> {
-        let catalog = self.registry.descriptors();
+        let catalog = self.registry.descriptors()
+            .map_err(|e| CommandError::Message(e.to_string()))?;
         let total = catalog.len();
 
         let message = match ctx.format {
@@ -52,10 +53,9 @@ impl FoundryCommand for ListCommand {
                     let category_colored = match entry.category {
                         CommandKind::Core => category_str.cyan(),
                         CommandKind::Generator => category_str.green(),
-                        CommandKind::Migration => category_str.yellow(),
-                        CommandKind::Cache => category_str.magenta(),
-                        CommandKind::Queue => category_str.blue(),
-                        _ => category_str,
+                        CommandKind::Database => category_str.yellow(),
+                        CommandKind::Runtime => category_str.magenta(),
+                        CommandKind::Utility => category_str.blue(),
                     };
 
                     table.add_row(TableRow::new(vec![

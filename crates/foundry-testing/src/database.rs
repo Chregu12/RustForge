@@ -1,4 +1,4 @@
-use sea_orm::{Database, DatabaseConnection, DbErr, Statement};
+use sea_orm::{ConnectionTrait, Database, DatabaseConnection, DbErr, Statement};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 

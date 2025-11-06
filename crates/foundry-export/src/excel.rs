@@ -49,7 +49,7 @@ impl ExcelExporter {
             header_format = header_format.set_bold();
         }
         if let Some(color) = &self.style.header_bg_color {
-            header_format = header_format.set_background_color(color);
+            header_format = header_format.set_background_color(color.as_str());
         }
 
         // Write headers

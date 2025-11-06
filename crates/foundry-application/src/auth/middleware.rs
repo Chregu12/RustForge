@@ -209,7 +209,6 @@ where
 #[derive(Debug, Clone)]
 pub struct RequireAuth(pub AuthUser);
 
-#[axum::async_trait]
 impl<S> axum::extract::FromRequestParts<S> for RequireAuth
 where
     S: Send + Sync,
@@ -247,7 +246,6 @@ where
 #[derive(Debug, Clone)]
 pub struct OptionalAuth(pub Option<AuthUser>);
 
-#[axum::async_trait]
 impl<S> axum::extract::FromRequestParts<S> for OptionalAuth
 where
     S: Send + Sync,

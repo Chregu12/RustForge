@@ -3,6 +3,7 @@
 pub mod artifacts;
 pub mod audit;
 pub mod config;
+pub mod database;
 pub mod migrations;
 pub mod seeds;
 

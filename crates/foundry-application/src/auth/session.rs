@@ -68,6 +68,7 @@ pub trait SessionStore: Send + Sync {
     async fn load(&self, session_id: &str) -> Option<Session>;
     async fn save(&self, session: Session);
     async fn remove(&self, session_id: &str);
+    fn ttl(&self) -> Duration;
 }
 
 /// In-memory session store implementation
@@ -122,6 +123,10 @@ impl SessionStore for InMemorySessionStore {
 
     async fn remove(&self, session_id: &str) {
         self.sessions.write().await.remove(session_id);
+    }
+
+    fn ttl(&self) -> Duration {
+        self.ttl
     }
 }
 
@@ -211,7 +216,7 @@ where
         {
             let mut session = self.session.write().await;
             session.user_id = Some(user.get_auth_id());
-            session.refresh(self.store.ttl);
+            session.refresh(self.store.ttl());
         }
         {
             let mut guard = self.current_user.write().await;

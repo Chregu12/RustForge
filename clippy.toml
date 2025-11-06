@@ -1,0 +1,45 @@
+# RustForge Framework Clippy Configuration
+
+# Linting thresholds
+cognitive-complexity-threshold = 30
+too-many-arguments-threshold = 8
+type-complexity-threshold = 500
+single-char-binding-names-threshold = 4
+too-large-for-stack = 200
+
+# Allow list (patterns that should not trigger lints)
+# Example: allow-dbg-in-tests = true
+# allow-expect-in-tests = true
+# allow-unwrap-in-tests = true
+
+# Disallowed names
+disallowed-names = ["foo", "bar", "baz", "quux"]
+
+# Documentation
+missing-docs-in-crate-items = false
+
+# Performance
+vec-box-size-threshold = 4096
+avoid-breaking-exported-api = true
+
+# Modules
+max-suggested-slice-pattern-length = 3
+
+# Allow certain patterns
+allow-mixed-uninlined-format-args = true
+suppress-restriction-lint-in-const = false
+
+# Enforce specific patterns
+enforce-iter-loop-reborrow = false
+
+# Standard library
+allow-print-in-tests = true
+allow-dbg-in-tests = true
+
+# Warn on common issues but don't fail
+# These are generally good practices but sometimes need exceptions
+# - module_name_repetitions
+# - similar_names
+# - must_use_candidate
+# - missing_errors_doc
+# - missing_panics_doc

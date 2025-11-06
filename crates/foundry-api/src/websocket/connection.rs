@@ -168,11 +168,12 @@ impl Connection {
         match msg {
             Message::Text(text) => {
                 debug!(connection_id = %conn_id, "Received text message");
-                if let Ok(ws_msg) = WebSocketMessage::from_json_string(&text) {
+                let text_str = text.to_string();
+                if let Ok(ws_msg) = WebSocketMessage::from_json_string(&text_str) {
                     let _ = tx.send(ws_msg);
                 } else {
                     // Fallback: Als einfache Text-Nachricht behandeln
-                    let _ = tx.send(WebSocketMessage::text(text));
+                    let _ = tx.send(WebSocketMessage::text(text_str));
                 }
             }
             Message::Binary(data) => {
@@ -197,7 +198,7 @@ impl Connection {
     pub async fn send(&self, msg: WebSocketMessage) -> anyhow::Result<()> {
         let json = msg.to_json_string()?;
         let mut sender = self.sender.lock().await;
-        sender.send(Message::Text(json)).await?;
+        sender.send(Message::Text(json.into())).await?;
         Ok(())
     }
 

@@ -250,8 +250,9 @@ async fn health() -> StatusCode {
     StatusCode::OK
 }
 
-async fn commands(State(state): State<AppState>) -> Json<Vec<CommandDescriptor>> {
-    Json(state.invoker.descriptors())
+async fn commands(State(state): State<AppState>) -> Result<Json<Vec<CommandDescriptor>>, HttpError> {
+    let descriptors = state.invoker.descriptors()?;
+    Ok(Json(descriptors))
 }
 
 async fn invoke(
@@ -307,6 +308,14 @@ fn map_application_error(err: ApplicationError) -> AppError {
         .with_status(StatusCode::INTERNAL_SERVER_ERROR.as_u16()),
         ApplicationError::StorageError(message) => {
             AppError::new("STORAGE_ERROR", format!("Storage Error: {message}"))
+                .with_status(StatusCode::INTERNAL_SERVER_ERROR.as_u16())
+        }
+        ApplicationError::RegistryCorrupted => {
+            AppError::new("REGISTRY_CORRUPTED", "Registry corrupted: lock poisoned")
+                .with_status(StatusCode::INTERNAL_SERVER_ERROR.as_u16())
+        }
+        ApplicationError::LockPoisoned(msg) => {
+            AppError::new("LOCK_POISONED", format!("Lock poisoned: {msg}"))
                 .with_status(StatusCode::INTERNAL_SERVER_ERROR.as_u16())
         }
     }

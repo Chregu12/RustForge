@@ -1,24 +1,30 @@
 //! Admin panel commands
 
 use async_trait::async_trait;
-use foundry_domain::CommandDescriptor;
+use foundry_domain::{CommandDescriptor, CommandKind};
 use foundry_plugins::{CommandContext, CommandError, CommandResult, FoundryCommand};
 
 /// make:admin-resource <Model>
-pub struct AdminResourceCommand;
+pub struct AdminResourceCommand {
+    descriptor: CommandDescriptor,
+}
+
+impl AdminResourceCommand {
+    pub fn new() -> Self {
+        Self {
+            descriptor: CommandDescriptor::builder("make:admin-resource", "make:admin-resource")
+                .summary("Generate an admin resource")
+                .description("Generate an admin resource for CRUD operations in the admin panel")
+                .category(CommandKind::Generator)
+                .build(),
+        }
+    }
+}
 
 #[async_trait]
 impl FoundryCommand for AdminResourceCommand {
     fn descriptor(&self) -> &CommandDescriptor {
-        &CommandDescriptor {
-            name: "make:admin-resource".to_string(),
-            description: "Generate an admin resource for CRUD operations".to_string(),
-            usage: "make:admin-resource <ModelName>".to_string(),
-            examples: vec![
-                "make:admin-resource User".to_string(),
-                "make:admin-resource Post".to_string(),
-            ],
-        }
+        &self.descriptor
     }
 
     async fn execute(&self, ctx: CommandContext) -> Result<CommandResult, CommandError> {
@@ -125,22 +131,31 @@ impl AdminResource for {}Resource {{
 }
 
 /// admin:publish
-pub struct AdminPublishCommand;
+pub struct AdminPublishCommand {
+    descriptor: CommandDescriptor,
+}
+
+impl AdminPublishCommand {
+    pub fn new() -> Self {
+        Self {
+            descriptor: CommandDescriptor::builder("admin:publish", "admin:publish")
+                .summary("Publish admin panel assets")
+                .description("Publish admin panel assets and configuration files")
+                .category(CommandKind::Utility)
+                .build(),
+        }
+    }
+}
 
 #[async_trait]
 impl FoundryCommand for AdminPublishCommand {
     fn descriptor(&self) -> &CommandDescriptor {
-        &CommandDescriptor {
-            name: "admin:publish".to_string(),
-            description: "Publish admin panel assets and configuration".to_string(),
-            usage: "admin:publish [--force]".to_string(),
-            examples: vec!["admin:publish".to_string()],
-        }
+        &self.descriptor
     }
 
     async fn execute(&self, ctx: CommandContext) -> Result<CommandResult, CommandError> {
         let config_path = "config/admin.toml";
-        let config_content = r#"# Admin Panel Configuration
+        let config_content = r##"# Admin Panel Configuration
 
 [admin]
 prefix = "/admin"
@@ -155,7 +170,7 @@ dark_mode = false
 [pagination]
 per_page = 25
 max_per_page = 100
-"#;
+"##;
 
         ctx.artifacts.write_file(config_path, config_content, ctx.options.force)?;
 

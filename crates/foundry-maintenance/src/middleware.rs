@@ -2,7 +2,6 @@
 
 use crate::config::MaintenanceState;
 use axum::{
-    body::Body,
     extract::Request,
     http::{HeaderMap, StatusCode},
     middleware::Next,
@@ -35,7 +34,7 @@ impl MaintenanceMiddleware {
         };
 
         // Check for bypass secret in headers
-        if let Some(secret) = &state.secret {
+        if let Some(_secret) = &state.secret {
             if let Some(auth) = headers.get("X-Maintenance-Secret") {
                 if let Ok(provided) = auth.to_str() {
                     if state.verify_secret(provided) {

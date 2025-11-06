@@ -16,7 +16,7 @@ pub struct ResourceContext {
 }
 
 /// Options for resource transformation
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct ResourceOptions {
     /// Enable field filtering
     pub enable_filtering: bool,

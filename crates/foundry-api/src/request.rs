@@ -1,6 +1,5 @@
 use crate::error::HttpError;
 use crate::http::AppState;
-use async_trait::async_trait;
 use axum::{
     extract::{rejection::JsonRejection, FromRequest},
     http::StatusCode,
@@ -55,7 +54,6 @@ impl<T> DerefMut for AppJson<T> {
     }
 }
 
-#[async_trait]
 impl<S, T> FromRequest<S> for AppJson<T>
 where
     S: Send + Sync,

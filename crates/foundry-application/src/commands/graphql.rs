@@ -1,6 +1,5 @@
-use crate::ApplicationError;
 use async_trait::async_trait;
-use foundry_domain::CommandDescriptor;
+use foundry_domain::{CommandDescriptor, CommandId};
 use foundry_plugins::{
     FoundryCommand, CommandContext, CommandError, CommandResult, CommandStatus,
 };
@@ -9,61 +8,43 @@ use std::fs;
 use std::io::Write;
 use std::path::Path;
 
-#[derive(Default)]
-pub struct MakeGraphQLTypeCommand;
+pub struct MakeGraphQLTypeCommand {
+    descriptor: CommandDescriptor,
+}
 
-impl Command for MakeGraphQLTypeCommand {
-    fn name(&self) -> &str {
-        "make:graphql-type"
-    }
-
-    fn descriptor(&self) -> CommandDescriptor {
-        CommandDescriptor {
-            name: self.name().to_string(),
-            description: "Generate a new GraphQL type with resolvers".to_string(),
-            signature: "make:graphql-type <name>".to_string(),
-            arguments: vec![json!({
-                "name": "name",
-                "description": "The name of the GraphQL type (e.g., User, Post)",
-                "required": true
-            })],
-            options: vec![
-                json!({
-                    "name": "model",
-                    "short": "m",
-                    "description": "Also generate a Sea-ORM model",
-                    "default": false
-                }),
-                json!({
-                    "name": "migration",
-                    "short": "M",
-                    "description": "Also generate a migration file",
-                    "default": false
-                }),
-            ],
+impl MakeGraphQLTypeCommand {
+    pub fn new() -> Self {
+        Self {
+            descriptor: CommandDescriptor::builder("make:graphql-type", "make:graphql-type")
+                .summary("Generate a new GraphQL type with resolvers")
+                .description("Generate a GraphQL type, resolver, and optionally a Sea-ORM model with migration")
+                .build(),
         }
     }
+}
 
-    fn execute(&self, ctx: ExecutionContext) -> Result<CommandResult, ApplicationError> {
+impl Default for MakeGraphQLTypeCommand {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[async_trait]
+impl FoundryCommand for MakeGraphQLTypeCommand {
+    fn descriptor(&self) -> &CommandDescriptor {
+        &self.descriptor
+    }
+
+    async fn execute(&self, ctx: CommandContext) -> Result<CommandResult, CommandError> {
         let name = ctx
             .args
-            .get("name")
-            .and_then(|v| v.as_str())
+            .get(0)
             .ok_or_else(|| {
-                ApplicationError::CommandExecution("Type name is required".to_string())
+                CommandError::Message("Type name is required".to_string())
             })?;
 
-        let with_model = ctx
-            .options
-            .get("model")
-            .and_then(|v| v.as_bool())
-            .unwrap_or(false);
-
-        let with_migration = ctx
-            .options
-            .get("migration")
-            .and_then(|v| v.as_bool())
-            .unwrap_or(false);
+        let with_model = ctx.args.contains(&"--model".to_string()) || ctx.args.contains(&"-m".to_string());
+        let with_migration = ctx.args.contains(&"--migration".to_string()) || ctx.args.contains(&"-M".to_string());
 
         let type_name = capitalize(name);
         let snake_name = to_snake_case(name);
@@ -81,17 +62,17 @@ impl Command for MakeGraphQLTypeCommand {
 
         let type_content = generate_type_template(&type_name, &snake_name);
         fs::create_dir_all("crates/foundry-graphql/src/types")
-            .map_err(|e| ApplicationError::CommandExecution(e.to_string()))?;
+            .map_err(|e| CommandError::Message(format!("Failed to create types directory: {}", e)))?;
         fs::write(&type_path, type_content)
-            .map_err(|e| ApplicationError::CommandExecution(e.to_string()))?;
+            .map_err(|e| CommandError::Message(format!("Failed to write type file: {}", e)))?;
 
         // Create resolver file
         let resolver_path = format!("crates/foundry-graphql/src/resolvers/{}.rs", snake_name);
         let resolver_content = generate_resolver_template(&type_name, &snake_name);
         fs::create_dir_all("crates/foundry-graphql/src/resolvers")
-            .map_err(|e| ApplicationError::CommandExecution(e.to_string()))?;
+            .map_err(|e| CommandError::Message(format!("Failed to create resolvers directory: {}", e)))?;
         fs::write(&resolver_path, resolver_content)
-            .map_err(|e| ApplicationError::CommandExecution(e.to_string()))?;
+            .map_err(|e| CommandError::Message(format!("Failed to write resolver file: {}", e)))?;
 
         // Update mod.rs files
         update_mod_file(
@@ -386,15 +367,13 @@ impl {}Mutation {{
         query_name,
         type_name,
         type_name,
-        type_name,
-        snake_name,
     )
 }
 
-fn update_mod_file(path: &str, snake_name: &str, type_name: &str) -> Result<(), ApplicationError> {
+fn update_mod_file(path: &str, snake_name: &str, _type_name: &str) -> Result<(), CommandError> {
     let content = if Path::new(path).exists() {
         fs::read_to_string(path)
-            .map_err(|e| ApplicationError::CommandExecution(e.to_string()))?
+            .map_err(|e| CommandError::Message(format!("Failed to read {}: {}", path, e)))?
     } else {
         String::new()
     };
@@ -407,10 +386,10 @@ fn update_mod_file(path: &str, snake_name: &str, type_name: &str) -> Result<(), 
         .create(true)
         .append(true)
         .open(path)
-        .map_err(|e| ApplicationError::CommandExecution(e.to_string()))?;
+        .map_err(|e| CommandError::Message(format!("Failed to open {}: {}", path, e)))?;
 
     writeln!(file, "pub mod {};", snake_name)
-        .map_err(|e| ApplicationError::CommandExecution(e.to_string()))?;
+        .map_err(|e| CommandError::Message(format!("Failed to write to {}: {}", path, e)))?;
 
     Ok(())
 }

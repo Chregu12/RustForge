@@ -1,25 +1,26 @@
 //! Asset publishing CLI command
 
 use crate::publisher::{AssetPublisher, PublishConfig};
-use anyhow::Result;
 use async_trait::async_trait;
-use foundry_plugins::{CommandExecutor, CommandResult, ExecutionContext};
+use foundry_plugins::{FoundryCommand, CommandResult, CommandContext, CommandError};
 use std::path::PathBuf;
 
 /// Asset publishing command
 pub struct AssetPublishCommand;
 
 #[async_trait]
-impl CommandExecutor for AssetPublishCommand {
-    fn name(&self) -> &'static str {
-        "asset:publish"
+impl FoundryCommand for AssetPublishCommand {
+    fn descriptor(&self) -> &foundry_domain::CommandDescriptor {
+        use std::sync::OnceLock;
+        static DESCRIPTOR: OnceLock<foundry_domain::CommandDescriptor> = OnceLock::new();
+        DESCRIPTOR.get_or_init(|| {
+            foundry_domain::CommandDescriptor::builder("asset:publish", "publish")
+                .description("Publish static assets to public directory with cache busting")
+                .build()
+        })
     }
 
-    fn description(&self) -> &'static str {
-        "Publish static assets to public directory with cache busting"
-    }
-
-    async fn execute(&self, ctx: &ExecutionContext) -> Result<CommandResult> {
+    async fn execute(&self, ctx: CommandContext) -> Result<CommandResult, CommandError> {
         // Parse arguments
         let mut source_dir = PathBuf::from("assets");
         let mut target_dir = PathBuf::from("public");
@@ -33,7 +34,7 @@ impl CommandExecutor for AssetPublishCommand {
                         source_dir = PathBuf::from(&ctx.args[i + 1]);
                         i += 2;
                     } else {
-                        return Ok(CommandResult::error("--source requires a value"));
+                        return Err(CommandError::Message("--source requires a value".to_string()));
                     }
                 }
                 "--target" => {
@@ -41,7 +42,7 @@ impl CommandExecutor for AssetPublishCommand {
                         target_dir = PathBuf::from(&ctx.args[i + 1]);
                         i += 2;
                     } else {
-                        return Ok(CommandResult::error("--target requires a value"));
+                        return Err(CommandError::Message("--target requires a value".to_string()));
                     }
                 }
                 "--no-versioning" => {
@@ -55,7 +56,7 @@ impl CommandExecutor for AssetPublishCommand {
         }
 
         if !source_dir.exists() {
-            return Ok(CommandResult::error(&format!(
+            return Err(CommandError::Message(format!(
                 "Source directory '{}' does not exist",
                 source_dir.display()
             )));
@@ -77,11 +78,13 @@ impl CommandExecutor for AssetPublishCommand {
         };
 
         let publisher = AssetPublisher::new(config);
-        let result = publisher.publish()?;
+        let result = publisher.publish()
+            .map_err(|e| CommandError::Other(e))?;
 
         // Save manifest
         let manifest_path = target_dir.join("asset-manifest.json");
-        result.manifest.save(&manifest_path)?;
+        result.manifest.save(&manifest_path)
+            .map_err(|e| CommandError::Other(e))?;
 
         let message = format!(
             "Published {} files ({} bytes) to {}\nManifest saved to {}",
@@ -117,7 +120,7 @@ mod tests {
         fs::write(assets_dir.join("test.js"), "console.log('test');").unwrap();
 
         let cmd = AssetPublishCommand;
-        let ctx = ExecutionContext {
+        let ctx = CommandContext {
             args: vec![],
             format: ResponseFormat::Human,
             options: ExecutionOptions {
@@ -126,7 +129,7 @@ mod tests {
             },
         };
 
-        let result = cmd.execute(&ctx).await.unwrap();
+        let result = cmd.execute(ctx).await.unwrap();
         assert!(result.is_success());
 
         assert!(temp_dir.path().join("public").exists());
@@ -145,7 +148,7 @@ mod tests {
         fs::create_dir_all(&assets_dir).unwrap();
 
         let cmd = AssetPublishCommand;
-        let ctx = ExecutionContext {
+        let ctx = CommandContext {
             args: vec![],
             format: ResponseFormat::Human,
             options: ExecutionOptions {
@@ -154,7 +157,7 @@ mod tests {
             },
         };
 
-        let result = cmd.execute(&ctx).await.unwrap();
+        let result = cmd.execute(ctx).await.unwrap();
         assert!(result.is_success());
         assert!(result.message.unwrap().contains("dry run"));
 

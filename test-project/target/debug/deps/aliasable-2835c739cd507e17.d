@@ -1,0 +1,11 @@
+/Users/christian/Developer/Github_Projekte/Rust_DX-Framework/test-project/target/debug/deps/aliasable-2835c739cd507e17.d: /Users/christian/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/aliasable-0.1.3/src/lib.rs /Users/christian/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/aliasable-0.1.3/src/mut_ref.rs /Users/christian/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/aliasable-0.1.3/src/boxed.rs /Users/christian/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/aliasable-0.1.3/src/string.rs /Users/christian/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/aliasable-0.1.3/src/vec.rs
+
+/Users/christian/Developer/Github_Projekte/Rust_DX-Framework/test-project/target/debug/deps/libaliasable-2835c739cd507e17.rlib: /Users/christian/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/aliasable-0.1.3/src/lib.rs /Users/christian/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/aliasable-0.1.3/src/mut_ref.rs /Users/christian/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/aliasable-0.1.3/src/boxed.rs /Users/christian/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/aliasable-0.1.3/src/string.rs /Users/christian/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/aliasable-0.1.3/src/vec.rs
+
+/Users/christian/Developer/Github_Projekte/Rust_DX-Framework/test-project/target/debug/deps/libaliasable-2835c739cd507e17.rmeta: /Users/christian/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/aliasable-0.1.3/src/lib.rs /Users/christian/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/aliasable-0.1.3/src/mut_ref.rs /Users/christian/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/aliasable-0.1.3/src/boxed.rs /Users/christian/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/aliasable-0.1.3/src/string.rs /Users/christian/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/aliasable-0.1.3/src/vec.rs
+
+/Users/christian/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/aliasable-0.1.3/src/lib.rs:
+/Users/christian/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/aliasable-0.1.3/src/mut_ref.rs:
+/Users/christian/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/aliasable-0.1.3/src/boxed.rs:
+/Users/christian/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/aliasable-0.1.3/src/string.rs:
+/Users/christian/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/aliasable-0.1.3/src/vec.rs:

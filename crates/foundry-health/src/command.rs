@@ -3,22 +3,26 @@
 use crate::{HealthCheckConfig, HealthChecker, HealthReport};
 use anyhow::Result;
 use async_trait::async_trait;
-use foundry_plugins::{CommandExecutor, CommandResult, ExecutionContext};
+use foundry_plugins::{CommandContext, CommandResult, ResponseFormat, FoundryCommand, CommandError};
+use foundry_domain::CommandDescriptor;
 
 /// Health check command (health:check or doctor)
 pub struct HealthCheckCommand;
 
 #[async_trait]
-impl CommandExecutor for HealthCheckCommand {
-    fn name(&self) -> &'static str {
-        "health:check"
+impl FoundryCommand for HealthCheckCommand {
+    fn descriptor(&self) -> &CommandDescriptor {
+        static DESCRIPTOR: once_cell::sync::Lazy<CommandDescriptor> = once_cell::sync::Lazy::new(|| {
+            CommandDescriptor::builder("health:check", "health:check")
+                .summary("Run comprehensive health checks on the application")
+                .description("Performs system diagnostics including CPU, memory, disk space, and connectivity checks")
+                .alias("doctor")
+                .build()
+        });
+        &DESCRIPTOR
     }
 
-    fn description(&self) -> &'static str {
-        "Run comprehensive health checks on the application"
-    }
-
-    async fn execute(&self, ctx: &ExecutionContext) -> Result<CommandResult> {
+    async fn execute(&self, ctx: CommandContext) -> Result<CommandResult, CommandError> {
         // Parse arguments for specific check
         let specific_check = ctx.args.first().map(|s| s.as_str());
 
@@ -35,25 +39,31 @@ impl CommandExecutor for HealthCheckCommand {
         let checker = HealthChecker::new(config);
 
         let results = if let Some(check_name) = specific_check {
-            vec![checker.check_one(check_name).await?]
+            vec![checker.check_one(check_name).await
+                .map_err(|e| CommandError::Message(e.to_string()))?]
         } else {
-            checker.check_all().await?
+            checker.check_all().await
+                .map_err(|e| CommandError::Message(e.to_string()))?
         };
 
         let report = HealthReport::new(results);
 
         // Format output
         let output = match ctx.format {
-            foundry_plugins::ResponseFormat::Human => report.format_table(),
-            foundry_plugins::ResponseFormat::Json => {
-                serde_json::to_string_pretty(&report)?
+            ResponseFormat::Human => report.format_table(),
+            ResponseFormat::Json => {
+                serde_json::to_string_pretty(&report)
+                    .map_err(|e| CommandError::Serialization(e.to_string()))?
             }
         };
 
         if report.all_passed() {
-            Ok(CommandResult::success(&output))
+            Ok(CommandResult::success(output))
         } else {
-            Ok(CommandResult::error(&output))
+            Ok(CommandResult::success(output).with_data(serde_json::json!({
+                "overall_status": "failure",
+                "checks": report.checks
+            })))
         }
     }
 }
@@ -62,16 +72,18 @@ impl CommandExecutor for HealthCheckCommand {
 pub struct DoctorCommand;
 
 #[async_trait]
-impl CommandExecutor for DoctorCommand {
-    fn name(&self) -> &'static str {
-        "doctor"
+impl FoundryCommand for DoctorCommand {
+    fn descriptor(&self) -> &CommandDescriptor {
+        static DESCRIPTOR: once_cell::sync::Lazy<CommandDescriptor> = once_cell::sync::Lazy::new(|| {
+            CommandDescriptor::builder("doctor", "doctor")
+                .summary("Run comprehensive health checks (alias for health:check)")
+                .description("Performs system diagnostics including CPU, memory, disk space, and connectivity checks")
+                .build()
+        });
+        &DESCRIPTOR
     }
 
-    fn description(&self) -> &'static str {
-        "Run comprehensive health checks (alias for health:check)"
-    }
-
-    async fn execute(&self, ctx: &ExecutionContext) -> Result<CommandResult> {
+    async fn execute(&self, ctx: CommandContext) -> Result<CommandResult, CommandError> {
         HealthCheckCommand.execute(ctx).await
     }
 }
@@ -79,53 +91,139 @@ impl CommandExecutor for DoctorCommand {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use foundry_plugins::{ExecutionOptions, ResponseFormat};
+    use foundry_plugins::ExecutionOptions;
+    use std::sync::Arc;
 
-    #[tokio::test]
-    async fn test_health_check_command() {
-        let cmd = HealthCheckCommand;
-        let ctx = ExecutionContext {
-            args: vec![],
+    // Create mock ports for testing
+    struct MockArtifactPort;
+    impl foundry_plugins::ArtifactPort for MockArtifactPort {
+        fn write_file(&self, _path: &str, _contents: &str, _force: bool) -> Result<(), CommandError> {
+            Ok(())
+        }
+    }
+
+    struct MockMigrationPort;
+    #[async_trait]
+    impl foundry_plugins::MigrationPort for MockMigrationPort {
+        async fn apply(&self, _config: &serde_json::Value, _dry_run: bool) -> Result<foundry_plugins::MigrationRun, CommandError> {
+            Ok(foundry_plugins::MigrationRun::default())
+        }
+        async fn rollback(&self, _config: &serde_json::Value, _dry_run: bool) -> Result<foundry_plugins::MigrationRun, CommandError> {
+            Ok(foundry_plugins::MigrationRun::default())
+        }
+    }
+
+    struct MockSeedPort;
+    #[async_trait]
+    impl foundry_plugins::SeedPort for MockSeedPort {
+        async fn run(&self, _config: &serde_json::Value, _dry_run: bool) -> Result<foundry_plugins::SeedRun, CommandError> {
+            Ok(foundry_plugins::SeedRun::default())
+        }
+    }
+
+    struct MockValidationPort;
+    #[async_trait]
+    impl foundry_plugins::ValidationPort for MockValidationPort {
+        async fn validate(&self, _payload: serde_json::Value, _rules: foundry_plugins::ValidationRules) -> Result<foundry_plugins::ValidationReport, CommandError> {
+            Ok(foundry_plugins::ValidationReport::valid())
+        }
+    }
+
+    struct MockStoragePort;
+    #[async_trait]
+    impl foundry_plugins::StoragePort for MockStoragePort {
+        async fn put(&self, _disk: &str, _path: &str, _contents: Vec<u8>) -> Result<foundry_plugins::StoredFile, CommandError> {
+            Ok(foundry_plugins::StoredFile { disk: "local".to_string(), path: "test".to_string(), size: 0, url: None })
+        }
+        async fn get(&self, _disk: &str, _path: &str) -> Result<Vec<u8>, CommandError> {
+            Ok(vec![])
+        }
+        async fn delete(&self, _disk: &str, _path: &str) -> Result<(), CommandError> {
+            Ok(())
+        }
+        async fn exists(&self, _disk: &str, _path: &str) -> Result<bool, CommandError> {
+            Ok(true)
+        }
+        async fn url(&self, _disk: &str, _path: &str) -> Result<String, CommandError> {
+            Ok("http://localhost".to_string())
+        }
+    }
+
+    struct MockCachePort;
+    #[async_trait]
+    impl foundry_plugins::CachePort for MockCachePort {
+        async fn get(&self, _key: &str) -> Result<Option<serde_json::Value>, CommandError> {
+            Ok(None)
+        }
+        async fn put(&self, _key: &str, _value: serde_json::Value, _ttl: Option<std::time::Duration>) -> Result<(), CommandError> {
+            Ok(())
+        }
+        async fn forget(&self, _key: &str) -> Result<(), CommandError> {
+            Ok(())
+        }
+        async fn clear(&self, _prefix: Option<&str>) -> Result<(), CommandError> {
+            Ok(())
+        }
+    }
+
+    struct MockQueuePort;
+    #[async_trait]
+    impl foundry_plugins::QueuePort for MockQueuePort {
+        async fn dispatch(&self, _job: foundry_plugins::QueueJob) -> Result<(), CommandError> {
+            Ok(())
+        }
+    }
+
+    struct MockEventPort;
+    #[async_trait]
+    impl foundry_plugins::EventPort for MockEventPort {
+        async fn publish(&self, _event: foundry_plugins::DomainEvent) -> Result<(), CommandError> {
+            Ok(())
+        }
+    }
+
+    fn create_test_context(args: Vec<String>) -> CommandContext {
+        CommandContext {
+            args,
             format: ResponseFormat::Human,
+            metadata: serde_json::json!({}),
+            config: serde_json::json!({}),
             options: ExecutionOptions {
                 dry_run: false,
                 force: false,
             },
-        };
+            artifacts: Arc::new(MockArtifactPort),
+            migrations: Arc::new(MockMigrationPort),
+            seeds: Arc::new(MockSeedPort),
+            validation: Arc::new(MockValidationPort),
+            storage: Arc::new(MockStoragePort),
+            cache: Arc::new(MockCachePort),
+            queue: Arc::new(MockQueuePort),
+            events: Arc::new(MockEventPort),
+        }
+    }
 
-        let result = cmd.execute(&ctx).await.unwrap();
+    #[tokio::test]
+    async fn test_health_check_command() {
+        let cmd = HealthCheckCommand;
+        let ctx = create_test_context(vec![]);
+        let result = cmd.execute(ctx).await.unwrap();
         assert!(result.message.is_some());
     }
 
     #[tokio::test]
     async fn test_health_check_specific() {
         let cmd = HealthCheckCommand;
-        let ctx = ExecutionContext {
-            args: vec!["rust".to_string()],
-            format: ResponseFormat::Human,
-            options: ExecutionOptions {
-                dry_run: false,
-                force: false,
-            },
-        };
-
-        let result = cmd.execute(&ctx).await.unwrap();
+        let ctx = create_test_context(vec!["rust".to_string()]);
+        let result = cmd.execute(ctx).await.unwrap();
         assert!(result.message.is_some());
     }
 
     #[tokio::test]
     async fn test_doctor_command() {
         let cmd = DoctorCommand;
-        let ctx = ExecutionContext {
-            args: vec![],
-            format: ResponseFormat::Human,
-            options: ExecutionOptions {
-                dry_run: false,
-                force: false,
-            },
-        };
-
-        let result = cmd.execute(&ctx).await.unwrap();
+        let ctx = create_test_context(vec![]);
+        let result = cmd.execute(ctx).await.unwrap();
         assert!(result.message.is_some());
     }
 }

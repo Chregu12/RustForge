@@ -57,13 +57,17 @@ impl HealthChecker {
     pub async fn check_all(&self) -> Result<Vec<CheckResult>> {
         let mut results = Vec::new();
 
+        // Create check instances outside of tokio::join! to avoid lifetime issues
+        let env_check = EnvCheck::new(self.config.required_env_vars.clone());
+        let files_check = FilePermissionsCheck::new(self.config.required_files.clone());
+
         // Run checks in parallel
         let (rust, disk, memory, env, files) = tokio::join!(
             RustVersionCheck.run(),
             DiskSpaceCheck.run(),
             MemoryCheck.run(),
-            EnvCheck::new(self.config.required_env_vars.clone()).run(),
-            FilePermissionsCheck::new(self.config.required_files.clone()).run(),
+            env_check.run(),
+            files_check.run(),
         );
 
         results.push(rust);
