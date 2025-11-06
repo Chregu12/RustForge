@@ -1,0 +1,11 @@
+/Users/christian/Developer/Github_Projekte/Rust_DX-Framework/test-project/target/debug/deps/foundry_storage-3a283daac416f17b.d: /Users/christian/Developer/Github_Projekte/Rust_DX-Framework/crates/foundry-storage/src/lib.rs /Users/christian/Developer/Github_Projekte/Rust_DX-Framework/crates/foundry-storage/src/config.rs /Users/christian/Developer/Github_Projekte/Rust_DX-Framework/crates/foundry-storage/src/local.rs /Users/christian/Developer/Github_Projekte/Rust_DX-Framework/crates/foundry-storage/src/manager.rs /Users/christian/Developer/Github_Projekte/Rust_DX-Framework/crates/foundry-storage/src/service.rs
+
+/Users/christian/Developer/Github_Projekte/Rust_DX-Framework/test-project/target/debug/deps/libfoundry_storage-3a283daac416f17b.rlib: /Users/christian/Developer/Github_Projekte/Rust_DX-Framework/crates/foundry-storage/src/lib.rs /Users/christian/Developer/Github_Projekte/Rust_DX-Framework/crates/foundry-storage/src/config.rs /Users/christian/Developer/Github_Projekte/Rust_DX-Framework/crates/foundry-storage/src/local.rs /Users/christian/Developer/Github_Projekte/Rust_DX-Framework/crates/foundry-storage/src/manager.rs /Users/christian/Developer/Github_Projekte/Rust_DX-Framework/crates/foundry-storage/src/service.rs
+
+/Users/christian/Developer/Github_Projekte/Rust_DX-Framework/test-project/target/debug/deps/libfoundry_storage-3a283daac416f17b.rmeta: /Users/christian/Developer/Github_Projekte/Rust_DX-Framework/crates/foundry-storage/src/lib.rs /Users/christian/Developer/Github_Projekte/Rust_DX-Framework/crates/foundry-storage/src/config.rs /Users/christian/Developer/Github_Projekte/Rust_DX-Framework/crates/foundry-storage/src/local.rs /Users/christian/Developer/Github_Projekte/Rust_DX-Framework/crates/foundry-storage/src/manager.rs /Users/christian/Developer/Github_Projekte/Rust_DX-Framework/crates/foundry-storage/src/service.rs
+
+/Users/christian/Developer/Github_Projekte/Rust_DX-Framework/crates/foundry-storage/src/lib.rs:
+/Users/christian/Developer/Github_Projekte/Rust_DX-Framework/crates/foundry-storage/src/config.rs:
+/Users/christian/Developer/Github_Projekte/Rust_DX-Framework/crates/foundry-storage/src/local.rs:
+/Users/christian/Developer/Github_Projekte/Rust_DX-Framework/crates/foundry-storage/src/manager.rs:
+/Users/christian/Developer/Github_Projekte/Rust_DX-Framework/crates/foundry-storage/src/service.rs:

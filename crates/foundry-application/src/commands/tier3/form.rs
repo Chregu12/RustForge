@@ -1,24 +1,30 @@
 //! Form builder commands
 
 use async_trait::async_trait;
-use foundry_domain::CommandDescriptor;
+use foundry_domain::{CommandDescriptor, CommandKind};
 use foundry_plugins::{CommandContext, CommandError, CommandResult, FoundryCommand};
 
 /// make:form <Name>
-pub struct MakeFormCommand;
+pub struct MakeFormCommand {
+    descriptor: CommandDescriptor,
+}
+
+impl MakeFormCommand {
+    pub fn new() -> Self {
+        Self {
+            descriptor: CommandDescriptor::builder("make:form", "make:form")
+                .summary("Generate a form builder class")
+                .description("Create a new form builder class with common fields")
+                .category(CommandKind::Generator)
+                .build(),
+        }
+    }
+}
 
 #[async_trait]
 impl FoundryCommand for MakeFormCommand {
     fn descriptor(&self) -> &CommandDescriptor {
-        &CommandDescriptor {
-            name: "make:form".to_string(),
-            description: "Generate a form builder class".to_string(),
-            usage: "make:form <FormName>".to_string(),
-            examples: vec![
-                "make:form UserForm".to_string(),
-                "make:form ContactForm".to_string(),
-            ],
-        }
+        &self.descriptor
     }
 
     async fn execute(&self, ctx: CommandContext) -> Result<CommandResult, CommandError> {

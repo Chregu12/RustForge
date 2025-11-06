@@ -6,7 +6,7 @@ use crate::resource::ListQuery;
 use axum::{
     extract::{Path, Query, State},
     http::StatusCode,
-    response::{Html, IntoResponse, Redirect},
+    response::{Html, IntoResponse, Redirect, Response},
     Form,
 };
 use serde::{Deserialize, Serialize};
@@ -14,17 +14,18 @@ use serde_json::json;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-pub async fn dashboard(State(panel): State<Arc<AdminPanel>>) -> impl IntoResponse {
-    match panel.dashboard().render().await {
-        Ok(data) => {
-            let html = panel
-                .templates()
-                .render_dashboard(&data)
-                .unwrap_or_else(|e| format!("Template error: {}", e));
-            Html(html)
-        }
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, format!("Error: {}", e)).into_response(),
-    }
+#[axum::debug_handler]
+pub async fn dashboard(State(panel): State<Arc<AdminPanel>>) -> Response {
+    let data = match panel.dashboard().render().await {
+        Ok(d) => d,
+        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, format!("Error: {}", e)).into_response(),
+    };
+
+    let html = panel
+        .templates()
+        .render_dashboard(&data)
+        .unwrap_or_else(|e| format!("Template error: {}", e));
+    Html(html).into_response()
 }
 
 #[derive(Debug, Deserialize)]
@@ -105,7 +106,7 @@ pub async fn show_resource(
     let query = ListQuery {
         page: params.page.unwrap_or(1),
         per_page: params.per_page.unwrap_or(25),
-        search: params.search,
+        search: params.search.clone(),
         filters: HashMap::new(),
         sort_by: None,
         sort_desc: false,

@@ -30,9 +30,9 @@ pub mod widgets;
 
 pub use admin::{AdminPanel, AdminPanelBuilder};
 pub use config::AdminConfig;
-pub use dashboard::{Dashboard, Widget};
+pub use dashboard::Dashboard;
 pub use resource::{AdminResource, CrudOperations, ResourceConfig};
-pub use widgets::{ChartWidget, MetricWidget, TableWidget, WidgetType};
+pub use widgets::{ChartWidget, MetricWidget, TableWidget, Widget, WidgetType};
 
 use axum::{
     routing::{get, post},

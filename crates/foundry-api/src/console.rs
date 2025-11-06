@@ -38,12 +38,12 @@ impl Console {
     }
 
     /// Create a console with verbose output
-    pub fn verbose() -> Self {
+    pub fn with_verbose() -> Self {
         Self::new(VerbosityLevel::Verbose)
     }
 
     /// Create a console with debug output
-    pub fn debug() -> Self {
+    pub fn with_debug() -> Self {
         Self::new(VerbosityLevel::Debug)
     }
 

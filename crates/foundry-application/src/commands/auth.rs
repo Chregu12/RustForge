@@ -48,12 +48,12 @@ impl FoundryCommand for MakeUserCommand {
                 }
             })
             .interact_text()
-            .map_err(|e| CommandError::Execution(e.to_string()))?;
+            .map_err(|e| CommandError::Message(e.to_string()))?;
 
         let name: String = Input::with_theme(&ColorfulTheme::default())
             .with_prompt("Full name")
             .interact_text()
-            .map_err(|e| CommandError::Execution(e.to_string()))?;
+            .map_err(|e| CommandError::Message(e.to_string()))?;
 
         let password = Password::with_theme(&ColorfulTheme::default())
             .with_prompt("Password")
@@ -66,7 +66,7 @@ impl FoundryCommand for MakeUserCommand {
                 }
             })
             .interact()
-            .map_err(|e| CommandError::Execution(e.to_string()))?;
+            .map_err(|e| CommandError::Message(e.to_string()))?;
 
         println!("\n✅ User would be created:");
         println!("   Email: {}", email);
@@ -160,12 +160,12 @@ impl FoundryCommand for AssignRoleCommand {
         let user_email: String = Input::with_theme(&ColorfulTheme::default())
             .with_prompt("User email")
             .interact_text()
-            .map_err(|e| CommandError::Execution(e.to_string()))?;
+            .map_err(|e| CommandError::Message(e.to_string()))?;
 
         let role_slug: String = Input::with_theme(&ColorfulTheme::default())
             .with_prompt("Role slug (e.g., 'admin', 'user')")
             .interact_text()
-            .map_err(|e| CommandError::Execution(e.to_string()))?;
+            .map_err(|e| CommandError::Message(e.to_string()))?;
 
         println!("\n✅ Role '{}' would be assigned to user '{}'", role_slug, user_email);
         println!("💡 Note: Actual database integration pending");
@@ -213,7 +213,7 @@ impl FoundryCommand for CheckPermissionsCommand {
         let user_email: String = Input::with_theme(&ColorfulTheme::default())
             .with_prompt("User email")
             .interact_text()
-            .map_err(|e| CommandError::Execution(e.to_string()))?;
+            .map_err(|e| CommandError::Message(e.to_string()))?;
 
         println!("\n📌 Roles for '{}':", user_email);
         println!("   • Administrator (admin)");
@@ -265,12 +265,12 @@ impl FoundryCommand for MakeRoleCommand {
         let name: String = Input::with_theme(&ColorfulTheme::default())
             .with_prompt("Role name (e.g., 'Editor')")
             .interact_text()
-            .map_err(|e| CommandError::Execution(e.to_string()))?;
+            .map_err(|e| CommandError::Message(e.to_string()))?;
 
         let slug: String = Input::with_theme(&ColorfulTheme::default())
             .with_prompt("Role slug (e.g., 'editor')")
             .interact_text()
-            .map_err(|e| CommandError::Execution(e.to_string()))?;
+            .map_err(|e| CommandError::Message(e.to_string()))?;
 
         println!("\n✅ Role would be created:");
         println!("   Name: {}", name);
@@ -320,12 +320,12 @@ impl FoundryCommand for MakePermissionCommand {
         let name: String = Input::with_theme(&ColorfulTheme::default())
             .with_prompt("Permission name (e.g., 'Edit Articles')")
             .interact_text()
-            .map_err(|e| CommandError::Execution(e.to_string()))?;
+            .map_err(|e| CommandError::Message(e.to_string()))?;
 
         let slug: String = Input::with_theme(&ColorfulTheme::default())
             .with_prompt("Permission slug (e.g., 'articles.edit')")
             .interact_text()
-            .map_err(|e| CommandError::Execution(e.to_string()))?;
+            .map_err(|e| CommandError::Message(e.to_string()))?;
 
         println!("\n✅ Permission would be created:");
         println!("   Name: {}", name);
@@ -378,26 +378,26 @@ impl FoundryCommand for GenerateTokenCommand {
             .with_prompt("User ID")
             .default("1".to_string())
             .interact_text()
-            .map_err(|e| CommandError::Execution(e.to_string()))?;
+            .map_err(|e| CommandError::Message(e.to_string()))?;
 
         let email: String = Input::with_theme(&ColorfulTheme::default())
             .with_prompt("Email")
             .default("test@example.com".to_string())
             .interact_text()
-            .map_err(|e| CommandError::Execution(e.to_string()))?;
+            .map_err(|e| CommandError::Message(e.to_string()))?;
 
         let name: String = Input::with_theme(&ColorfulTheme::default())
             .with_prompt("Name")
             .default("Test User".to_string())
             .interact_text()
-            .map_err(|e| CommandError::Execution(e.to_string()))?;
+            .map_err(|e| CommandError::Message(e.to_string()))?;
 
         let user_id_num: i64 = user_id.parse()
-            .map_err(|_| CommandError::Execution("Invalid user ID".to_string()))?;
+            .map_err(|_| CommandError::Message("Invalid user ID".to_string()))?;
 
         let jwt_service = JwtService::new(JwtConfig::default());
         let token_pair = jwt_service.generate_token_pair(user_id_num, email.clone(), name.clone())
-            .map_err(|e| CommandError::Execution(e.to_string()))?;
+            .map_err(|e| CommandError::Message(e.to_string()))?;
 
         println!("\n✅ Token Pair Generated:\n");
         println!("Access Token:");

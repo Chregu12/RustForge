@@ -3,81 +3,56 @@
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use sea_orm::{
-    ActiveModelTrait, ActiveValue, ColumnTrait, EntityTrait, IntoActiveModel, ModelTrait,
-    PrimaryKeyTrait, QueryFilter, QuerySelect,
+    ActiveModelBehavior, ActiveModelTrait, EntityTrait, ModelTrait,
 };
 
 /// Trait for soft deletable entities
+///
+/// Note: Implementors must ensure their entity has a `deleted_at` column
+/// and implement the query methods based on their specific Column enum.
 #[async_trait]
 pub trait SoftDelete: EntityTrait
 where
     <Self as EntityTrait>::Model: HasSoftDelete + Send + Sync,
 {
-    /// Soft delete a model
+    /// The active model type for this entity
+    type ActiveModel: ActiveModelTrait<Entity = Self> + ActiveModelBehavior + Send + Sync + From<<Self as EntityTrait>::Model>;
+    /// Soft delete a model (must be implemented by user)
     async fn soft_delete<C>(
         db: &C,
         model: <Self as EntityTrait>::Model,
     ) -> crate::Result<<Self as EntityTrait>::Model>
     where
-        C: sea_orm::ConnectionTrait,
-    {
-        let mut active_model = model.into_active_model();
+        C: sea_orm::ConnectionTrait;
 
-        // Set deleted_at to current time
-        if let Some(deleted_at_field) = active_model
-            .get_mut(Self::Column::DeletedAt)
-            .and_then(|v| v.as_mut())
-        {
-            *deleted_at_field = ActiveValue::Set(Some(Utc::now()));
-        }
-
-        Ok(active_model.update(db).await?)
-    }
-
-    /// Restore a soft-deleted model
+    /// Restore a soft-deleted model (must be implemented by user)
     async fn restore<C>(
         db: &C,
         model: <Self as EntityTrait>::Model,
     ) -> crate::Result<<Self as EntityTrait>::Model>
     where
-        C: sea_orm::ConnectionTrait,
-    {
-        let mut active_model = model.into_active_model();
-
-        // Set deleted_at to None
-        if let Some(deleted_at_field) = active_model
-            .get_mut(Self::Column::DeletedAt)
-            .and_then(|v| v.as_mut())
-        {
-            *deleted_at_field = ActiveValue::Set(None);
-        }
-
-        Ok(active_model.update(db).await?)
-    }
+        C: sea_orm::ConnectionTrait;
 
     /// Force delete (permanently delete)
     async fn force_delete<C>(db: &C, model: <Self as EntityTrait>::Model) -> crate::Result<()>
     where
         C: sea_orm::ConnectionTrait,
     {
-        model.delete(db).await?;
+        let active_model: Self::ActiveModel = model.into();
+        active_model.delete(db).await?;
         Ok(())
     }
 
-    /// Query only non-deleted records (default behavior)
-    fn without_trashed() -> sea_orm::Select<Self> {
-        Self::find().filter(Self::Column::DeletedAt.is_null())
-    }
+    /// Query only non-deleted records (must be implemented by user)
+    fn without_trashed() -> sea_orm::Select<Self>;
 
     /// Query including soft-deleted records
     fn with_trashed() -> sea_orm::Select<Self> {
         Self::find()
     }
 
-    /// Query only soft-deleted records
-    fn only_trashed() -> sea_orm::Select<Self> {
-        Self::find().filter(Self::Column::DeletedAt.is_not_null())
-    }
+    /// Query only soft-deleted records (must be implemented by user)
+    fn only_trashed() -> sea_orm::Select<Self>;
 }
 
 /// Extension trait for models

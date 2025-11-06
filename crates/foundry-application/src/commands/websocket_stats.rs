@@ -19,7 +19,7 @@ impl WebSocketStatsCommand {
                 .description(
                     "Zeigt detaillierte Statistiken über WebSocket-Verbindungen, Channels und Metriken an.",
                 )
-                .category(CommandKind::Monitoring)
+                .category(CommandKind::Utility)
                 .build(),
         }
     }

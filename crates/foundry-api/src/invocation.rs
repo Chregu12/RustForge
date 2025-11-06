@@ -70,7 +70,7 @@ impl FoundryInvoker {
         Self { app }
     }
 
-    pub fn descriptors(&self) -> Vec<CommandDescriptor> {
+    pub fn descriptors(&self) -> Result<Vec<CommandDescriptor>, ApplicationError> {
         self.app.registry().descriptors()
     }
 

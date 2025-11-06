@@ -13,7 +13,7 @@ serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
-tokio.workspace = true
+tokio = { workspace = true, features = ["fs"] }
 
 # Cache backends
 redis = { version = "0.25", features = ["tokio-comp", "connection-manager"] }
@@ -29,6 +29,9 @@ moka = { version = "0.12", features = ["future"] }
 
 # Database (optional)
 sea-orm = { workspace = true, optional = true }
+
+# Performance optimizations
+rkyv.workspace = true
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "test-util", "rt"] }

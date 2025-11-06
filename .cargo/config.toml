@@ -1,0 +1,93 @@
+[alias]
+# Build commands
+build-all = "build --workspace --all-features"
+build-release = "build --workspace --all-features --release"
+
+# Test commands
+test-all = "test --workspace --all-features"
+test-quick = "test --workspace"
+test-doc = "test --workspace --doc"
+
+# Check commands
+check-all = "check --workspace --all-features"
+check-quick = "check --workspace"
+
+# Clippy commands
+clippy-strict = "clippy --workspace --all-features --all-targets -- -D warnings"
+clippy-pedantic = "clippy --workspace --all-features --all-targets -- -D warnings -W clippy::pedantic"
+clippy-fix = "clippy --workspace --all-features --all-targets --fix"
+
+# Format commands
+fmt-check = "fmt --all -- --check"
+fmt-fix = "fmt --all"
+
+# Documentation commands
+doc-all = "doc --workspace --all-features --no-deps"
+doc-open = "doc --workspace --all-features --no-deps --open"
+doc-private = "doc --workspace --all-features --no-deps --document-private-items"
+
+# Clean commands
+clean-all = "clean"
+clean-target = "clean --target-dir target"
+
+# Audit and security
+audit-security = "audit"
+audit-deps = "audit --deny warnings"
+
+# Benchmark commands
+bench-all = "bench --workspace --all-features"
+bench-criterion = "bench --workspace --bench framework_benchmarks"
+
+# Coverage commands
+coverage = "llvm-cov --workspace --all-features --html"
+coverage-lcov = "llvm-cov --workspace --all-features --lcov --output-path lcov.info"
+
+# Release commands
+release-dry = "publish --dry-run --allow-dirty"
+release-check = "package --list --allow-dirty"
+
+# Combined quality checks
+ci-check = """clippy --workspace --all-features --all-targets -- -D warnings &&
+              cargo fmt --all -- --check &&
+              cargo test --workspace --all-features &&
+              cargo doc --workspace --all-features --no-deps"""
+
+# Production verification
+production-check = """check --workspace --all-features --release &&
+                      test --workspace --all-features &&
+                      clippy --workspace --all-features --all-targets -- -D warnings &&
+                      fmt --all -- --check &&
+                      doc --workspace --all-features --no-deps"""
+
+[build]
+# Increase parallelism
+jobs = 8
+
+[term]
+color = "always"
+verbose = false
+
+[profile.dev]
+# Faster compilation in dev mode
+incremental = true
+split-debuginfo = "unpacked"
+
+[profile.release]
+# Optimize for performance
+lto = "thin"
+codegen-units = 1
+opt-level = 3
+strip = true
+
+[profile.bench]
+inherits = "release"
+
+[target.x86_64-unknown-linux-gnu]
+linker = "clang"
+rustflags = ["-C", "link-arg=-fuse-ld=lld"]
+
+[target.x86_64-apple-darwin]
+rustflags = ["-C", "link-arg=-fuse-ld=lld"]
+
+[net]
+git-fetch-with-cli = true

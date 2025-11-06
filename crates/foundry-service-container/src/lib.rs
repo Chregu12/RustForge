@@ -8,6 +8,7 @@ mod provider;
 mod binding;
 mod context;
 
+pub mod fast_container;
 pub mod providers;
 
 pub use container::Container;
@@ -15,6 +16,7 @@ pub use error::{ContainerError, Result};
 pub use provider::{ServiceProvider, ProviderRegistry};
 pub use binding::{Binding, BindingType, Factory};
 pub use context::ContextualBinding;
+pub use fast_container::{FastContainer, ContainerStats};
 
 // Re-export commonly used types
 pub use async_trait::async_trait;

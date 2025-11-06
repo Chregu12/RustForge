@@ -17,7 +17,7 @@ impl MetricsReportCommand {
             descriptor: CommandDescriptor::builder("metrics.report", "metrics:report")
                 .summary("Performance Metrics Report")
                 .description("Zeigt einen detaillierten Performance-Report an")
-                .category(CommandKind::Monitoring)
+                .category(CommandKind::Utility)
                 .build(),
         }
     }
@@ -63,7 +63,7 @@ impl MetricsClearCommand {
             descriptor: CommandDescriptor::builder("metrics.clear", "metrics:clear")
                 .summary("Löscht alle Metriken")
                 .description("Löscht alle gesammelten Performance-Metriken")
-                .category(CommandKind::System)
+                .category(CommandKind::Utility)
                 .build(),
         }
     }

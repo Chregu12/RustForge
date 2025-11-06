@@ -1,7 +1,7 @@
 //! Command history management for Tinker REPL
 
 use anyhow::Result;
-use rustyline::history::DefaultHistory;
+use rustyline::history::{DefaultHistory, History};
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -25,7 +25,9 @@ impl TinkerHistory {
         if self.history_path.exists() {
             let contents = fs::read_to_string(&self.history_path)?;
             for line in contents.lines() {
-                self.history.add(line)?;
+                if !line.is_empty() {
+                    let _ = self.history.add(line);
+                }
             }
         }
         Ok(())
@@ -39,7 +41,7 @@ impl TinkerHistory {
 
         let mut contents = String::new();
         for entry in self.history.iter() {
-            contents.push_str(&entry.entry);
+            contents.push_str(entry);
             contents.push('\n');
         }
 
@@ -49,7 +51,7 @@ impl TinkerHistory {
 
     /// Add entry to history
     pub fn add(&mut self, line: &str) -> Result<()> {
-        self.history.add(line)?;
+        let _ = self.history.add(line);
         Ok(())
     }
 
@@ -57,7 +59,7 @@ impl TinkerHistory {
     pub fn entries(&self) -> Vec<String> {
         self.history
             .iter()
-            .map(|entry| entry.entry.clone())
+            .map(|entry| entry.to_string())
             .collect()
     }
 
@@ -71,8 +73,8 @@ impl TinkerHistory {
         self.history.is_empty()
     }
 
-    /// Clear all history
-    pub fn clear(&mut self) -> Result<()> {
+    /// Clear all history and remove history file
+    pub fn clear_with_file(&mut self) -> Result<()> {
         self.history.clear();
         if self.history_path.exists() {
             fs::remove_file(&self.history_path)?;
@@ -96,6 +98,9 @@ impl TinkerHistory {
         &self.history_path
     }
 }
+
+// Note: TinkerHistory wraps DefaultHistory for file persistence.
+// For use with rustyline Editor, use DefaultHistory directly.
 
 #[cfg(test)]
 mod tests {
@@ -167,7 +172,7 @@ mod tests {
         history.add("command2").unwrap();
         history.save().unwrap();
 
-        history.clear().unwrap();
+        history.clear_with_file().unwrap();
         assert!(history.is_empty());
     }
 }

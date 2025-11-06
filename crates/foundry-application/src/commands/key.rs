@@ -1,17 +1,41 @@
 use async_trait::async_trait;
+use foundry_domain::{CommandDescriptor, CommandId};
 use foundry_plugins::{
-    Command, CommandContext, CommandDescriptor, CommandHandle, CommandResult, ResponseFormat,
+    FoundryCommand, CommandContext, CommandResult, CommandError, AppError,
 };
 use std::fs;
 use std::io::Write;
 use std::path::Path;
 
 /// Command to generate application key
-pub struct KeyGenerateCommand;
+pub struct KeyGenerateCommand {
+    descriptor: CommandDescriptor,
+}
+
+impl KeyGenerateCommand {
+    pub fn new() -> Self {
+        Self {
+            descriptor: CommandDescriptor::builder("key:generate", "key:generate")
+                .summary("Generate a new application key")
+                .description("Generate a new application key for the application. Use --force to overwrite existing key, --show to only display the generated key.")
+                .build(),
+        }
+    }
+}
+
+impl Default for KeyGenerateCommand {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 #[async_trait]
-impl Command for KeyGenerateCommand {
-    async fn execute(&self, ctx: CommandContext) -> anyhow::Result<CommandResult> {
+impl FoundryCommand for KeyGenerateCommand {
+    fn descriptor(&self) -> &CommandDescriptor {
+        &self.descriptor
+    }
+
+    async fn execute(&self, ctx: CommandContext) -> Result<CommandResult, CommandError> {
         let force = ctx.args.contains(&"--force".to_string());
         let show = ctx.args.contains(&"--show".to_string());
 
@@ -31,11 +55,14 @@ impl Command for KeyGenerateCommand {
         if !env_path.exists() {
             // Copy from .env.example if it exists
             if Path::new(".env.example").exists() {
-                fs::copy(".env.example", ".env")?;
+                fs::copy(".env.example", ".env")
+                    .map_err(|e| CommandError::Message(format!("Failed to copy .env.example: {}", e)))?;
             } else {
                 // Create new .env file
-                let mut file = fs::File::create(".env")?;
-                writeln!(file, "APP_KEY={}", encoded_key)?;
+                let mut file = fs::File::create(".env")
+                    .map_err(|e| CommandError::Message(format!("Failed to create .env: {}", e)))?;
+                writeln!(file, "APP_KEY={}", encoded_key)
+                    .map_err(|e| CommandError::Message(format!("Failed to write to .env: {}", e)))?;
                 return Ok(CommandResult::success(format!(
                     "Application key set successfully.\nKey: {}",
                     encoded_key
@@ -44,7 +71,8 @@ impl Command for KeyGenerateCommand {
         }
 
         // Read current .env content
-        let env_content = fs::read_to_string(env_path)?;
+        let env_content = fs::read_to_string(env_path)
+            .map_err(|e| CommandError::Message(format!("Failed to read .env: {}", e)))?;
 
         // Check if APP_KEY already exists and is not empty
         let has_key = env_content
@@ -52,9 +80,10 @@ impl Command for KeyGenerateCommand {
             .any(|line| line.starts_with("APP_KEY=") && !line.trim_start_matches("APP_KEY=").is_empty());
 
         if has_key && !force {
-            return Ok(CommandResult::error(
-                "Application key already exists. Use --force to overwrite.".to_string(),
-            ));
+            return Ok(CommandResult::failure(AppError::new(
+                "APP_KEY_EXISTS",
+                "Application key already exists. Use --force to overwrite.",
+            )));
         }
 
         // Update or add APP_KEY in .env
@@ -77,7 +106,8 @@ impl Command for KeyGenerateCommand {
         };
 
         // Write back to .env
-        fs::write(env_path, new_content)?;
+        fs::write(env_path, new_content)
+            .map_err(|e| CommandError::Message(format!("Failed to write .env: {}", e)))?;
 
         Ok(CommandResult::success(format!(
             "Application key set successfully.\nKey: {}",
@@ -86,51 +116,49 @@ impl Command for KeyGenerateCommand {
     }
 }
 
-impl CommandHandle for KeyGenerateCommand {
-    fn descriptor(&self) -> CommandDescriptor {
-        CommandDescriptor {
-            name: "key:generate".to_string(),
-            description: "Generate a new application key".to_string(),
-            usage: "key:generate [--force] [--show]".to_string(),
-            examples: vec![
-                "key:generate".to_string(),
-                "key:generate --force".to_string(),
-                "key:generate --show".to_string(),
-            ],
+/// Command to show current application key
+pub struct KeyShowCommand {
+    descriptor: CommandDescriptor,
+}
+
+impl KeyShowCommand {
+    pub fn new() -> Self {
+        Self {
+            descriptor: CommandDescriptor::builder("key:show", "key:show")
+                .summary("Display the current application key")
+                .description("Show the current application key from environment variables.")
+                .build(),
         }
     }
 }
 
-/// Command to show current application key
-pub struct KeyShowCommand;
+impl Default for KeyShowCommand {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 #[async_trait]
-impl Command for KeyShowCommand {
-    async fn execute(&self, _ctx: CommandContext) -> anyhow::Result<CommandResult> {
+impl FoundryCommand for KeyShowCommand {
+    fn descriptor(&self) -> &CommandDescriptor {
+        &self.descriptor
+    }
+
+    async fn execute(&self, _ctx: CommandContext) -> Result<CommandResult, CommandError> {
         // Try to get key from environment
         let key = std::env::var("APP_KEY").unwrap_or_default();
 
         if key.is_empty() {
-            return Ok(CommandResult::error(
-                "Application key is not set. Run 'key:generate' to generate a new key.".to_string(),
-            ));
+            return Ok(CommandResult::failure(AppError::new(
+                "APP_KEY_NOT_SET",
+                "Application key is not set. Run 'key:generate' to generate a new key.",
+            )));
         }
 
         Ok(CommandResult::success(format!(
             "Current application key: {}",
             key
         )))
-    }
-}
-
-impl CommandHandle for KeyShowCommand {
-    fn descriptor(&self) -> CommandDescriptor {
-        CommandDescriptor {
-            name: "key:show".to_string(),
-            description: "Display the current application key".to_string(),
-            usage: "key:show".to_string(),
-            examples: vec!["key:show".to_string()],
-        }
     }
 }
 
@@ -158,18 +186,18 @@ mod base64 {
 
         pub struct EncoderStringWriter<'a> {
             output: &'a mut String,
-            engine: &'a Engine,
+            engine: &'a dyn Engine,
         }
 
         impl<'a> EncoderStringWriter<'a> {
-            pub fn new(output: &'a mut String, engine: &'a Engine) -> Self {
+            pub fn new(output: &'a mut String, engine: &'a dyn Engine) -> Self {
                 Self { output, engine }
             }
         }
 
         impl<'a> Write for EncoderStringWriter<'a> {
             fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-                let encoded = (self.engine.encode)(buf);
+                let encoded = self.engine.encode(buf);
                 self.output.push_str(&encoded);
                 Ok(buf.len())
             }

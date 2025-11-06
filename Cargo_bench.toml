@@ -1,0 +1,9 @@
+# Benchmark Configuration
+#
+# This file defines benchmarks for the workspace.
+# Run with: cargo bench
+
+[[bench]]
+name = "command_dispatch"
+harness = false
+path = "benches/command_dispatch.rs"

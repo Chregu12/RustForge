@@ -1,3 +1,5 @@
+mod commands;
+
 use clap::{Parser, ValueEnum};
 use color_eyre::eyre::{bail, eyre, Result, WrapErr};
 use foundry_api::http::HttpServer;
@@ -261,6 +263,57 @@ fn run_init() -> Result<()> {
     Ok(())
 }
 
+fn run_new(args: Vec<String>) -> Result<()> {
+    // Parse arguments
+    let mut name: Option<String> = None;
+    let mut skip_wizard = false;
+    let mut iter = args.into_iter();
+
+    while let Some(arg) = iter.next() {
+        match arg.as_str() {
+            "--skip-wizard" => {
+                skip_wizard = true;
+            }
+            "--help" | "-h" => {
+                println!("Usage: foundry new <name> [options]");
+                println!();
+                println!("Create a new RustForge application");
+                println!();
+                println!("Arguments:");
+                println!("  <name>              Project name");
+                println!();
+                println!("Options:");
+                println!("  --skip-wizard       Skip interactive wizard and use defaults");
+                println!("  --help, -h          Show this help message");
+                return Ok(());
+            }
+            other if !other.starts_with('-') => {
+                if name.is_none() {
+                    name = Some(other.to_string());
+                } else {
+                    bail!("Unexpected argument: {}", other);
+                }
+            }
+            other => {
+                bail!("Unknown option: {}", other);
+            }
+        }
+    }
+
+    let name = name.ok_or_else(|| eyre!("Project name is required. Usage: foundry new <name>"))?;
+
+    // Validate project name
+    if name.is_empty() {
+        bail!("Project name cannot be empty");
+    }
+
+    // Execute the new command
+    let runtime = tokio::runtime::Runtime::new()?;
+    runtime.block_on(commands::new::execute(name, skip_wizard))?;
+
+    Ok(())
+}
+
 fn main() -> Result<()> {
     color_eyre::install()?;
     let Cli {
@@ -275,6 +328,10 @@ fn main() -> Result<()> {
 
     if command.as_deref() == Some("init") {
         return run_init();
+    }
+
+    if command.as_deref() == Some("new") {
+        return run_new(args);
     }
 
     if command.as_deref() == Some("test") {

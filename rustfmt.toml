@@ -1,0 +1,68 @@
+# RustForge Framework Formatting Configuration
+
+# Edition
+edition = "2021"
+
+# Line width
+max_width = 100
+comment_width = 80
+wrap_comments = true
+
+# Imports
+imports_granularity = "Crate"
+group_imports = "StdExternalCrate"
+reorder_imports = true
+reorder_modules = true
+
+# Code style
+fn_single_line = false
+where_single_line = false
+force_multiline_blocks = false
+format_code_in_doc_comments = true
+format_macro_bodies = true
+format_macro_matchers = true
+format_strings = true
+normalize_comments = true
+normalize_doc_attributes = true
+
+# Control flow
+control_brace_style = "AlwaysSameLine"
+brace_style = "SameLineWhere"
+empty_item_single_line = true
+struct_lit_single_line = true
+fn_params_layout = "Tall"
+overflow_delimited_expr = true
+
+# Indentation
+hard_tabs = false
+tab_spaces = 4
+indent_style = "Block"
+use_small_heuristics = "Default"
+
+# Trailing
+trailing_comma = "Vertical"
+trailing_semicolon = true
+match_block_trailing_comma = false
+
+# Spacing
+space_after_colon = true
+space_before_colon = false
+spaces_around_ranges = false
+binop_separator = "Front"
+type_punctuation_density = "Wide"
+
+# Line endings
+newline_style = "Unix"
+
+# Miscellaneous
+remove_nested_parens = true
+use_field_init_shorthand = true
+use_try_shorthand = true
+force_explicit_abi = true
+condense_wildcard_suffixes = true
+color = "Auto"
+required_version = "1.7.0"
+
+# Unstable features (requires nightly)
+# unstable_features = true
+# format_generated_files = false

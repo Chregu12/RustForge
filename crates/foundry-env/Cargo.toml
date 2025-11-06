@@ -11,6 +11,7 @@ anyhow.workspace = true
 async-trait.workspace = true
 dotenvy.workspace = true
 foundry-plugins = { path = "../foundry-plugins" }
+foundry-domain = { path = "../foundry-domain" }
 serde.workspace = true
 serde_json.workspace = true
 colored = "2.1"

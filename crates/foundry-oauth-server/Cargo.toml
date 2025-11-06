@@ -1,0 +1,37 @@
+[package]
+name = "foundry-oauth-server"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+async-trait = "0.1"
+chrono = { version = "0.4", features = ["serde"] }
+uuid = { version = "1", features = ["v4", "serde"] }
+jsonwebtoken = "9"
+rand = "0.8"
+sha2 = "0.10"
+base64 = "0.22"
+argon2 = "0.5"
+subtle = "2.5"
+thiserror = "1"
+anyhow = "1"
+
+# Database
+sea-orm = { version = "0.12", features = ["sqlx-postgres", "sqlx-mysql", "sqlx-sqlite", "runtime-tokio-rustls", "macros"] }
+sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "postgres", "sqlite", "uuid", "chrono"] }
+
+# HTTP
+axum = { version = "0.7", features = ["macros"] }
+tower = { version = "0.4", features = ["util"] }
+tower-http = { version = "0.5", features = ["cors", "trace"] }
+
+[dev-dependencies]
+tokio-test = "0.4"
+criterion = { version = "0.5", features = ["html_reports", "async_tokio"] }
+
+[[bench]]
+name = "oauth_benchmarks"
+harness = false

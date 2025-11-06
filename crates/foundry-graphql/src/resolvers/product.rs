@@ -1,11 +1,11 @@
 use crate::context::GraphQLContext;
 use crate::error::{database_error, not_found, validation_error};
-use crate::types::product::{Product, ProductEntity, ProductInput, UpdateProductInput};
+use crate::types::product::{Product, ProductEntity, ProductColumn, ProductActiveModel, ProductInput, UpdateProductInput};
 use async_graphql::{Context, Object, Result};
 use chrono::Utc;
 use sea_orm::{
     ActiveModelTrait, ActiveValue, ColumnTrait, EntityTrait, PaginatorTrait, QueryFilter,
-    QueryOrder,
+    QueryOrder, QuerySelect,
 };
 use std::str::FromStr;
 
@@ -39,7 +39,7 @@ impl ProductQuery {
         let db = context.db();
 
         let products = ProductEntity::find()
-            .order_by_asc(crate::types::product::Column::Id)
+            .order_by_asc(ProductColumn::Id)
             .offset(offset)
             .limit(limit)
             .all(db)
@@ -71,7 +71,7 @@ impl ProductQuery {
         let db = context.db();
 
         let products = ProductEntity::find()
-            .filter(crate::types::product::Column::Name.contains(&query))
+            .filter(ProductColumn::Name.contains(&query))
             .limit(limit)
             .all(db)
             .await
@@ -90,7 +90,7 @@ impl ProductQuery {
         let db = context.db();
 
         let products = ProductEntity::find()
-            .filter(crate::types::product::Column::Active.eq(true))
+            .filter(ProductColumn::Active.eq(true))
             .limit(limit)
             .all(db)
             .await
@@ -116,7 +116,7 @@ impl ProductMutation {
 
         // Check if SKU already exists
         let existing = ProductEntity::find()
-            .filter(crate::types::product::Column::Sku.eq(&input.sku))
+            .filter(ProductColumn::Sku.eq(&input.sku))
             .one(db)
             .await
             .map_err(database_error)?;
@@ -129,7 +129,7 @@ impl ProductMutation {
         }
 
         let now = Utc::now().naive_utc();
-        let product = crate::types::product::ActiveModel {
+        let product = ProductActiveModel {
             name: ActiveValue::Set(input.name),
             description: ActiveValue::Set(input.description),
             price: ActiveValue::Set(price),
@@ -162,7 +162,7 @@ impl ProductMutation {
             .map_err(database_error)?
             .ok_or_else(|| not_found(format!("Product with id {} not found", id)))?;
 
-        let mut active: crate::types::product::ActiveModel = product.into();
+        let mut active: ProductActiveModel = product.into();
 
         // Update fields if provided
         if let Some(name) = input.name {
@@ -182,8 +182,8 @@ impl ProductMutation {
         if let Some(sku) = input.sku {
             // Check if new SKU already exists
             let existing = ProductEntity::find()
-                .filter(crate::types::product::Column::Sku.eq(&sku))
-                .filter(crate::types::product::Column::Id.ne(id))
+                .filter(ProductColumn::Sku.eq(&sku))
+                .filter(ProductColumn::Id.ne(id))
                 .one(db)
                 .await
                 .map_err(database_error)?;
@@ -217,7 +217,7 @@ impl ProductMutation {
             .map_err(database_error)?
             .ok_or_else(|| not_found(format!("Product with id {} not found", id)))?;
 
-        let active: crate::types::product::ActiveModel = product.into();
+        let active: ProductActiveModel = product.into();
         active.delete(db).await.map_err(database_error)?;
 
         Ok(true)

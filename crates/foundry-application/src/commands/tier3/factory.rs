@@ -1,24 +1,30 @@
 //! Factory and seeder commands
 
 use async_trait::async_trait;
-use foundry_domain::CommandDescriptor;
+use foundry_domain::{CommandDescriptor, CommandKind};
 use foundry_plugins::{CommandContext, CommandError, CommandResult, FoundryCommand};
 
 /// make:factory <Model>
-pub struct MakeFactoryCommand;
+pub struct MakeFactoryCommand {
+    descriptor: CommandDescriptor,
+}
+
+impl MakeFactoryCommand {
+    pub fn new() -> Self {
+        Self {
+            descriptor: CommandDescriptor::builder("make:factory", "make:factory")
+                .summary("Generate a model factory")
+                .description("Generate a model factory for test data creation")
+                .category(CommandKind::Generator)
+                .build(),
+        }
+    }
+}
 
 #[async_trait]
 impl FoundryCommand for MakeFactoryCommand {
     fn descriptor(&self) -> &CommandDescriptor {
-        &CommandDescriptor {
-            name: "make:factory".to_string(),
-            description: "Generate a model factory for test data".to_string(),
-            usage: "make:factory <ModelName>".to_string(),
-            examples: vec![
-                "make:factory User".to_string(),
-                "make:factory Post".to_string(),
-            ],
-        }
+        &self.descriptor
     }
 
     async fn execute(&self, ctx: CommandContext) -> Result<CommandResult, CommandError> {
@@ -104,20 +110,26 @@ mod tests {{
 }
 
 /// make:seeder <Name>
-pub struct MakeSeederCommand;
+pub struct MakeSeederCommand {
+    descriptor: CommandDescriptor,
+}
+
+impl MakeSeederCommand {
+    pub fn new() -> Self {
+        Self {
+            descriptor: CommandDescriptor::builder("make:seeder", "make:seeder")
+                .summary("Generate a database seeder")
+                .description("Generate a database seeder for test data population")
+                .category(CommandKind::Generator)
+                .build(),
+        }
+    }
+}
 
 #[async_trait]
 impl FoundryCommand for MakeSeederCommand {
     fn descriptor(&self) -> &CommandDescriptor {
-        &CommandDescriptor {
-            name: "make:seeder".to_string(),
-            description: "Generate a database seeder for tests".to_string(),
-            usage: "make:seeder <SeederName>".to_string(),
-            examples: vec![
-                "make:seeder UserSeeder".to_string(),
-                "make:seeder PostSeeder".to_string(),
-            ],
-        }
+        &self.descriptor
     }
 
     async fn execute(&self, ctx: CommandContext) -> Result<CommandResult, CommandError> {

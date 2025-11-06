@@ -96,7 +96,7 @@ impl BootstrapCommands {
         let make_middleware = Arc::new(MakeMiddlewareCommand::default());
         registry.register(make_middleware)?;
 
-        let make_seeder = Arc::new(MakeSeederCommand::default());
+        let make_seeder = Arc::new(MakeSeederCommand::new());
         registry.register(make_seeder)?;
 
         let make_request = Arc::new(MakeRequestCommand::default());
@@ -105,7 +105,7 @@ impl BootstrapCommands {
         let make_job = Arc::new(MakeJobCommand::default());
         registry.register(make_job)?;
 
-        let make_factory = Arc::new(MakeFactoryCommand::default());
+        let make_factory = Arc::new(MakeFactoryCommand::new());
         registry.register(make_factory)?;
 
         let make_event = Arc::new(MakeEventCommand::default());
@@ -227,32 +227,32 @@ impl BootstrapCommands {
         registry.register(generate_token)?;
 
         // Tier 3 Commands
-        let admin_resource = Arc::new(AdminResourceCommand);
+        let admin_resource = Arc::new(AdminResourceCommand::new());
         registry.register(admin_resource)?;
 
-        let admin_publish = Arc::new(AdminPublishCommand);
+        let admin_publish = Arc::new(AdminPublishCommand::new());
         registry.register(admin_publish)?;
 
-        let export_pdf = Arc::new(ExportPdfCommand);
+        let export_pdf = Arc::new(ExportPdfCommand::new());
         registry.register(export_pdf)?;
 
-        let export_excel = Arc::new(ExportExcelCommand);
+        let export_excel = Arc::new(ExportExcelCommand::new());
         registry.register(export_excel)?;
 
-        let export_csv = Arc::new(ExportCsvCommand);
+        let export_csv = Arc::new(ExportCsvCommand::new());
         registry.register(export_csv)?;
 
-        let make_form = Arc::new(MakeFormCommand);
+        let make_form = Arc::new(MakeFormCommand::new());
         registry.register(make_form)?;
 
-        let http_request = Arc::new(HttpRequestCommand);
+        let http_request = Arc::new(HttpRequestCommand::new());
         registry.register(http_request)?;
 
         // Key Management Commands
-        let key_generate = Arc::new(KeyGenerateCommand);
+        let key_generate = Arc::new(KeyGenerateCommand::new());
         registry.register(key_generate)?;
 
-        let key_show = Arc::new(KeyShowCommand);
+        let key_show = Arc::new(KeyShowCommand::new());
         registry.register(key_show)?;
 
         // Tier 3 Advanced Features
@@ -265,8 +265,10 @@ impl BootstrapCommands {
         let health_check = Arc::new(foundry_health::HealthCheckCommand);
         registry.register(health_check)?;
 
-        let doctor = Arc::new(foundry_health::DoctorCommand);
-        registry.register(doctor)?;
+        // Note: DoctorCommand not yet implemented in foundry-health
+        // TODO: Implement DoctorCommand or remove this reference
+        // let doctor = Arc::new(foundry_health::DoctorCommand);
+        // registry.register(doctor)?;
 
         let env_validate = Arc::new(foundry_env::EnvValidateCommand);
         registry.register(env_validate)?;

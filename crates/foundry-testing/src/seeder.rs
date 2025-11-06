@@ -47,26 +47,38 @@ impl TestSeeder {
     }
 
     pub async fn run_seeder(&mut self, name: &str) -> anyhow::Result<()> {
-        if self.executed.contains(&name.to_string()) {
-            return Ok(());
-        }
+        use std::pin::Pin;
+        use std::future::Future;
 
-        let seeder = self
-            .seeders
-            .get(name)
-            .ok_or_else(|| anyhow::anyhow!("Seeder '{}' not found", name))?;
+        Box::pin(async move {
+            if self.executed.contains(&name.to_string()) {
+                return Ok(());
+            }
 
-        // Run dependencies first
-        let deps = seeder.dependencies();
-        for dep in deps {
-            self.run_seeder(&dep).await?;
-        }
+            // Get dependencies first (before borrowing seeder for run)
+            let deps = {
+                let seeder = self
+                    .seeders
+                    .get(name)
+                    .ok_or_else(|| anyhow::anyhow!("Seeder '{}' not found", name))?;
+                seeder.dependencies()
+            };
 
-        // Run the seeder
-        seeder.run().await?;
-        self.executed.push(name.to_string());
+            // Run dependencies first
+            for dep in deps {
+                self.run_seeder(&dep).await?;
+            }
 
-        Ok(())
+            // Run the seeder
+            let seeder = self
+                .seeders
+                .get(name)
+                .ok_or_else(|| anyhow::anyhow!("Seeder '{}' not found", name))?;
+            seeder.run().await?;
+            self.executed.push(name.to_string());
+
+            Ok(())
+        }).await
     }
 
     pub fn reset(&mut self) {

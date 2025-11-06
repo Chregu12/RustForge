@@ -7,6 +7,7 @@ license.workspace = true
 authors.workspace = true
 
 [dependencies]
+anyhow.workspace = true
 clap.workspace = true
 color-eyre.workspace = true
 dialoguer.workspace = true
@@ -15,9 +16,17 @@ serde_json.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
 tokio.workspace = true
+chrono.workspace = true
+console.workspace = true
+indicatif.workspace = true
+sqlx.workspace = true
+uuid.workspace = true
 foundry-application = { path = "../foundry-application" }
 foundry-plugins = { path = "../foundry-plugins" }
 foundry-api = { path = "../foundry-api" }
 foundry-infra = { path = "../foundry-infra" }
 foundry-interactive = { path = "../foundry-interactive" }
 foundry-console = { path = "../foundry-console" }
+
+[dev-dependencies]
+tempfile = "3.8"

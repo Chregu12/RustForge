@@ -3,6 +3,9 @@ use chrono::{DateTime, Utc};
 use sea_orm::entity::prelude::*;
 use serde::{Deserialize, Serialize};
 
+// Type alias for SeaORM
+pub type DateTimeUtc = chrono::NaiveDateTime;
+
 /// Account Entity for Sea-ORM
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Serialize, Deserialize)]
 #[sea_orm(table_name = "accounts")]
@@ -66,4 +69,7 @@ pub struct UpdateAccountInput {
     pub active: Option<bool>,
 }
 
-pub use Entity as AccountEntity;
+// Type aliases for the generated SeaORM types
+pub type AccountEntity = Entity;
+pub type AccountColumn = Column;
+pub type AccountActiveModel = ActiveModel;

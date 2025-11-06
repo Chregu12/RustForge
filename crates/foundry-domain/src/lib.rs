@@ -1,5 +1,7 @@
 //! Domain Layer für Foundry Core: zentrale Value Objects & Policies.
 
+pub mod cow_identifiers;
+
 use serde::{Deserialize, Serialize};
 use std::fmt::{self, Display};
 

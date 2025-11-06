@@ -51,6 +51,9 @@ impl PdfExporter {
             "Layer 1",
         );
 
+        // Add a built-in font
+        let font = doc.add_builtin_font(BuiltinFont::Helvetica)?;
+
         let current_layer = doc.get_page(page1).get_layer(layer1);
 
         // Start position
@@ -63,7 +66,7 @@ impl PdfExporter {
                 self.options.title_font_size,
                 Mm(self.options.margin),
                 Mm(y_pos),
-                &IndirectFontRef::new(0),
+                &font,
             );
             y_pos -= self.options.title_font_size * 1.5;
         }
@@ -79,7 +82,7 @@ impl PdfExporter {
                 self.options.font_size,
                 Mm(x),
                 Mm(y_pos),
-                &IndirectFontRef::new(0),
+                &font,
             );
         }
 
@@ -94,7 +97,7 @@ impl PdfExporter {
                     self.options.font_size,
                     Mm(x),
                     Mm(y_pos),
-                    &IndirectFontRef::new(0),
+                    &font,
                 );
             }
             y_pos -= self.options.font_size * 1.2;
