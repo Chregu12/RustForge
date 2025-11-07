@@ -12,7 +12,7 @@ use foundry_infra::{
 };
 use foundry_plugins::{CommandResult, CommandStatus, ExecutionOptions, ResponseFormat};
 use foundry_interactive::{ask_with_default, choice, confirm, SelectOption};
-use foundry_console::{success, error, info as console_info, warning};
+use foundry_console::{success, info as console_info, warning};
 use serde_json::Value;
 use std::fs;
 use std::net::SocketAddr;

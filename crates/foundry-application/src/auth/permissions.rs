@@ -5,9 +5,8 @@
 
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
-use sea_orm::{DatabaseConnection, EntityTrait};
+use sea_orm::DatabaseConnection;
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
 use std::sync::Arc;
 
 use super::guard::AuthError;

@@ -1,21 +1,17 @@
 //! Distributed tracing middleware with W3C Trace Context propagation
 
 use axum::{
-    body::Body,
     extract::Request,
-    http::{header, HeaderMap, StatusCode},
+    http::{header, HeaderMap},
     middleware::Next,
-    response::{IntoResponse, Response},
+    response::Response,
 };
 use opentelemetry::{
-    global,
     propagation::{Extractor, Injector, TextMapPropagator},
-    trace::{Span, SpanKind, TraceContextExt, Tracer},
-    Context, KeyValue,
+    Context,
 };
 use opentelemetry_sdk::propagation::TraceContextPropagator;
 use std::time::Instant;
-use tracing::Instrument;
 
 use crate::metrics::METRICS;
 

@@ -2,18 +2,7 @@
 
 use crate::config::OtelConfig;
 use anyhow::{Context, Result};
-use opentelemetry::{
-    global,
-    trace::TracerProvider as _,
-    KeyValue,
-};
-use opentelemetry_otlp::WithExportConfig;
-use opentelemetry_sdk::{
-    runtime,
-    trace::{Config, RandomIdGenerator, Sampler},
-    Resource,
-};
-use std::time::Duration;
+use opentelemetry::global;
 use tracing::info;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Registry};
 

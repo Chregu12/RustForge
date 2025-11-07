@@ -1,7 +1,6 @@
 //! HTTP route handlers for admin panel
 
 use crate::admin::AdminPanel;
-use crate::dashboard::DashboardData;
 use crate::resource::ListQuery;
 use axum::{
     extract::{Path, Query, State},

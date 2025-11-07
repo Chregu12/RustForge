@@ -2,9 +2,8 @@
 
 use axum::{
     extract::Request,
-    http::StatusCode,
     middleware::Next,
-    response::{IntoResponse, Redirect, Response},
+    response::Response,
 };
 
 /// Authentication middleware

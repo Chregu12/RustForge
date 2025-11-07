@@ -1,6 +1,6 @@
 //! Core command executor implementation
 
-use crate::error::{ExecutionError, ExecutionResult};
+use crate::error::ExecutionResult;
 use crate::options::{CommandOptions, ExecutionMode};
 use crate::output::{OutputCapture, OutputMode};
 use crate::registry::CommandRegistry;

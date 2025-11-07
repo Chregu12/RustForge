@@ -1,7 +1,6 @@
 use crate::commands::new::config::{ProjectConfig, TemplateType};
 use crate::commands::new::templates::api_rest::ApiRestTemplate;
 use color_eyre::Result;
-use std::path::Path;
 use std::process::Command;
 
 pub struct ProjectGenerator {

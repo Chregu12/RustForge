@@ -1,13 +1,10 @@
 //! Health check HTTP endpoints
 
 use axum::{
-    extract::State,
     http::StatusCode,
     response::{IntoResponse, Json, Response},
 };
 use serde_json::json;
-use std::sync::Arc;
-use std::time::Instant;
 
 /// Simple health check response
 ///

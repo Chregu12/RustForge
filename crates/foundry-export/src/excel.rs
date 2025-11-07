@@ -1,7 +1,7 @@
 //! Excel/XLSX export functionality
 
-use crate::{style::CellStyle, ExportData};
-use rust_xlsxwriter::{Format, Workbook, Worksheet};
+use crate::ExportData;
+use rust_xlsxwriter::{Format, Workbook};
 
 /// Excel exporter with styling support
 pub struct ExcelExporter {

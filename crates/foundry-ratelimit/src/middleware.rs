@@ -1,9 +1,8 @@
 //! Rate limit middleware for Axum
 
 use axum::{
-    body::Body,
     extract::Request,
-    http::{HeaderMap, StatusCode},
+    http::StatusCode,
     middleware::Next,
     response::{IntoResponse, Response},
 };

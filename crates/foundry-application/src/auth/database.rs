@@ -6,12 +6,8 @@
 use async_trait::async_trait;
 use bcrypt::{hash, verify, DEFAULT_COST};
 use chrono::{DateTime, Duration, Utc};
-use sea_orm::{
-    ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder, Set,
-};
+use sea_orm::DatabaseConnection;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
-use std::collections::HashMap;
 use std::sync::Arc;
 
 use super::guard::{AuthError, Authenticatable, Credentials, Provider};
@@ -82,7 +78,7 @@ impl DatabaseUserProvider {
         name: String,
         password: String,
     ) -> Result<DbUser, AuthError> {
-        use sea_orm::ActiveValue::Set;
+        
 
         let password_hash = DbUser::hash_password(&password)?;
         let now = Utc::now();

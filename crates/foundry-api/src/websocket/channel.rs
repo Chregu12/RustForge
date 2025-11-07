@@ -9,7 +9,6 @@ use tokio::sync::RwLock;
 use tracing::{debug, info};
 
 use super::connection::ConnectionId;
-use super::message::WebSocketMessage;
 
 /// Ein WebSocket-Channel für gruppierte Kommunikation
 #[derive(Debug, Clone)]

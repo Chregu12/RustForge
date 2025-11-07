@@ -2,7 +2,7 @@
 
 use lazy_static::lazy_static;
 use prometheus::{
-    Counter, CounterVec, Gauge, GaugeVec, Histogram, HistogramOpts, HistogramVec, IntCounter,
+    Histogram, HistogramOpts, HistogramVec,
     IntCounterVec, IntGauge, IntGaugeVec, Opts, Registry,
 };
 use std::time::Instant;

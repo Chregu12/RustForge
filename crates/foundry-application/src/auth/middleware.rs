@@ -8,7 +8,6 @@ use axum::{
     http::{header, StatusCode},
     middleware::Next,
     response::{IntoResponse, Response},
-    RequestExt,
 };
 use std::sync::Arc;
 
@@ -182,7 +181,7 @@ where
         self.inner.poll_ready(cx)
     }
 
-    fn call(&mut self, mut request: Request) -> Self::Future {
+    fn call(&mut self, request: Request) -> Self::Future {
         let jwt_service = self.jwt_service.clone();
         let future = self.inner.call(request);
 

@@ -1,7 +1,7 @@
 //! Authentication and authorization CLI commands
 
 use async_trait::async_trait;
-use dialoguer::{Input, Password, Select, theme::ColorfulTheme};
+use dialoguer::{Input, Password, theme::ColorfulTheme};
 use foundry_domain::{CommandDescriptor, CommandKind};
 use foundry_plugins::{FoundryCommand, CommandContext, CommandError, CommandResult, CommandStatus};
 use serde_json::json;

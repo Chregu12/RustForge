@@ -38,8 +38,6 @@
 
 use foundry_plugins::{AppError, CommandResult};
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
-use std::sync::Arc;
 use tokio::sync::broadcast;
 use tracing::{debug, error as log_error};
 

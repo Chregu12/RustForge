@@ -2,7 +2,6 @@
 
 use colored::Colorize;
 use rustyline::highlight::Highlighter;
-use rustyline::Context;
 
 /// Syntax highlighter for Tinker REPL
 pub struct TinkerHighlighter;

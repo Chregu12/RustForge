@@ -4,7 +4,6 @@ mod templates;
 mod wizard;
 
 use color_eyre::Result;
-use config::ProjectConfig;
 use generator::ProjectGenerator;
 use std::path::PathBuf;
 use wizard::ProjectWizard;

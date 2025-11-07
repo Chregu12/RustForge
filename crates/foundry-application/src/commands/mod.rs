@@ -40,7 +40,7 @@ pub use env::EnvCommand;
 pub use event::EventListCommand;
 pub use key::{KeyGenerateCommand, KeyShowCommand};
 pub use list::ListCommand;
-pub use maintenance::{DownCommand, UpCommand};
+// Note: DownCommand and UpCommand removed - use foundry_maintenance::{AppDownCommand, AppUpCommand} instead
 pub use optimize::OptimizeCommand;
 pub use queue::QueueWorkCommand;
 pub use queue_failed::QueueFailedCommand;
@@ -78,11 +78,9 @@ impl BootstrapCommands {
         let about = Arc::new(AboutCommand::default());
         registry.register(about)?;
 
-        let down = Arc::new(DownCommand::default());
-        registry.register(down)?;
-
-        let up = Arc::new(UpCommand::default());
-        registry.register(up)?;
+        // Note: DownCommand and UpCommand are now provided by foundry_maintenance crate
+        // as AppDownCommand and AppUpCommand (registered below in Tier 3 section)
+        // Removed duplicate registration to fix "command 'down' ist bereits registriert" error
 
         let make_model = Arc::new(MakeModelCommand::default());
         registry.register(make_model)?;

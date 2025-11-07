@@ -1,12 +1,7 @@
 //! Span builder utilities for creating instrumented code blocks
 
-use opentelemetry::{
-    global,
-    trace::{Span, Tracer},
-    KeyValue,
-};
+use opentelemetry::KeyValue;
 use std::future::Future;
-use tracing::Instrument;
 
 /// Builder for creating instrumented spans
 pub struct SpanBuilder {

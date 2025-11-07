@@ -90,11 +90,11 @@ impl CacheStore for RedisStore {
             .map_err(|e| CacheError::Serialization(e.to_string()))?;
 
         if let Some(ttl) = ttl {
-            conn.set_ex(&redis_key, data, ttl.as_secs())
+            conn.set_ex::<_, _, ()>(&redis_key, data, ttl.as_secs())
                 .await
                 .map_err(|e| CacheError::Redis(e.to_string()))?;
         } else {
-            conn.set(&redis_key, data)
+            conn.set::<_, _, ()>(&redis_key, data)
                 .await
                 .map_err(|e| CacheError::Redis(e.to_string()))?;
         }
@@ -149,7 +149,7 @@ impl CacheStore for RedisStore {
             .map_err(|e| CacheError::Redis(e.to_string()))?;
 
         if !keys.is_empty() {
-            conn.del(&keys)
+            conn.del::<_, ()>(&keys)
                 .await
                 .map_err(|e| CacheError::Redis(e.to_string()))?;
         }

@@ -8,7 +8,6 @@ use crate::websocket::{
     message::WebSocketMessage,
 };
 use serde::{Deserialize, Serialize};
-use serde_json::json;
 
 /// Eine Chat-Nachricht
 #[derive(Debug, Clone, Serialize, Deserialize)]

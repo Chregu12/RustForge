@@ -40,7 +40,6 @@
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 use rustc_hash::FxHashMap;
-use std::fmt;
 
 /// Optimized input parser using SmallVec for stack allocation
 #[derive(Clone, Debug, Serialize, Deserialize)]

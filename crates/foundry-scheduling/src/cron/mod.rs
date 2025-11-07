@@ -4,7 +4,6 @@ pub mod schedule;
 pub use parser::CronParser;
 pub use schedule::CronSchedule;
 
-use chrono::{DateTime, Utc};
 use thiserror::Error;
 
 #[derive(Debug, Error)]

@@ -1,9 +1,8 @@
 use crate::tenant::{Tenant, TenantId};
 use axum::{
-    extract::{Request, State},
-    http::StatusCode,
+    extract::Request,
     middleware::Next,
-    response::{IntoResponse, Response},
+    response::Response,
 };
 use std::sync::Arc;
 use tokio::sync::RwLock;

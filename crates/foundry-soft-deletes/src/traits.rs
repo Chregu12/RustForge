@@ -1,7 +1,6 @@
 //! Soft delete traits
 
 use async_trait::async_trait;
-use chrono::{DateTime, Utc};
 use sea_orm::{
     ActiveModelBehavior, ActiveModelTrait, EntityTrait, ModelTrait,
 };

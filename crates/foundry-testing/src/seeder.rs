@@ -1,7 +1,6 @@
 //! Database seeders for test data
 
 use async_trait::async_trait;
-use serde_json::Value;
 use std::collections::HashMap;
 
 /// Trait for database seeders
@@ -47,8 +46,8 @@ impl TestSeeder {
     }
 
     pub async fn run_seeder(&mut self, name: &str) -> anyhow::Result<()> {
-        use std::pin::Pin;
-        use std::future::Future;
+        
+        
 
         Box::pin(async move {
             if self.executed.contains(&name.to_string()) {

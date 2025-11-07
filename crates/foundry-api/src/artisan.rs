@@ -1,7 +1,6 @@
 use crate::invocation::{CommandInvoker, FoundryInvoker, InvocationRequest};
 use foundry_application::ApplicationError;
 use foundry_plugins::{CommandResult, ResponseFormat};
-use serde_json::json;
 use std::sync::{Arc, Mutex};
 
 /// Artisan - Laravel-like facade for programmatic command execution

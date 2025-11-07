@@ -3,7 +3,7 @@
 /// Wraps a regular invoker and automatically dispatches command lifecycle events.
 /// This allows applications to hook into command execution without modifying commands.
 
-use crate::events::{CommandEvent, EventDispatcher};
+use crate::events::EventDispatcher;
 use crate::invocation::{CommandInvoker, InvocationRequest};
 use foundry_application::ApplicationError;
 use foundry_plugins::CommandResult;

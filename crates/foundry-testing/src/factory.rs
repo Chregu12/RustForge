@@ -2,7 +2,7 @@
 
 use async_trait::async_trait;
 use chrono::Utc;
-use fake::{Fake, Faker};
+use fake::Fake;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

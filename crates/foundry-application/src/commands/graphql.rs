@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use foundry_domain::{CommandDescriptor, CommandId};
+use foundry_domain::CommandDescriptor;
 use foundry_plugins::{
     FoundryCommand, CommandContext, CommandError, CommandResult, CommandStatus,
 };

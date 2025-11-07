@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use foundry_domain::{CommandDescriptor, CommandId};
+use foundry_domain::CommandDescriptor;
 use foundry_plugins::{
     FoundryCommand, CommandContext, CommandResult, CommandError, AppError,
 };
@@ -171,7 +171,7 @@ fn generate_key() -> Vec<u8> {
 
 /// Base64 encode bytes
 fn base64_encode(bytes: &[u8]) -> String {
-    use std::io::Read;
+    
     let mut buf = String::new();
     let mut encoder = base64::write::EncoderStringWriter::new(&mut buf, &base64::engine::general_purpose::STANDARD);
     encoder.write_all(bytes).unwrap();

@@ -5,7 +5,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::{mpsc, RwLock};
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error, info};
 
 use super::channel::ChannelManager;
 use super::connection::{Connection, ConnectionId, ConnectionMetadata};

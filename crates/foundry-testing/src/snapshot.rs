@@ -2,7 +2,7 @@
 
 use serde::Serialize;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 /// Snapshot testing helper
 pub struct Snapshot {

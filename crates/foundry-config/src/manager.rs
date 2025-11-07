@@ -1,6 +1,5 @@
 //! Configuration manager
 
-use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 use crate::{ConfigCache, ConfigRepository, Result};
 

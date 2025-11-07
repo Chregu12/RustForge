@@ -125,7 +125,7 @@ impl InputParser {
 
     /// Get a single option value
     pub fn option(&self, name: &str) -> Option<String> {
-        self.options.get(name).and_then(|mut values| values.first().cloned())
+        self.options.get(name).and_then(|values| values.first().cloned())
     }
 
     /// Get all values for an option (supports arrays)
