@@ -1,7 +1,9 @@
 # Build artifacts
 /target
 **/*.rs.bk
-Cargo.lock
+
+# Test projects (can be regenerated with `foundry new`)
+/test-project
 
 # IDE
 .idea
