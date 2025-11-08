@@ -2194,6 +2194,7 @@ dependencies = [
  "dotenvy",
  "foundry-domain",
  "foundry-plugins",
+ "foundry-queue",
  "foundry-storage",
  "regex",
  "reqwest 0.12.24",
@@ -2285,10 +2286,12 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "oauth2",
+ "rand 0.8.5",
  "reqwest 0.11.27",
  "serde",
  "serde_json",
  "thiserror 1.0.69",
+ "tokio",
  "url",
 ]
 
@@ -2360,6 +2363,25 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror 1.0.69",
+]
+
+[[package]]
+name = "foundry-queue"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "chrono",
+ "deadpool-redis",
+ "foundry-plugins",
+ "redis",
+ "rustc-hash",
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+ "tokio",
+ "tracing",
+ "uuid",
 ]
 
 [[package]]

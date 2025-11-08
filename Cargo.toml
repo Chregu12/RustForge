@@ -14,6 +14,7 @@ members = [
     "crates/foundry-console",
     "crates/foundry-mail",
     "crates/foundry-cache",
+    "crates/foundry-queue",
     "crates/foundry-scheduling",
     "crates/foundry-notifications",
     "crates/foundry-tenancy",

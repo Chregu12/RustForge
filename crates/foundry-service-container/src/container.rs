@@ -13,6 +13,7 @@ pub struct Container {
     bindings: Arc<RwLock<HashMap<String, Binding>>>,
     aliases: Arc<RwLock<HashMap<String, String>>>,
     tags: Arc<RwLock<HashMap<String, Vec<String>>>>,
+    #[allow(dead_code)]
     contextual: Arc<RwLock<ContextualBindingStore>>,
     deferred: Arc<RwLock<Vec<String>>>,
 }

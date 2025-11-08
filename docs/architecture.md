@@ -1,5 +1,7 @@
 # Foundry Core – Architektur Blueprint
 
+> ⚠️ **Status:** v0.2.0 - Architecture document reflects intended design. Actual implementation has gaps (see Known Limitations below).
+
 ## Vision
 Foundry Core stellt ein kompaktes Rust-Framework bereit, das Laravel-Artisan-DX in ein modular aufgebautes, service-orientiertes Rust-Ökosystem überträgt. Das System liefert einen konsistenten CLI-Einstiegspunkt (`foundry`), stellt API-Schnittstellen für Automatisierung (HTTP/gRPC, MCP) bereit und bleibt durch Domain-Driven-Design klar strukturiert.
 
@@ -49,8 +51,80 @@ Die Invocations nutzen identische Application-Handler; Adapter/Ports übernehmen
 4. Infrastruktur-Adapter persistieren oder erzeugen Artefakte.
 5. Interface rendert Response (inkl. Audit-Eintrag).
 
+## Known Limitations (v0.2.0)
+
+### 1. Production Backends Missing
+**Current State:** All backends (queue, cache, events) use in-memory implementations only.
+**Impact:**
+- Cannot scale horizontally across multiple instances
+- Data lost on restart
+- Not suitable for production deployments
+**Timeline:** v0.3.0 (December 2025) - Redis backends for queue and cache
+
+### 2. Validation System Incomplete
+**Current State:** Basic validation structure exists, but only stub implementations.
+**Impact:**
+- Manual validation required for most use cases
+- No built-in validation rules (email, required, min, max, etc.)
+- FormRequest pattern not implemented
+**Timeline:** v0.3.0 (December 2025) - 20+ validation rules, FormRequest integration
+
+### 3. Security Features Partial
+**Current State:** Basic authentication works (JWT, sessions), but critical security features missing.
+**Missing:**
+- CSRF protection
+- Rate limiting
+- Authorization (Gates & Policies)
+- OAuth completion (providers partially implemented)
+- Security headers middleware
+**Impact:** Not secure for production use
+**Timeline:** v0.3.0 (December 2025) - CSRF, rate limiting, Gates & Policies
+
+### 4. Test Coverage Gaps
+**Current State:** ~50% test coverage, some tests have compilation errors.
+**Issues:**
+- `foundry-http-client` tests fail to compile (accessing private fields)
+- Integration test gaps
+- No end-to-end tests
+- Performance benchmarks incomplete
+**Impact:** Unknown bugs may exist, regression risk high
+**Timeline:** v0.3.0 (December 2025) - >70% coverage, all tests passing
+
+### 5. ORM Limited
+**Current State:** Sea-ORM is integrated but lacks high-level abstractions.
+**Missing:**
+- Eloquent-style model API
+- Relationship definitions (hasMany, belongsTo, etc.)
+- Eager loading (N+1 query prevention)
+- Query scopes
+- Model events (creating, created, updating, etc.)
+**Impact:** More boilerplate code, less Laravel-like DX
+**Timeline:** v0.4.0 (2026) - Eloquent-style API, relationships
+
+### 6. Documentation-Code Mismatch
+**Current State:** Documentation claims features that are incomplete or stub-only.
+**Examples:**
+- OAuth listed as "✅" but only partially implemented
+- Admin panel listed as complete but needs work
+- Production-ready claim inaccurate
+**Impact:** User confusion, incorrect expectations
+**Timeline:** v0.3.0 (December 2025) - Honest documentation (this update)
+
+### 7. No Production Deployments
+**Current State:** Framework has not been deployed to production anywhere.
+**Impact:**
+- No real-world battle-testing
+- Unknown performance characteristics at scale
+- Deployment procedures untested
+- No production troubleshooting guides
+**Timeline:** Post v1.0.0 (2026) - Community production deployments expected
+
 ## Nächste Iterationen
 - `docs/use-cases.md`: detaillierte Command-Flows.
 - `docs/templates.md`: Konventionen & Template-Schema.
 - Technische RFCs für Plug-in-API & MCP-Integration.
+- `/TEAM_COORDINATION.md`: Comprehensive team coordination and development plan (completed)
+- `/docs/PRODUCTION_BACKENDS.md`: Redis queue/cache implementation guide (v0.3.0)
+- `/docs/VALIDATION.md`: Validation system documentation (v0.3.0)
+- `/docs/SECURITY.md`: Security best practices and implementation (v0.3.0)
 

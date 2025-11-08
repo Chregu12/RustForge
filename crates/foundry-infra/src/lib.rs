@@ -23,7 +23,7 @@ pub use config::{ConfigError, ConfigProvider, DatabaseConfig, DatabaseDriver, Do
 pub use db::{connect as connect_db, ConnectionError};
 pub use events::InMemoryEventBus;
 pub use migrations::SeaOrmMigrationService;
-pub use queue::InMemoryQueue;
+pub use queue::{InMemoryQueue, RedisQueue};
 pub use seeds::SeaOrmSeedService;
 pub use storage::{FileStorageAdapter, InMemoryStorage};
 pub use validation::SimpleValidationService;

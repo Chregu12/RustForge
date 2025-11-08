@@ -153,23 +153,129 @@ schedule.cron("0 0 * * *", || {
 ### Caching Layer
 
 **Drivers**:
-- Redis
+- Redis (Production)
 - File-based
-- In-memory
-- Database
+- In-memory (Development)
 
 **Features**:
 - TTL support
 - Cache tags
 - Cache events
 - Atomic operations
+- Connection pooling (Redis)
 
 **Usage**:
 ```rust
+// Using cache
 cache.put("user:1", &user, Duration::hours(1)).await?;
 let user = cache.remember("user:1", Duration::hours(1), || {
     fetch_user_from_db(1)
 }).await?;
+
+// Configuration via .env
+CACHE_DRIVER=redis
+REDIS_URL=redis://127.0.0.1:6379
+CACHE_PREFIX=app_cache:
+```
+
+### Job Queue System
+
+**Backends**:
+- Redis (Production) - Connection pooling, atomic operations
+- In-memory (Development/Testing)
+
+**Features**:
+- Delayed job execution
+- Job priority support
+- Automatic retry with configurable attempts
+- Worker process with graceful shutdown
+- Multiple queue support
+- Failed job tracking
+- Custom job handlers
+
+**Configuration**:
+```bash
+# Environment variables
+QUEUE_DRIVER=redis
+REDIS_URL=redis://127.0.0.1:6379
+QUEUE_PREFIX=queue:
+QUEUE_TIMEOUT=300
+```
+
+**Dispatching Jobs**:
+```rust
+use foundry_queue::prelude::*;
+use serde_json::json;
+
+// Simple job dispatch
+let job = Job::new("send_email")
+    .with_payload(json!({
+        "to": "user@example.com",
+        "subject": "Welcome!"
+    }));
+
+queue.dispatch(job).await?;
+
+// Delayed job
+let job = Job::new("cleanup")
+    .with_delay(Duration::from_secs(3600));
+queue.dispatch(job).await?;
+
+// Priority job
+let job = Job::new("urgent_task")
+    .with_priority(10);
+queue.dispatch(job).await?;
+```
+
+**Worker Process**:
+```rust
+use foundry_queue::prelude::*;
+
+// Create worker
+let mut worker = Worker::new(queue);
+
+// Register custom job handler
+worker.register_handler("send_email", EmailHandler);
+
+// Run worker (processes jobs until stopped)
+let stats = worker.run().await?;
+println!("Processed: {}, Failed: {}", stats.processed, stats.failed);
+```
+
+**Custom Job Handlers**:
+```rust
+use async_trait::async_trait;
+use foundry_queue::worker::JobHandler;
+
+struct EmailHandler;
+
+#[async_trait]
+impl JobHandler for EmailHandler {
+    async fn handle(&self, job: &Job) -> QueueResult<Option<Value>> {
+        // Extract data from job.payload
+        let to = job.payload["to"].as_str().unwrap();
+
+        // Perform work
+        send_email(to).await?;
+
+        Ok(Some(json!({"sent": true})))
+    }
+}
+```
+
+**Commands**:
+```bash
+# Start queue worker
+foundry queue:work
+
+# View queue status
+foundry queue:status
+
+# Retry failed jobs
+foundry queue:retry
+
+# Clear failed jobs
+foundry queue:flush-failed
 ```
 
 ### Multi-Tenancy

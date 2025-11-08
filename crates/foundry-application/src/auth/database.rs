@@ -75,13 +75,13 @@ impl DatabaseUserProvider {
     pub async fn create_user(
         &self,
         email: String,
-        name: String,
+        _name: String,
         password: String,
     ) -> Result<DbUser, AuthError> {
-        
 
-        let password_hash = DbUser::hash_password(&password)?;
-        let now = Utc::now();
+
+        let _password_hash = DbUser::hash_password(&password)?;
+        let _now = Utc::now();
 
         // For demo purposes, using raw SQL
         // In production, use proper SeaORM entities
@@ -102,20 +102,20 @@ impl DatabaseUserProvider {
     }
 
     /// Find user by email
-    pub async fn find_by_email(&self, email: &str) -> Result<Option<DbUser>, AuthError> {
+    pub async fn find_by_email(&self, _email: &str) -> Result<Option<DbUser>, AuthError> {
         // Simplified implementation using raw query
         // In production, use SeaORM entities
         Ok(None)
     }
 
     /// Update user
-    pub async fn update_user(&self, user: &DbUser) -> Result<(), AuthError> {
+    pub async fn update_user(&self, _user: &DbUser) -> Result<(), AuthError> {
         // Implementation using SeaORM
         Ok(())
     }
 
     /// Delete user
-    pub async fn delete_user(&self, user_id: i64) -> Result<(), AuthError> {
+    pub async fn delete_user(&self, _user_id: i64) -> Result<(), AuthError> {
         // Implementation using SeaORM
         Ok(())
     }
@@ -177,7 +177,7 @@ impl DatabaseSessionStore {
     /// Create a session in the database
     pub async fn create_session(&self, session: &Session) -> Result<(), AuthError> {
         // Serialize session data to JSON
-        let payload = serde_json::to_string(&session.data)
+        let _payload = serde_json::to_string(&session.data)
             .map_err(|e| AuthError::Internal(format!("Failed to serialize session: {}", e)))?;
 
         // Insert into database
@@ -186,7 +186,7 @@ impl DatabaseSessionStore {
     }
 
     /// Load a session from the database
-    pub async fn load_session(&self, session_id: &str) -> Result<Option<Session>, AuthError> {
+    pub async fn load_session(&self, _session_id: &str) -> Result<Option<Session>, AuthError> {
         // In production, use SeaORM entities
         // Example:
         // let db_session = Sessions::find_by_id(session_id)
@@ -198,13 +198,13 @@ impl DatabaseSessionStore {
     }
 
     /// Update a session in the database
-    pub async fn update_session(&self, session: &Session) -> Result<(), AuthError> {
+    pub async fn update_session(&self, _session: &Session) -> Result<(), AuthError> {
         // In production, use SeaORM entities
         Ok(())
     }
 
     /// Delete a session from the database
-    pub async fn delete_session(&self, session_id: &str) -> Result<(), AuthError> {
+    pub async fn delete_session(&self, _session_id: &str) -> Result<(), AuthError> {
         // In production, use SeaORM entities
         Ok(())
     }

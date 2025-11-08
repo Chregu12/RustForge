@@ -1,7 +1,6 @@
 //! Integration tests for foundry-http-client
 
 use foundry_http_client::{Auth, AuthType, HttpClient, RetryConfig};
-use std::collections::HashMap;
 use std::time::Duration;
 
 #[test]
@@ -51,7 +50,7 @@ fn test_auth_custom() {
 #[test]
 fn test_request_builder() {
     let client = HttpClient::new();
-    let request = client
+    let _request = client
         .get("https://api.example.com/users")
         .header("Accept", "application/json")
         .query("page", "1")

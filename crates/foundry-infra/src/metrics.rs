@@ -2,7 +2,6 @@
 //!
 //! Sammelt und verarbeitet Metriken für Performance-Monitoring.
 
-use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;

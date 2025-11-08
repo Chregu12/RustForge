@@ -37,11 +37,13 @@ pub fn line(message: &str) {
 }
 
 /// Print a blank line
+#[allow(dead_code)]
 pub fn blank() {
     println!();
 }
 
 /// Print a section with a panel
+#[allow(dead_code)]
 pub fn section(title: &str, content: &str) {
     Panel::new(content)
         .with_title(title)
@@ -50,11 +52,13 @@ pub fn section(title: &str, content: &str) {
 }
 
 /// Print a comment (dimmed text)
+#[allow(dead_code)]
 pub fn comment(message: &str) {
     println!("{}", message.dim());
 }
 
 /// Print a question
+#[allow(dead_code)]
 pub fn question(message: &str) {
     println!("{} {}", "?".blue().bold(), message);
 }

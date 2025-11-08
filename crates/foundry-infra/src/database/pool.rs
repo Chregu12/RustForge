@@ -48,7 +48,8 @@
 
 use sqlx::{
     postgres::{PgPool, PgPoolOptions},
-    Pool, Postgres, Error as SqlxError,
+    Postgres,
+    Error as SqlxError,
 };
 use std::sync::Arc;
 use std::time::Duration;

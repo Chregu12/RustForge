@@ -7,6 +7,7 @@ use std::path::PathBuf;
 /// Handlebars template renderer
 pub struct HandlebarsRenderer {
     handlebars: Handlebars<'static>,
+    #[allow(dead_code)]
     template_dir: PathBuf,
 }
 

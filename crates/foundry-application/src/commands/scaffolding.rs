@@ -8,6 +8,7 @@ use foundry_plugins::{
 use serde_json::json;
 use std::fs;
 use std::path::{Path, PathBuf};
+use crate::commands::TinkerCommand;
 
 pub struct MakeModelCommand {
     descriptor: CommandDescriptor,

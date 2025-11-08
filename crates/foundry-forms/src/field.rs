@@ -71,9 +71,12 @@ impl Field {
     }
 
     pub fn email(name: impl Into<String>) -> FieldBuilder {
-        FieldBuilder::new(name, FieldType::Input {
+        let mut builder = FieldBuilder::new(name, FieldType::Input {
             input_type: InputType::Email,
-        })
+        });
+        // Automatically add email validation rule
+        builder.validation.push(ValidationRule::Email);
+        builder
     }
 
     pub fn password(name: impl Into<String>) -> FieldBuilder {

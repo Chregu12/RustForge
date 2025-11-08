@@ -76,7 +76,7 @@ async fn simulate_http_requests() {
         let method = methods[i % methods.len()];
 
         // Simulate request processing
-        tokio::time::sleep(Duration::from_millis(20 + i * 5)).await;
+        tokio::time::sleep(Duration::from_millis(20 + (i * 5) as u64)).await;
 
         let duration = start.elapsed();
         let status = if i % 10 == 0 { 500 } else { 200 }; // 10% error rate

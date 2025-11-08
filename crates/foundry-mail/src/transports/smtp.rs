@@ -7,6 +7,7 @@ use lettre::{AsyncSmtpTransport, AsyncTransport, Message as LettreMessage, Tokio
 
 /// SMTP transport implementation
 pub struct SmtpTransport {
+    #[allow(dead_code)]
     config: SmtpConfig,
     transport: AsyncSmtpTransport<Tokio1Executor>,
 }
@@ -194,7 +195,6 @@ impl MailTransport for SmtpTransport {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::domain::{Address, Content};
 
     #[test]
     fn test_smtp_transport_creation() {

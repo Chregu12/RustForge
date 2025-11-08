@@ -182,7 +182,7 @@ impl JobRunner {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::jobs::scheduled_job::ScheduledJob;
+    use crate::jobs::scheduled_job::{JobResult, ScheduledJob};
     use async_trait::async_trait;
     use std::sync::atomic::{AtomicU32, Ordering};
 
@@ -200,7 +200,7 @@ mod tests {
             "* * * * *"
         }
 
-        async fn execute(&self, _context: JobContext) -> super::JobResult {
+        async fn execute(&self, _context: JobContext) -> JobResult {
             self.counter.fetch_add(1, Ordering::Relaxed);
             Ok(())
         }

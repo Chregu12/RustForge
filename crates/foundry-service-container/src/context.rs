@@ -12,10 +12,12 @@ pub struct ContextualBinding {
 }
 
 /// Store for contextual bindings
+#[allow(dead_code)]
 pub struct ContextualBindingStore {
     bindings: HashMap<(TypeId, String), String>,
 }
 
+#[allow(dead_code)]
 impl ContextualBindingStore {
     pub fn new() -> Self {
         Self {

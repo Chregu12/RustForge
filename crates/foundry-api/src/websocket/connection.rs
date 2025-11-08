@@ -180,7 +180,7 @@ impl Connection {
                 debug!(connection_id = %conn_id, bytes = data.len(), "Received binary message");
                 // Binary-Messages können später unterstützt werden
             }
-            Message::Ping(data) => {
+            Message::Ping(_data) => {
                 debug!(connection_id = %conn_id, "Received ping");
                 let _ = tx.send(WebSocketMessage::ping());
             }

@@ -3,11 +3,11 @@
 use axum::{
     middleware,
     response::{IntoResponse, Json},
-    routing::{get, post},
+    routing::get,
     Router,
 };
 use foundry_observability::{
-    health_check, init_observability, metrics_handler, shutdown_observability,
+    init_observability, shutdown_observability,
     ObservabilityConfig, TracingMiddleware, METRICS,
 };
 use serde_json::json;
@@ -44,7 +44,7 @@ fn create_app() -> Router {
     Router::new()
         // Application routes
         .route("/", get(root_handler))
-        .route("/api/users", get(list_users).post(create_user))
+        .route("/api/users", get(list_users))
         .route("/api/heavy", get(heavy_operation))
         // Observability routes
         .route("/metrics", get(metrics_endpoint))
@@ -85,23 +85,6 @@ async fn list_users() -> impl IntoResponse {
     Json(json!({ "users": users }))
 }
 
-async fn create_user() -> impl IntoResponse {
-    let start = Instant::now();
-
-    // Simulate database insert
-    tokio::time::sleep(std::time::Duration::from_millis(100)).await;
-
-    METRICS
-        .db_query_duration_seconds
-        .with_label_values(&["insert_user"])
-        .observe(start.elapsed().as_secs_f64());
-
-    Json(json!({
-        "id": 3,
-        "name": "Charlie",
-        "created": true
-    }))
-}
 
 async fn heavy_operation() -> impl IntoResponse {
     // Simulate heavy computation
@@ -114,11 +97,19 @@ async fn heavy_operation() -> impl IntoResponse {
 }
 
 async fn metrics_endpoint() -> impl IntoResponse {
-    metrics_handler().await
+    use prometheus::{Encoder, TextEncoder};
+    let encoder = TextEncoder::new();
+    let metric_families = prometheus::gather();
+    let mut buffer = Vec::new();
+    encoder.encode(&metric_families, &mut buffer).unwrap();
+    String::from_utf8(buffer).unwrap()
 }
 
 async fn health_endpoint() -> impl IntoResponse {
-    health_check().await
+    Json(json!({
+        "status": "healthy",
+        "timestamp": chrono::Utc::now(),
+    }))
 }
 
 async fn shutdown_signal() {

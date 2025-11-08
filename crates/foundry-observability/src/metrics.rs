@@ -314,10 +314,9 @@ mod tests {
 
     #[test]
     fn test_record_command() {
-        let metrics = METRICS.clone();
-        metrics.record_command("test_command", std::time::Duration::from_millis(100), true);
+        METRICS.record_command("test_command", std::time::Duration::from_millis(100), true);
 
-        let total = metrics
+        let total = METRICS
             .commands_total
             .with_label_values(&["test_command", "success"])
             .get();

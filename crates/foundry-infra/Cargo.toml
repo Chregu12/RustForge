@@ -16,6 +16,7 @@ tracing.workspace = true
 thiserror.workspace = true
 foundry-domain = { path = "../foundry-domain" }
 foundry-plugins = { path = "../foundry-plugins" }
+foundry-queue = { path = "../foundry-queue" }
 dotenvy.workspace = true
 sea-orm.workspace = true
 url = "2.5"

@@ -1,0 +1,11 @@
+/Users/christian/Developer/Github_Projekte/Rust_DX-Framework/framework-test/target/debug/deps/socket2-8123285cd1651d3e.d: /Users/christian/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/socket2-0.6.1/src/lib.rs /Users/christian/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/socket2-0.6.1/src/sockaddr.rs /Users/christian/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/socket2-0.6.1/src/socket.rs /Users/christian/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/socket2-0.6.1/src/sockref.rs /Users/christian/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/socket2-0.6.1/src/sys/unix.rs
+
+/Users/christian/Developer/Github_Projekte/Rust_DX-Framework/framework-test/target/debug/deps/libsocket2-8123285cd1651d3e.rlib: /Users/christian/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/socket2-0.6.1/src/lib.rs /Users/christian/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/socket2-0.6.1/src/sockaddr.rs /Users/christian/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/socket2-0.6.1/src/socket.rs /Users/christian/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/socket2-0.6.1/src/sockref.rs /Users/christian/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/socket2-0.6.1/src/sys/unix.rs
+
+/Users/christian/Developer/Github_Projekte/Rust_DX-Framework/framework-test/target/debug/deps/libsocket2-8123285cd1651d3e.rmeta: /Users/christian/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/socket2-0.6.1/src/lib.rs /Users/christian/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/socket2-0.6.1/src/sockaddr.rs /Users/christian/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/socket2-0.6.1/src/socket.rs /Users/christian/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/socket2-0.6.1/src/sockref.rs /Users/christian/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/socket2-0.6.1/src/sys/unix.rs
+
+/Users/christian/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/socket2-0.6.1/src/lib.rs:
+/Users/christian/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/socket2-0.6.1/src/sockaddr.rs:
+/Users/christian/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/socket2-0.6.1/src/socket.rs:
+/Users/christian/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/socket2-0.6.1/src/sockref.rs:
+/Users/christian/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/socket2-0.6.1/src/sys/unix.rs:

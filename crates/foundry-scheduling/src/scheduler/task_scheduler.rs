@@ -88,7 +88,6 @@ impl From<InternalJobState> for JobState {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::jobs::JobError;
 
     #[tokio::test]
     async fn test_scheduler_creation() {

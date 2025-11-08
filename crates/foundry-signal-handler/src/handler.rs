@@ -279,7 +279,7 @@ mod tests {
         if let Some(collection) = handler.callbacks.read().await.get(&Signal::SIGTERM) {
             collection.execute_all().await.unwrap();
             assert!(executed.load(Ordering::SeqCst));
-        }
+        };
     }
 
     #[tokio::test]
@@ -303,7 +303,7 @@ mod tests {
         if let Some(collection) = handler.callbacks.read().await.get(&Signal::SIGINT) {
             collection.execute_all().await.unwrap();
             assert!(executed.load(Ordering::SeqCst));
-        }
+        };
     }
 
     #[tokio::test]

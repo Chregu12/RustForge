@@ -7,6 +7,7 @@ use tera::Tera;
 /// Tera template renderer
 pub struct TeraRenderer {
     tera: Tera,
+    #[allow(dead_code)]
     template_dir: PathBuf,
 }
 

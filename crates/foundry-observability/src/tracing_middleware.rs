@@ -108,6 +108,7 @@ pub fn current_span_id() -> Option<String> {
 mod tests {
     use super::*;
     use axum::http::HeaderValue;
+    use opentelemetry::trace::TraceContextExt;
 
     #[test]
     fn test_extract_trace_context() {

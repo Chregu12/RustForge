@@ -65,7 +65,6 @@ impl CronSchedule {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chrono::TimeZone;
 
     #[test]
     fn test_cron_schedule_creation() {

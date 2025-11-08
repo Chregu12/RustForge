@@ -9,6 +9,7 @@ use std::path::Path;
 use sysinfo::System;
 
 /// Trait for health checks
+#[allow(async_fn_in_trait)]
 pub trait HealthCheck {
     /// Run the health check
     async fn run(&self) -> CheckResult;

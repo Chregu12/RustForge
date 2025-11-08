@@ -75,7 +75,7 @@ impl TinkerHistory {
 
     /// Clear all history and remove history file
     pub fn clear_with_file(&mut self) -> Result<()> {
-        self.history.clear();
+        let _ = self.history.clear();
         if self.history_path.exists() {
             fs::remove_file(&self.history_path)?;
         }

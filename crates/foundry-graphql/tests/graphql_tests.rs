@@ -1,6 +1,6 @@
 use async_graphql::{EmptySubscription, Schema};
 use foundry_graphql::{build_schema, GraphQLContext, MutationRoot, QueryRoot};
-use sea_orm::{Database, DatabaseConnection};
+use sea_orm::{ConnectionTrait, Database, DatabaseConnection};
 
 async fn setup_test_db() -> DatabaseConnection {
     // Use in-memory SQLite for testing

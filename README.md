@@ -2,9 +2,11 @@
 
 **The Rust Application Framework**
 
-> Enterprise-Grade. Type-Safe. Blazingly Fast.
+> Enterprise-Grade. Type-Safe. Blazingly Fast. (In Active Development)
 
-RustForge is a production-ready, full-stack application framework for Rust that combines the performance and safety of Rust with the developer experience of modern web frameworks like Laravel.
+> ⚠️ **WARNING**: This framework is in active development (v0.2.0) and NOT production-ready. Use for experiments and learning only. Production use is NOT recommended until v1.0.0 (expected Q3 2026, 12+ months away).
+
+RustForge is an ambitious full-stack application framework for Rust that aims to combine the performance and safety of Rust with the developer experience of modern web frameworks like Laravel.
 
 [![Build Status](https://img.shields.io/badge/build-passing-brightgreen)]()
 [![Rust Version](https://img.shields.io/badge/rust-1.70%2B-orange)]()
@@ -15,6 +17,7 @@ RustForge is a production-ready, full-stack application framework for Rust that 
 ## 📖 Table of Contents
 
 - [What is RustForge?](#-what-is-rustforge)
+- [Current Status](#-current-status-v020)
 - [Key Features](#-key-features)
 - [Quick Start](#-quick-start)
 - [Core Capabilities](#-core-capabilities)
@@ -44,6 +47,106 @@ RustForge brings the **best of both worlds**:
 Laravel's Developer Experience  +  Rust's Performance & Safety  =  RustForge
      (Productivity)                    (Speed & Reliability)
 ```
+
+---
+
+## 🚧 Current Status (v0.2.0)
+
+**Production Readiness: NOT READY (Active Development)**
+
+RustForge has a solid architectural foundation but is NOT production-ready. The framework is under active development with critical features incomplete or in-memory only.
+
+### What Works ✅
+
+**Stable & Tested:**
+- CLI scaffolding (`make:model`, `make:controller`, etc.) - WORKS WELL
+- Database migrations with Sea-ORM - FULLY FUNCTIONAL
+- Interactive REPL (Tinker) - WORKS WELL
+- Basic authentication (JWT, sessions) - WORKS
+- Code generation system - FULLY FUNCTIONAL
+
+**Development Only (Not Production-Ready):**
+- Event system (in-memory only, single-instance)
+- Queue system (in-memory only, NOT for production)
+- Cache system (in-memory only, NOT for production)
+- Mail system (basic sending, lacks template engine)
+
+### In Development (v0.3.0 - Target: December 2025) 🚧
+
+**Critical Blockers Being Fixed:**
+- Production queue backend (Redis) - IN PROGRESS
+- Production cache backend (Redis) - IN PROGRESS
+- Comprehensive validation system (20+ rules) - IN PROGRESS
+- CSRF protection - IN PROGRESS
+- Rate limiting (Redis-backed) - IN PROGRESS
+- Authorization (Gates & Policies) - IN PROGRESS
+- OAuth completion (Google, GitHub, Facebook) - IN PROGRESS
+- Test suite fixes (currently has compilation errors) - IN PROGRESS
+
+### Planned (v0.4.0+ - 2026) 📋
+
+**Future Enhancements:**
+- ORM enhancements (Eloquent-style API, relationship eager loading)
+- Query scopes and model events
+- Advanced API resources
+- GraphQL stabilization
+- Admin panel completion
+- Full-text search improvements
+- Broadcasting enhancements
+
+### Feature Parity with Laravel 12
+
+**Overall: ~50-53% (Honest Assessment)**
+
+| Category | Status | Completion | Notes |
+|----------|--------|------------|-------|
+| Routing | ⚠️ Basic | 60% | Axum integration works, needs route groups/middleware registry |
+| ORM/Eloquent | ⚠️ Partial | 40% | Sea-ORM integrated, missing Eloquent-style API & relationships |
+| Migrations | ✅ Good | 85% | Fully functional, works well |
+| Authentication | ⚠️ Basic | 50% | JWT/sessions work, needs polish & security hardening |
+| Authorization | ❌ Missing | 20% | Gates/Policies in development (v0.3.0) |
+| Validation | ⚠️ Stub | 45% | Basic structure exists, comprehensive rules in development |
+| Mail | ⚠️ Partial | 60% | Basic sending works, needs template engine |
+| Queues | ⚠️ Dev Only | 50% | In-memory only, Redis backend in development |
+| Events | ⚠️ Basic | 55% | Works but limited, needs better integration |
+| File Storage | ⚠️ Partial | 65% | Local/S3 basic support, lacks transformations |
+| Testing | ⚠️ Basic | 50% | Test utilities exist, coverage gaps (~50%) |
+| API Resources | ⚠️ Partial | 40% | Basic structure, needs conditional attributes |
+| Middleware | ⚠️ Basic | 60% | Axum middleware works, needs framework integration |
+| Localization | ⚠️ Stub | 30% | Basic structure, not fully implemented |
+| Broadcasting | ⚠️ Basic | 45% | WebSocket support exists, needs polish |
+| Caching | ⚠️ Dev Only | 50% | In-memory only, Redis backend in development |
+
+**Legend:**
+- ✅ Good: Production-ready, well-tested
+- ⚠️ Partial: Works but incomplete or dev-only
+- ❌ Missing: Not implemented or stub only
+
+### Known Limitations
+
+1. **No Production Backends** - In-memory queue/cache cannot scale horizontally
+2. **Test Suite Has Errors** - Some tests don't compile (being fixed in v0.3.0)
+3. **Validation Incomplete** - Only basic validation, most rules missing
+4. **Security Features Partial** - No CSRF protection, rate limiting, or Gates
+5. **ORM Limited** - No Eloquent-style API, relationship loading, or scopes
+6. **Documentation-Code Mismatch** - Some documented features are incomplete
+7. **No Production Deployments** - Framework hasn't been battle-tested
+
+### Who Should Use This?
+
+**✅ Good For:**
+- Learning Rust web development
+- Experimenting with framework architecture
+- Contributing to open source
+- Side projects and prototypes
+- Educational purposes
+
+**❌ NOT Recommended For:**
+- Production applications
+- Mission-critical systems
+- Projects with tight deadlines
+- Teams without Rust expertise
+- Applications requiring stable ecosystem
 
 ---
 
@@ -95,39 +198,62 @@ Laravel's Developer Experience  +  Rust's Performance & Safety  =  RustForge
 
 ---
 
-## 🚀 Quick Start
+## 🚀 Quick Start (Experimental)
+
+> ⚠️ **Note:** Installation is not yet streamlined. Expect rough edges and missing documentation.
 
 ### Prerequisites
 
-- **Rust 1.70+** (from https://rustup.rs)
-- **Database**: MySQL 5.7+, PostgreSQL 12+, or SQLite 3.0+
+- **Rust 1.75+** (MSRV - Minimum Supported Rust Version)
+- **Database**: PostgreSQL 12+, MySQL 5.7+, or SQLite 3.0+
+- **Redis 6.0+** (optional for development, required for production features)
+- **Git** (for cloning the repository)
 
 ### Installation
 
+**Currently, RustForge is not published to crates.io. You need to build from source:**
+
 ```bash
-# Create a new project
+# Clone the repository
+git clone https://github.com/yourusername/Rust_DX-Framework.git
+cd Rust_DX-Framework
+
+# Build the project (this may take several minutes)
+cargo build --release
+
+# Add foundry to your PATH (or use full path)
+export PATH=$PATH:$(pwd)/target/release
+
+# Verify installation
+foundry --version
+
+# Create a new project (in a separate directory)
+cd ..
 cargo new my-rustforge-app
 cd my-rustforge-app
 
-# Add RustForge dependencies to Cargo.toml
-[dependencies]
-foundry-application = "0.1"
-foundry-infra = "0.1"
-foundry-plugins = "0.1"
-tokio = { version = "1", features = ["full"] }
+# Copy foundry binary or add as dependency (not on crates.io yet)
+# For now, use the built binary directly
 
-# Build the project
-cargo build
+# Set up environment
+cp ../ Rust_DX-Framework/.env.example .env
+# Edit .env with your database credentials
 
 # Set up the database
-./target/debug/foundry database:create
+foundry database:create
 
 # Run migrations
-./target/debug/foundry migrate
+foundry migrate
 
-# Start the development server
-./target/debug/foundry serve
+# Start development server (when implemented)
+# foundry serve
 ```
+
+**Known Installation Issues:**
+- Not available via `cargo install` yet
+- No project template generator
+- Manual setup required
+- Limited quick-start guides
 
 ### First Steps
 
@@ -471,13 +597,15 @@ For comprehensive documentation, please refer to:
 - **API Formats:** REST, GraphQL, WebSocket
 - **Testing:** Factories, seeders, snapshot testing
 
-### Production Ready
+### Production Ready Status
 
-- ✅ **Security:** Authentication, authorization, OAuth, rate limiting
-- ✅ **Performance:** Caching, indexing, query optimization
-- ✅ **Scalability:** Multi-tenancy, load balancing, async/await
-- ✅ **Monitoring:** Audit logging, metrics, health checks
-- ✅ **Deployment:** Docker, Kubernetes-ready
+**NOT PRODUCTION-READY (v0.2.0)**
+
+- ⚠️ **Security:** Basic auth works, authorization/OAuth/rate limiting in development
+- ⚠️ **Performance:** Caching (in-memory only), query optimization needed
+- ⚠️ **Scalability:** Single-instance only (in-memory backends), multi-tenancy partial
+- ⚠️ **Monitoring:** Basic audit logging, metrics/health checks need work
+- ⚠️ **Deployment:** Docker exists but not optimized, Kubernetes manifests missing
 
 ---
 

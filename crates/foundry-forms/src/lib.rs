@@ -11,22 +11,25 @@
 //! # Example
 //!
 //! ```no_run
-//! use foundry_forms::{Form, Field, Theme};
+//! use foundry_forms::{Form, Field, Theme, FormMethod};
 //!
 //! let form = Form::new("user_form")
 //!     .action("/users")
-//!     .method("POST")
-//!     .field(Field::text("name").label("Name").required())
-//!     .field(Field::email("email").label("Email").required())
-//!     .field(Field::password("password").label("Password").min_length(8))
-//!     .submit("Create User");
+//!     .method(FormMethod::Post)
+//!     .field(Field::text("name").label("Name").required().build())
+//!     .field(Field::email("email").label("Email").required().build())
+//!     .field(Field::password("password").label("Password").min_length(8).build())
+//!     .submit("Create User")
+//!     .build();
 //!
 //! let html = form.render(Theme::Tailwind)?;
+//! # Ok::<(), anyhow::Error>(())
 //! ```
 
 pub mod builder;
 pub mod csrf;
 pub mod field;
+pub mod form_request;
 pub mod renderer;
 pub mod theme;
 pub mod validation;
@@ -34,9 +37,13 @@ pub mod validation;
 pub use builder::{Form, FormBuilder, FormMethod};
 pub use csrf::{CsrfProtection, CsrfToken};
 pub use field::{Field, FieldType, InputType};
+pub use form_request::{FormRequest, FormRequestError, FormRequestValidator, FromValidatedData};
 pub use renderer::FormRenderer;
 pub use theme::Theme;
-pub use validation::{ValidationError, ValidationRule, Validator};
+pub use validation::{
+    ValidationData, ValidationError, ValidationErrors, ValidationRule, ValidationRuleTrait,
+    Validator,
+};
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

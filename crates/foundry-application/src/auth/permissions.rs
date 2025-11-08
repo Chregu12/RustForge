@@ -119,7 +119,7 @@ impl PermissionService {
     }
 
     /// Get all permissions for a user
-    pub async fn get_user_permissions(&self, user_id: i64) -> Result<Vec<Permission>, AuthError> {
+    pub async fn get_user_permissions(&self, _user_id: i64) -> Result<Vec<Permission>, AuthError> {
         // Query to get all permissions for a user through their roles
         // This would join: users -> role_user -> roles -> permission_role -> permissions
 
@@ -129,7 +129,7 @@ impl PermissionService {
     }
 
     /// Get all roles for a user
-    pub async fn get_user_roles(&self, user_id: i64) -> Result<Vec<Role>, AuthError> {
+    pub async fn get_user_roles(&self, _user_id: i64) -> Result<Vec<Role>, AuthError> {
         // Query to get all roles for a user
         // This would join: users -> role_user -> roles
 
@@ -157,8 +157,8 @@ impl PermissionService {
     /// Assign a role to a user
     pub async fn assign_role_to_user(
         &self,
-        user_id: i64,
-        role_id: i64,
+        _user_id: i64,
+        _role_id: i64,
     ) -> Result<(), AuthError> {
         // Insert into role_user table
         // In production, use SeaORM
@@ -168,8 +168,8 @@ impl PermissionService {
     /// Remove a role from a user
     pub async fn remove_role_from_user(
         &self,
-        user_id: i64,
-        role_id: i64,
+        _user_id: i64,
+        _role_id: i64,
     ) -> Result<(), AuthError> {
         // Delete from role_user table
         // In production, use SeaORM
@@ -179,8 +179,8 @@ impl PermissionService {
     /// Assign a permission to a role
     pub async fn assign_permission_to_role(
         &self,
-        role_id: i64,
-        permission_id: i64,
+        _role_id: i64,
+        _permission_id: i64,
     ) -> Result<(), AuthError> {
         // Insert into permission_role table
         // In production, use SeaORM
@@ -190,8 +190,8 @@ impl PermissionService {
     /// Remove a permission from a role
     pub async fn remove_permission_from_role(
         &self,
-        role_id: i64,
-        permission_id: i64,
+        _role_id: i64,
+        _permission_id: i64,
     ) -> Result<(), AuthError> {
         // Delete from permission_role table
         // In production, use SeaORM
@@ -241,7 +241,7 @@ impl PermissionService {
     /// Find permission by slug
     pub async fn find_permission_by_slug(
         &self,
-        slug: &str,
+        _slug: &str,
     ) -> Result<Option<Permission>, AuthError> {
         // Query permissions table
         // In production, use SeaORM
@@ -249,7 +249,7 @@ impl PermissionService {
     }
 
     /// Find role by slug
-    pub async fn find_role_by_slug(&self, slug: &str) -> Result<Option<Role>, AuthError> {
+    pub async fn find_role_by_slug(&self, _slug: &str) -> Result<Option<Role>, AuthError> {
         // Query roles table
         // In production, use SeaORM
         Ok(None)

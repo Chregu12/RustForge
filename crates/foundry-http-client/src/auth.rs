@@ -13,7 +13,7 @@ pub enum AuthType {
 /// Authentication configuration
 #[derive(Debug, Clone)]
 pub struct Auth {
-    auth_type: AuthType,
+    pub auth_type: AuthType,
 }
 
 impl Auth {

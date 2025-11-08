@@ -58,6 +58,7 @@ pub struct FastContainer {
     bindings: Arc<RwLock<FxHashMap<String, Binding>>>,
     aliases: Arc<RwLock<FxHashMap<String, String>>>,
     tags: Arc<RwLock<FxHashMap<String, Vec<String>>>>,
+    #[allow(dead_code)]
     contextual: Arc<RwLock<ContextualBindingStore>>,
     deferred: Arc<RwLock<Vec<String>>>,
 }
