@@ -198,62 +198,90 @@ RustForge has a solid architectural foundation but is NOT production-ready. The 
 
 ---
 
-## 🚀 Quick Start (Experimental)
-
-> ⚠️ **Note:** Installation is not yet streamlined. Expect rough edges and missing documentation.
+## 🚀 Quick Start
 
 ### Prerequisites
 
 - **Rust 1.75+** (MSRV - Minimum Supported Rust Version)
-- **Database**: PostgreSQL 12+, MySQL 5.7+, or SQLite 3.0+
-- **Redis 6.0+** (optional for development, required for production features)
-- **Git** (for cloning the repository)
+- **Git** (for cloning)
+- **Redis 6.0+** (optional for production features)
 
 ### Installation
 
-**Currently, RustForge is not published to crates.io. You need to build from source:**
+#### Option 1: One-Liner Installer (Recommended) ⚡
 
 ```bash
-# Clone the repository
-git clone https://github.com/yourusername/Rust_DX-Framework.git
-cd Rust_DX-Framework
-
-# Build the project (this may take several minutes)
-cargo build --release
-
-# Add foundry to your PATH (or use full path)
-export PATH=$PATH:$(pwd)/target/release
-
-# Verify installation
-foundry --version
-
-# Create a new project (in a separate directory)
-cd ..
-cargo new my-rustforge-app
-cd my-rustforge-app
-
-# Copy foundry binary or add as dependency (not on crates.io yet)
-# For now, use the built binary directly
-
-# Set up environment
-cp ../ Rust_DX-Framework/.env.example .env
-# Edit .env with your database credentials
-
-# Set up the database
-foundry database:create
-
-# Run migrations
-foundry migrate
-
-# Start development server (when implemented)
-# foundry serve
+bash <(curl -s https://raw.githubusercontent.com/Chregu12/RustForge/main/install.sh) my-project
+cd my-project
+cargo run
 ```
 
-**Known Installation Issues:**
-- Not available via `cargo install` yet
-- No project template generator
-- Manual setup required
-- Limited quick-start guides
+**That's it!** Your RustForge app is running! 🎉
+
+#### Option 2: GitHub Template (Best for Learning) 📚
+
+1. Go to **[RustForge-Starter Template](https://github.com/Chregu12/RustForge-Starter)**
+2. Click **"Use this template"** → Create new repository
+3. Clone your new repository
+4. Run the app:
+
+```bash
+git clone https://github.com/YOUR_USERNAME/YOUR_REPO.git my-project
+cd my-project
+cp .env.example .env
+cargo run
+```
+
+#### Option 3: Manual Clone 🔧
+
+```bash
+git clone https://github.com/Chregu12/RustForge-Starter.git my-project
+cd my-project
+rm -rf .git && git init
+cp .env.example .env
+cargo run
+```
+
+### Your First RustForge App
+
+The starter template includes a working example:
+
+```rust
+use foundry_queue::{QueueManager, Job};
+use foundry_cache::CacheManager;
+use serde_json::json;
+
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    // Initialize Queue System
+    let queue = QueueManager::from_env()?;
+
+    // Dispatch a background job
+    let job = Job::new("send_welcome_email")
+        .with_payload(json!({
+            "to": "user@example.com",
+            "subject": "Welcome!"
+        }));
+
+    queue.dispatch(job).await?;
+
+    // Initialize Cache System
+    let cache = CacheManager::from_env()?;
+
+    // Cache data with TTL
+    cache.set("user:1", &"John Doe".to_string(),
+        Some(std::time::Duration::from_secs(3600))).await?;
+
+    Ok(())
+}
+```
+
+**See [QUICK_START.md](QUICK_START.md) for more examples and features!**
+
+**Resources:**
+- 📚 [Quick Start Guide](QUICK_START.md) - Detailed examples
+- 📦 [Starter Template](https://github.com/Chregu12/RustForge-Starter) - Ready-to-use template
+- 🚀 [Publishing Guide](PUBLISHING_GUIDE.md) - Distribution strategies
 
 ### First Steps
 
