@@ -38,8 +38,14 @@ mod limiter;
 mod memory;
 pub mod middleware;
 
+#[cfg(feature = "redis-backend")]
+mod redis;
+
 pub use config::RateLimitConfig;
 pub use error::{RateLimitError, RateLimitResult};
 pub use limiter::{LimitInfo, LimitResult, RateLimiter};
 pub use memory::MemoryRateLimiter;
 pub use middleware::RateLimitLayer;
+
+#[cfg(feature = "redis-backend")]
+pub use redis::RedisRateLimiter;
