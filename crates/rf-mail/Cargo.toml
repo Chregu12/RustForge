@@ -1,0 +1,30 @@
+[package]
+name = "rf-mail"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+async-trait.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+tokio = { workspace = true, features = ["fs"] }
+uuid.workspace = true
+chrono.workspace = true
+
+# Email
+lettre = { version = "0.11", default-features = false, features = ["tokio1-rustls-tls", "smtp-transport", "builder", "hostname"] }
+handlebars = "5.1"
+
+# Optional
+rf-jobs = { path = "../rf-jobs", optional = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["test-util", "macros"] }
+
+[features]
+default = []
+queue = ["rf-jobs"]

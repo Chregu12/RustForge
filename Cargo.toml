@@ -9,12 +9,14 @@ members = [
     "crates/rf-auth",
     "crates/rf-validation",
     "crates/rf-jobs",
+    "crates/rf-mail",
     # Examples
     "examples/hello",
     "examples/database-demo",
     "examples/auth-demo",
     "examples/validation-demo",
     "examples/jobs-demo",
+    "examples/mail-demo",
     # Legacy crates
     "crates/foundry-cli",
     "crates/foundry-application",
