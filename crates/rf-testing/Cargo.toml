@@ -1,0 +1,20 @@
+[package]
+name = "rf-testing"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+async-trait.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+axum.workspace = true
+tokio.workspace = true
+tower = { workspace = true, features = ["util"] }
+http = "1.0"
+bytes = "1.5"
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["test-util", "macros"] }
