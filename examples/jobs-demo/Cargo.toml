@@ -1,0 +1,15 @@
+[package]
+name = "jobs-demo"
+version.workspace = true
+edition.workspace = true
+publish = false
+
+[dependencies]
+rf-jobs = { path = "../../crates/rf-jobs" }
+tokio = { workspace = true, features = ["full"] }
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
+tracing-subscriber.workspace = true
+tracing.workspace = true
+async-trait.workspace = true
+anyhow.workspace = true
