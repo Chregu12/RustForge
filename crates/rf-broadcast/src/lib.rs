@@ -65,9 +65,15 @@ mod event;
 mod memory;
 mod websocket;
 
+#[cfg(feature = "redis-backend")]
+mod redis;
+
 pub use broadcaster::{Broadcaster, ConnectionId, PresenceInfo, UserId};
 pub use channel::Channel;
 pub use error::{BroadcastError, BroadcastResult};
 pub use event::{Event, SimpleEvent};
 pub use memory::{BroadcastMessage, MemoryBroadcaster};
 pub use websocket::{websocket_router, WsMessage, WsState};
+
+#[cfg(feature = "redis-backend")]
+pub use redis::RedisBroadcaster;
