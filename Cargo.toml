@@ -12,6 +12,7 @@ members = [
     "crates/rf-mail",
     "crates/rf-storage",
     "crates/rf-ratelimit",
+    "crates/rf-broadcast",
     # Examples
     "examples/hello",
     "examples/database-demo",
