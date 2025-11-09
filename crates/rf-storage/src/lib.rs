@@ -31,12 +31,11 @@
 //! ```
 
 mod error;
+mod local;
 mod memory;
 mod storage;
 
 pub use error::{StorageError, StorageResult};
+pub use local::LocalStorage;
 pub use memory::MemoryStorage;
 pub use storage::Storage;
-
-// Note: LocalStorage will be implemented in future updates
-// pub use local::LocalStorage;
