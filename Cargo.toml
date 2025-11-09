@@ -8,11 +8,13 @@ members = [
     "crates/rf-orm",
     "crates/rf-auth",
     "crates/rf-validation",
+    "crates/rf-jobs",
     # Examples
     "examples/hello",
     "examples/database-demo",
     "examples/auth-demo",
     "examples/validation-demo",
+    "examples/jobs-demo",
     # Legacy crates
     "crates/foundry-cli",
     "crates/foundry-application",
@@ -116,3 +118,5 @@ validator = { version = "0.18", features = ["derive"] }
 redis = { version = "0.24", features = ["aio", "tokio-comp", "connection-manager"] }
 deadpool-redis = "0.14"
 config = "0.14"
+cron = "0.13"
+num_cpus = "1.16"
