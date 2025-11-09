@@ -1,0 +1,28 @@
+[package]
+name = "rf-validation"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+# Workspace dependencies
+rf-core = { path = "../rf-core" }
+anyhow.workspace = true
+thiserror.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+
+# Axum integration
+axum.workspace = true
+async-trait.workspace = true
+tower.workspace = true
+
+# Validation
+validator = { version = "0.18", features = ["derive"] }
+regex = "1.10"
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["full"] }
+tokio-test = "0.4"
+tower = { workspace = true }

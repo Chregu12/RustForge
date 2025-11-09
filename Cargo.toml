@@ -1,5 +1,19 @@
 [workspace]
 members = [
+    # Phase 2: New Modular Architecture (rf-*)
+    "crates/rf-core",
+    "crates/rf-web",
+    "crates/rf-config",
+    "crates/rf-container",
+    "crates/rf-orm",
+    "crates/rf-auth",
+    "crates/rf-validation",
+    # Examples
+    "examples/hello",
+    "examples/database-demo",
+    "examples/auth-demo",
+    "examples/validation-demo",
+    # Legacy crates
     "crates/foundry-cli",
     "crates/foundry-application",
     "crates/foundry-domain",
@@ -96,3 +110,9 @@ once_cell = "1.19"
 sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "postgres", "sqlite"] }
 criterion = { version = "0.5", features = ["html_reports", "async_tokio"] }
 dhat = "0.3"
+
+# Phase 2: Additional dependencies
+validator = { version = "0.18", features = ["derive"] }
+redis = { version = "0.24", features = ["aio", "tokio-comp", "connection-manager"] }
+deadpool-redis = "0.14"
+config = "0.14"
