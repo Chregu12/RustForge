@@ -1,0 +1,34 @@
+[package]
+name = "rf-health"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+async-trait.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+tokio.workspace = true
+chrono.workspace = true
+axum.workspace = true
+
+# Optional database support
+sqlx = { workspace = true, optional = true }
+
+# Optional Redis support
+redis = { workspace = true, optional = true }
+deadpool-redis = { workspace = true, optional = true }
+
+# System metrics
+sysinfo = "0.32"
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["test-util", "macros"] }
+
+[features]
+default = []
+database = ["sqlx"]
+redis-check = ["redis", "deadpool-redis"]
