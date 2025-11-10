@@ -60,6 +60,10 @@
 mod error;
 mod http;
 pub mod assertions;
+pub mod factory;
+pub mod seeder;
 
 pub use error::{TestError, TestResult};
 pub use http::{HttpTester, TestResponse};
+pub use factory::{Factory, FactoryBuilder, FakeData};
+pub use seeder::{Seeder, DatabaseSeeder};
