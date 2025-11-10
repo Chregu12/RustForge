@@ -1,0 +1,18 @@
+[package]
+name = "rf-2fa"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+totp-rs = { version = "5.5", features = ["qr", "serde_support"] }
+qrcode = "0.14"
+base32 = "0.5"
+rand = "0.8"
+serde = { version = "1.0", features = ["derive"] }
+thiserror = "1.0"
+sha2 = "0.10"
+chrono = { version = "0.4", features = ["serde"] }
+image = "0.25"
+
+[dev-dependencies]
+tokio = { version = "1.0", features = ["full"] }
