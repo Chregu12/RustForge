@@ -30,6 +30,10 @@ members = [
     "crates/rf-2fa",
     "crates/rf-search",
     "crates/rf-cli-gen",
+    "crates/rf-events",
+    "crates/rf-notifications",
+    "crates/rf-feature-flags",
+    "crates/rf-deploy",
     # Examples
     "examples/hello",
     "examples/database-demo",
