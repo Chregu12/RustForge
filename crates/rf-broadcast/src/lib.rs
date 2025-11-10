@@ -64,6 +64,7 @@ mod error;
 mod event;
 mod memory;
 mod websocket;
+pub mod auth;
 
 #[cfg(feature = "redis-backend")]
 mod redis;
@@ -74,6 +75,7 @@ pub use error::{BroadcastError, BroadcastResult};
 pub use event::{Event, SimpleEvent};
 pub use memory::{BroadcastMessage, MemoryBroadcaster};
 pub use websocket::{websocket_router, WsMessage, WsState};
+pub use auth::{WebSocketAuth, ChannelAuthorizer, AllowAllAuthorizer, PublicOnlyAuthorizer};
 
 #[cfg(feature = "redis-backend")]
 pub use redis::RedisBroadcaster;

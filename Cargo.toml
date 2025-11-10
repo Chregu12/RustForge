@@ -16,6 +16,7 @@ members = [
     "crates/rf-testing",
     "crates/rf-health",
     "crates/rf-queue",
+    "crates/rf-scheduler",
     # Examples
     "examples/hello",
     "examples/database-demo",
