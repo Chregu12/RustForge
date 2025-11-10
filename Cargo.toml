@@ -26,6 +26,10 @@ members = [
     "crates/rf-swagger",
     "crates/rf-pagination",
     "crates/rf-upload",
+    "crates/rf-sse",
+    "crates/rf-2fa",
+    "crates/rf-search",
+    "crates/rf-cli-gen",
     # Examples
     "examples/hello",
     "examples/database-demo",
