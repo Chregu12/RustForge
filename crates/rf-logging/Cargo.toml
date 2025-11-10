@@ -1,0 +1,15 @@
+[package]
+name = "rf-logging"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["json", "env-filter"] }
+tracing-appender = "0.2"
+serde = { version = "1.0", features = ["derive"] }
+chrono = "0.4"
+uuid = { version = "1.0", features = ["v4"] }
+
+[dev-dependencies]
+tokio = { version = "1.0", features = ["full"] }

@@ -33,9 +33,11 @@
 mod error;
 mod local;
 mod memory;
+mod s3;
 mod storage;
 
 pub use error::{StorageError, StorageResult};
 pub use local::LocalStorage;
 pub use memory::MemoryStorage;
+pub use s3::{S3Config, S3Storage};
 pub use storage::Storage;
