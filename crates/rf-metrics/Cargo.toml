@@ -1,0 +1,13 @@
+[package]
+name = "rf-metrics"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+axum = "0.7"
+prometheus = "0.13"
+lazy_static = "1.4"
+serde = { version = "1.0", features = ["derive"] }
+tokio = { version = "1.0", features = ["full"] }
+
+[dev-dependencies]

@@ -20,6 +20,9 @@ members = [
     "crates/rf-graphql",
     "crates/rf-tenancy",
     "crates/rf-cache",
+    "crates/rf-oauth2-server",
+    "crates/rf-logging",
+    "crates/rf-metrics",
     # Examples
     "examples/hello",
     "examples/database-demo",
