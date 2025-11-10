@@ -34,6 +34,10 @@ members = [
     "crates/rf-notifications",
     "crates/rf-feature-flags",
     "crates/rf-deploy",
+    "crates/rf-audit",
+    "crates/rf-export",
+    "crates/rf-i18n",
+    "crates/rf-admin",
     # Examples
     "examples/hello",
     "examples/database-demo",
