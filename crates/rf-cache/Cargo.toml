@@ -1,0 +1,22 @@
+[package]
+name = "rf-cache"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+async-trait = { workspace = true }
+tokio = { workspace = true, features = ["sync", "time"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+redis = { workspace = true, optional = true }
+deadpool-redis = { workspace = true, optional = true }
+
+[features]
+default = []
+redis-backend = ["redis", "deadpool-redis"]
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["test-util", "macros"] }

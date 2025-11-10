@@ -17,6 +17,9 @@ members = [
     "crates/rf-health",
     "crates/rf-queue",
     "crates/rf-scheduler",
+    "crates/rf-graphql",
+    "crates/rf-tenancy",
+    "crates/rf-cache",
     # Examples
     "examples/hello",
     "examples/database-demo",
