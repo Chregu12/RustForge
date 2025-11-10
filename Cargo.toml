@@ -23,6 +23,9 @@ members = [
     "crates/rf-oauth2-server",
     "crates/rf-logging",
     "crates/rf-metrics",
+    "crates/rf-swagger",
+    "crates/rf-pagination",
+    "crates/rf-upload",
     # Examples
     "examples/hello",
     "examples/database-demo",
