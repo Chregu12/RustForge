@@ -1,0 +1,44 @@
+[package]
+name = "rf-auth"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+# Workspace dependencies
+rf-core = { path = "../rf-core" }
+anyhow.workspace = true
+thiserror.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tracing.workspace = true
+chrono.workspace = true
+tokio = { workspace = true, features = ["full"] }
+
+# Axum integration
+axum.workspace = true
+async-trait.workspace = true
+tower.workspace = true
+
+# Authentication
+bcrypt = "0.15"
+argon2 = "0.5"
+jsonwebtoken = "9.3"
+uuid = { version = "1.11", features = ["v4", "serde"] }
+rand_core = { version = "0.6", features = ["getrandom"] }
+
+# Authorization
+once_cell = "1.19"
+futures = "0.3"
+
+# Auth features (email verification, password reset, remember me)
+rf-mail = { path = "../rf-mail", optional = true }
+
+[features]
+default = []
+mail = ["rf-mail"]
+
+[dev-dependencies]
+tokio-test = "0.4"
+rf-mail = { path = "../rf-mail" }

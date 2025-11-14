@@ -109,6 +109,7 @@ impl Default for Event {
 }
 
 /// SSE channel for broadcasting events
+#[derive(Clone)]
 struct Channel {
     sender: broadcast::Sender<Event>,
 }

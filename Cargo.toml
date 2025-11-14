@@ -8,11 +8,13 @@ members = [
     "crates/rf-orm",
     "crates/rf-auth",
     "crates/rf-validation",
+    "crates/rf-validation-derive",
     "crates/rf-jobs",
     "crates/rf-mail",
     "crates/rf-storage",
     "crates/rf-ratelimit",
     "crates/rf-broadcast",
+    "crates/rf-broadcasting",
     "crates/rf-testing",
     "crates/rf-health",
     "crates/rf-queue",
@@ -38,6 +40,10 @@ members = [
     "crates/rf-export",
     "crates/rf-i18n",
     "crates/rf-admin",
+    "crates/rf-views",
+    "crates/rf-view",
+    "crates/rf-authorization",
+    "crates/forge-cli",
     # Examples
     "examples/hello",
     "examples/database-demo",
@@ -70,7 +76,7 @@ members = [
     "crates/foundry-soft-deletes",
     "crates/foundry-audit",
     "crates/foundry-search",
-    "crates/foundry-oauth",
+    # "crates/foundry-oauth", # Removed for v1.0.0 - use rf-oauth2-server instead
     "crates/foundry-oauth-server",
     "crates/foundry-auth-scaffolding",
     "crates/foundry-config",
@@ -125,7 +131,7 @@ console = "0.15"
 indicatif = "0.17"
 tokio-tungstenite = "0.21"
 futures = "0.3"
-tower = "0.4"
+tower = { version = "0.4", features = ["util"] }
 uuid = { version = "1.10", features = ["v4", "serde"] }
 jsonwebtoken = "9.2"
 argon2 = "0.5"
@@ -150,3 +156,4 @@ deadpool-redis = "0.14"
 config = "0.14"
 cron = "0.13"
 num_cpus = "1.16"
+

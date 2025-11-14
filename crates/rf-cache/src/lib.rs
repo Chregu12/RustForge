@@ -21,13 +21,13 @@
 //! let cache = MemoryCache::new();
 //!
 //! // Basic operations
-//! cache.set("key", "value", Duration::from_secs(60)).await?;
+//! cache.set("key", &"value".to_string(), Duration::from_secs(60)).await?;
 //! let value: Option<String> = cache.get("key").await?;
 //! cache.delete("key").await?;
 //!
 //! // With tags
 //! cache.tags(&["users", "user:123"])
-//!     .set("user:123:profile", "data", Duration::from_secs(3600))
+//!     .set("user:123:profile", &"data".to_string(), Duration::from_secs(3600))
 //!     .await?;
 //!
 //! // Invalidate by tag
@@ -53,6 +53,12 @@ use thiserror::Error;
 use tokio::sync::{Mutex, RwLock};
 
 pub mod advanced;
+pub mod config;
+
+#[cfg(feature = "redis-backend")]
+pub mod redis;
+
+pub use config::{CacheBackend, CacheConfig, CacheConfigBuilder};
 
 /// Cache errors
 #[derive(Debug, Error)]
@@ -333,6 +339,9 @@ impl TaggedCache {
         Ok(())
     }
 }
+
+#[cfg(feature = "redis-backend")]
+pub use redis::{RedisCache, RedisTaggedCache};
 
 #[cfg(test)]
 mod tests {
