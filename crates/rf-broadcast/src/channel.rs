@@ -45,6 +45,11 @@ impl Channel {
         matches!(self, Channel::Private(_) | Channel::Presence(_))
     }
 
+    /// Check if channel is public
+    pub fn is_public(&self) -> bool {
+        matches!(self, Channel::Public(_))
+    }
+
     /// Check if channel is a presence channel
     pub fn is_presence(&self) -> bool {
         matches!(self, Channel::Presence(_))

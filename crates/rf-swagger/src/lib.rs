@@ -93,10 +93,7 @@ where
 }
 
 /// Create ReDoc router
-pub fn redoc<S>(openapi_json: String) -> Redoc
-where
-    S: Clone + Send + Sync + 'static,
-{
+pub fn redoc(openapi_json: String) -> Redoc<'static, 'static, utoipa::openapi::OpenApi> {
     Redoc::with_url("/redoc", utoipa::openapi::OpenApi::default())
 }
 
