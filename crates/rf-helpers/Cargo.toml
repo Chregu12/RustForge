@@ -9,7 +9,6 @@ license = "MIT"
 [dependencies]
 # String manipulation
 heck = "0.5"
-inflector = "0.11"
 deunicode = "1.6"
 
 # Random

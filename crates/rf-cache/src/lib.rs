@@ -343,6 +343,18 @@ impl TaggedCache {
 #[cfg(feature = "redis-backend")]
 pub use redis::{RedisCache, RedisTaggedCache};
 
+/// Prelude module for convenient imports
+pub mod prelude {
+    pub use crate::{
+        Cache, CacheError, CacheResult, MemoryCache, TaggedCache,
+    };
+    pub use crate::advanced::{StampedeLock, StampedeLockGuard};
+    pub use crate::config::{CacheBackend, CacheConfig, CacheConfigBuilder};
+
+    #[cfg(feature = "redis-backend")]
+    pub use crate::{RedisCache, RedisTaggedCache};
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
