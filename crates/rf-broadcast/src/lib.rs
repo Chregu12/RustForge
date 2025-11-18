@@ -69,6 +69,10 @@ pub mod auth;
 #[cfg(feature = "redis-backend")]
 mod redis;
 
+// Phase 19: Pusher driver
+#[cfg(feature = "pusher")]
+pub mod pusher;
+
 pub use broadcaster::{Broadcaster, ConnectionId, PresenceInfo, UserId};
 pub use channel::Channel;
 pub use error::{BroadcastError, BroadcastResult};
@@ -79,3 +83,6 @@ pub use auth::{WebSocketAuth, ChannelAuthorizer, AllowAllAuthorizer, PublicOnlyA
 
 #[cfg(feature = "redis-backend")]
 pub use redis::RedisBroadcaster;
+
+#[cfg(feature = "pusher")]
+pub use pusher::{PusherBroadcaster, PusherConfig, PusherEvent, PusherBatchResponse};

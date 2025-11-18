@@ -32,12 +32,24 @@
 
 mod error;
 mod local;
+mod manager;
 mod memory;
 mod s3;
 mod storage;
+mod stream;
 
 pub use error::{StorageError, StorageResult};
 pub use local::LocalStorage;
+pub use manager::StorageManager;
 pub use memory::MemoryStorage;
 pub use s3::{S3Config, S3Storage};
 pub use storage::Storage;
+pub use stream::{detect_content_type, extract_file_name, FileStream};
+
+/// Prelude module for convenient imports
+pub mod prelude {
+    pub use crate::{
+        LocalStorage, MemoryStorage, S3Config, S3Storage, Storage, StorageError, StorageManager,
+        StorageResult, FileStream, detect_content_type, extract_file_name,
+    };
+}

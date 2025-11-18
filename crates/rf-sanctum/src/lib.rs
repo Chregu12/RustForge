@@ -36,6 +36,14 @@ pub use auth::SanctumAuth;
 pub use abilities::{Ability, AbilityChecker};
 pub use errors::SanctumError;
 
+/// Prelude module for convenient imports
+pub mod prelude {
+    pub use crate::{
+        Ability, AbilityChecker, NewToken, PersonalAccessToken, SanctumAuth, SanctumError,
+        Tokenable,
+    };
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

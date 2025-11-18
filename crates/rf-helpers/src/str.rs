@@ -2,7 +2,6 @@
 
 use deunicode::deunicode;
 use heck::{ToKebabCase, ToSnakeCase, ToTitleCase, ToUpperCamelCase};
-use inflector::Inflector;
 
 /// Convert a string to slug format (hello-world)
 pub fn slug(value: &str) -> String {
@@ -50,14 +49,81 @@ pub fn title(value: &str) -> String {
     value.to_title_case()
 }
 
-/// Pluralize a word
+/// Pluralize a word (basic English rules)
 pub fn plural(word: &str) -> String {
-    word.to_plural()
+    if word.is_empty() {
+        return word.to_string();
+    }
+
+    let lower = word.to_lowercase();
+
+    // Common irregular plurals
+    match lower.as_str() {
+        "person" => return "people".to_string(),
+        "child" => return "children".to_string(),
+        "man" => return "men".to_string(),
+        "woman" => return "women".to_string(),
+        "foot" => return "feet".to_string(),
+        "tooth" => return "teeth".to_string(),
+        "mouse" => return "mice".to_string(),
+        _ => {}
+    }
+
+    // Basic pluralization rules
+    if lower.ends_with("s") || lower.ends_with("x") || lower.ends_with("z")
+        || lower.ends_with("ch") || lower.ends_with("sh") {
+        format!("{}es", word)
+    } else if lower.ends_with("y") && !is_vowel(lower.chars().rev().nth(1).unwrap_or('a')) {
+        format!("{}ies", &word[..word.len() - 1])
+    } else if lower.ends_with("f") {
+        format!("{}ves", &word[..word.len() - 1])
+    } else if lower.ends_with("fe") {
+        format!("{}ves", &word[..word.len() - 2])
+    } else {
+        format!("{}s", word)
+    }
 }
 
-/// Singularize a word
+/// Singularize a word (basic English rules)
 pub fn singular(word: &str) -> String {
-    word.to_singular()
+    if word.is_empty() {
+        return word.to_string();
+    }
+
+    let lower = word.to_lowercase();
+
+    // Common irregular singulars
+    match lower.as_str() {
+        "people" => return "person".to_string(),
+        "children" => return "child".to_string(),
+        "men" => return "man".to_string(),
+        "women" => return "woman".to_string(),
+        "feet" => return "foot".to_string(),
+        "teeth" => return "tooth".to_string(),
+        "mice" => return "mouse".to_string(),
+        _ => {}
+    }
+
+    // Basic singularization rules
+    if lower.ends_with("ies") && word.len() > 3 {
+        format!("{}y", &word[..word.len() - 3])
+    } else if lower.ends_with("ves") {
+        if word.len() > 3 {
+            format!("{}f", &word[..word.len() - 3])
+        } else {
+            word.to_string()
+        }
+    } else if lower.ends_with("ses") || lower.ends_with("xes") || lower.ends_with("zes") {
+        word[..word.len() - 2].to_string()
+    } else if lower.ends_with("s") && word.len() > 1 {
+        word[..word.len() - 1].to_string()
+    } else {
+        word.to_string()
+    }
+}
+
+fn is_vowel(c: char) -> bool {
+    matches!(c, 'a' | 'e' | 'i' | 'o' | 'u' | 'A' | 'E' | 'I' | 'O' | 'U')
 }
 
 /// Limit a string to a specified length
