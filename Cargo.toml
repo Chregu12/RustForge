@@ -40,10 +40,38 @@ members = [
     "crates/rf-export",
     "crates/rf-i18n",
     "crates/rf-admin",
+    "crates/rf-blade",
+    "crates/rf-vite",
+    "crates/rf-livereload",
+    "crates/rf-cms",
+    "crates/rf-scaffold",
+    "crates/rf-breeze",
     "crates/rf-views",
     "crates/rf-view",
     "crates/rf-authorization",
+    # Phase 13: Eloquent ORM
+    "crates/rf-eloquent",
+    # Phase 14: API & Developer Experience
+    "crates/rf-api-resources",
+    "crates/rf-requests",
+    "crates/rf-collections",
+    "crates/rf-routing",
+    # Phase 15: Monitoring & Debugging
+    "crates/rf-horizon",
+    "crates/rf-telescope",
+    # Phase 16: Error Handling
+    "crates/rf-errors",
+    # Phase 16-17: Ecosystem & Polish
+    "crates/rf-package-dev",
+    "crates/rf-providers",
+    "crates/rf-socialite",
+    "crates/rf-encryption",
+    "crates/rf-response",
+    "crates/rf-facades",
     "crates/forge-cli",
+    # Phase 16-18: 100% Laravel Parity Features
+    "crates/rf-helpers",
+    "crates/rf-sanctum",
     # Examples
     "examples/hello",
     "examples/database-demo",
@@ -51,6 +79,10 @@ members = [
     "examples/validation-demo",
     "examples/jobs-demo",
     "examples/mail-demo",
+    "examples/scaffold-demo",
+    # Framework Test
+    "benchmarks",
+    "framework-test",
     # Legacy crates
     "crates/foundry-cli",
     "crates/foundry-application",
@@ -148,6 +180,8 @@ once_cell = "1.19"
 sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "postgres", "sqlite"] }
 criterion = { version = "0.5", features = ["html_reports", "async_tokio"] }
 dhat = "0.3"
+base64 = "0.21"
+dashmap = "5.5"
 
 # Phase 2: Additional dependencies
 validator = { version = "0.18", features = ["derive"] }
@@ -156,4 +190,3 @@ deadpool-redis = "0.14"
 config = "0.14"
 cron = "0.13"
 num_cpus = "1.16"
-
