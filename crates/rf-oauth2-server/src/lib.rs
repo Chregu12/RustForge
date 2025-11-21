@@ -40,9 +40,12 @@ mod error;
 mod server;
 mod token;
 mod types;
+pub mod scopes;
+pub mod middleware;
 
 pub use client::Client;
 pub use error::{OAuth2Error, OAuth2Result};
 pub use server::OAuth2Server;
 pub use token::{AccessToken, RefreshToken, TokenResponse};
 pub use types::{GrantType, OAuth2Config, Scope};
+pub use scopes::{Scope as ScopeType, ScopeChecker, ScopeSet, ScopeValidator, ScopeError};

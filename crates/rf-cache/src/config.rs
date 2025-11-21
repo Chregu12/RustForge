@@ -198,6 +198,22 @@ impl Default for CacheConfigBuilder {
 
 #[cfg(test)]
 mod tests {
+
+#[cfg(test)]
+async fn redis_available() -> bool {
+    use redis::AsyncCommands;
+    let redis_url = std::env::var("REDIS_URL").unwrap_or_else(|_| "redis://localhost:6379".to_string());
+    match redis::Client::open(redis_url.as_str()) {
+        Ok(client) => {
+            match client.get_multiplexed_async_connection().await {
+                Ok(mut conn) => conn.ping::<_, String>().await.is_ok(),
+                Err(_) => false,
+            }
+        },
+        Err(_) => false,
+    }
+}
+
     use super::*;
     use crate::Cache;
     use std::time::Duration;
@@ -240,8 +256,11 @@ mod tests {
 
     #[tokio::test]
     #[cfg(feature = "redis-backend")]
-    #[ignore] // Requires Redis
     async fn test_redis_config() {
+        if !redis_available().await {
+            eprintln!("⏭️  Skipping test_redis_config: Redis not available");
+            return;
+        }
         let cache_backend = CacheConfig::redis("redis://localhost:6379", "test")
             .build()
             .await
@@ -261,8 +280,11 @@ mod tests {
 
     #[tokio::test]
     #[cfg(feature = "redis-backend")]
-    #[ignore] // Requires Redis
     async fn test_builder_redis() {
+        if !redis_available().await {
+            eprintln!("⏭️  Skipping test_builder_redis: Redis not available");
+            return;
+        }
         let cache_backend = CacheConfigBuilder::new()
             .backend("redis")
             .redis_url("redis://localhost:6379")

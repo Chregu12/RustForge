@@ -42,3 +42,7 @@ foundry-plugins = { path = "../foundry-plugins" }
 [dev-dependencies]
 tempfile = "3.10"
 tokio-test = "0.4"
+
+[[example]]
+name = "basic_usage_foundry_observability"
+path = "examples/basic_usage.rs"

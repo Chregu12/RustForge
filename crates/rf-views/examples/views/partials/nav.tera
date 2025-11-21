@@ -1,0 +1,23 @@
+<nav class="navbar">
+    <div class="navbar-brand">
+        <a href="/">RustForge</a>
+    </div>
+
+    <ul class="navbar-menu">
+        <li><a href="/">Home</a></li>
+        <li><a href="/posts">Posts</a></li>
+        {% if auth() %}
+            <li><a href="/dashboard">Dashboard</a></li>
+            <li>
+                <span>{{ auth().name | default(value="User") }}</span>
+                <form method="POST" action="/logout" style="display: inline;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit">Logout</button>
+                </form>
+            </li>
+        {% else %}
+            <li><a href="/login">Login</a></li>
+            <li><a href="/register">Register</a></li>
+        {% endif %}
+    </ul>
+</nav>

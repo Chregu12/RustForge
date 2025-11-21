@@ -1,0 +1,68 @@
+# Application Configuration
+#
+# This file contains the core configuration for your RustForge application
+
+[app]
+# Application name
+name = "RustForge Application"
+
+# Application environment (local, development, staging, production)
+env = "local"
+
+# Debug mode - NEVER set to true in production
+debug = true
+
+# Application URL
+url = "http://localhost:3000"
+
+# Application timezone
+timezone = "UTC"
+
+# Locale configuration
+locale = "en"
+fallback_locale = "en"
+
+[server]
+# Server host and port
+host = "0.0.0.0"
+port = 3000
+
+# Maximum request body size (in bytes)
+max_body_size = 10485760  # 10MB
+
+# Request timeout (in seconds)
+timeout = 30
+
+[security]
+# Encryption key for cookies and sessions
+# Generate a new key with: forge key:generate
+key = ""
+
+# Allowed origins for CORS
+cors_origins = ["*"]
+
+# Trusted proxies
+trusted_proxies = []
+
+[logging]
+# Log level (trace, debug, info, warn, error)
+level = "info"
+
+# Log format (json, pretty)
+format = "pretty"
+
+# Log to file
+file_enabled = true
+file_path = "storage/logs/app.log"
+
+# Log to stdout
+stdout_enabled = true
+
+[providers]
+# Service Providers
+# Add your custom service providers here
+providers = [
+    # "App::Providers::AppServiceProvider",
+    # "App::Providers::RouteServiceProvider",
+    # "App::Providers::AuthServiceProvider",
+]

@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jobs - Horizon</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            color: white;
+            margin-bottom: 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .nav-link {
+            color: white;
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            transition: background 0.2s;
+        }
+
+        .nav-link:hover, .nav-link.active {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .panel {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+        }
+
+        .filters {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+            padding: 1.5rem;
+            background: #f7fafc;
+            border-radius: 8px;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .filter-label {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 0.5rem;
+        }
+
+        .filter-input, .filter-select {
+            padding: 0.5rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            font-size: 0.875rem;
+        }
+
+        .filter-input:focus, .filter-select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.875rem;
+            font-weight: 600;
+            transition: background 0.2s;
+        }
+
+        .btn:hover {
+            background: #5a67d8;
+        }
+
+        .btn-secondary {
+            background: #718096;
+        }
+
+        .btn-secondary:hover {
+            background: #4a5568;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        thead {
+            background: #f7fafc;
+        }
+
+        th {
+            padding: 1rem;
+            text-align: left;
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #2d3748;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        td {
+            padding: 1rem;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        tbody tr:hover {
+            background: #f7fafc;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-badge.pending {
+            background: #feebc8;
+            color: #7c2d12;
+        }
+
+        .status-badge.processing {
+            background: #bee3f8;
+            color: #2c5282;
+        }
+
+        .status-badge.completed {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+
+        .status-badge.failed {
+            background: #fed7d7;
+            color: #742a2a;
+        }
+
+        .status-badge.retrying {
+            background: #faf089;
+            color: #744210;
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 2rem;
+            padding-top: 2rem;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .pagination-info {
+            color: #718096;
+            font-size: 0.875rem;
+        }
+
+        .pagination-buttons {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .page-btn {
+            padding: 0.5rem 0.75rem;
+            border: 1px solid #e2e8f0;
+            background: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.875rem;
+            transition: all 0.2s;
+        }
+
+        .page-btn:hover {
+            background: #f7fafc;
+            border-color: #667eea;
+        }
+
+        .page-btn.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .page-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: #718096;
+        }
+
+        .empty-state h3 {
+            font-size: 1.25rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .job-link {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .job-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Jobs</h1>
+            <div class="nav-links">
+                <a href="/horizon" class="nav-link">Dashboard</a>
+                <a href="/horizon/jobs" class="nav-link active">Jobs</a>
+                <a href="/horizon/failed" class="nav-link">Failed Jobs</a>
+            </div>
+        </div>
+
+        <div class="panel">
+            <h2 style="margin-bottom: 1.5rem;">Filter Jobs</h2>
+            <div class="filters">
+                <div class="filter-group">
+                    <label class="filter-label">Queue</label>
+                    <select class="filter-select" id="filter-queue" onchange="applyFilters()">
+                        <option value="">All Queues</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label class="filter-label">Status</label>
+                    <select class="filter-select" id="filter-status" onchange="applyFilters()">
+                        <option value="">All Statuses</option>
+                        <option value="pending">Pending</option>
+                        <option value="processing">Processing</option>
+                        <option value="completed">Completed</option>
+                        <option value="failed">Failed</option>
+                        <option value="retrying">Retrying</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label class="filter-label">Search</label>
+                    <input type="text" class="filter-input" id="filter-search" placeholder="Search by job type..." onkeyup="applyFilters()">
+                </div>
+                <div class="filter-group">
+                    <label class="filter-label">Per Page</label>
+                    <select class="filter-select" id="filter-per-page" onchange="applyFilters()">
+                        <option value="20">20</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div class="panel">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                <h2>All Jobs</h2>
+                <button class="btn" onclick="loadJobs()">Refresh</button>
+            </div>
+
+            <table id="jobs-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Queue</th>
+                        <th>Job Type</th>
+                        <th>Status</th>
+                        <th>Attempts</th>
+                        <th>Dispatched</th>
+                        <th>Available</th>
+                    </tr>
+                </thead>
+                <tbody id="jobs-tbody">
+                    <tr>
+                        <td colspan="7" class="empty-state">
+                            <h3>Loading jobs...</h3>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="pagination" id="pagination">
+                <div class="pagination-info" id="pagination-info">
+                    Showing 0 to 0 of 0 jobs
+                </div>
+                <div class="pagination-buttons" id="pagination-buttons">
+                    <!-- Pagination buttons will be inserted here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentPage = 1;
+        let totalPages = 1;
+
+        async function loadJobs() {
+            const queue = document.getElementById('filter-queue').value;
+            const status = document.getElementById('filter-status').value;
+            const search = document.getElementById('filter-search').value;
+            const perPage = document.getElementById('filter-per-page').value;
+
+            const params = new URLSearchParams({
+                page: currentPage,
+                per_page: perPage
+            });
+
+            if (queue) params.append('queue', queue);
+            if (status) params.append('status', status);
+            if (search) params.append('search', search);
+
+            try {
+                const res = await fetch(`/horizon/api/jobs?${params}`);
+                const data = await res.json();
+
+                renderJobs(data.jobs);
+                renderPagination(data);
+
+                // Update queue filter options
+                await updateQueueFilter();
+            } catch (error) {
+                console.error('Error loading jobs:', error);
+                document.getElementById('jobs-tbody').innerHTML = `
+                    <tr>
+                        <td colspan="7" class="empty-state">
+                            <h3>Error loading jobs</h3>
+                            <p>${error.message}</p>
+                        </td>
+                    </tr>
+                `;
+            }
+        }
+
+        function renderJobs(jobs) {
+            const tbody = document.getElementById('jobs-tbody');
+
+            if (jobs.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="7" class="empty-state">
+                            <h3>No jobs found</h3>
+                            <p>Try adjusting your filters</p>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            tbody.innerHTML = jobs.map(job => `
+                <tr>
+                    <td>
+                        <a href="/horizon/jobs/${job.id}" class="job-link">
+                            ${job.id.substring(0, 8)}...
+                        </a>
+                    </td>
+                    <td>${job.queue}</td>
+                    <td>${job.job_type.split('::').pop()}</td>
+                    <td>
+                        <span class="status-badge ${job.status}">${job.status}</span>
+                    </td>
+                    <td>${job.attempt} / ${job.max_attempts}</td>
+                    <td>${formatDate(job.dispatched_at)}</td>
+                    <td>${formatDate(job.available_at)}</td>
+                </tr>
+            `).join('');
+        }
+
+        function renderPagination(data) {
+            totalPages = data.total_pages;
+
+            const start = (data.page - 1) * data.per_page + 1;
+            const end = Math.min(data.page * data.per_page, data.total);
+
+            document.getElementById('pagination-info').textContent =
+                `Showing ${start} to ${end} of ${data.total} jobs`;
+
+            const buttons = [];
+
+            // Previous button
+            buttons.push(`
+                <button class="page-btn" ${currentPage === 1 ? 'disabled' : ''} onclick="goToPage(${currentPage - 1})">
+                    Previous
+                </button>
+            `);
+
+            // Page numbers
+            const maxButtons = 5;
+            let startPage = Math.max(1, currentPage - Math.floor(maxButtons / 2));
+            let endPage = Math.min(totalPages, startPage + maxButtons - 1);
+            startPage = Math.max(1, endPage - maxButtons + 1);
+
+            for (let i = startPage; i <= endPage; i++) {
+                buttons.push(`
+                    <button class="page-btn ${i === currentPage ? 'active' : ''}" onclick="goToPage(${i})">
+                        ${i}
+                    </button>
+                `);
+            }
+
+            // Next button
+            buttons.push(`
+                <button class="page-btn" ${currentPage === totalPages ? 'disabled' : ''} onclick="goToPage(${currentPage + 1})">
+                    Next
+                </button>
+            `);
+
+            document.getElementById('pagination-buttons').innerHTML = buttons.join('');
+        }
+
+        function goToPage(page) {
+            if (page < 1 || page > totalPages) return;
+            currentPage = page;
+            loadJobs();
+        }
+
+        function applyFilters() {
+            currentPage = 1;
+            loadJobs();
+        }
+
+        async function updateQueueFilter() {
+            try {
+                const res = await fetch('/horizon/api/stats');
+                const data = await res.json();
+
+                const select = document.getElementById('filter-queue');
+                const currentValue = select.value;
+
+                select.innerHTML = '<option value="">All Queues</option>' +
+                    data.queues.map(q => `<option value="${q.name}">${q.name}</option>`).join('');
+
+                select.value = currentValue;
+            } catch (error) {
+                console.error('Error updating queue filter:', error);
+            }
+        }
+
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            const now = new Date();
+            const diff = now - date;
+
+            if (diff < 60000) return 'Just now';
+            if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
+            if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
+
+            return date.toLocaleString();
+        }
+
+        // Load jobs on page load
+        loadJobs();
+
+        // Auto-refresh every 10 seconds
+        setInterval(loadJobs, 10000);
+    </script>
+</body>
+</html>

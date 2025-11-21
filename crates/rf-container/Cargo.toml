@@ -1,0 +1,20 @@
+[package]
+name = "rf-container"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+# Error handling
+thiserror.workspace = true
+anyhow.workspace = true
+
+# Async support
+async-trait.workspace = true
+tokio = { workspace = true, features = ["macros", "rt", "rt-multi-thread"] }
+
+# Thread-safe reference counting
+# Using std::sync::Arc and std::any::TypeId - no external deps needed
+
+[dev-dependencies]

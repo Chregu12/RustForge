@@ -1,0 +1,48 @@
+[package]
+name = "rf-cms"
+version = "0.1.0"
+edition = "2021"
+authors = ["RustForge Team"]
+description = "Content Management System features for RustForge"
+license = "MIT OR Apache-2.0"
+keywords = ["cms", "media", "content", "rustforge"]
+categories = ["web-programming", "content-management"]
+
+[dependencies]
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Async
+tokio = { workspace = true, features = ["fs", "sync", "io-util"] }
+async-trait = { workspace = true }
+
+# Error handling
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+
+# HTTP
+axum = { workspace = true }
+
+# Image processing
+image = "0.25"
+
+# Hashing
+sha2 = "0.10"
+hex = "0.4"
+
+# Time
+chrono = { workspace = true }
+
+# UUID
+uuid = { workspace = true }
+
+# MIME types
+mime_guess = "2.0"
+
+# Utilities
+regex = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }
+tempfile = "3.8"

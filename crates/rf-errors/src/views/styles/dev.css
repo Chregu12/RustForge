@@ -1,0 +1,143 @@
+/* Development Error Page Styles */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    background: #1a1a2e;
+    color: #eee;
+    line-height: 1.6;
+    padding: 20px;
+}
+
+.error-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    background: #16213e;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+}
+
+.error-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 40px;
+    text-align: center;
+    border-bottom: 3px solid #e94560;
+}
+
+.error-code {
+    font-size: 96px;
+    font-weight: 900;
+    color: #fff;
+    text-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    margin-bottom: 10px;
+}
+
+.error-title {
+    font-size: 32px;
+    font-weight: 600;
+    color: #fff;
+}
+
+.error-details {
+    padding: 40px;
+}
+
+.section {
+    background: #0f3460;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+    border-left: 4px solid #e94560;
+}
+
+.section h3 {
+    color: #e94560;
+    font-size: 18px;
+    margin-bottom: 15px;
+    font-weight: 600;
+}
+
+.detail-item {
+    display: flex;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.detail-item:last-child {
+    border-bottom: none;
+}
+
+.detail-item .label {
+    color: #aaa;
+    font-weight: 600;
+    min-width: 120px;
+}
+
+.detail-item .value {
+    color: #fff;
+    font-family: 'Courier New', monospace;
+    word-break: break-all;
+}
+
+.stack-trace {
+    background: #0a1929;
+    border: 1px solid #e94560;
+    border-radius: 6px;
+    padding: 20px;
+    overflow-x: auto;
+    color: #f8f8f2;
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.footer {
+    padding: 30px 40px;
+    text-align: center;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.btn {
+    display: inline-block;
+    padding: 12px 32px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: #fff;
+    text-decoration: none;
+    border-radius: 8px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(102, 126, 234, 0.6);
+}
+
+@media (max-width: 768px) {
+    .error-code {
+        font-size: 64px;
+    }
+
+    .error-title {
+        font-size: 24px;
+    }
+
+    .error-details {
+        padding: 20px;
+    }
+
+    .detail-item {
+        flex-direction: column;
+    }
+
+    .detail-item .label {
+        margin-bottom: 4px;
+    }
+}

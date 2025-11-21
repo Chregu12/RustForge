@@ -5,6 +5,10 @@ edition.workspace = true
 authors.workspace = true
 license.workspace = true
 
+[features]
+default = []
+derive = ["rf-validation-derive"]
+
 [dependencies]
 # Workspace dependencies
 rf-core = { path = "../rf-core" }
@@ -12,15 +16,23 @@ anyhow.workspace = true
 thiserror.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+chrono.workspace = true
 
 # Axum integration
 axum.workspace = true
 async-trait.workspace = true
 tower.workspace = true
 
+# Database integration (for database rules)
+sea-orm.workspace = true
+
 # Validation
 validator = { version = "0.18", features = ["derive"] }
 regex = "1.10"
+once_cell = "1.19"
+
+# Derive macro (optional)
+rf-validation-derive = { path = "../rf-validation-derive", optional = true }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["full"] }

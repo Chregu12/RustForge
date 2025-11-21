@@ -132,7 +132,7 @@ impl Scheduler {
     /// Run the scheduler loop
     async fn run_scheduler(
         schedules: Vec<(Schedule, String)>,
-        queue_manager: Arc<QueueManager>,
+        _queue_manager: Arc<QueueManager>,
         shutdown_rx: &mut broadcast::Receiver<()>,
     ) {
         let mut last_minute = chrono::Utc::now().format("%Y-%m-%d %H:%M").to_string();
@@ -249,8 +249,12 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore]
-    async fn test_scheduler_creation() {
+async fn test_scheduler_creation() {
+    if !redis_available().await {
+        eprintln!("⏭️  Skipping test_scheduler_creation: Redis not available");
+        eprintln!("   Start services with: ./scripts/test-env-up.sh");
+        return;
+    }
         let manager = QueueManager::new("redis://localhost:6379")
             .await
             .unwrap();

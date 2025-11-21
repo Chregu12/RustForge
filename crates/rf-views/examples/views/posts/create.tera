@@ -1,0 +1,116 @@
+{% extends "layouts/app" %}
+
+{% block title %}Create New Post{% endblock %}
+
+{% block content %}
+    <div class="form-container">
+        <h1>Create New Post</h1>
+
+        <form method="POST" action="/posts" class="post-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <div class="form-group">
+                <label for="title">Title <span class="required">*</span></label>
+                <input
+                    type="text"
+                    name="title"
+                    id="title"
+                    class="form-control{% if error(field='title') %} is-invalid{% endif %}"
+                    value="{{ old(key='title') }}"
+                    placeholder="Enter post title"
+                    required
+                    autofocus
+                >
+                {% if error(field='title') %}
+                    <span class="error-message">{{ error(field='title') }}</span>
+                {% endif %}
+            </div>
+
+            <div class="form-group">
+                <label for="body">Content <span class="required">*</span></label>
+                <textarea
+                    name="body"
+                    id="body"
+                    rows="15"
+                    class="form-control{% if error(field='body') %} is-invalid{% endif %}"
+                    placeholder="Write your post content here..."
+                    required
+                >{{ old(key='body') }}</textarea>
+                {% if error(field='body') %}
+                    <span class="error-message">{{ error(field='body') }}</span>
+                {% endif %}
+                <small class="form-text">Markdown is supported</small>
+            </div>
+
+            <div class="form-group">
+                <label for="tags">Tags</label>
+                <input
+                    type="text"
+                    name="tags"
+                    id="tags"
+                    class="form-control{% if error(field='tags') %} is-invalid{% endif %}"
+                    value="{{ old(key='tags') }}"
+                    placeholder="Separate tags with commas"
+                >
+                {% if error(field='tags') %}
+                    <span class="error-message">{{ error(field='tags') }}</span>
+                {% endif %}
+                <small class="form-text">Example: rust, web, programming</small>
+            </div>
+
+            <div class="form-group">
+                <label for="published">
+                    <input
+                        type="checkbox"
+                        name="published"
+                        id="published"
+                        value="1"
+                        {% if old(key='published') == "1" %}checked{% endif %}
+                    >
+                    Publish immediately
+                </label>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">Create Post</button>
+                <a href="/posts" class="btn btn-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Auto-save draft to localStorage
+    const form = document.querySelector('.post-form');
+    const titleInput = document.getElementById('title');
+    const bodyInput = document.getElementById('body');
+
+    function saveDraft() {
+        localStorage.setItem('post_draft', JSON.stringify({
+            title: titleInput.value,
+            body: bodyInput.value,
+            timestamp: new Date().toISOString()
+        }));
+    }
+
+    function loadDraft() {
+        const draft = localStorage.getItem('post_draft');
+        if (draft && !titleInput.value && !bodyInput.value) {
+            const data = JSON.parse(draft);
+            if (confirm('Load saved draft from ' + new Date(data.timestamp).toLocaleString() + '?')) {
+                titleInput.value = data.title;
+                bodyInput.value = data.body;
+            }
+        }
+    }
+
+    titleInput.addEventListener('input', saveDraft);
+    bodyInput.addEventListener('input', saveDraft);
+    window.addEventListener('load', loadDraft);
+
+    form.addEventListener('submit', () => {
+        localStorage.removeItem('post_draft');
+    });
+</script>
+{% endblock %}

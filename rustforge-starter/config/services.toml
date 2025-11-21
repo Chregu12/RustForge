@@ -1,0 +1,52 @@
+# Third-Party Services Configuration
+#
+# Configure your external service integrations
+
+# Stripe
+[services.stripe]
+key = ""
+secret = ""
+webhook_secret = ""
+
+# AWS
+[services.aws]
+access_key_id = ""
+secret_access_key = ""
+default_region = "us-east-1"
+
+# S3
+[services.s3]
+key = ""
+secret = ""
+region = "us-east-1"
+bucket = ""
+
+# OAuth Providers
+[services.oauth.github]
+client_id = ""
+client_secret = ""
+redirect = "http://localhost:3000/auth/github/callback"
+
+[services.oauth.google]
+client_id = ""
+client_secret = ""
+redirect = "http://localhost:3000/auth/google/callback"
+
+[services.oauth.facebook]
+client_id = ""
+client_secret = ""
+redirect = "http://localhost:3000/auth/facebook/callback"
+
+# Pusher
+[services.pusher]
+app_id = ""
+key = ""
+secret = ""
+cluster = "mt1"
+encrypted = true
+
+# Sentry
+[services.sentry]
+dsn = ""
+environment = "production"
+traces_sample_rate = 1.0

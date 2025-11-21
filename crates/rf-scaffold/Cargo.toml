@@ -1,0 +1,34 @@
+[package]
+name = "rf-scaffold"
+version = "0.1.0"
+edition = "2021"
+authors = ["RustForge Team"]
+description = "Code scaffolding and generation system for RustForge (Laravel artisan make:* inspired)"
+license = "MIT OR Apache-2.0"
+keywords = ["scaffold", "generator", "laravel", "artisan", "rustforge"]
+categories = ["command-line-utilities", "development-tools"]
+
+[dependencies]
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Template engine
+handlebars = "5.1"
+
+# Async
+tokio = { workspace = true, features = ["fs", "sync", "io-util"] }
+async-trait = { workspace = true }
+
+# Error handling
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+
+# Utilities
+regex = { workspace = true }
+chrono = { workspace = true }
+once_cell = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }
+tempfile = "3.8"

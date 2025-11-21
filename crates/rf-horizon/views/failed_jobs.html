@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Failed Jobs - Horizon</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 2rem;
+        }
+        .container { max-width: 1400px; margin: 0 auto; }
+        .header {
+            color: white;
+            margin-bottom: 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .header h1 { font-size: 2.5rem; }
+        .nav-links { display: flex; gap: 1rem; }
+        .nav-link {
+            color: white;
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            transition: background 0.2s;
+        }
+        .nav-link:hover, .nav-link.active { background: rgba(255, 255, 255, 0.2); }
+        .panel {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+        }
+        .btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.875rem;
+            font-weight: 600;
+            transition: background 0.2s;
+        }
+        .btn:hover { background: #5a67d8; }
+        .btn-danger { background: #f56565; }
+        .btn-danger:hover { background: #e53e3e; }
+        .btn-success { background: #48bb78; }
+        .btn-success:hover { background: #38a169; }
+        .failed-job {
+            padding: 1.5rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            background: #f7fafc;
+        }
+        .failed-job-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 1rem;
+        }
+        .failed-job-title {
+            font-weight: 600;
+            font-size: 1.1rem;
+            color: #2d3748;
+        }
+        .failed-job-meta {
+            font-size: 0.875rem;
+            color: #718096;
+            margin-top: 0.5rem;
+        }
+        .failed-job-error {
+            background: #fed7d7;
+            color: #742a2a;
+            padding: 1rem;
+            border-radius: 6px;
+            margin-top: 1rem;
+            font-size: 0.875rem;
+        }
+        .job-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+        .batch-actions {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        .checkbox {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: #718096;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Failed Jobs</h1>
+            <div class="nav-links">
+                <a href="/horizon" class="nav-link">Dashboard</a>
+                <a href="/horizon/jobs" class="nav-link">Jobs</a>
+                <a href="/horizon/failed" class="nav-link active">Failed Jobs</a>
+            </div>
+        </div>
+
+        <div class="panel">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                <h2>Failed Jobs (<span id="failed-count">0</span>)</h2>
+                <button class="btn" onclick="loadFailedJobs()">Refresh</button>
+            </div>
+
+            <div class="batch-actions" id="batch-actions" style="display: none;">
+                <button class="btn btn-success" onclick="batchRetry()">Retry Selected</button>
+                <button class="btn btn-danger" onclick="batchDelete()">Delete Selected</button>
+                <span style="color: #718096; margin-left: auto;">
+                    <span id="selected-count">0</span> selected
+                </span>
+            </div>
+
+            <div id="failed-jobs-container">
+                <div class="empty-state">Loading failed jobs...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let selectedJobs = new Set();
+
+        async function loadFailedJobs() {
+            try {
+                const res = await fetch('/horizon/api/failed');
+                const data = await res.json();
+                renderFailedJobs(data.jobs);
+                document.getElementById('failed-count').textContent = data.total;
+            } catch (error) {
+                console.error('Error loading failed jobs:', error);
+                document.getElementById('failed-jobs-container').innerHTML =
+                    `<div class="empty-state">Error loading failed jobs: ${error.message}</div>`;
+            }
+        }
+
+        function renderFailedJobs(jobs) {
+            const container = document.getElementById('failed-jobs-container');
+
+            if (jobs.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <h3>No failed jobs</h3>
+                        <p>All jobs are running successfully!</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = jobs.map(job => `
+                <div class="failed-job">
+                    <div class="failed-job-header">
+                        <div style="flex: 1;">
+                            <div style="display: flex; align-items: center; gap: 1rem;">
+                                <input type="checkbox" class="checkbox" onchange="toggleSelection('${job.id}')" ${selectedJobs.has(job.id) ? 'checked' : ''}>
+                                <div class="failed-job-title">${job.job_type.split('::').pop()}</div>
+                            </div>
+                            <div class="failed-job-meta">
+                                Queue: ${job.queue} • Failed: ${formatDate(job.failed_at)} • ID: ${job.id.substring(0, 8)}...
+                            </div>
+                        </div>
+                        <div class="job-actions">
+                            <button class="btn btn-success" onclick="retryJob('${job.id}')">Retry</button>
+                            <button class="btn btn-danger" onclick="deleteJob('${job.id}')">Delete</button>
+                        </div>
+                    </div>
+                    <div class="failed-job-error">
+                        <strong>Error:</strong> ${job.error}
+                    </div>
+                    <details style="margin-top: 1rem;">
+                        <summary style="cursor: pointer; color: #667eea; font-weight: 600;">View Payload</summary>
+                        <pre style="margin-top: 1rem; padding: 1rem; background: white; border-radius: 6px; overflow-x: auto;">${JSON.stringify(job.payload, null, 2)}</pre>
+                    </details>
+                </div>
+            `).join('');
+
+            updateBatchActions();
+        }
+
+        function toggleSelection(jobId) {
+            if (selectedJobs.has(jobId)) {
+                selectedJobs.delete(jobId);
+            } else {
+                selectedJobs.add(jobId);
+            }
+            updateBatchActions();
+        }
+
+        function updateBatchActions() {
+            const batchActions = document.getElementById('batch-actions');
+            const selectedCount = document.getElementById('selected-count');
+
+            if (selectedJobs.size > 0) {
+                batchActions.style.display = 'flex';
+                selectedCount.textContent = selectedJobs.size;
+            } else {
+                batchActions.style.display = 'none';
+            }
+        }
+
+        async function retryJob(jobId) {
+            if (!confirm('Are you sure you want to retry this job?')) return;
+
+            try {
+                const res = await fetch(`/horizon/api/failed/${jobId}/retry`, { method: 'POST' });
+                const data = await res.json();
+
+                if (data.success) {
+                    alert('Job queued for retry');
+                    loadFailedJobs();
+                }
+            } catch (error) {
+                alert('Error retrying job: ' + error.message);
+            }
+        }
+
+        async function deleteJob(jobId) {
+            if (!confirm('Are you sure you want to delete this job?')) return;
+
+            try {
+                const res = await fetch(`/horizon/api/failed/${jobId}`, { method: 'DELETE' });
+                const data = await res.json();
+
+                if (data.success) {
+                    alert('Job deleted');
+                    loadFailedJobs();
+                }
+            } catch (error) {
+                alert('Error deleting job: ' + error.message);
+            }
+        }
+
+        async function batchRetry() {
+            if (selectedJobs.size === 0) return;
+            if (!confirm(`Are you sure you want to retry ${selectedJobs.size} job(s)?`)) return;
+
+            try {
+                const res = await fetch('/horizon/api/failed/batch-retry', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ job_ids: Array.from(selectedJobs) })
+                });
+                const data = await res.json();
+
+                alert(`${data.retried} job(s) queued for retry`);
+                selectedJobs.clear();
+                loadFailedJobs();
+            } catch (error) {
+                alert('Error retrying jobs: ' + error.message);
+            }
+        }
+
+        async function batchDelete() {
+            if (selectedJobs.size === 0) return;
+            if (!confirm(`Are you sure you want to delete ${selectedJobs.size} job(s)?`)) return;
+
+            try {
+                const res = await fetch('/horizon/api/failed/batch-delete', {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ job_ids: Array.from(selectedJobs) })
+                });
+                const data = await res.json();
+
+                alert(`${data.deleted} job(s) deleted`);
+                selectedJobs.clear();
+                loadFailedJobs();
+            } catch (error) {
+                alert('Error deleting jobs: ' + error.message);
+            }
+        }
+
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleString();
+        }
+
+        // Load failed jobs on page load
+        loadFailedJobs();
+
+        // Auto-refresh every 10 seconds
+        setInterval(loadFailedJobs, 10000);
+    </script>
+</body>
+</html>

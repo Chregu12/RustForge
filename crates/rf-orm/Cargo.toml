@@ -1,0 +1,56 @@
+[package]
+name = "rf-orm"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+# Internal dependencies
+rf-core = { path = "../rf-core" }
+rf-config = { path = "../rf-config" }
+foundry-cache = { path = "../foundry-cache" }
+rf-metrics = { path = "../rf-metrics", optional = true }
+
+# SeaORM
+sea-orm = { workspace = true, features = ["runtime-tokio-rustls", "sqlx-sqlite", "sqlx-postgres", "sqlx-mysql", "macros"] }
+
+# Async
+tokio.workspace = true
+async-trait.workspace = true
+futures = "0.3"  # For async iterators (chunking)
+
+# Serialization
+serde.workspace = true
+serde_json.workspace = true
+
+# Error handling
+thiserror.workspace = true
+anyhow.workspace = true
+
+# Logging
+tracing.workspace = true
+log = "0.4"
+
+# Time
+chrono.workspace = true
+
+# Performance optimization
+parking_lot = "0.12"
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt", "test-util"] }
+
+[[example]]
+name = "basic_usage_rf_orm"
+path = "examples/basic_usage.rs"
+
+[features]
+default = []
+# Migration support (separate feature to avoid build time increase)
+migrate = ["sea-orm-migration"]
+metrics = ["rf-metrics"]
+
+[dependencies.sea-orm-migration]
+version = "0.12"
+optional = true

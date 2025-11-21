@@ -1,0 +1,69 @@
+{% extends "layouts/app" %}
+
+{% block title %}Posts{% endblock %}
+
+{% block content %}
+    <div class="posts-header">
+        <h1>All Posts</h1>
+        {% if auth() %}
+            <a href="/posts/create" class="btn btn-primary">Create New Post</a>
+        {% endif %}
+    </div>
+
+    {% if posts and posts | length > 0 %}
+        <div class="posts-list">
+            {% for post in posts %}
+                <article class="post-card">
+                    <h2>
+                        <a href="/posts/{{ post.id }}">{{ post.title }}</a>
+                    </h2>
+
+                    <div class="post-meta">
+                        <span class="author">By {{ post.user.name | default(value="Unknown") }}</span>
+                        <span class="date">{{ post.created_at | date(format="%B %d, %Y") }}</span>
+                    </div>
+
+                    <div class="post-excerpt">
+                        {{ post.body | truncate(length=200) }}
+                    </div>
+
+                    <div class="post-footer">
+                        <a href="/posts/{{ post.id }}" class="btn btn-sm btn-secondary">Read More</a>
+
+                        {% if auth() and auth().id == post.user_id %}
+                            <a href="/posts/{{ post.id }}/edit" class="btn btn-sm btn-info">Edit</a>
+                            <form method="POST" action="/posts/{{ post.id }}/delete" style="display: inline;">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure?')">
+                                    Delete
+                                </button>
+                            </form>
+                        {% endif %}
+                    </div>
+                </article>
+            {% endfor %}
+        </div>
+
+        {% if pagination %}
+            <div class="pagination">
+                {% if pagination.prev_page %}
+                    <a href="?page={{ pagination.prev_page }}" class="btn">Previous</a>
+                {% endif %}
+
+                <span>Page {{ pagination.current_page }} of {{ pagination.total_pages }}</span>
+
+                {% if pagination.next_page %}
+                    <a href="?page={{ pagination.next_page }}" class="btn">Next</a>
+                {% endif %}
+            </div>
+        {% endif %}
+    {% else %}
+        <div class="empty-state">
+            <h2>No posts found</h2>
+            <p>Be the first to create a post!</p>
+            {% if auth() %}
+                <a href="/posts/create" class="btn btn-primary">Create Post</a>
+            {% endif %}
+        </div>
+    {% endif %}
+{% endblock %}

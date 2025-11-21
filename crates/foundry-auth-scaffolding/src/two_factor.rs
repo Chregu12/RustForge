@@ -68,14 +68,19 @@ impl TwoFactorService {
 
     /// Verify a TOTP code
     pub fn verify_code(&self, secret: &str, code: &str) -> Result<bool, String> {
+        let secret_bytes = Secret::Encoded(secret.to_string())
+            .to_bytes()
+            .map_err(|e| e.to_string())?;
+
+        // Create TOTP with basic configuration (algorithm, digits, skew, step, secret, issuer, account_name)
         let totp = TOTP::new(
             Algorithm::SHA1,
             6,
             1,
             30,
-            Secret::Encoded(secret.to_string())
-                .to_bytes()
-                .map_err(|e| e.to_string())?,
+            secret_bytes,
+            Some(self.app_name.clone()),
+            "user".to_string(),
         )
         .map_err(|e| e.to_string())?;
 

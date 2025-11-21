@@ -1,0 +1,9 @@
+[package]
+name = "scaffold-demo"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+rf-scaffold = { path = "../../crates/rf-scaffold" }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+anyhow = { workspace = true }

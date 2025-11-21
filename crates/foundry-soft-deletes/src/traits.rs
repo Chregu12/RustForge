@@ -37,7 +37,7 @@ where
     where
         C: sea_orm::ConnectionTrait,
     {
-        let active_model: Self::ActiveModel = model.into();
+        let active_model: <Self as SoftDelete>::ActiveModel = model.into();
         active_model.delete(db).await?;
         Ok(())
     }

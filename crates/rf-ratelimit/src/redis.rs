@@ -200,8 +200,12 @@ mod tests {
     // Run with: docker run -d -p 6379:6379 redis
 
     #[tokio::test]
-    #[ignore] // Requires Redis
-    async fn test_redis_rate_limiter() {
+async fn test_redis_rate_limiter() {
+    if !redis_available().await {
+        eprintln!("⏭️  Skipping test_redis_rate_limiter: Redis not available");
+        eprintln!("   Start services with: ./scripts/test-env-up.sh");
+        return;
+    }
         let config = RateLimitConfig {
             max_requests: 5,
             window: Duration::from_secs(60),
@@ -231,8 +235,12 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore] // Requires Redis
-    async fn test_redis_reset() {
+async fn test_redis_reset() {
+    if !redis_available().await {
+        eprintln!("⏭️  Skipping test_redis_reset: Redis not available");
+        eprintln!("   Start services with: ./scripts/test-env-up.sh");
+        return;
+    }
         let config = RateLimitConfig::per_minute(3);
         let limiter = RedisRateLimiter::new("redis://localhost", config)
             .await
@@ -258,8 +266,12 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore] // Requires Redis
-    async fn test_redis_info() {
+async fn test_redis_info() {
+    if !redis_available().await {
+        eprintln!("⏭️  Skipping test_redis_info: Redis not available");
+        eprintln!("   Start services with: ./scripts/test-env-up.sh");
+        return;
+    }
         let config = RateLimitConfig::per_minute(10);
         let limiter = RedisRateLimiter::new("redis://localhost", config)
             .await
@@ -283,8 +295,12 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore] // Requires Redis
-    async fn test_redis_separate_keys() {
+async fn test_redis_separate_keys() {
+    if !redis_available().await {
+        eprintln!("⏭️  Skipping test_redis_separate_keys: Redis not available");
+        eprintln!("   Start services with: ./scripts/test-env-up.sh");
+        return;
+    }
         let config = RateLimitConfig::per_minute(2);
         let limiter = RedisRateLimiter::new("redis://localhost", config)
             .await

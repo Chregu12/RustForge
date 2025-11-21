@@ -30,5 +30,9 @@ cron = "0.13"
 # System info
 num_cpus.workspace = true
 
+# Synchronization
+parking_lot = "0.12"
+
 [dev-dependencies]
 tokio-test = "0.4"
+tracing-subscriber = "0.3"

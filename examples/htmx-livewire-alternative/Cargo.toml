@@ -1,0 +1,18 @@
+[package]
+name = "htmx-livewire-alternative"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+axum = { version = "0.8", features = ["macros", "json"] }
+tokio = { version = "1.37", features = ["full"] }
+tower = { version = "0.4", features = ["util"] }
+tower-sessions = { version = "0.12" }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# RustForge crates
+rf-blade = { path = "../../crates/rf-blade" }
+rf-sse = { path = "../../crates/rf-sse" }

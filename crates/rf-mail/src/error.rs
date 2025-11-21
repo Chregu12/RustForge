@@ -24,6 +24,11 @@ pub enum MailError {
     #[error("Template registration error: {0}")]
     TemplateError(#[from] handlebars::TemplateError),
 
+    /// View rendering error (from rf-view)
+    #[cfg(feature = "view")]
+    #[error("View rendering error: {0}")]
+    ViewError(#[from] rf_view::error::ViewError),
+
     /// SMTP transport error
     #[error("SMTP error: {0}")]
     SmtpError(#[from] lettre::error::Error),

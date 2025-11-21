@@ -197,7 +197,7 @@ impl CacheStore for RedisStore {
             .map_err(|e| CacheError::Connection(e.to_string()))?;
 
         // Get basic stats from Redis INFO command
-        let info: String = redis::cmd("INFO")
+        let _info: String = redis::cmd("INFO")
             .arg("stats")
             .query_async(&mut *conn)
             .await
@@ -225,8 +225,12 @@ mod tests {
     use super::*;
 
     #[tokio::test]
-    #[ignore] // Requires Redis to be running
-    async fn test_redis_store_get_set() {
+async fn test_redis_store_get_set() {
+    if !redis_available().await {
+        eprintln!("⏭️  Skipping test_redis_store_get_set: Redis not available");
+        eprintln!("   Start services with: ./scripts/test-env-up.sh");
+        return;
+    }
         let store = RedisStore::new("redis://127.0.0.1:6379").unwrap();
         let value = CacheValue::from_string("test_value");
 
@@ -240,8 +244,12 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore] // Requires Redis to be running
-    async fn test_redis_store_increment() {
+async fn test_redis_store_increment() {
+    if !redis_available().await {
+        eprintln!("⏭️  Skipping test_redis_store_increment: Redis not available");
+        eprintln!("   Start services with: ./scripts/test-env-up.sh");
+        return;
+    }
         let store = RedisStore::new("redis://127.0.0.1:6379").unwrap();
 
         let result = store.increment("counter", 5).await.unwrap();

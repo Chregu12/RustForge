@@ -9,7 +9,10 @@
 //! - Failed job handling
 
 use async_trait::async_trait;
-use rf_jobs::{Job, JobContext, JobResult, QueueManager, Scheduler, WorkerConfig, WorkerPool};
+use rf_jobs::{
+    BackoffStrategy, Job, JobContext, JobResult, JobRegistry, JobWithRegistry, QueueManager,
+    Scheduler, WorkerConfig, WorkerPool,
+};
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
@@ -50,6 +53,29 @@ impl Job for SendEmailJob {
     }
 }
 
+#[async_trait]
+impl JobWithRegistry for SendEmailJob {
+    fn job_type(&self) -> &'static str {
+        std::any::type_name::<Self>()
+    }
+
+    async fn handle(&self, ctx: JobContext) -> JobResult {
+        <Self as Job>::handle(self, ctx).await
+    }
+
+    fn max_attempts(&self) -> u32 {
+        <Self as Job>::max_attempts(self)
+    }
+
+    fn backoff_strategy(&self) -> BackoffStrategy {
+        BackoffStrategy::Fixed
+    }
+
+    fn base_backoff_seconds(&self) -> u64 {
+        <Self as Job>::backoff(self).as_secs()
+    }
+}
+
 /// Example 2: Process Image Job
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct ProcessImageJob {
@@ -77,6 +103,29 @@ impl Job for ProcessImageJob {
 
     fn timeout(&self) -> Duration {
         Duration::from_secs(30)
+    }
+}
+
+#[async_trait]
+impl JobWithRegistry for ProcessImageJob {
+    fn job_type(&self) -> &'static str {
+        std::any::type_name::<Self>()
+    }
+
+    async fn handle(&self, ctx: JobContext) -> JobResult {
+        <Self as Job>::handle(self, ctx).await
+    }
+
+    fn max_attempts(&self) -> u32 {
+        <Self as Job>::max_attempts(self)
+    }
+
+    fn backoff_strategy(&self) -> BackoffStrategy {
+        BackoffStrategy::Fixed
+    }
+
+    fn base_backoff_seconds(&self) -> u64 {
+        <Self as Job>::backoff(self).as_secs()
     }
 }
 
@@ -108,6 +157,29 @@ impl Job for GenerateReportJob {
     }
 }
 
+#[async_trait]
+impl JobWithRegistry for GenerateReportJob {
+    fn job_type(&self) -> &'static str {
+        std::any::type_name::<Self>()
+    }
+
+    async fn handle(&self, ctx: JobContext) -> JobResult {
+        <Self as Job>::handle(self, ctx).await
+    }
+
+    fn max_attempts(&self) -> u32 {
+        <Self as Job>::max_attempts(self)
+    }
+
+    fn backoff_strategy(&self) -> BackoffStrategy {
+        BackoffStrategy::Fixed
+    }
+
+    fn base_backoff_seconds(&self) -> u64 {
+        <Self as Job>::backoff(self).as_secs()
+    }
+}
+
 /// Example 4: Cache Cleanup Job (for scheduling)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct CacheCleanupJob;
@@ -122,6 +194,29 @@ impl Job for CacheCleanupJob {
 
         ctx.log("Cache cleanup complete");
         Ok(())
+    }
+}
+
+#[async_trait]
+impl JobWithRegistry for CacheCleanupJob {
+    fn job_type(&self) -> &'static str {
+        std::any::type_name::<Self>()
+    }
+
+    async fn handle(&self, ctx: JobContext) -> JobResult {
+        <Self as Job>::handle(self, ctx).await
+    }
+
+    fn max_attempts(&self) -> u32 {
+        <Self as Job>::max_attempts(self)
+    }
+
+    fn backoff_strategy(&self) -> BackoffStrategy {
+        BackoffStrategy::Fixed
+    }
+
+    fn base_backoff_seconds(&self) -> u64 {
+        <Self as Job>::backoff(self).as_secs()
     }
 }
 
@@ -153,6 +248,29 @@ impl Job for FailingJob {
 
     fn backoff(&self) -> Duration {
         Duration::from_secs(5)
+    }
+}
+
+#[async_trait]
+impl JobWithRegistry for FailingJob {
+    fn job_type(&self) -> &'static str {
+        std::any::type_name::<Self>()
+    }
+
+    async fn handle(&self, ctx: JobContext) -> JobResult {
+        <Self as Job>::handle(self, ctx).await
+    }
+
+    fn max_attempts(&self) -> u32 {
+        <Self as Job>::max_attempts(self)
+    }
+
+    fn backoff_strategy(&self) -> BackoffStrategy {
+        BackoffStrategy::Fixed
+    }
+
+    fn base_backoff_seconds(&self) -> u64 {
+        <Self as Job>::backoff(self).as_secs()
     }
 }
 
@@ -188,6 +306,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     println!("✅ Connected to Redis successfully\n");
+
+    // Register job types for worker deserialization
+    let mut registry = JobRegistry::new();
+    registry.register::<SendEmailJob>(std::any::type_name::<SendEmailJob>());
+    registry.register::<ProcessImageJob>(std::any::type_name::<ProcessImageJob>());
+    registry.register::<GenerateReportJob>(std::any::type_name::<GenerateReportJob>());
+    registry.register::<CacheCleanupJob>(std::any::type_name::<CacheCleanupJob>());
+    registry.register::<FailingJob>(std::any::type_name::<FailingJob>());
 
     // Dispatch example jobs
     println!("📤 Dispatching example jobs...\n");
@@ -247,7 +373,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .timeout(Duration::from_secs(60))
         .sleep(Duration::from_secs(1));
 
-    let mut pool = WorkerPool::new(config, manager.clone()).await?;
+    let mut pool = WorkerPool::new(config, manager.clone(), registry).await?;
     pool.start().await?;
 
     println!("✅ Worker pool started with 2 workers");

@@ -36,11 +36,11 @@
 //! ```
 
 use axum::{
-    async_trait,
     extract::FromRequestParts,
     http::{header, request::Parts, HeaderValue, StatusCode},
     response::{IntoResponse, Response},
 };
+use async_trait::async_trait;
 use std::fmt;
 
 /// API version
@@ -143,7 +143,6 @@ impl IntoResponse for VersionError {
 /// Axum extractor for API version
 ///
 /// Extracts version from Api-Version header by default
-#[async_trait]
 impl<S> FromRequestParts<S> for ApiVersion
 where
     S: Send + Sync,

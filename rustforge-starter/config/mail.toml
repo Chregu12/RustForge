@@ -1,0 +1,45 @@
+# Mail Configuration
+#
+# Configure your email sending settings
+
+[mail]
+# Default mailer (smtp, sendmail, mailgun, ses, log)
+default = "smtp"
+
+# From address
+from_address = "noreply@rustforge.dev"
+from_name = "RustForge"
+
+# SMTP Configuration
+[mail.mailers.smtp]
+driver = "smtp"
+host = "mailhog"
+port = 1025
+username = ""
+password = ""
+encryption = "none"  # none, tls, ssl
+timeout = 30
+
+# Mailgun Configuration
+[mail.mailers.mailgun]
+driver = "mailgun"
+domain = ""
+secret = ""
+endpoint = "api.mailgun.net"
+
+# Amazon SES Configuration
+[mail.mailers.ses]
+driver = "ses"
+key = ""
+secret = ""
+region = "us-east-1"
+
+# Log Mailer (for development)
+[mail.mailers.log]
+driver = "log"
+path = "storage/logs/mail.log"
+
+# Markdown Mail Settings
+[mail.markdown]
+theme = "default"
+paths = ["resources/views/emails"]

@@ -17,6 +17,12 @@ pub enum QueueError {
     #[error("Queue backend error: {0}")]
     BackendError(String),
 
+    #[error("Backend error: {0}")]
+    Backend(String),
+
+    #[error("Connection error: {0}")]
+    ConnectionError(String),
+
     #[error("Job timeout after {0}s")]
     Timeout(u64),
 

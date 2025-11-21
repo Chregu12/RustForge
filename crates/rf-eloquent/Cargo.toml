@@ -1,0 +1,59 @@
+[package]
+name = "rf-eloquent"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Laravel Eloquent-style ORM for RustForge - Advanced relationship system, eager loading, and model features"
+
+[dependencies]
+# Internal dependencies
+rf-core = { path = "../rf-core" }
+rf-orm = { path = "../rf-orm" }
+rf-config = { path = "../rf-config" }
+
+# SeaORM
+sea-orm = { workspace = true }
+
+# Async
+tokio = { workspace = true, features = ["macros", "sync"] }
+async-trait = { workspace = true }
+futures = "0.3"
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Error handling
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+
+# Logging
+tracing = { workspace = true }
+
+# Time
+chrono = { workspace = true }
+
+# UUID
+uuid = { workspace = true }
+
+# Hashing/Encryption
+bcrypt = { workspace = true }
+base64 = { workspace = true }
+
+# Utilities
+once_cell = { workspace = true }
+dashmap = { workspace = true }
+regex = { workspace = true }
+parking_lot = "0.12"
+lazy_static = "1.4"
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt", "test-util"] }
+
+[[example]]
+name = "basic_usage_rf_eloquent"
+path = "examples/basic_usage.rs"
+
+[features]
+default = []

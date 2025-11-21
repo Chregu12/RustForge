@@ -1,0 +1,48 @@
+# Rust
+/target
+**/*.rs.bk
+Cargo.lock
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Environment
+.env
+.env.*.local
+
+# Storage
+/storage/*.key
+/storage/framework/cache/*
+/storage/framework/sessions/*
+/storage/framework/views/*
+/storage/logs/*
+
+# Node
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Build artifacts
+/public/hot
+/public/storage
+/public/build
+/public/assets/build
+
+# Database
+*.sqlite
+*.sqlite-journal
+*.db
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+
+# Testing
+/coverage
+.phpunit.result.cache

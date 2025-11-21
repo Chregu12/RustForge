@@ -46,16 +46,15 @@ impl Attachment {
     /// ```no_run
     /// use rf_mail::Attachment;
     ///
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let attachment = Attachment::from_file("report.pdf", "application/pdf").await?;
+    /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let attachment = Attachment::from_file("report.pdf")?;
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn from_file(
+    pub fn from_file(
         path: impl AsRef<std::path::Path>,
-        content_type: impl Into<String>,
     ) -> Result<Self, std::io::Error> {
-        let data = tokio::fs::read(&path).await?;
+        let data = std::fs::read(&path)?;
         let filename = path
             .as_ref()
             .file_name()
@@ -63,13 +62,52 @@ impl Attachment {
             .unwrap_or("attachment")
             .to_string();
 
+        // Guess content type from extension
+        let content_type = guess_content_type(&filename);
+
         Ok(Self::new(filename, content_type, data))
+    }
+
+    /// Create attachment from data
+    pub fn from_data(data: Vec<u8>, filename: String, content_type: String) -> Self {
+        Self::new(filename, content_type, data)
     }
 
     /// Size in bytes
     pub fn size(&self) -> usize {
         self.data.len()
     }
+}
+
+/// Guess content type from filename extension
+fn guess_content_type(filename: &str) -> String {
+    let extension = filename
+        .split('.')
+        .last()
+        .unwrap_or("")
+        .to_lowercase();
+
+    match extension.as_str() {
+        "pdf" => "application/pdf",
+        "txt" => "text/plain",
+        "html" => "text/html",
+        "css" => "text/css",
+        "js" => "application/javascript",
+        "json" => "application/json",
+        "xml" => "application/xml",
+        "zip" => "application/zip",
+        "jpg" | "jpeg" => "image/jpeg",
+        "png" => "image/png",
+        "gif" => "image/gif",
+        "svg" => "image/svg+xml",
+        "csv" => "text/csv",
+        "doc" => "application/msword",
+        "docx" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "xls" => "application/vnd.ms-excel",
+        "xlsx" => "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        _ => "application/octet-stream",
+    }
+    .to_string()
 }
 
 #[cfg(test)]

@@ -430,8 +430,12 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore] // Requires Redis
-    async fn test_redis_basic_operations() {
+async fn test_redis_basic_operations() {
+    if !redis_available().await {
+        eprintln!("⏭️  Skipping test_redis_basic_operations: Redis not available");
+        eprintln!("   Start services with: ./scripts/test-env-up.sh");
+        return;
+    }
         let cache = create_test_cache().await;
         cache.flush().await.unwrap();
 
@@ -450,8 +454,12 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore] // Requires Redis
-    async fn test_redis_distributed_cache() {
+async fn test_redis_distributed_cache() {
+    if !redis_available().await {
+        eprintln!("⏭️  Skipping test_redis_distributed_cache: Redis not available");
+        eprintln!("   Start services with: ./scripts/test-env-up.sh");
+        return;
+    }
         let cache1 = create_test_cache().await;
         let cache2 = create_test_cache().await;
 
@@ -469,8 +477,12 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore] // Requires Redis
-    async fn test_redis_ttl_expiration() {
+async fn test_redis_ttl_expiration() {
+    if !redis_available().await {
+        eprintln!("⏭️  Skipping test_redis_ttl_expiration: Redis not available");
+        eprintln!("   Start services with: ./scripts/test-env-up.sh");
+        return;
+    }
         let cache = create_test_cache().await;
         cache.flush().await.unwrap();
 
@@ -489,8 +501,12 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore] // Requires Redis
-    async fn test_redis_tags() {
+async fn test_redis_tags() {
+    if !redis_available().await {
+        eprintln!("⏭️  Skipping test_redis_tags: Redis not available");
+        eprintln!("   Start services with: ./scripts/test-env-up.sh");
+        return;
+    }
         let cache = create_test_cache().await;
         cache.flush().await.unwrap();
 
@@ -517,8 +533,12 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore] // Requires Redis
-    async fn test_redis_remember_with_lock() {
+async fn test_redis_remember_with_lock() {
+    if !redis_available().await {
+        eprintln!("⏭️  Skipping test_redis_remember_with_lock: Redis not available");
+        eprintln!("   Start services with: ./scripts/test-env-up.sh");
+        return;
+    }
         let cache = create_test_cache().await;
         cache.flush().await.unwrap();
 
@@ -548,8 +568,12 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore] // Requires Redis
-    async fn test_redis_concurrent_stampede_prevention() {
+async fn test_redis_concurrent_stampede_prevention() {
+    if !redis_available().await {
+        eprintln!("⏭️  Skipping test_redis_concurrent_stampede_prevention: Redis not available");
+        eprintln!("   Start services with: ./scripts/test-env-up.sh");
+        return;
+    }
         let cache = Arc::new(create_test_cache().await);
         cache.flush().await.unwrap();
 

@@ -304,8 +304,12 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore] // Requires Redis to be running
-    async fn test_redis_push_pop() {
+async fn test_redis_push_pop() {
+    if !redis_available().await {
+        eprintln!("⏭️  Skipping test_redis_push_pop: Redis not available");
+        eprintln!("   Start services with: ./scripts/test-env-up.sh");
+        return;
+    }
         let backend = create_test_backend().await.unwrap();
         backend.clear().await.unwrap();
 
@@ -323,8 +327,12 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore] // Requires Redis to be running
-    async fn test_redis_priority() {
+async fn test_redis_priority() {
+    if !redis_available().await {
+        eprintln!("⏭️  Skipping test_redis_priority: Redis not available");
+        eprintln!("   Start services with: ./scripts/test-env-up.sh");
+        return;
+    }
         let backend = create_test_backend().await.unwrap();
         backend.clear().await.unwrap();
 
@@ -343,8 +351,12 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore] // Requires Redis to be running
-    async fn test_redis_delayed() {
+async fn test_redis_delayed() {
+    if !redis_available().await {
+        eprintln!("⏭️  Skipping test_redis_delayed: Redis not available");
+        eprintln!("   Start services with: ./scripts/test-env-up.sh");
+        return;
+    }
         let backend = create_test_backend().await.unwrap();
         backend.clear().await.unwrap();
 
@@ -363,8 +375,12 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore] // Requires Redis to be running
-    async fn test_redis_failed_jobs() {
+async fn test_redis_failed_jobs() {
+    if !redis_available().await {
+        eprintln!("⏭️  Skipping test_redis_failed_jobs: Redis not available");
+        eprintln!("   Start services with: ./scripts/test-env-up.sh");
+        return;
+    }
         let backend = create_test_backend().await.unwrap();
         backend.clear().await.unwrap();
 

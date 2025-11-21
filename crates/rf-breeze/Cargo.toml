@@ -1,0 +1,35 @@
+[package]
+name = "rf-breeze"
+version = "0.1.0"
+edition = "2021"
+authors = ["RustForge Team"]
+description = "Laravel Breeze-equivalent authentication scaffolding for RustForge"
+license = "MIT OR Apache-2.0"
+keywords = ["breeze", "scaffold", "auth", "laravel", "rustforge"]
+categories = ["web-programming", "template-engine"]
+
+[dependencies]
+# Workspace dependencies
+rf-auth = { path = "../rf-auth", features = ["mail"] }
+rf-blade = { path = "../rf-blade" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true, features = ["fs", "sync", "macros"] }
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+axum = { workspace = true }
+async-trait = { workspace = true }
+
+# Template rendering
+handlebars = "5.1"
+
+# Utilities
+regex = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["full"] }
+tempfile = "3.8"
+
+[[example]]
+name = "basic_rf_breeze"
+path = "examples/basic.rs"

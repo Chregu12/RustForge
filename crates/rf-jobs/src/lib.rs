@@ -42,28 +42,43 @@
 //! # }
 //! ```
 
+pub mod batch;
+pub mod chain;
 pub mod context;
 pub mod error;
 pub mod job;
 pub mod queue;
+pub mod rate_limit;
+pub mod registry;
 pub mod scheduler;
+pub mod serialization;
 pub mod worker;
 
 // Re-export main types
+pub use batch::{BatchState, BatchStatus, JobBatch};
+pub use chain::{ChainState, ChainStatus, JobChain};
 pub use context::JobContext;
 pub use error::{JobError, JobResult, QueueError, SchedulerError, WorkerError};
 pub use job::{FailedJob, Job, JobPayload};
-pub use queue::QueueManager;
+pub use queue::{QueueManager, QueuePriority};
+pub use rate_limit::{RateLimiter, RateLimitExt};
+pub use registry::{BackoffStrategy, JobRegistry, JobWithRegistry};
 pub use scheduler::Scheduler;
+pub use serialization::{serialize_job, serialize_job_delayed, SerializedJob};
 pub use worker::{Worker, WorkerConfig, WorkerPool};
 
 /// Prelude module for convenient imports
 pub mod prelude {
     pub use crate::{
+        batch::{BatchState, BatchStatus, JobBatch},
+        chain::{ChainState, ChainStatus, JobChain},
         context::JobContext,
         error::{JobError, JobResult, QueueError},
         job::{Job, JobPayload},
-        queue::QueueManager,
+        queue::{QueueManager, QueuePriority},
+        rate_limit::{RateLimitExt, RateLimiter},
+        registry::{BackoffStrategy, JobRegistry, JobWithRegistry},
+        serialization::{serialize_job, serialize_job_delayed, SerializedJob},
         worker::{WorkerConfig, WorkerPool},
     };
 }

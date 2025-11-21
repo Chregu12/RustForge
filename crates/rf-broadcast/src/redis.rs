@@ -307,8 +307,12 @@ mod tests {
     // Run with: docker run -d -p 6379:6379 redis
 
     #[tokio::test]
-    #[ignore] // Requires Redis
-    async fn test_redis_subscribe_unsubscribe() {
+async fn test_redis_subscribe_unsubscribe() {
+    if !redis_available().await {
+        eprintln!("⏭️  Skipping test_redis_subscribe_unsubscribe: Redis not available");
+        eprintln!("   Start services with: ./scripts/test-env-up.sh");
+        return;
+    }
         let broadcaster = RedisBroadcaster::new("redis://localhost").await.unwrap();
         let channel = Channel::public("test");
         let conn_id = "conn-1".to_string();
@@ -327,8 +331,12 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore] // Requires Redis
-    async fn test_redis_presence_channel() {
+async fn test_redis_presence_channel() {
+    if !redis_available().await {
+        eprintln!("⏭️  Skipping test_redis_presence_channel: Redis not available");
+        eprintln!("   Start services with: ./scripts/test-env-up.sh");
+        return;
+    }
         let broadcaster = RedisBroadcaster::new("redis://localhost").await.unwrap();
         let channel = Channel::presence("chat");
 
@@ -355,8 +363,12 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore] // Requires Redis
-    async fn test_redis_broadcast() {
+async fn test_redis_broadcast() {
+    if !redis_available().await {
+        eprintln!("⏭️  Skipping test_redis_broadcast: Redis not available");
+        eprintln!("   Start services with: ./scripts/test-env-up.sh");
+        return;
+    }
         let broadcaster = RedisBroadcaster::new("redis://localhost").await.unwrap();
         let channel = Channel::public("users");
 
@@ -374,8 +386,12 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore] // Requires Redis
-    async fn test_redis_connections() {
+async fn test_redis_connections() {
+    if !redis_available().await {
+        eprintln!("⏭️  Skipping test_redis_connections: Redis not available");
+        eprintln!("   Start services with: ./scripts/test-env-up.sh");
+        return;
+    }
         let broadcaster = RedisBroadcaster::new("redis://localhost").await.unwrap();
         let channel = Channel::public("test");
 

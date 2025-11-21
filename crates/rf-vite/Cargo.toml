@@ -1,0 +1,32 @@
+[package]
+name = "rf-vite"
+version = "0.1.0"
+edition = "2021"
+authors = ["RustForge Team"]
+description = "Vite asset pipeline integration for RustForge"
+license = "MIT OR Apache-2.0"
+keywords = ["vite", "assets", "hmr", "rustforge"]
+categories = ["web-programming", "development-tools"]
+
+[dependencies]
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Async
+tokio = { workspace = true, features = ["fs", "process", "io-util"] }
+async-trait = { workspace = true }
+
+# Error handling
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+
+# HTTP
+axum = { workspace = true }
+
+# Utilities
+regex = { workspace = true }
+once_cell = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }

@@ -71,6 +71,30 @@ impl PersonalAccessToken {
     pub fn can_all(&self, abilities: &[&str]) -> bool {
         abilities.iter().all(|&ability| self.can(ability))
     }
+
+    /// Create from database model
+    pub fn from_model(model: crate::models::Model) -> Self {
+        let abilities = if let Some(arr) = model.abilities.as_array() {
+            arr.iter()
+                .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                .collect()
+        } else {
+            Vec::new()
+        };
+
+        Self {
+            id: model.id,
+            tokenable_type: model.tokenable_type,
+            tokenable_id: model.tokenable_id,
+            name: model.name,
+            token: model.token,
+            abilities,
+            last_used_at: model.last_used_at,
+            expires_at: model.expires_at,
+            created_at: model.created_at,
+            updated_at: model.updated_at,
+        }
+    }
 }
 
 #[cfg(test)]

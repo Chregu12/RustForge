@@ -12,6 +12,11 @@ tracing.workspace = true
 tokio = { workspace = true, features = ["sync", "time", "macros"] }
 chrono.workspace = true
 cron = "0.13"
+rf-metrics = { path = "../rf-metrics", optional = true }
+
+[features]
+default = []
+metrics = ["rf-metrics"]
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["test-util", "macros", "rt-multi-thread"] }

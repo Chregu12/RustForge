@@ -348,7 +348,7 @@ pub mod prelude {
     pub use crate::{
         Cache, CacheError, CacheResult, MemoryCache, TaggedCache,
     };
-    pub use crate::advanced::{StampedeLock, StampedeLockGuard};
+    pub use crate::advanced::{CacheWarmer, ProbabilisticCache, MultiLevelCache};
     pub use crate::config::{CacheBackend, CacheConfig, CacheConfigBuilder};
 
     #[cfg(feature = "redis-backend")]

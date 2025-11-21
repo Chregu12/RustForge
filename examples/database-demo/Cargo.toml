@@ -1,0 +1,32 @@
+[package]
+name = "database-demo"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+publish = false
+
+[dependencies]
+# Phase 2 Framework Crates
+rf-core = { path = "../../crates/rf-core" }
+rf-orm = { path = "../../crates/rf-orm" }
+
+# SeaORM
+sea-orm = { workspace = true, features = ["runtime-tokio-rustls", "sqlx-sqlite", "macros"] }
+
+# Async
+tokio = { workspace = true, features = ["full"] }
+
+# Serialization
+serde.workspace = true
+serde_json.workspace = true
+
+# Logging
+tracing.workspace = true
+tracing-subscriber.workspace = true
+
+# Time
+chrono.workspace = true
+
+# Error handling
+anyhow.workspace = true
