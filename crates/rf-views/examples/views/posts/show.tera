@@ -1,0 +1,90 @@
+{% extends "layouts/app" %}
+
+{% block title %}{{ post.title }}{% endblock %}
+
+{% block content %}
+    <article class="post-detail">
+        <header class="post-header">
+            <h1>{{ post.title }}</h1>
+
+            <div class="post-meta">
+                <span class="author">By {{ post.user.name | default(value="Unknown") }}</span>
+                <span class="date">{{ post.created_at | date(format="%B %d, %Y at %I:%M %p") }}</span>
+
+                {% if post.updated_at and post.updated_at != post.created_at %}
+                    <span class="updated">(Updated {{ post.updated_at | date(format="%B %d, %Y") }})</span>
+                {% endif %}
+            </div>
+
+            {% if auth() and auth().id == post.user_id %}
+                <div class="post-actions">
+                    <a href="/posts/{{ post.id }}/edit" class="btn btn-info">Edit Post</a>
+                    <form method="POST" action="/posts/{{ post.id }}/delete" style="display: inline;">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-danger" onclick="return confirm('Are you sure you want to delete this post?')">
+                            Delete Post
+                        </button>
+                    </form>
+                </div>
+            {% endif %}
+        </header>
+
+        <div class="post-content">
+            {{ post.body | safe }}
+        </div>
+
+        {% if post.tags %}
+            <div class="post-tags">
+                <strong>Tags:</strong>
+                {% for tag in post.tags %}
+                    <span class="tag">{{ tag }}</span>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <div class="post-footer">
+            <a href="/posts" class="btn btn-secondary">Back to Posts</a>
+        </div>
+    </article>
+
+    {% if comments %}
+        <section class="comments">
+            <h2>Comments ({{ comments | length }})</h2>
+
+            {% for comment in comments %}
+                <div class="comment">
+                    <div class="comment-header">
+                        <strong>{{ comment.user.name | default(value="Anonymous") }}</strong>
+                        <span class="comment-date">{{ comment.created_at | date(format="%B %d, %Y") }}</span>
+                    </div>
+                    <div class="comment-body">
+                        {{ comment.body }}
+                    </div>
+                </div>
+            {% endfor %}
+        </section>
+    {% endif %}
+
+    {% if auth() %}
+        <section class="comment-form">
+            <h3>Add a Comment</h3>
+            <form method="POST" action="/posts/{{ post.id }}/comments">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                <div class="form-group">
+                    <label for="body">Comment</label>
+                    <textarea name="body" id="body" rows="5" class="form-control" required>{{ old(key='body') }}</textarea>
+                    {% if error(field='body') %}
+                        <span class="error-message">{{ error(field='body') }}</span>
+                    {% endif %}
+                </div>
+
+                <button type="submit" class="btn btn-primary">Post Comment</button>
+            </form>
+        </section>
+    {% else %}
+        <div class="login-prompt">
+            <p>Please <a href="/login">login</a> to leave a comment.</p>
+        </div>
+    {% endif %}
+{% endblock %}

@@ -1,0 +1,338 @@
+//! Code generator for validation implementations
+//!
+//! This module generates the actual validation code from parsed struct information.
+
+use proc_macro2::TokenStream;
+use quote::quote;
+use crate::parser::{StructInfo, FieldInfo};
+use crate::rules::ValidationRule;
+
+/// Generate the Validate trait implementation
+pub fn generate_validate_impl(struct_info: &StructInfo) -> TokenStream {
+    let struct_name = &struct_info.name;
+    let field_validations = struct_info.fields.iter()
+        .map(generate_field_validation)
+        .collect::<Vec<_>>();
+
+    quote! {
+        #[automatically_derived]
+        impl rf_validation::Validate for #struct_name {
+            fn validate(&self) -> ::std::result::Result<(), ::validator::ValidationErrors> {
+                let mut errors = ::validator::ValidationErrors::new();
+
+                #(#field_validations)*
+
+                if errors.is_empty() {
+                    Ok(())
+                } else {
+                    Err(errors)
+                }
+            }
+        }
+    }
+}
+
+/// Generate validation code for a single field
+fn generate_field_validation(field: &FieldInfo) -> TokenStream {
+    let field_name = &field.name;
+    let field_name_str = field_name.to_string();
+
+    // Handle optional fields
+    if field.is_optional && !field.is_required() {
+        // For optional fields that are not required, only validate if Some
+        let validations = field.rules.iter()
+            .filter(|r| !matches!(r, ValidationRule::Nullable))
+            .map(|rule| generate_rule_validation(field, rule))
+            .collect::<Vec<_>>();
+
+        if validations.is_empty() {
+            return quote! {};
+        }
+
+        return quote! {
+            if let ::std::option::Option::Some(ref value) = self.#field_name {
+                #(#validations)*
+            }
+        };
+    }
+
+    // Required validation for optional fields
+    if field.is_optional && field.is_required() {
+        let required_check = quote! {
+            if self.#field_name.is_none() {
+                errors.add(
+                    #field_name_str,
+                    ::validator::ValidationError::new("required")
+                );
+            }
+        };
+
+        let other_validations = field.rules.iter()
+            .filter(|r| !matches!(r, ValidationRule::Required | ValidationRule::Nullable))
+            .map(|rule| generate_rule_validation(field, rule))
+            .collect::<Vec<_>>();
+
+        if other_validations.is_empty() {
+            return required_check;
+        }
+
+        return quote! {
+            #required_check else if let ::std::option::Option::Some(ref value) = self.#field_name {
+                #(#other_validations)*
+            }
+        };
+    }
+
+    // Non-optional fields
+    let validations = field.rules.iter()
+        .filter(|r| !matches!(r, ValidationRule::Nullable))
+        .map(|rule| generate_rule_validation(field, rule))
+        .collect::<Vec<_>>();
+
+    quote! {
+        #(#validations)*
+    }
+}
+
+/// Generate validation code for a single rule
+fn generate_rule_validation(field: &FieldInfo, rule: &ValidationRule) -> TokenStream {
+    let field_name = &field.name;
+    let field_name_str = field_name.to_string();
+    let error_code = rule.error_code();
+    let error_message = field.custom_message.as_ref()
+        .map(|m| m.clone())
+        .unwrap_or_else(|| rule.error_message(&field_name_str));
+
+    // Determine the value expression based on whether field is optional
+    let value_expr = if field.is_optional {
+        quote! { value }
+    } else {
+        quote! { &self.#field_name }
+    };
+
+    match rule {
+        ValidationRule::Required => {
+            if field.is_optional {
+                // Already handled above
+                quote! {}
+            } else {
+                // For non-optional string types
+                quote! {
+                    if #value_expr.is_empty() {
+                        let mut error = ::validator::ValidationError::new(#error_code);
+                        error.message = Some(::std::borrow::Cow::Borrowed(#error_message));
+                        errors.add(#field_name_str, error);
+                    }
+                }
+            }
+        }
+
+        ValidationRule::String => {
+            // Type-level check, always passes for String types
+            quote! {}
+        }
+
+        ValidationRule::Email => {
+            quote! {
+                if !::rf_validation::validators::email::validate_email(#value_expr) {
+                    let mut error = ::validator::ValidationError::new(#error_code);
+                    error.message = Some(::std::borrow::Cow::Borrowed(#error_message));
+                    errors.add(#field_name_str, error);
+                }
+            }
+        }
+
+        ValidationRule::Url => {
+            quote! {
+                if !::rf_validation::validators::url::validate_url(#value_expr) {
+                    let mut error = ::validator::ValidationError::new(#error_code);
+                    error.message = Some(::std::borrow::Cow::Borrowed(#error_message));
+                    errors.add(#field_name_str, error);
+                }
+            }
+        }
+
+        ValidationRule::Min(min) => {
+            let min_lit = proc_macro2::Literal::usize_unsuffixed(*min);
+            quote! {
+                if #value_expr.len() < #min_lit {
+                    let mut error = ::validator::ValidationError::new(#error_code);
+                    error.message = Some(::std::borrow::Cow::Borrowed(#error_message));
+                    errors.add(#field_name_str, error);
+                }
+            }
+        }
+
+        ValidationRule::Max(max) => {
+            let max_lit = proc_macro2::Literal::usize_unsuffixed(*max);
+            quote! {
+                if #value_expr.len() > #max_lit {
+                    let mut error = ::validator::ValidationError::new(#error_code);
+                    error.message = Some(::std::borrow::Cow::Borrowed(#error_message));
+                    errors.add(#field_name_str, error);
+                }
+            }
+        }
+
+        ValidationRule::Between { min, max } => {
+            let min_lit = proc_macro2::Literal::usize_unsuffixed(*min);
+            let max_lit = proc_macro2::Literal::usize_unsuffixed(*max);
+            quote! {
+                let len = #value_expr.len();
+                if len < #min_lit || len > #max_lit {
+                    let mut error = ::validator::ValidationError::new(#error_code);
+                    error.message = Some(::std::borrow::Cow::Borrowed(#error_message));
+                    errors.add(#field_name_str, error);
+                }
+            }
+        }
+
+        ValidationRule::StartsWith(prefix) => {
+            quote! {
+                if !#value_expr.starts_with(#prefix) {
+                    let mut error = ::validator::ValidationError::new(#error_code);
+                    error.message = Some(::std::borrow::Cow::Borrowed(#error_message));
+                    errors.add(#field_name_str, error);
+                }
+            }
+        }
+
+        ValidationRule::EndsWith(suffix) => {
+            quote! {
+                if !#value_expr.ends_with(#suffix) {
+                    let mut error = ::validator::ValidationError::new(#error_code);
+                    error.message = Some(::std::borrow::Cow::Borrowed(#error_message));
+                    errors.add(#field_name_str, error);
+                }
+            }
+        }
+
+        ValidationRule::Regex(pattern) => {
+            quote! {
+                if !::rf_validation::validators::regex::validate_regex(#value_expr, #pattern) {
+                    let mut error = ::validator::ValidationError::new(#error_code);
+                    error.message = Some(::std::borrow::Cow::Borrowed(#error_message));
+                    errors.add(#field_name_str, error);
+                }
+            }
+        }
+
+        ValidationRule::Alpha => {
+            quote! {
+                if !#value_expr.chars().all(|c| c.is_alphabetic()) {
+                    let mut error = ::validator::ValidationError::new(#error_code);
+                    error.message = Some(::std::borrow::Cow::Borrowed(#error_message));
+                    errors.add(#field_name_str, error);
+                }
+            }
+        }
+
+        ValidationRule::AlphaNumeric => {
+            quote! {
+                if !#value_expr.chars().all(|c| c.is_alphanumeric()) {
+                    let mut error = ::validator::ValidationError::new(#error_code);
+                    error.message = Some(::std::borrow::Cow::Borrowed(#error_message));
+                    errors.add(#field_name_str, error);
+                }
+            }
+        }
+
+        ValidationRule::Lowercase => {
+            quote! {
+                if #value_expr.chars().any(|c| c.is_uppercase()) {
+                    let mut error = ::validator::ValidationError::new(#error_code);
+                    error.message = Some(::std::borrow::Cow::Borrowed(#error_message));
+                    errors.add(#field_name_str, error);
+                }
+            }
+        }
+
+        ValidationRule::Uppercase => {
+            quote! {
+                if #value_expr.chars().any(|c| c.is_lowercase()) {
+                    let mut error = ::validator::ValidationError::new(#error_code);
+                    error.message = Some(::std::borrow::Cow::Borrowed(#error_message));
+                    errors.add(#field_name_str, error);
+                }
+            }
+        }
+
+        ValidationRule::Nested => {
+            quote! {
+                if let Err(nested_errors) = ::validator::Validate::validate(#value_expr) {
+                    // Add nested errors with field prefix
+                    for (field, field_errors) in nested_errors.field_errors() {
+                        let prefixed_field = format!("{}.{}", #field_name_str, field);
+                        for error in field_errors {
+                            errors.add(&prefixed_field, error.clone());
+                        }
+                    }
+                }
+            }
+        }
+
+        // Placeholder implementations for advanced rules
+        ValidationRule::Ip => {
+            quote! {
+                if !::rf_validation::validators::ip::validate_ip(#value_expr) {
+                    let mut error = ::validator::ValidationError::new(#error_code);
+                    error.message = Some(::std::borrow::Cow::Borrowed(#error_message));
+                    errors.add(#field_name_str, error);
+                }
+            }
+        }
+
+        ValidationRule::Uuid => {
+            quote! {
+                if !::rf_validation::validators::uuid::validate_uuid(#value_expr) {
+                    let mut error = ::validator::ValidationError::new(#error_code);
+                    error.message = Some(::std::borrow::Cow::Borrowed(#error_message));
+                    errors.add(#field_name_str, error);
+                }
+            }
+        }
+
+        // Number rules (would need type checking in real implementation)
+        ValidationRule::Integer | ValidationRule::Numeric |
+        ValidationRule::Digits(_) | ValidationRule::DigitsBetween { .. } |
+        ValidationRule::Positive | ValidationRule::Negative => {
+            // These would need actual numeric validation
+            quote! {
+                // TODO: Implement numeric validation
+            }
+        }
+
+        // Date rules (would need date parsing in real implementation)
+        ValidationRule::Date | ValidationRule::DateFormat(_) |
+        ValidationRule::Before(_) | ValidationRule::After(_) |
+        ValidationRule::BetweenDates { .. } => {
+            // These would need actual date validation
+            quote! {
+                // TODO: Implement date validation
+            }
+        }
+
+        // Database rules (would need async validation)
+        ValidationRule::Exists { .. } | ValidationRule::Unique { .. } |
+        ValidationRule::UniqueIgnore { .. } => {
+            // These would need database access
+            quote! {
+                // TODO: Implement database validation (requires async)
+            }
+        }
+
+        // Conditional rules (would need access to other fields)
+        ValidationRule::RequiredIf { .. } | ValidationRule::RequiredUnless { .. } |
+        ValidationRule::RequiredWith(_) => {
+            // These would need access to other fields
+            quote! {
+                // TODO: Implement conditional validation
+            }
+        }
+
+        ValidationRule::Nullable => {
+            // Marker attribute, no validation needed
+            quote! {}
+        }
+    }
+}

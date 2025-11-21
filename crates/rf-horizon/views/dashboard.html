@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Horizon - Queue Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            color: white;
+            margin-bottom: 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 1.1rem;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .nav-link {
+            color: white;
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            transition: background 0.2s;
+        }
+
+        .nav-link:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .stat-card h3 {
+            color: #667eea;
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-card .value {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #2d3748;
+        }
+
+        .stat-card .subtitle {
+            margin-top: 0.5rem;
+            font-size: 0.875rem;
+            color: #718096;
+        }
+
+        .panel {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .panel h2 {
+            color: #2d3748;
+            font-size: 1.5rem;
+        }
+
+        .btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.875rem;
+            font-weight: 600;
+            transition: background 0.2s;
+        }
+
+        .btn:hover {
+            background: #5a67d8;
+        }
+
+        .btn-secondary {
+            background: #718096;
+        }
+
+        .btn-secondary:hover {
+            background: #4a5568;
+        }
+
+        .btn-danger {
+            background: #f56565;
+        }
+
+        .btn-danger:hover {
+            background: #e53e3e;
+        }
+
+        .queue-list {
+            list-style: none;
+        }
+
+        .queue-item {
+            padding: 1.5rem;
+            border-bottom: 1px solid #e2e8f0;
+            display: grid;
+            grid-template-columns: 1fr 2fr 1fr;
+            gap: 2rem;
+            align-items: center;
+        }
+
+        .queue-item:last-child {
+            border-bottom: none;
+        }
+
+        .queue-name {
+            font-weight: 600;
+            color: #2d3748;
+            font-size: 1.1rem;
+        }
+
+        .queue-stats {
+            display: flex;
+            gap: 2rem;
+        }
+
+        .queue-stat {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .queue-stat-label {
+            font-size: 0.75rem;
+            color: #718096;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .queue-stat-value {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #2d3748;
+            margin-top: 0.25rem;
+        }
+
+        .throughput-chart {
+            flex: 1;
+        }
+
+        .chart-bar {
+            background: #e2e8f0;
+            height: 8px;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 0.5rem;
+        }
+
+        .chart-fill {
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            height: 100%;
+            transition: width 0.5s ease;
+        }
+
+        .chart-label {
+            font-size: 0.75rem;
+            color: #718096;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: #718096;
+        }
+
+        .empty-state svg {
+            width: 64px;
+            height: 64px;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 0.5rem;
+        }
+
+        .status-indicator.running {
+            background: #48bb78;
+            box-shadow: 0 0 8px rgba(72, 187, 120, 0.5);
+        }
+
+        .status-indicator.paused {
+            background: #ed8936;
+        }
+
+        .status-indicator.stopped {
+            background: #f56565;
+        }
+
+        .chart-container {
+            margin-top: 1rem;
+            height: 200px;
+            display: flex;
+            align-items: flex-end;
+            gap: 0.5rem;
+            padding: 1rem;
+            background: #f7fafc;
+            border-radius: 8px;
+        }
+
+        .chart-bar-vertical {
+            flex: 1;
+            background: #667eea;
+            border-radius: 4px 4px 0 0;
+            min-height: 4px;
+            transition: height 0.3s ease;
+            position: relative;
+        }
+
+        .chart-bar-vertical:hover::after {
+            content: attr(data-value);
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #2d3748;
+            color: white;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            white-space: nowrap;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .updating {
+            animation: pulse 1s ease-in-out infinite;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div>
+                <h1>
+                    <span class="status-indicator running"></span>
+                    Horizon
+                </h1>
+                <p>Queue Dashboard & Real-time Monitoring</p>
+            </div>
+            <div class="nav-links">
+                <a href="/horizon" class="nav-link">Dashboard</a>
+                <a href="/horizon/jobs" class="nav-link">Jobs</a>
+                <a href="/horizon/failed" class="nav-link">Failed Jobs</a>
+            </div>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <h3>Total Jobs</h3>
+                <div class="value" id="total-jobs">0</div>
+                <div class="subtitle">All time</div>
+            </div>
+            <div class="stat-card">
+                <h3>Jobs Pending</h3>
+                <div class="value" id="jobs-pending">0</div>
+                <div class="subtitle">Waiting to process</div>
+            </div>
+            <div class="stat-card">
+                <h3>Jobs Completed</h3>
+                <div class="value" id="jobs-completed">0</div>
+                <div class="subtitle">Successfully processed</div>
+            </div>
+            <div class="stat-card">
+                <h3>Failed Jobs</h3>
+                <div class="value" id="failed-jobs">0</div>
+                <div class="subtitle">Requires attention</div>
+            </div>
+            <div class="stat-card">
+                <h3>Throughput</h3>
+                <div class="value" id="throughput">0</div>
+                <div class="subtitle">jobs per minute</div>
+            </div>
+            <div class="stat-card">
+                <h3>Active Queues</h3>
+                <div class="value" id="active-queues">0</div>
+                <div class="subtitle">Being monitored</div>
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="panel-header">
+                <h2>Queue Performance</h2>
+                <button class="btn" onclick="loadData()">Refresh Now</button>
+            </div>
+            <ul class="queue-list" id="queue-list">
+                <li class="empty-state">
+                    <div>Loading queues...</div>
+                </li>
+            </ul>
+        </div>
+
+        <div class="panel">
+            <div class="panel-header">
+                <h2>Jobs Per Minute (Last 60 Minutes)</h2>
+            </div>
+            <div class="chart-container" id="throughput-chart">
+                <!-- Chart bars will be inserted here -->
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="panel-header">
+                <h2>Queue Metrics</h2>
+            </div>
+            <div id="metrics-container">
+                <div class="empty-state">Loading metrics...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let throughputHistory = [];
+
+        async function loadData() {
+            try {
+                // Load statistics
+                const statsRes = await fetch('/horizon/api/stats');
+                const stats = await statsRes.json();
+
+                // Update stat cards
+                document.getElementById('total-jobs').textContent = stats.total_jobs.toLocaleString();
+                document.getElementById('jobs-pending').textContent = stats.jobs_pending.toLocaleString();
+                document.getElementById('jobs-completed').textContent = stats.jobs_completed.toLocaleString();
+                document.getElementById('failed-jobs').textContent = stats.jobs_failed.toLocaleString();
+                document.getElementById('throughput').textContent = stats.jobs_per_minute.toFixed(1);
+                document.getElementById('active-queues').textContent = stats.queues.length;
+
+                // Render queue list
+                renderQueues(stats.queues);
+
+                // Update throughput chart
+                updateThroughputChart(stats.jobs_per_minute);
+
+                // Load metrics
+                const metricsRes = await fetch('/horizon/api/metrics');
+                const metricsData = await metricsRes.json();
+                renderMetrics(metricsData.metrics);
+
+            } catch (error) {
+                console.error('Error loading data:', error);
+            }
+        }
+
+        function renderQueues(queues) {
+            const list = document.getElementById('queue-list');
+
+            if (queues.length === 0) {
+                list.innerHTML = '<li class="empty-state"><div>No queues configured</div></li>';
+                return;
+            }
+
+            const maxThroughput = Math.max(...queues.map(q => q.throughput), 1);
+
+            list.innerHTML = queues.map(queue => `
+                <li class="queue-item">
+                    <div class="queue-name">${queue.name}</div>
+                    <div class="queue-stats">
+                        <div class="queue-stat">
+                            <span class="queue-stat-label">Size</span>
+                            <span class="queue-stat-value">${queue.size}</span>
+                        </div>
+                        <div class="queue-stat">
+                            <span class="queue-stat-label">Throughput</span>
+                            <span class="queue-stat-value">${queue.throughput.toFixed(1)}/min</span>
+                        </div>
+                    </div>
+                    <div class="throughput-chart">
+                        <div class="chart-bar">
+                            <div class="chart-fill" style="width: ${(queue.throughput / maxThroughput * 100)}%"></div>
+                        </div>
+                        <div class="chart-label">${((queue.throughput / maxThroughput) * 100).toFixed(0)}% of max</div>
+                    </div>
+                </li>
+            `).join('');
+        }
+
+        function updateThroughputChart(currentThroughput) {
+            throughputHistory.push(currentThroughput);
+            if (throughputHistory.length > 60) {
+                throughputHistory.shift();
+            }
+
+            const chart = document.getElementById('throughput-chart');
+            const maxValue = Math.max(...throughputHistory, 1);
+
+            chart.innerHTML = throughputHistory.map(value => {
+                const height = (value / maxValue) * 100;
+                return `<div class="chart-bar-vertical" style="height: ${height}%" data-value="${value.toFixed(1)} jobs/min"></div>`;
+            }).join('');
+        }
+
+        function renderMetrics(metrics) {
+            const container = document.getElementById('metrics-container');
+
+            if (!metrics || Object.keys(metrics).length === 0) {
+                container.innerHTML = '<div class="empty-state">No metrics available</div>';
+                return;
+            }
+
+            container.innerHTML = Object.entries(metrics).map(([queue, metric]) => `
+                <div style="margin-bottom: 2rem; padding: 1.5rem; background: #f7fafc; border-radius: 8px;">
+                    <h3 style="color: #667eea; margin-bottom: 1rem; font-size: 1.25rem;">Queue: ${queue}</h3>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+                        <div>
+                            <div style="font-size: 0.75rem; color: #718096; text-transform: uppercase;">Jobs Processed</div>
+                            <div style="font-size: 1.5rem; font-weight: 600; color: #2d3748; margin-top: 0.25rem;">${metric.jobs_processed}</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 0.75rem; color: #718096; text-transform: uppercase;">Jobs Failed</div>
+                            <div style="font-size: 1.5rem; font-weight: 600; color: #f56565; margin-top: 0.25rem;">${metric.jobs_failed}</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 0.75rem; color: #718096; text-transform: uppercase;">Jobs Pending</div>
+                            <div style="font-size: 1.5rem; font-weight: 600; color: #ed8936; margin-top: 0.25rem;">${metric.jobs_pending}</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 0.75rem; color: #718096; text-transform: uppercase;">Avg Processing Time</div>
+                            <div style="font-size: 1.5rem; font-weight: 600; color: #2d3748; margin-top: 0.25rem;">${metric.average_processing_time_ms.toFixed(1)}ms</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 0.75rem; color: #718096; text-transform: uppercase;">Throughput</div>
+                            <div style="font-size: 1.5rem; font-weight: 600; color: #48bb78; margin-top: 0.25rem;">${metric.throughput_per_minute.toFixed(2)}/min</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 0.75rem; color: #718096; text-transform: uppercase;">Success Rate</div>
+                            <div style="font-size: 1.5rem; font-weight: 600; color: #2d3748; margin-top: 0.25rem;">${((metric.jobs_processed / (metric.jobs_processed + metric.jobs_failed || 1)) * 100).toFixed(1)}%</div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Load data on page load
+        loadData();
+
+        // Auto-refresh every 5 seconds
+        setInterval(loadData, 5000);
+    </script>
+</body>
+</html>

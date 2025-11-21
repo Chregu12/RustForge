@@ -1,0 +1,99 @@
+@extends('layouts.app')
+
+@section('title', 'All Posts')
+
+@section('content')
+<style>
+    .posts-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+        gap: 30px;
+        margin-top: 20px;
+    }
+    .post-card {
+        background: white;
+        border-radius: 8px;
+        padding: 25px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .post-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 5px 20px rgba(0,0,0,0.15);
+    }
+    .post-card h2 {
+        color: #2c3e50;
+        margin-bottom: 15px;
+        font-size: 1.5em;
+    }
+    .post-card .excerpt {
+        color: #666;
+        margin-bottom: 15px;
+        line-height: 1.6;
+    }
+    .post-meta {
+        color: #999;
+        font-size: 0.9em;
+        margin-bottom: 15px;
+    }
+    .read-more {
+        display: inline-block;
+        background: #3498db;
+        color: white;
+        padding: 10px 20px;
+        text-decoration: none;
+        border-radius: 5px;
+        transition: background 0.2s;
+    }
+    .read-more:hover {
+        background: #2980b9;
+    }
+    .create-btn {
+        background: #27ae60;
+        color: white;
+        padding: 15px 30px;
+        text-decoration: none;
+        border-radius: 5px;
+        display: inline-block;
+        margin-bottom: 30px;
+        font-weight: bold;
+    }
+    .create-btn:hover {
+        background: #229954;
+    }
+</style>
+
+<div>
+    <h1>Latest Blog Posts</h1>
+    <a href="/posts/create" class="create-btn">Create New Post</a>
+
+    <div class="posts-grid">
+        @foreach($posts as $post)
+            <div class="post-card">
+                @if($post.featured_image)
+                    <img src="{{ $post.featured_image }}" alt="{{ $post.title }}" style="width: 100%; border-radius: 5px; margin-bottom: 15px;">
+                @endif
+
+                <h2>{{ $post.title }}</h2>
+
+                <div class="post-meta">
+                    Published: {{ $post.created_at }}
+                </div>
+
+                <div class="excerpt">
+                    {!! $post.content !!}
+                </div>
+
+                <a href="/posts/{{ $post.id }}" class="read-more">Read More →</a>
+            </div>
+        @endforeach
+    </div>
+
+    @if(count($posts) === 0)
+        <div style="background: white; padding: 40px; text-align: center; border-radius: 8px;">
+            <h2>No posts yet</h2>
+            <p>Be the first to create a blog post!</p>
+        </div>
+    @endif
+</div>
+@endsection

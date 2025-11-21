@@ -1,15 +1,79 @@
 //! Testing utilities for RustForge applications
 //!
 //! Provides comprehensive testing helpers including HTTP testing,
-//! custom assertions, and test utilities.
+//! custom assertions, database assertions, and test fakes.
 //!
 //! # Features
 //!
-//! - HTTP testing with fluent API
-//! - Custom assertions for common patterns
-//! - Test response helpers
+//! - **HTTP Testing**: Fluent API for testing Axum applications
+//! - **Database Assertions**: Laravel-style database assertions (`assert_database_has!`)
+//! - **Queue Fakes**: Test job dispatching without processing (`QueueFake`)
+//! - **Event Fakes**: Test event dispatching and listeners (`EventFake`)
+//! - **Custom Assertions**: Common assertion patterns
+//! - **Factories & Seeders**: Generate test data easily
 //!
 //! # Quick Start
+//!
+//! ## Database Assertions
+//!
+//! ```ignore
+//! use rf_testing::{assert_database_has, assert_database_count};
+//!
+//! #[tokio::test]
+//! async fn test_user_creation() {
+//!     // Create a user
+//!     create_user(&db, "test@example.com").await?;
+//!
+//!     // Assert user exists
+//!     assert_database_has!("users", {
+//!         "email" => "test@example.com",
+//!         "active" => true
+//!     });
+//!
+//!     assert_database_count!("users", 1);
+//! }
+//! ```
+//!
+//! ## Queue Fakes
+//!
+//! ```
+//! use rf_testing::fakes::{QueueFake, queue::JobRecord};
+//! use serde_json::json;
+//!
+//! let fake = QueueFake::new();
+//!
+//! // Dispatch a job
+//! fake.record_push(JobRecord {
+//!     job_type: "send_email".to_string(),
+//!     payload: json!({"to": "test@example.com"}),
+//!     queue: "default".to_string(),
+//!     job_id: "123".to_string(),
+//!     priority: 0,
+//! });
+//!
+//! // Assert
+//! fake.assert_pushed("send_email");
+//! fake.assert_pushed_times("send_email", 1);
+//! ```
+//!
+//! ## Event Fakes
+//!
+//! ```
+//! use rf_testing::fakes::EventFake;
+//! use serde_json::json;
+//!
+//! let fake = EventFake::new();
+//!
+//! // Dispatch an event
+//! fake.dispatch_simple("UserCreated", json!({
+//!     "user_id": 1,
+//!     "email": "test@example.com"
+//! }));
+//!
+//! // Assert
+//! fake.assert_dispatched("UserCreated");
+//! fake.assert_dispatched_times("UserCreated", 1);
+//! ```
 //!
 //! ## HTTP Testing
 //!
@@ -56,14 +120,35 @@
 //! // Range assertions
 //! assert_in_range(5, 1, 10);
 //! ```
+//!
+//! For more detailed documentation, see the [Testing Guide](TESTING_GUIDE.md).
 
 mod error;
 mod http;
+mod http_client;
 pub mod assertions;
 pub mod factory;
+pub mod factory_advanced;
 pub mod seeder;
+pub mod fake;
+pub mod database;
+pub mod fakes;
+pub mod docker;
 
 pub use error::{TestError, TestResult};
 pub use http::{HttpTester, TestResponse};
-pub use factory::{Factory, FactoryBuilder, FakeData};
-pub use seeder::{Seeder, DatabaseSeeder};
+pub use http_client::{TestClient, RequestBuilder, TestResponseBuilder};
+pub use factory::{Factory, FactoryBuilder, FactoryError, FactoryDefinition};
+pub use factory_advanced::{Sequence, EnhancedFactory, FactoryState, RelationshipBuilder};
+pub use seeder::{Seeder, DatabaseSeeder, SeederRunner, SeederError};
+pub use fake::Fake;
+pub use database::{TestDatabase, TestDatabaseConfig, DatabaseTestError, refresh_database};
+pub use fakes::{QueueFake, EventFake};
+pub use docker::{
+    DockerCompose, Service,
+    redis_available, postgres_available, database_available,
+    s3_available, mailhog_available
+};
+
+// Re-export database assertion macros (defined in database.rs)
+// The macros are automatically available at crate root when defined with #[macro_export]

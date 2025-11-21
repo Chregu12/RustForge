@@ -1,6 +1,6 @@
 //! Tokenable trait for models that can have tokens
 
-use crate::{NewToken, PersonalAccessToken, SanctumError};
+use crate::{models, repository::TokenRepository, NewToken, PersonalAccessToken, SanctumError};
 use async_trait::async_trait;
 use chrono::{DateTime, Duration, Utc};
 use sea_orm::DatabaseConnection;
@@ -22,29 +22,15 @@ pub trait Tokenable: Send + Sync + Sized {
         expires_at: Option<DateTime<Utc>>,
         db: &DatabaseConnection,
     ) -> Result<NewToken, SanctumError> {
-        let plain_token = PersonalAccessToken::generate_token();
-        let hashed_token = PersonalAccessToken::hash_token(&plain_token);
-
-        let token = PersonalAccessToken {
-            id: 0, // Will be set by database
-            tokenable_type: Self::tokenable_type().to_string(),
-            tokenable_id: self.tokenable_id(),
-            name: name.to_string(),
-            token: hashed_token,
-            abilities: abilities.iter().map(|s| s.to_string()).collect(),
-            last_used_at: None,
+        let repo = TokenRepository::new(db);
+        repo.create(
+            Self::tokenable_type(),
+            self.tokenable_id(),
+            name,
+            abilities.iter().map(|s| s.to_string()).collect(),
             expires_at,
-            created_at: Utc::now(),
-            updated_at: Utc::now(),
-        };
-
-        // TODO: Save to database
-        // For now, return as-is
-
-        Ok(NewToken {
-            access_token: plain_token,
-            token,
-        })
+        )
+        .await
     }
 
     /// Create a token with expiration in hours
@@ -61,20 +47,28 @@ pub trait Tokenable: Send + Sync + Sized {
 
     /// Get all tokens for this model
     async fn tokens(&self, db: &DatabaseConnection) -> Result<Vec<PersonalAccessToken>, SanctumError> {
-        // TODO: Query from database
-        Ok(Vec::new())
+        let repo = TokenRepository::new(db);
+        let models = repo
+            .find_by_tokenable(Self::tokenable_type(), self.tokenable_id())
+            .await?;
+
+        Ok(models
+            .into_iter()
+            .map(|m| PersonalAccessToken::from_model(m))
+            .collect())
     }
 
     /// Revoke all tokens
     async fn revoke_all_tokens(&self, db: &DatabaseConnection) -> Result<(), SanctumError> {
-        // TODO: Delete from database
-        Ok(())
+        let repo = TokenRepository::new(db);
+        repo.revoke_all(Self::tokenable_type(), self.tokenable_id())
+            .await
     }
 
     /// Revoke a specific token
     async fn revoke_token(&self, token_id: i64, db: &DatabaseConnection) -> Result<(), SanctumError> {
-        // TODO: Delete from database
-        Ok(())
+        let repo = TokenRepository::new(db);
+        repo.revoke(token_id).await
     }
 }
 

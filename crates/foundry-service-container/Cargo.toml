@@ -18,3 +18,7 @@ rustc-hash.workspace = true
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+
+[[example]]
+name = "basic_usage_foundry_service_container"
+path = "examples/basic_usage.rs"

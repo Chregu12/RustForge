@@ -1,7 +1,6 @@
 //! Welcome email mailable
 
-use crate::{Address, MailError, Mailable, Message, MessageBuilder};
-use async_trait::async_trait;
+use crate::{Address, MailBuilder, Mailable};
 
 /// Welcome email for new users
 ///
@@ -34,9 +33,8 @@ pub struct WelcomeEmail {
     pub app_name: String,
 }
 
-#[async_trait]
 impl Mailable for WelcomeEmail {
-    async fn build(&self) -> Result<Message, MailError> {
+    fn build(&self) -> MailBuilder {
         let html = format!(
             r#"
 <!DOCTYPE html>
@@ -77,7 +75,7 @@ This email was sent by {}. If you did not sign up, please ignore this email.
             self.user_name, self.app_name, self.app_name
         );
 
-        Ok(MessageBuilder::new()
+        MailBuilder::new()
             .from(Address::with_name(
                 "noreply@example.com",
                 &self.app_name,
@@ -86,7 +84,6 @@ This email was sent by {}. If you did not sign up, please ignore this email.
             .subject(format!("Welcome to {}!", self.app_name))
             .html(html)
             .text(text)
-            .build()?)
     }
 }
 
@@ -94,20 +91,20 @@ This email was sent by {}. If you did not sign up, please ignore this email.
 mod tests {
     use super::*;
 
-    #[tokio::test]
-    async fn test_welcome_email() {
+    #[test]
+    fn test_welcome_email() {
         let email = WelcomeEmail {
             to: Address::with_name("user@example.com", "Test User"),
             user_name: "Test".into(),
             app_name: "TestApp".into(),
         };
 
-        let message = email.build().await.unwrap();
+        let mail = email.build().build().unwrap();
 
-        assert_eq!(message.subject, "Welcome to TestApp!");
-        assert_eq!(message.to.len(), 1);
-        assert_eq!(message.to[0].email, "user@example.com");
-        assert!(message.html.is_some());
-        assert!(message.text.is_some());
+        assert_eq!(mail.subject, "Welcome to TestApp!");
+        assert_eq!(mail.to.len(), 1);
+        assert_eq!(mail.to[0].email, "user@example.com");
+        assert!(mail.has_html());
+        assert!(mail.has_text());
     }
 }

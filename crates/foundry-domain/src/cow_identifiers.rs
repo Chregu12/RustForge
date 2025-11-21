@@ -27,7 +27,6 @@
 ///     println!("Match!");
 /// }
 /// ```
-
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 use std::fmt;

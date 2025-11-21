@@ -10,6 +10,22 @@ thiserror = "1.0"
 unicode-segmentation = "1.11"
 rust-stemmers = "1.2"
 async-trait = "0.1"
+sqlx = { version = "0.8", features = ["runtime-tokio-rustls", "postgres"], optional = true }
+meilisearch-sdk = { version = "0.26", optional = true }
+reqwest = { version = "0.11", features = ["json"], optional = true }
+tokio = { version = "1.0", features = ["rt"] }
+futures = "0.3"
+rf-metrics = { path = "../rf-metrics", optional = true }
+
+[features]
+default = ["in-memory"]
+in-memory = []
+postgres = ["dep:sqlx"]
+meilisearch = ["dep:meilisearch-sdk"]
+algolia = ["dep:reqwest"]
+all-drivers = ["postgres", "meilisearch", "algolia"]
+metrics = ["rf-metrics"]
 
 [dev-dependencies]
-tokio = { version = "1.0", features = ["full"] }
+tokio = { version = "1.0", features = ["full", "test-util"] }
+dotenvy = "0.15"

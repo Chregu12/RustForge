@@ -22,6 +22,12 @@ pub enum OAuth2Error {
     #[error("Unauthorized client")]
     UnauthorizedClient,
 
+    #[error("Unauthorized: {0}")]
+    Unauthorized(String),
+
+    #[error("Insufficient scope: {0}")]
+    InsufficientScope(String),
+
     #[error("Unsupported grant type: {0}")]
     UnsupportedGrantType(String),
 
@@ -50,6 +56,8 @@ impl IntoResponse for OAuth2Error {
             OAuth2Error::InvalidScope(_) => (StatusCode::BAD_REQUEST, "invalid_scope"),
             OAuth2Error::InvalidToken(_) => (StatusCode::UNAUTHORIZED, "invalid_token"),
             OAuth2Error::UnauthorizedClient => (StatusCode::UNAUTHORIZED, "unauthorized_client"),
+            OAuth2Error::Unauthorized(_) => (StatusCode::UNAUTHORIZED, "unauthorized"),
+            OAuth2Error::InsufficientScope(_) => (StatusCode::FORBIDDEN, "insufficient_scope"),
             OAuth2Error::UnsupportedGrantType(_) => {
                 (StatusCode::BAD_REQUEST, "unsupported_grant_type")
             }

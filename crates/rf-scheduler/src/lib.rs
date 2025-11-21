@@ -6,6 +6,7 @@
 //!
 //! - **Cron Expressions**: Full cron syntax support
 //! - **Simple Intervals**: Hourly, daily, weekly shortcuts
+//! - **Fluent API**: Chainable schedule building
 //! - **Overlap Prevention**: Prevent concurrent task execution
 //! - **Error Handling**: Automatic error logging and retry
 //! - **Async Tasks**: Full async/await support
@@ -37,7 +38,14 @@
 //! scheduler.schedule("0 0 * * *", CleanupTask).await?;
 //!
 //! // Simple: Every hour
-//! scheduler.hourly(CleanupTask).await;
+//! scheduler.hourly(CleanupTask).await?;
+//!
+//! // Fluent API: Weekdays at 9 AM
+//! scheduler.schedule_builder()
+//!     .at("09:00")
+//!     .weekdays()
+//!     .schedule(&scheduler, CleanupTask)
+//!     .await?;
 //!
 //! // scheduler.start().await?;
 //! # Ok(())
@@ -54,6 +62,9 @@ use tokio::sync::Mutex;
 use tokio::time::{sleep, Duration};
 
 pub use thiserror::Error;
+
+pub mod fluent;
+pub use fluent::TaskBuilder;
 
 /// Scheduler errors
 #[derive(Debug, Error)]
@@ -134,8 +145,8 @@ impl Scheduler {
     }
 
     /// Schedule task to run every hour
-    pub async fn hourly(&self, task: impl Task + 'static) {
-        self.schedule("0 * * * *", task).await.unwrap();
+    pub async fn hourly(&self, task: impl Task + 'static) -> SchedulerResult<()> {
+        self.schedule("0 * * * *", task).await
     }
 
     /// Schedule task to run daily at specific time (HH:MM format)
@@ -152,8 +163,41 @@ impl Scheduler {
     }
 
     /// Schedule task to run daily
-    pub async fn daily(&self, task: impl Task + 'static) {
-        self.daily_at("00:00", task).await.unwrap();
+    pub async fn daily(&self, task: impl Task + 'static) -> SchedulerResult<()> {
+        self.daily_at("00:00", task).await
+    }
+
+    /// Schedule task to run weekly on Sunday at midnight
+    pub async fn weekly(&self, task: impl Task + 'static) -> SchedulerResult<()> {
+        self.schedule("0 0 * * SUN", task).await
+    }
+
+    /// Schedule task to run monthly on the 1st at midnight
+    pub async fn monthly(&self, task: impl Task + 'static) -> SchedulerResult<()> {
+        self.schedule("0 0 1 * *", task).await
+    }
+
+    /// Schedule task to run every N minutes
+    pub async fn every_minutes(&self, minutes: u32, task: impl Task + 'static) -> SchedulerResult<()> {
+        let cron = format!("*/{} * * * *", minutes);
+        self.schedule(&cron, task).await
+    }
+
+    /// Schedule task to run every N hours
+    pub async fn every_hours(&self, hours: u32, task: impl Task + 'static) -> SchedulerResult<()> {
+        let cron = format!("0 */{} * * *", hours);
+        self.schedule(&cron, task).await
+    }
+
+    /// Create a fluent task builder
+    pub fn schedule_builder(&self) -> TaskBuilder {
+        TaskBuilder::new()
+    }
+
+    /// Get the number of scheduled tasks
+    pub async fn task_count(&self) -> usize {
+        let tasks = self.tasks.lock().await;
+        tasks.len()
     }
 
     /// Start the scheduler
@@ -198,14 +242,26 @@ impl Scheduler {
 
                             tracing::info!(task = %task_name, "Running scheduled task");
 
+                            #[cfg(feature = "metrics")]
+                            let timer = rf_metrics::SCHEDULER_TASK_DURATION
+                                .with_label_values(&[&task_name])
+                                .start_timer();
+
                             match task.run().await {
                                 Ok(_) => {
                                     tracing::info!(task = %task_name, "Task completed successfully");
+                                    #[cfg(feature = "metrics")]
+                                    rf_metrics::SCHEDULER_TASKS_EXECUTED.inc();
                                 }
                                 Err(e) => {
                                     tracing::error!(task = %task_name, error = %e, "Task failed");
+                                    #[cfg(feature = "metrics")]
+                                    rf_metrics::SCHEDULER_TASKS_FAILED.inc();
                                 }
                             }
+
+                            #[cfg(feature = "metrics")]
+                            drop(timer);
 
                             // Mark as not running
                             let mut running = running_tasks.lock().await;
@@ -282,14 +338,12 @@ mod tests {
     async fn test_shortcuts() {
         let scheduler = Scheduler::new();
 
-        scheduler.hourly(TestTask {
+        assert!(scheduler.hourly(TestTask {
             name: "hourly".to_string(),
-        }).await;
+        }).await.is_ok());
 
-        scheduler.daily(TestTask {
+        assert!(scheduler.daily(TestTask {
             name: "daily".to_string(),
-        }).await;
-
-        // Just check they don't panic
+        }).await.is_ok());
     }
 }

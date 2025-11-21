@@ -222,8 +222,12 @@ mod postgres_tests {
     }
 
     #[tokio::test]
-    #[ignore] // Only run when Postgres is available
-    async fn test_postgres_connection() {
+async fn test_postgres_connection() {
+    if !postgres_available().await {
+        eprintln!("⏭️  Skipping test_postgres_connection: PostgreSQL not available");
+        eprintln!("   Start services with: ./scripts/test-env-up.sh");
+        return;
+    }
         let db = setup_postgres_test_db().await;
         if let Ok(db) = db {
             let result = db.ping().await;
@@ -232,8 +236,12 @@ mod postgres_tests {
     }
 
     #[tokio::test]
-    #[ignore] // Only run when Postgres is available
-    async fn test_postgres_uuid() {
+async fn test_postgres_uuid() {
+    if !postgres_available().await {
+        eprintln!("⏭️  Skipping test_postgres_uuid: PostgreSQL not available");
+        eprintln!("   Start services with: ./scripts/test-env-up.sh");
+        return;
+    }
         let db = setup_postgres_test_db().await;
         if let Ok(db) = db {
             let sql = r#"

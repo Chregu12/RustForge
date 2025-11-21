@@ -1,7 +1,6 @@
 //! Password reset email mailable
 
-use crate::{Address, MailError, Mailable, Message, MessageBuilder};
-use async_trait::async_trait;
+use crate::{Address, MailBuilder, Mailable};
 
 /// Password reset email
 ///
@@ -38,9 +37,8 @@ pub struct PasswordResetEmail {
     pub expires_minutes: u32,
 }
 
-#[async_trait]
 impl Mailable for PasswordResetEmail {
-    async fn build(&self) -> Result<Message, MailError> {
+    fn build(&self) -> MailBuilder {
         let full_url = format!("{}?token={}", self.reset_url, self.reset_token);
 
         let html = format!(
@@ -108,13 +106,12 @@ If you have any questions, please contact our support team.
             full_url, self.expires_minutes
         );
 
-        Ok(MessageBuilder::new()
+        MailBuilder::new()
             .from(Address::new("noreply@example.com"))
             .to(self.to.clone())
             .subject("Reset Your Password")
             .html(html)
             .text(text)
-            .build()?)
     }
 }
 
@@ -122,8 +119,8 @@ If you have any questions, please contact our support team.
 mod tests {
     use super::*;
 
-    #[tokio::test]
-    async fn test_password_reset_email() {
+    #[test]
+    fn test_password_reset_email() {
         let email = PasswordResetEmail {
             to: Address::new("user@example.com"),
             reset_token: "test-token-123".into(),
@@ -131,16 +128,16 @@ mod tests {
             expires_minutes: 60,
         };
 
-        let message = email.build().await.unwrap();
+        let mail = email.build().build().unwrap();
 
-        assert_eq!(message.subject, "Reset Your Password");
-        assert_eq!(message.to[0].email, "user@example.com");
+        assert_eq!(mail.subject, "Reset Your Password");
+        assert_eq!(mail.to[0].email, "user@example.com");
 
-        let html = message.html.unwrap();
+        let html = mail.html().unwrap();
         assert!(html.contains("test-token-123"));
         assert!(html.contains("60 minutes"));
 
-        let text = message.text.unwrap();
+        let text = mail.text().unwrap();
         assert!(text.contains("test-token-123"));
     }
 }

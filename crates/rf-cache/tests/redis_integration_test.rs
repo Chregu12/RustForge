@@ -1,7 +1,8 @@
 //! Integration tests for Redis cache backend
 //!
 //! These tests require a running Redis instance.
-//! Run with: cargo test --features redis-backend -- --ignored
+//! Start test services with: ./scripts/test-env-up.sh
+//! Then run: cargo test --features redis-backend
 
 #![cfg(feature = "redis-backend")]
 
@@ -13,9 +14,26 @@ fn get_redis_url() -> String {
     std::env::var("REDIS_URL").unwrap_or_else(|_| "redis://localhost:6379".to_string())
 }
 
+async fn redis_available() -> bool {
+    use redis::AsyncCommands;
+    match redis::Client::open(get_redis_url().as_str()) {
+        Ok(client) => {
+            match client.get_multiplexed_async_connection().await {
+                Ok(mut conn) => conn.ping::<_, String>().await.is_ok(),
+                Err(_) => false,
+            }
+        },
+        Err(_) => false,
+    }
+}
+
 #[tokio::test]
-#[ignore] // Requires Redis
 async fn test_redis_basic_operations() {
+    if !redis_available().await {
+        eprintln!("⏭️  Skipping test_redis_basic_operations: Redis not available");
+        eprintln!("   Start services with: ./scripts/test-env-up.sh");
+        return;
+    }
     let cache = RedisCache::new(&get_redis_url(), "test_basic")
         .await
         .unwrap();
@@ -43,8 +61,11 @@ async fn test_redis_basic_operations() {
 }
 
 #[tokio::test]
-#[ignore] // Requires Redis
 async fn test_redis_distributed_cache() {
+    if !redis_available().await {
+        eprintln!("⏭️  Skipping test_redis_distributed_cache: Redis not available");
+        return;
+    }
     let cache1 = RedisCache::new(&get_redis_url(), "test_distributed")
         .await
         .unwrap();
@@ -79,8 +100,11 @@ async fn test_redis_distributed_cache() {
 }
 
 #[tokio::test]
-#[ignore] // Requires Redis
 async fn test_redis_ttl_expiration() {
+    if !redis_available().await {
+        eprintln!("⏭️  Skipping test_redis_ttl_expiration: Redis not available");
+        return;
+    }
     let cache = RedisCache::new(&get_redis_url(), "test_ttl")
         .await
         .unwrap();
@@ -108,8 +132,11 @@ async fn test_redis_ttl_expiration() {
 }
 
 #[tokio::test]
-#[ignore] // Requires Redis
 async fn test_redis_cache_tags() {
+    if !redis_available().await {
+        eprintln!("⏭️  Skipping test_redis_cache_tags: Redis not available");
+        return;
+    }
     let cache = RedisCache::new(&get_redis_url(), "test_tags")
         .await
         .unwrap();
@@ -160,8 +187,11 @@ async fn test_redis_cache_tags() {
 }
 
 #[tokio::test]
-#[ignore] // Requires Redis
 async fn test_redis_tag_based_invalidation() {
+    if !redis_available().await {
+        eprintln!("⏭️  Skipping test_redis_tag_based_invalidation: Redis not available");
+        return;
+    }
     let cache = RedisCache::new(&get_redis_url(), "test_invalidation")
         .await
         .unwrap();
@@ -186,8 +216,11 @@ async fn test_redis_tag_based_invalidation() {
 }
 
 #[tokio::test]
-#[ignore] // Requires Redis
 async fn test_redis_remember_with_lock() {
+    if !redis_available().await {
+        eprintln!("⏭️  Skipping test_redis_remember_with_lock: Redis not available");
+        return;
+    }
     let cache = RedisCache::new(&get_redis_url(), "test_lock")
         .await
         .unwrap();
@@ -229,8 +262,11 @@ async fn test_redis_remember_with_lock() {
 }
 
 #[tokio::test]
-#[ignore] // Requires Redis
 async fn test_redis_stampede_prevention() {
+    if !redis_available().await {
+        eprintln!("⏭️  Skipping test_redis_stampede_prevention: Redis not available");
+        return;
+    }
     let cache = Arc::new(
         RedisCache::new(&get_redis_url(), "test_stampede")
             .await
@@ -279,8 +315,11 @@ async fn test_redis_stampede_prevention() {
 }
 
 #[tokio::test]
-#[ignore] // Requires Redis
 async fn test_redis_remember_pattern() {
+    if !redis_available().await {
+        eprintln!("⏭️  Skipping test_redis_remember_pattern: Redis not available");
+        return;
+    }
     let cache = RedisCache::new(&get_redis_url(), "test_remember")
         .await
         .unwrap();
@@ -316,8 +355,11 @@ async fn test_redis_remember_pattern() {
 }
 
 #[tokio::test]
-#[ignore] // Requires Redis
 async fn test_redis_cache_config() {
+    if !redis_available().await {
+        eprintln!("⏭️  Skipping test_redis_cache_config: Redis not available");
+        return;
+    }
     let config = CacheConfig::redis(get_redis_url(), "test_config");
     let cache = config.build().await.unwrap();
 
@@ -337,8 +379,11 @@ async fn test_redis_cache_config() {
 }
 
 #[tokio::test]
-#[ignore] // Requires Redis
 async fn test_redis_complex_data_types() {
+    if !redis_available().await {
+        eprintln!("⏭️  Skipping test_redis_complex_data_types: Redis not available");
+        return;
+    }
     use serde::{Deserialize, Serialize};
 
     #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -376,8 +421,11 @@ async fn test_redis_complex_data_types() {
 }
 
 #[tokio::test]
-#[ignore] // Requires Redis
 async fn test_redis_cache_performance() {
+    if !redis_available().await {
+        eprintln!("⏭️  Skipping test_redis_cache_performance: Redis not available");
+        return;
+    }
     let cache = RedisCache::new(&get_redis_url(), "test_performance")
         .await
         .unwrap();

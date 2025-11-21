@@ -285,8 +285,12 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore] // Requires database connection
-    async fn test_store_and_find_client() {
+async fn test_store_and_find_client() {
+    if !postgres_available().await {
+        eprintln!("⏭️  Skipping test_store_and_find_client: PostgreSQL not available");
+        eprintln!("   Start services with: ./scripts/test-env-up.sh");
+        return;
+    }
         let pool = setup_test_db().await;
         let repo = PostgresClientRepository::new(pool);
 

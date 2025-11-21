@@ -2,8 +2,9 @@
 
 use crate::context::JobContext;
 use crate::error::{JobError, WorkerError};
-use crate::job::{Job, JobPayload};
+use crate::job::JobPayload;
 use crate::queue::QueueManager;
+use crate::registry::JobRegistry;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::broadcast;
@@ -66,6 +67,7 @@ impl WorkerConfig {
 pub struct WorkerPool {
     config: WorkerConfig,
     queue_manager: Arc<QueueManager>,
+    registry: Arc<JobRegistry>,
     workers: Vec<Worker>,
     shutdown_tx: broadcast::Sender<()>,
 }
@@ -76,20 +78,23 @@ impl WorkerPool {
     /// # Example
     ///
     /// ```ignore
-    /// # use rf_jobs::{WorkerPool, WorkerConfig, QueueManager};
+    /// # use rf_jobs::{WorkerPool, WorkerConfig, QueueManager, JobRegistry};
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let manager = QueueManager::new("redis://localhost:6379").await?;
+    /// let registry = JobRegistry::new();
     /// let config = WorkerConfig::default().workers(4);
-    /// let pool = WorkerPool::new(config, manager).await?;
+    /// let pool = WorkerPool::new(config, manager, registry).await?;
     /// # Ok(())
     /// # }
     /// ```
     pub async fn new(
         config: WorkerConfig,
         queue_manager: QueueManager,
+        registry: JobRegistry,
     ) -> Result<Self, WorkerError> {
         let (shutdown_tx, _) = broadcast::channel(1);
         let queue_manager = Arc::new(queue_manager);
+        let registry = Arc::new(registry);
 
         let mut workers = Vec::new();
         for i in 0..config.workers {
@@ -97,6 +102,7 @@ impl WorkerPool {
                 i,
                 config.clone(),
                 Arc::clone(&queue_manager),
+                Arc::clone(&registry),
                 shutdown_tx.subscribe(),
             );
             workers.push(worker);
@@ -105,6 +111,7 @@ impl WorkerPool {
         Ok(Self {
             config,
             queue_manager,
+            registry,
             workers,
             shutdown_tx,
         })
@@ -147,6 +154,7 @@ pub struct Worker {
     id: usize,
     config: WorkerConfig,
     queue_manager: Arc<QueueManager>,
+    registry: Arc<JobRegistry>,
     shutdown_rx: broadcast::Receiver<()>,
     handle: Option<JoinHandle<()>>,
 }
@@ -157,12 +165,14 @@ impl Worker {
         id: usize,
         config: WorkerConfig,
         queue_manager: Arc<QueueManager>,
+        registry: Arc<JobRegistry>,
         shutdown_rx: broadcast::Receiver<()>,
     ) -> Self {
         Self {
             id,
             config,
             queue_manager,
+            registry,
             shutdown_rx,
             handle: None,
         }
@@ -173,6 +183,7 @@ impl Worker {
         let id = self.id;
         let config = self.config.clone();
         let queue_manager = Arc::clone(&self.queue_manager);
+        let registry = Arc::clone(&self.registry);
         let mut shutdown_rx = self.shutdown_rx.resubscribe();
 
         let handle = tokio::spawn(async move {
@@ -191,7 +202,7 @@ impl Worker {
                 for queue in &config.queues {
                     match queue_manager.pop_nowait(queue).await {
                         Ok(Some(payload)) => {
-                            Self::process_job(id, payload, &queue_manager, &config).await;
+                            Self::process_job(id, payload, &queue_manager, &registry, &config).await;
                             processed = true;
                             break; // Process one job at a time
                         }
@@ -237,11 +248,13 @@ impl Worker {
         worker_id: usize,
         mut payload: JobPayload,
         queue_manager: &QueueManager,
+        registry: &JobRegistry,
         config: &WorkerConfig,
     ) {
         tracing::info!(
             worker = worker_id,
             job_id = %payload.id,
+            job_type = %payload.job_type,
             queue = %payload.queue,
             attempt = payload.attempt + 1,
             "Processing job"
@@ -262,7 +275,7 @@ impl Worker {
         // Execute job with timeout
         let result = tokio::time::timeout(
             config.timeout,
-            Self::execute_job_payload(&payload, ctx.clone()),
+            Self::execute_job_payload(&payload, ctx.clone(), registry),
         )
         .await;
 
@@ -272,6 +285,7 @@ impl Worker {
                 tracing::info!(
                     worker = worker_id,
                     job_id = %payload.id,
+                    job_type = %payload.job_type,
                     "Job completed successfully"
                 );
             }
@@ -280,6 +294,7 @@ impl Worker {
                 tracing::error!(
                     worker = worker_id,
                     job_id = %payload.id,
+                    job_type = %payload.job_type,
                     error = %job_error,
                     attempt = payload.attempt,
                     max_attempts = payload.max_attempts,
@@ -295,6 +310,7 @@ impl Worker {
                 tracing::error!(
                     worker = worker_id,
                     job_id = %payload.id,
+                    job_type = %payload.job_type,
                     timeout = ?config.timeout,
                     "Job timed out"
                 );
@@ -304,60 +320,80 @@ impl Worker {
         }
     }
 
-    /// Execute job payload (type-erased)
+    /// Execute job payload using the registry
+    ///
+    /// This is the critical method that actually executes jobs!
+    /// It uses the registry to deserialize and dispatch to the correct handler.
     async fn execute_job_payload(
         payload: &JobPayload,
         ctx: JobContext,
+        registry: &JobRegistry,
     ) -> Result<(), JobError> {
-        // This is a simplified version - in reality, we would need
-        // a job registry to deserialize and execute jobs dynamically
+        // Extract the payload data as JSON string
+        let payload_str = payload.data.to_string();
 
-        // For now, we just log that we would execute the job
-        ctx.log(&format!(
-            "Would execute job of type: {}",
-            payload.job_type
-        ));
-
-        // Simulate work
-        tokio::time::sleep(Duration::from_millis(100)).await;
+        // Use registry to execute the job
+        // This will:
+        // 1. Look up the handler for this job type
+        // 2. Deserialize the payload to the concrete job type
+        // 3. Call the job's handle() method
+        registry
+            .execute(&payload.job_type, &payload_str, ctx.clone())
+            .await?;
 
         Ok(())
     }
 
     /// Handle failed job (retry or move to DLQ)
+    ///
+    /// CRITICAL FIX: This now preserves the original payload when retrying!
     async fn handle_failed_job(
-        payload: JobPayload,
+        mut payload: JobPayload,
         error: JobError,
         queue_manager: &QueueManager,
     ) {
         if payload.has_more_attempts() {
-            // Retry job
+            // Retry job with ORIGINAL PAYLOAD preserved
             tracing::warn!(
                 job_id = %payload.id,
+                job_type = %payload.job_type,
                 attempt = payload.attempt,
                 max_attempts = payload.max_attempts,
                 "Retrying job"
             );
 
-            // Push back to queue with backoff
-            if let Err(e) = queue_manager
-                .dispatch_later(
-                    DummyJob,
-                    Duration::from_secs(payload.backoff_seconds),
-                )
-                .await
-            {
+            // Calculate exponential backoff
+            let backoff_multiplier = 2u64.pow(payload.attempt);
+            let delay_seconds = payload.backoff_seconds * backoff_multiplier;
+
+            // Update available_at for delayed retry
+            let delay = chrono::Duration::seconds(delay_seconds as i64);
+            payload.available_at = chrono::Utc::now() + delay;
+
+            // Re-queue the SAME payload (not a DummyJob!)
+            // This preserves all job data and metadata
+            if let Err(e) = queue_manager.push_raw(&payload.queue, payload.clone()).await {
                 tracing::error!(
                     job_id = %payload.id,
+                    job_type = %payload.job_type,
                     error = %e,
-                    "Failed to requeue job"
+                    "Failed to requeue job for retry"
+                );
+            } else {
+                tracing::info!(
+                    job_id = %payload.id,
+                    job_type = %payload.job_type,
+                    retry_in_seconds = delay_seconds,
+                    "Job requeued for retry"
                 );
             }
         } else {
             // Move to failed queue
             tracing::error!(
                 job_id = %payload.id,
-                "Job failed permanently, moving to failed queue"
+                job_type = %payload.job_type,
+                "Job failed permanently after {} attempts, moving to failed queue",
+                payload.attempt
             );
 
             if let Err(e) = queue_manager
@@ -379,17 +415,6 @@ impl Worker {
                 .await
                 .map_err(|e| WorkerError::ShutdownError(e.to_string()))?;
         }
-        Ok(())
-    }
-}
-
-// Dummy job for requeuing (temporary workaround)
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-struct DummyJob;
-
-#[async_trait::async_trait]
-impl Job for DummyJob {
-    async fn handle(&self, _ctx: JobContext) -> crate::JobResult {
         Ok(())
     }
 }

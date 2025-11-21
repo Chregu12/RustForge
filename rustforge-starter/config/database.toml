@@ -1,0 +1,56 @@
+# Database Configuration
+#
+# Configure your database connections here
+
+[database]
+# Default database connection
+default = "postgres"
+
+# Database migrations table
+migrations_table = "migrations"
+
+# PostgreSQL Connection
+[database.connections.postgres]
+driver = "postgres"
+host = "127.0.0.1"
+port = 5432
+database = "rustforge"
+username = "postgres"
+password = ""
+pool_size = 10
+pool_timeout = 30
+ssl_mode = "disable"
+
+# SQLite Connection
+[database.connections.sqlite]
+driver = "sqlite"
+database = "storage/database.sqlite"
+foreign_keys = true
+
+# MySQL Connection
+[database.connections.mysql]
+driver = "mysql"
+host = "127.0.0.1"
+port = 3306
+database = "rustforge"
+username = "root"
+password = ""
+pool_size = 10
+pool_timeout = 30
+
+# Connection pool configuration
+[database.pool]
+# Minimum number of connections
+min_connections = 2
+
+# Maximum number of connections
+max_connections = 10
+
+# Connection timeout in seconds
+timeout = 30
+
+# Connection lifetime in seconds
+max_lifetime = 1800
+
+# Idle timeout in seconds
+idle_timeout = 600

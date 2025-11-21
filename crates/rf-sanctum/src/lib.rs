@@ -9,18 +9,43 @@
 //! - Token Expiration
 //! - Token Last Used Tracking
 //! - SPA Cookie Authentication
+//! - Database persistence with SeaORM
 //!
 //! ## Usage
 //!
 //! ```rust,ignore
-//! use rf_sanctum::{Tokenable, SanctumAuth};
+//! use rf_sanctum::{Tokenable, SanctumAuth, LoadFromToken};
+//!
+//! // Implement Tokenable for your user model
+//! #[async_trait]
+//! impl Tokenable for User {
+//!     fn tokenable_type() -> &'static str {
+//!         "User"
+//!     }
+//!
+//!     fn tokenable_id(&self) -> i64 {
+//!         self.id
+//!     }
+//! }
+//!
+//! // Implement LoadFromToken
+//! #[async_trait]
+//! impl LoadFromToken for User {
+//!     async fn load_from_token(
+//!         tokenable_id: i64,
+//!         db: &DatabaseConnection,
+//!     ) -> Result<Self, SanctumError> {
+//!         // Load user from database
+//!     }
+//! }
 //!
 //! // Create a token for a user
-//! let token = user.create_token("mobile-app", vec!["read:posts", "write:posts"]).await?;
+//! let new_token = user.create_token("mobile-app", vec!["read:posts", "write:posts"], None, &db).await?;
+//! println!("Token: {}", new_token.access_token); // Show once to user
 //!
 //! // Use in routes
-//! async fn protected(user: SanctumAuth<User>) -> Json<User> {
-//!     Json(user.0)
+//! async fn protected(SanctumAuth(user, token): SanctumAuth<User>) -> Json<User> {
+//!     Json(user)
 //! }
 //! ```
 
@@ -29,18 +54,24 @@ pub mod tokenable;
 pub mod auth;
 pub mod abilities;
 pub mod errors;
+pub mod models;
+pub mod repository;
+pub mod middleware;
+pub mod spa;
 
 pub use token::{PersonalAccessToken, NewToken};
 pub use tokenable::Tokenable;
-pub use auth::SanctumAuth;
+pub use auth::{SanctumAuth, LoadFromToken};
 pub use abilities::{Ability, AbilityChecker};
 pub use errors::SanctumError;
+pub use models::Model as PersonalAccessTokenModel;
+pub use repository::TokenRepository;
 
 /// Prelude module for convenient imports
 pub mod prelude {
     pub use crate::{
-        Ability, AbilityChecker, NewToken, PersonalAccessToken, SanctumAuth, SanctumError,
-        Tokenable,
+        Ability, AbilityChecker, LoadFromToken, NewToken, PersonalAccessToken,
+        PersonalAccessTokenModel, SanctumAuth, SanctumError, Tokenable, TokenRepository,
     };
 }
 

@@ -1,0 +1,17 @@
+[package]
+name = "rf-encryption"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+thiserror.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+base64 = "0.21"
+aes-gcm = "0.10"
+rand = "0.8"
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["test-util", "macros"] }

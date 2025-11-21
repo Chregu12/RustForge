@@ -8,10 +8,38 @@ use serde_json;
 use std::time::Duration;
 use uuid::Uuid;
 
+/// Queue priority levels
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum QueuePriority {
+    High,
+    Default,
+    Low,
+}
+
+impl QueuePriority {
+    /// Get the queue name suffix for this priority
+    pub fn suffix(&self) -> &str {
+        match self {
+            QueuePriority::High => "high",
+            QueuePriority::Default => "default",
+            QueuePriority::Low => "low",
+        }
+    }
+
+    /// Get priority order (lower number = higher priority)
+    pub fn order(&self) -> u8 {
+        match self {
+            QueuePriority::High => 0,
+            QueuePriority::Default => 1,
+            QueuePriority::Low => 2,
+        }
+    }
+}
+
 /// Queue manager for job dispatching and retrieval
 #[derive(Clone)]
 pub struct QueueManager {
-    pool: Pool,
+    pub(crate) pool: Pool,
 }
 
 impl QueueManager {
@@ -89,8 +117,38 @@ impl QueueManager {
         Ok(job_id)
     }
 
+    /// Dispatch job to specific queue with priority
+    pub async fn dispatch_on<J: Job>(
+        &self,
+        job: J,
+        queue: &str,
+        priority: QueuePriority,
+    ) -> Result<Uuid, QueueError> {
+        let queue_name = format!("{}:{}", queue, priority.suffix());
+        self.dispatch_to(job, &queue_name).await
+    }
+
+    /// Dispatch job with priority (to its default queue)
+    pub async fn dispatch_with_priority<J: Job>(
+        &self,
+        job: J,
+        priority: QueuePriority,
+    ) -> Result<Uuid, QueueError> {
+        let base_queue = job.queue().to_string();
+        let queue_name = format!("{}:{}", base_queue, priority.suffix());
+        self.dispatch_to(job, &queue_name).await
+    }
+
+    /// Push raw job payload to queue
+    ///
+    /// This method is used internally for retrying failed jobs,
+    /// preserving the original payload and attempt counter.
+    pub async fn push_raw(&self, queue: &str, payload: JobPayload) -> Result<(), QueueError> {
+        self.push_to_queue(queue, payload).await
+    }
+
     /// Push job payload to queue
-    async fn push_to_queue(
+    pub(crate) async fn push_to_queue(
         &self,
         queue: &str,
         payload: JobPayload,
@@ -106,7 +164,7 @@ impl QueueManager {
         let queue_key = format!("queue:{}", queue);
         let json = serde_json::to_string(&payload)?;
 
-        conn.rpush(&queue_key, json).await?;
+        conn.rpush::<_, _, ()>(&queue_key, json).await?;
 
         Ok(())
     }
@@ -124,7 +182,7 @@ impl QueueManager {
         let json = serde_json::to_string(&payload)?;
         let score = payload.available_at.timestamp();
 
-        conn.zadd("queue:delayed", json, score).await?;
+        conn.zadd::<_, _, _, ()>("queue:delayed", json, score).await?;
 
         Ok(())
     }
@@ -144,6 +202,43 @@ impl QueueManager {
         // Use BLPOP for blocking pop
         let result: Option<(String, String)> = conn
             .blpop(&queue_key, timeout.as_secs() as f64)
+            .await?;
+
+        match result {
+            Some((_key, json)) => {
+                let payload: JobPayload = serde_json::from_str(&json)?;
+                Ok(Some(payload))
+            }
+            None => Ok(None),
+        }
+    }
+
+    /// Pop job from queue with priority support (blocking)
+    ///
+    /// Tries to pop from high priority first, then default, then low
+    pub async fn pop_with_priority(
+        &self,
+        queue: &str,
+        timeout: Duration,
+    ) -> Result<Option<JobPayload>, QueueError> {
+        let mut conn = self.pool.get().await.map_err(|e| {
+            QueueError::ConnectionError(redis::RedisError::from((
+                redis::ErrorKind::IoError,
+                "Failed to get connection",
+                e.to_string(),
+            )))
+        })?;
+
+        // Build queue keys in priority order
+        let queue_keys = vec![
+            format!("queue:{}:high", queue),
+            format!("queue:{}:default", queue),
+            format!("queue:{}:low", queue),
+        ];
+
+        // Use BLPOP with multiple keys (Redis pops from first non-empty queue)
+        let result: Option<(String, String)> = conn
+            .blpop(&queue_keys, timeout.as_secs() as f64)
             .await?;
 
         match result {
@@ -203,7 +298,7 @@ impl QueueManager {
             self.push_to_queue(&payload.queue, payload.clone()).await?;
 
             // Remove from delayed queue
-            conn.zrem("queue:delayed", &json).await?;
+            conn.zrem::<_, _, ()>("queue:delayed", &json).await?;
 
             moved += 1;
         }
@@ -238,7 +333,7 @@ impl QueueManager {
         })?;
 
         let queue_key = format!("queue:{}", queue);
-        conn.del(&queue_key).await?;
+        conn.del::<_, ()>(&queue_key).await?;
 
         Ok(())
     }
@@ -260,7 +355,7 @@ impl QueueManager {
         let failed = FailedJob::new(payload, error);
         let json = serde_json::to_string(&failed)?;
 
-        conn.rpush("queue:failed", json).await?;
+        conn.rpush::<_, _, ()>("queue:failed", json).await?;
 
         Ok(())
     }
@@ -286,7 +381,7 @@ impl QueueManager {
     pub async fn retry_failed(&self, job_id: Uuid) -> Result<(), QueueError> {
         let failed_jobs = self.failed_jobs().await?;
 
-        for (idx, failed) in failed_jobs.iter().enumerate() {
+        for (_idx, failed) in failed_jobs.iter().enumerate() {
             if failed.payload.id == job_id {
                 // Remove from failed queue
                 let mut conn = self.pool.get().await.map_err(|e| {
@@ -298,7 +393,7 @@ impl QueueManager {
                 })?;
 
                 let json = serde_json::to_string(failed)?;
-                conn.lrem("queue:failed", 1, &json).await?;
+                conn.lrem::<_, _, ()>("queue:failed", 1, &json).await?;
 
                 // Reset attempt counter
                 let mut payload = failed.payload.clone();
@@ -325,7 +420,7 @@ impl QueueManager {
             )))
         })?;
 
-        conn.del("queue:failed").await?;
+        conn.del::<_, ()>("queue:failed").await?;
 
         Ok(())
     }
@@ -354,8 +449,12 @@ mod tests {
     // They are marked with #[ignore] by default
 
     #[tokio::test]
-    #[ignore]
-    async fn test_queue_dispatch() {
+async fn test_queue_dispatch() {
+    if !redis_available().await {
+        eprintln!("⏭️  Skipping test_queue_dispatch: Redis not available");
+        eprintln!("   Start services with: ./scripts/test-env-up.sh");
+        return;
+    }
         let manager = QueueManager::new("redis://localhost:6379")
             .await
             .unwrap();
@@ -367,8 +466,12 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore]
-    async fn test_queue_size() {
+async fn test_queue_size() {
+    if !redis_available().await {
+        eprintln!("⏭️  Skipping test_queue_size: Redis not available");
+        eprintln!("   Start services with: ./scripts/test-env-up.sh");
+        return;
+    }
         let manager = QueueManager::new("redis://localhost:6379")
             .await
             .unwrap();
@@ -383,8 +486,12 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore]
-    async fn test_queue_pop() {
+async fn test_queue_pop() {
+    if !redis_available().await {
+        eprintln!("⏭️  Skipping test_queue_pop: Redis not available");
+        eprintln!("   Start services with: ./scripts/test-env-up.sh");
+        return;
+    }
         let manager = QueueManager::new("redis://localhost:6379")
             .await
             .unwrap();

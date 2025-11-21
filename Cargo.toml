@@ -72,6 +72,7 @@ members = [
     # Phase 16-18: 100% Laravel Parity Features
     "crates/rf-helpers",
     "crates/rf-sanctum",
+    "crates/rf-inertia",
     # Examples
     "examples/hello",
     "examples/database-demo",
@@ -154,7 +155,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
 tokio = { version = "1.37", features = ["macros", "rt-multi-thread", "signal"] }
 dotenvy = "0.15"
 chrono = { version = "0.4", features = ["serde", "clock"] }
-sea-orm = { version = "0.12", default-features = false, features = ["runtime-tokio-rustls", "sqlx-sqlite", "sqlx-postgres", "macros", "with-rust_decimal", "with-chrono"] }
+sea-orm = { version = "1.1", default-features = false, features = ["runtime-tokio-rustls", "sqlx-sqlite", "sqlx-postgres", "macros", "with-rust_decimal", "with-chrono"] }
 axum = { version = "0.8", features = ["macros", "json", "multipart", "ws"] }
 toml = "0.8"
 rustyline = "14.0"
@@ -177,7 +178,7 @@ rustc-hash = "1.1"
 smallvec = { version = "1.13", features = ["serde"] }
 rkyv = { version = "0.7", features = ["validation"] }
 once_cell = "1.19"
-sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "postgres", "sqlite"] }
+sqlx = { version = "0.8", features = ["runtime-tokio-rustls", "postgres", "sqlite"] }
 criterion = { version = "0.5", features = ["html_reports", "async_tokio"] }
 dhat = "0.3"
 base64 = "0.21"

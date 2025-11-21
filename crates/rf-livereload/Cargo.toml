@@ -1,0 +1,36 @@
+[package]
+name = "rf-livereload"
+version = "0.1.0"
+edition = "2021"
+authors = ["RustForge Team"]
+description = "Live reload and hot module replacement for RustForge"
+license = "MIT OR Apache-2.0"
+keywords = ["livereload", "hmr", "watch", "rustforge"]
+categories = ["web-programming", "development-tools"]
+
+[dependencies]
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Async
+tokio = { workspace = true, features = ["fs", "sync", "time"] }
+async-trait = { workspace = true }
+futures = { workspace = true }
+
+# Error handling
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+
+# HTTP/WebSocket
+axum = { workspace = true }
+tokio-tungstenite = { workspace = true }
+
+# File watching
+notify = "6.1"
+
+# Utilities
+tracing = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }

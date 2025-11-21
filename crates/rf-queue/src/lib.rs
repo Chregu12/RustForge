@@ -86,14 +86,22 @@
 //! # }
 //! ```
 
+mod config;
 mod error;
 mod job;
 mod memory;
 mod queue;
 mod worker;
 
+#[cfg(feature = "redis-backend")]
+mod redis;
+
+pub use config::{QueueConfig, QueueConfigBuilder};
 pub use error::{QueueError, QueueResult};
 pub use job::{Job, JobMetadata};
 pub use memory::MemoryQueue;
 pub use queue::Queue;
 pub use worker::Worker;
+
+#[cfg(feature = "redis-backend")]
+pub use redis::RedisQueue;

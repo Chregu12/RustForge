@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GraphQL Frontend Client Example</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 1rem;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .subtitle {
+            opacity: 0.9;
+            font-size: 1.1rem;
+        }
+
+        .content {
+            padding: 2rem;
+        }
+
+        .section {
+            margin-bottom: 2rem;
+            padding: 1.5rem;
+            background: #f8f9fa;
+            border-radius: 0.5rem;
+            border-left: 4px solid #667eea;
+        }
+
+        .section h2 {
+            color: #333;
+            margin-bottom: 1rem;
+            font-size: 1.5rem;
+        }
+
+        .controls {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+        }
+
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        input {
+            padding: 0.75rem;
+            border: 2px solid #e0e0e0;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            flex: 1;
+            min-width: 200px;
+            transition: border-color 0.3s;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .results {
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            min-height: 100px;
+            font-family: 'Courier New', monospace;
+            overflow-x: auto;
+        }
+
+        .user-card {
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .user-card:hover {
+            border-color: #667eea;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .user-card h3 {
+            color: #667eea;
+            margin-bottom: 0.5rem;
+        }
+
+        .user-card p {
+            color: #666;
+            margin: 0.25rem 0;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: #667eea;
+            font-size: 1.2rem;
+        }
+
+        .error {
+            background: #fee;
+            border: 2px solid #fcc;
+            color: #c33;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .success {
+            background: #efe;
+            border: 2px solid #cfc;
+            color: #3c3;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        pre {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            overflow-x: auto;
+            margin-top: 1rem;
+        }
+
+        .stat {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 1rem;
+            font-size: 0.9rem;
+            margin-left: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🚀 GraphQL Frontend Client</h1>
+            <p class="subtitle">RustForge GraphQL API Integration Example</p>
+        </header>
+
+        <div class="content">
+            <!-- Get All Users -->
+            <div class="section">
+                <h2>📋 Get All Users</h2>
+                <div class="controls">
+                    <button onclick="getAllUsers()">Fetch All Users</button>
+                </div>
+                <div id="users-result" class="results"></div>
+            </div>
+
+            <!-- Get Single User -->
+            <div class="section">
+                <h2>👤 Get Single User</h2>
+                <div class="controls">
+                    <input type="text" id="user-id" placeholder="Enter User ID (e.g., 1)" value="1">
+                    <button onclick="getUser()">Fetch User</button>
+                </div>
+                <div id="user-result" class="results"></div>
+            </div>
+
+            <!-- Search Posts -->
+            <div class="section">
+                <h2>🔍 Search Posts</h2>
+                <div class="controls">
+                    <input type="text" id="search-query" placeholder="Enter search query" value="Post">
+                    <button onclick="searchPosts()">Search</button>
+                </div>
+                <div id="search-result" class="results"></div>
+            </div>
+
+            <!-- Create User -->
+            <div class="section">
+                <h2>➕ Create User</h2>
+                <div class="controls">
+                    <input type="text" id="new-user-name" placeholder="Name" value="Alice">
+                    <input type="email" id="new-user-email" placeholder="Email" value="alice@example.com">
+                    <button onclick="createUser()">Create User</button>
+                </div>
+                <div id="create-result" class="results"></div>
+            </div>
+
+            <!-- Paginated Users -->
+            <div class="section">
+                <h2>📄 Paginated Users</h2>
+                <div class="controls">
+                    <input type="number" id="page" placeholder="Page" value="0" min="0">
+                    <input type="number" id="per-page" placeholder="Per Page" value="2" min="1">
+                    <button onclick="getPaginatedUsers()">Fetch Paginated</button>
+                </div>
+                <div id="paginated-result" class="results"></div>
+            </div>
+
+            <!-- Raw Query Executor -->
+            <div class="section">
+                <h2>⚡ Custom Query</h2>
+                <textarea id="custom-query" rows="8" style="width: 100%; padding: 1rem; font-family: monospace; border: 2px solid #e0e0e0; border-radius: 0.5rem;">
+query {
+  users {
+    id
+    name
+    email
+  }
+}</textarea>
+                <button onclick="executeCustomQuery()" style="margin-top: 1rem;">Execute Query</button>
+                <div id="custom-result" class="results" style="margin-top: 1rem;"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // GraphQL endpoint (change this to your server URL)
+        const GRAPHQL_ENDPOINT = 'http://localhost:3000/graphql';
+
+        // Helper function to execute GraphQL queries
+        async function executeGraphQL(query, variables = {}) {
+            try {
+                const response = await fetch(GRAPHQL_ENDPOINT, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        query,
+                        variables
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.errors) {
+                    throw new Error(result.errors.map(e => e.message).join(', '));
+                }
+
+                return result.data;
+            } catch (error) {
+                throw error;
+            }
+        }
+
+        // Get all users
+        async function getAllUsers() {
+            const resultDiv = document.getElementById('users-result');
+            resultDiv.innerHTML = '<div class="loading">Loading...</div>';
+
+            try {
+                const data = await executeGraphQL(`
+                    query {
+                        users {
+                            id
+                            name
+                            email
+                        }
+                    }
+                `);
+
+                if (data.users && data.users.length > 0) {
+                    resultDiv.innerHTML = data.users.map(user => `
+                        <div class="user-card">
+                            <h3>${user.name}</h3>
+                            <p><strong>ID:</strong> ${user.id}</p>
+                            <p><strong>Email:</strong> ${user.email}</p>
+                        </div>
+                    `).join('');
+                } else {
+                    resultDiv.innerHTML = '<p>No users found</p>';
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+            }
+        }
+
+        // Get single user
+        async function getUser() {
+            const userId = document.getElementById('user-id').value;
+            const resultDiv = document.getElementById('user-result');
+            resultDiv.innerHTML = '<div class="loading">Loading...</div>';
+
+            try {
+                const data = await executeGraphQL(`
+                    query GetUser($id: ID!) {
+                        user(id: $id) {
+                            id
+                            name
+                            email
+                        }
+                    }
+                `, { id: userId });
+
+                if (data.user) {
+                    resultDiv.innerHTML = `
+                        <div class="user-card">
+                            <h3>${data.user.name}</h3>
+                            <p><strong>ID:</strong> ${data.user.id}</p>
+                            <p><strong>Email:</strong> ${data.user.email}</p>
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = '<p>User not found</p>';
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+            }
+        }
+
+        // Search posts
+        async function searchPosts() {
+            const query = document.getElementById('search-query').value;
+            const resultDiv = document.getElementById('search-result');
+            resultDiv.innerHTML = '<div class="loading">Searching...</div>';
+
+            try {
+                const data = await executeGraphQL(`
+                    query SearchPosts($query: String!) {
+                        searchPosts(query: $query) {
+                            id
+                            title
+                        }
+                    }
+                `, { query });
+
+                if (data.searchPosts && data.searchPosts.length > 0) {
+                    resultDiv.innerHTML = data.searchPosts.map(post => `
+                        <div class="user-card">
+                            <h3>${post.title}</h3>
+                            <p><strong>ID:</strong> ${post.id}</p>
+                        </div>
+                    `).join('');
+                } else {
+                    resultDiv.innerHTML = '<p>No posts found</p>';
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+            }
+        }
+
+        // Create user
+        async function createUser() {
+            const name = document.getElementById('new-user-name').value;
+            const email = document.getElementById('new-user-email').value;
+            const resultDiv = document.getElementById('create-result');
+            resultDiv.innerHTML = '<div class="loading">Creating...</div>';
+
+            try {
+                const data = await executeGraphQL(`
+                    mutation CreateUser($name: String!, $email: String!) {
+                        createUser(input: { name: $name, email: $email }) {
+                            id
+                            name
+                            email
+                        }
+                    }
+                `, { name, email });
+
+                if (data.createUser) {
+                    resultDiv.innerHTML = `
+                        <div class="success">User created successfully!</div>
+                        <div class="user-card">
+                            <h3>${data.createUser.name}</h3>
+                            <p><strong>ID:</strong> ${data.createUser.id}</p>
+                            <p><strong>Email:</strong> ${data.createUser.email}</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+            }
+        }
+
+        // Get paginated users
+        async function getPaginatedUsers() {
+            const page = parseInt(document.getElementById('page').value);
+            const perPage = parseInt(document.getElementById('per-page').value);
+            const resultDiv = document.getElementById('paginated-result');
+            resultDiv.innerHTML = '<div class="loading">Loading...</div>';
+
+            try {
+                const data = await executeGraphQL(`
+                    query GetPaginatedUsers($page: Int!, $perPage: Int!) {
+                        usersPaginated(pagination: { page: $page, perPage: $perPage }) {
+                            data {
+                                id
+                                name
+                                email
+                            }
+                            page
+                            perPage
+                            total
+                            totalPages
+                            hasNextPage
+                            hasPreviousPage
+                        }
+                    }
+                `, { page, perPage });
+
+                if (data.usersPaginated) {
+                    const p = data.usersPaginated;
+                    resultDiv.innerHTML = `
+                        <div style="margin-bottom: 1rem;">
+                            <strong>Page ${p.page + 1} of ${p.totalPages}</strong>
+                            <span class="stat">Total: ${p.total}</span>
+                            ${p.hasNextPage ? '<span class="stat">Has Next</span>' : ''}
+                            ${p.hasPreviousPage ? '<span class="stat">Has Previous</span>' : ''}
+                        </div>
+                        ${p.data.map(user => `
+                            <div class="user-card">
+                                <h3>${user.name}</h3>
+                                <p><strong>ID:</strong> ${user.id}</p>
+                                <p><strong>Email:</strong> ${user.email}</p>
+                            </div>
+                        `).join('')}
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+            }
+        }
+
+        // Execute custom query
+        async function executeCustomQuery() {
+            const query = document.getElementById('custom-query').value;
+            const resultDiv = document.getElementById('custom-result');
+            resultDiv.innerHTML = '<div class="loading">Executing...</div>';
+
+            try {
+                const data = await executeGraphQL(query);
+                resultDiv.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+            }
+        }
+
+        // Load initial data
+        window.addEventListener('load', () => {
+            console.log('GraphQL Frontend Client loaded');
+            console.log('Endpoint:', GRAPHQL_ENDPOINT);
+        });
+    </script>
+</body>
+</html>

@@ -68,10 +68,10 @@
 //! ```
 
 pub use async_graphql::{
-    self, dataloader, Context, EmptyMutation, EmptySubscription, Error, ErrorExtensions,
+    self, Context, EmptyMutation, EmptySubscription, Error, ErrorExtensions,
     InputObject, Object, Result, Schema, SimpleObject, Subscription, ID,
 };
-pub use dataloader::DataLoader;
+pub use async_graphql::dataloader::DataLoader;
 pub use async_graphql_axum::{GraphQLRequest, GraphQLResponse, GraphQLSubscription};
 
 use axum::{
@@ -81,9 +81,6 @@ use axum::{
     Router,
 };
 use std::sync::Arc;
-
-/// GraphQL schema type alias
-pub type GraphQLSchema<Q, M, S> = Schema<Q, M, S>;
 
 /// Create a GraphQL router with query and mutation endpoints
 ///
@@ -189,6 +186,28 @@ async fn graphql_playground() -> impl IntoResponse {
 
 /// Re-export common traits
 pub use async_graphql::{ObjectType, OutputType, SubscriptionType};
+
+// Module exports
+pub mod auth;
+pub mod dataloader;
+pub mod errors;
+pub mod pagination;
+pub mod relationships;
+pub mod schema;
+
+// Re-export commonly used items
+pub use auth::{AuthGuard, AuthUser, RoleGuard, get_auth_user};
+pub use dataloader::BatchLoader;
+pub use errors::{
+    ErrorCode, GraphQLResult, ResultExt, error_with_code, forbidden_error, not_found_error,
+    unauthorized_error, validation_error,
+};
+pub use pagination::{
+    Connection, CursorPaginationInput, Edge, OffsetPaginationInput, PageInfo, PaginatedResult,
+    decode_cursor, encode_cursor,
+};
+pub use relationships::{BelongsTo, BelongsToMany, HasMany, HasOne, HasRelationships};
+pub use schema::{GraphQLSchema, SchemaBuilder, build_schema};
 
 #[cfg(test)]
 mod tests {

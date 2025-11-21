@@ -1,0 +1,44 @@
+[package]
+name = "forge-cli"
+version = "0.1.0"
+edition = "2021"
+authors = ["RustForge Contributors"]
+description = "Laravel-inspired CLI tool for RustForge framework"
+license = "MIT"
+
+[[bin]]
+name = "forge"
+path = "src/main.rs"
+
+[dependencies]
+# CLI
+clap = { version = "4.5", features = ["derive", "color", "suggestions"] }
+clap_complete = "4.5"
+anyhow = "1.0"
+colored = "2.1"
+dialoguer = { version = "0.11", features = ["completion", "history"] }
+indicatif = "0.17"
+console = "0.15"
+
+# Templates
+handlebars = "5.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+toml = "0.8"
+
+# File operations
+tokio = { version = "1.0", features = ["full"] }
+fs_extra = "1.3"
+
+# String manipulation
+Inflector = "0.11"
+regex = "1.10"
+chrono = "0.4"
+
+# RustForge
+rf-cli-gen = { path = "../rf-cli-gen" }
+
+[dev-dependencies]
+tempfile = "3.8"
+assert_cmd = "2.0"
+predicates = "3.0"

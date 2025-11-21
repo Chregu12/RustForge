@@ -2,9 +2,15 @@
 //!
 //! This crate provides Prometheus-compatible metrics:
 //! - HTTP request metrics (duration, count, status codes)
+//! - Scheduler task execution metrics
+//! - Search query metrics
+//! - Sharding operation metrics
 //! - Custom counters and gauges
 //! - Histograms for timing
+//! - Health check system
 //! - Metrics endpoint for Prometheus scraping
+
+pub mod health;
 
 use axum::{
     extract::MatchedPath,
@@ -18,6 +24,8 @@ use prometheus::{
     HistogramVec, TextEncoder,
 };
 use std::time::Instant;
+
+use prometheus::{register_counter, Counter as PrometheusCounter};
 
 lazy_static::lazy_static! {
     /// HTTP request duration histogram
@@ -38,6 +46,78 @@ lazy_static::lazy_static! {
     pub static ref ACTIVE_CONNECTIONS: Gauge = register_gauge!(
         "active_connections",
         "Number of active connections"
+    ).unwrap();
+
+    // Scheduler Metrics
+    /// Total number of scheduled tasks executed
+    pub static ref SCHEDULER_TASKS_EXECUTED: PrometheusCounter = register_counter!(
+        "scheduler_tasks_executed_total",
+        "Total number of scheduled tasks executed"
+    ).unwrap();
+
+    /// Total number of failed scheduled tasks
+    pub static ref SCHEDULER_TASKS_FAILED: PrometheusCounter = register_counter!(
+        "scheduler_tasks_failed_total",
+        "Total number of failed scheduled tasks"
+    ).unwrap();
+
+    /// Scheduler task execution duration
+    pub static ref SCHEDULER_TASK_DURATION: HistogramVec = register_histogram_vec!(
+        "scheduler_task_duration_seconds",
+        "Scheduler task execution duration in seconds",
+        &["task_name"]
+    ).unwrap();
+
+    // Search Metrics
+    /// Total number of search queries
+    pub static ref SEARCH_QUERIES: PrometheusCounter = register_counter!(
+        "search_queries_total",
+        "Total number of search queries executed"
+    ).unwrap();
+
+    /// Search query duration
+    pub static ref SEARCH_DURATION: prometheus::Histogram = prometheus::register_histogram!(
+        "search_duration_seconds",
+        "Search query execution duration in seconds"
+    ).unwrap();
+
+    /// Total number of failed search queries
+    pub static ref SEARCH_ERRORS: PrometheusCounter = register_counter!(
+        "search_errors_total",
+        "Total number of failed search queries"
+    ).unwrap();
+
+    // Sharding Metrics
+    /// Total number of shard queries
+    pub static ref SHARD_QUERIES: PrometheusCounter = register_counter!(
+        "shard_queries_total",
+        "Total number of queries executed on shards"
+    ).unwrap();
+
+    /// Shard query duration
+    pub static ref SHARD_QUERY_DURATION: HistogramVec = register_histogram_vec!(
+        "shard_query_duration_seconds",
+        "Shard query execution duration in seconds",
+        &["shard_id"]
+    ).unwrap();
+
+    /// Total number of failed shard queries
+    pub static ref SHARD_QUERY_ERRORS: PrometheusCounter = register_counter!(
+        "shard_query_errors_total",
+        "Total number of failed shard queries"
+    ).unwrap();
+
+    // Cache Metrics
+    /// Cache hits counter
+    pub static ref CACHE_HITS: PrometheusCounter = register_counter!(
+        "cache_hits_total",
+        "Total number of cache hits"
+    ).unwrap();
+
+    /// Cache misses counter
+    pub static ref CACHE_MISSES: PrometheusCounter = register_counter!(
+        "cache_misses_total",
+        "Total number of cache misses"
     ).unwrap();
 }
 
@@ -198,7 +278,8 @@ impl Histogram {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use axum::{body::Body, http::Request, middleware};
+    use axum::{body::Body, http::Request};
+    use tower::util::ServiceExt;
 
     #[test]
     fn test_counter_creation() {

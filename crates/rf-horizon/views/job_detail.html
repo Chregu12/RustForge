@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Job Details - Horizon</title>
+    <link rel="stylesheet" href="/horizon/static/common.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Job Details</h1>
+            <div class="nav-links">
+                <a href="/horizon" class="nav-link">Dashboard</a>
+                <a href="/horizon/jobs" class="nav-link">Jobs</a>
+                <a href="/horizon/failed" class="nav-link">Failed Jobs</a>
+            </div>
+        </div>
+
+        <div class="panel">
+            <h2>Job Information</h2>
+            <div id="job-details">Loading...</div>
+        </div>
+    </div>
+
+    <script>
+        const jobId = window.location.pathname.split('/').pop();
+
+        async function loadJobDetails() {
+            try {
+                const res = await fetch(`/horizon/api/jobs/${jobId}`);
+                const job = await res.json();
+                renderJobDetails(job);
+            } catch (error) {
+                document.getElementById('job-details').innerHTML =
+                    `<p class="error">Error loading job details: ${error.message}</p>`;
+            }
+        }
+
+        function renderJobDetails(job) {
+            document.getElementById('job-details').innerHTML = `
+                <div class="detail-grid">
+                    <div><strong>ID:</strong> ${job.id}</div>
+                    <div><strong>Queue:</strong> ${job.queue}</div>
+                    <div><strong>Type:</strong> ${job.job_type}</div>
+                    <div><strong>Status:</strong> <span class="status-badge ${job.status}">${job.status}</span></div>
+                    <div><strong>Attempts:</strong> ${job.attempt} / ${job.max_attempts}</div>
+                </div>
+                <h3>Payload</h3>
+                <pre>${JSON.stringify(job.payload, null, 2)}</pre>
+            `;
+        }
+
+        loadJobDetails();
+    </script>
+</body>
+</html>

@@ -5,13 +5,27 @@ edition = "2021"
 
 [dependencies]
 async-trait = "0.1"
-tokio = { version = "1.0", features = ["sync"] }
+tokio = { version = "1.0", features = ["sync", "macros"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 thiserror = "1.0"
 chrono = { version = "0.4", features = ["serde"] }
 handlebars = "5.0"
-uuid = { version = "1.0", features = ["v4"] }
+uuid = { version = "1.0", features = ["v4", "serde"] }
+sea-orm = { version = "1.1", default-features = false, features = ["runtime-tokio-rustls", "sqlx-sqlite", "sqlx-postgres", "macros"], optional = true }
+reqwest = { version = "0.12", features = ["json"], optional = true }
+
+# Internal dependencies
+rf-mail = { path = "../rf-mail", optional = true }
 
 [dev-dependencies]
 tokio = { version = "1.0", features = ["full", "test-util"] }
+sea-orm = { version = "1.1", default-features = false, features = ["runtime-tokio-rustls", "sqlx-sqlite", "sqlx-postgres", "macros", "mock"] }
+
+[features]
+default = []
+mail = ["rf-mail"]
+database = ["sea-orm"]
+sms = ["reqwest"]
+slack = ["reqwest"]
+full = ["mail", "database", "sms", "slack"]

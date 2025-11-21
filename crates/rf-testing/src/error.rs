@@ -16,6 +16,9 @@ pub enum TestError {
 
     #[error("Test setup error: {0}")]
     SetupError(String),
+
+    #[error("Other error: {0}")]
+    Other(String),
 }
 
 /// Test result type
