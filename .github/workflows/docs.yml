@@ -1,0 +1,32 @@
+name: Documentation
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    name: Build and Deploy Docs
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Install Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: stable
+        override: true
+
+    - name: Build documentation
+      run: cargo doc --no-deps --all-features --workspace
+
+    - name: Add redirect
+      run: echo '<meta http-equiv="refresh" content="0; url=rustforge">' > target/doc/index.html
+
+    - name: Deploy to GitHub Pages
+      uses: peaceiris/actions-gh-pages@v3
+      if: github.ref == 'refs/heads/main'
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./target/doc

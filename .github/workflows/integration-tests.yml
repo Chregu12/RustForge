@@ -1,0 +1,192 @@
+name: Integration Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+
+    services:
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: rustforge
+          POSTGRES_PASSWORD: testpass
+          POSTGRES_DB: rustforge_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      mailhog:
+        image: mailhog/mailhog:latest
+        options: >-
+          --health-cmd "nc -z localhost 1025"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 1025:1025
+          - 8025:8025
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Install Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: stable
+        override: true
+
+    - name: Cache cargo registry
+      uses: actions/cache@v3
+      with:
+        path: ~/.cargo/registry
+        key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+
+    - name: Cache cargo index
+      uses: actions/cache@v3
+      with:
+        path: ~/.cargo/git
+        key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+
+    - name: Cache cargo build
+      uses: actions/cache@v3
+      with:
+        path: target
+        key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+
+    - name: Run integration tests
+      run: cargo test --test '*' --all-features
+      env:
+        REDIS_URL: redis://localhost:6379
+        DATABASE_URL: postgresql://rustforge:testpass@localhost:5432/rustforge_test
+        MAILHOG_SMTP_URL: smtp://localhost:1025
+
+    - name: Run application model tests
+      run: cargo test --test 'app_models_test' --all-features
+
+    - name: Run request validation tests
+      run: cargo test --test 'request_validation_test' --all-features
+
+    - name: Run event tests
+      run: cargo test --test 'events_test' --all-features
+
+    - name: Run end-to-end tests
+      run: cargo test --test 'end_to_end_test' --all-features
+
+  security-audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        override: true
+
+    - name: Install cargo-audit
+      run: cargo install cargo-audit
+
+    - name: Run security audit
+      run: cargo audit
+
+  build-all:
+    name: Build All Crates
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: stable
+        override: true
+
+    - name: Cache cargo build
+      uses: actions/cache@v3
+      with:
+        path: target
+        key: ${{ runner.os }}-cargo-build-all-${{ hashFiles('**/Cargo.lock') }}
+
+    - name: Build all crates
+      run: cargo build --all-features --workspace
+
+  test-coverage:
+    name: Test Coverage
+    runs-on: ubuntu-latest
+
+    services:
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: rustforge
+          POSTGRES_PASSWORD: testpass
+          POSTGRES_DB: rustforge_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        override: true
+
+    - name: Install tarpaulin
+      run: cargo install cargo-tarpaulin
+
+    - name: Generate coverage
+      run: cargo tarpaulin --out Xml --all-features --workspace --exclude framework-test
+      env:
+        REDIS_URL: redis://localhost:6379
+        DATABASE_URL: postgresql://rustforge:testpass@localhost:5432/rustforge_test
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        files: ./cobertura.xml
+        fail_ci_if_error: false
