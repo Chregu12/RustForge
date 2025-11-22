@@ -1,6 +1,6 @@
 //! Testing utilities for email
 
-use crate::{MailError, Mailer, Message};
+use crate::{Mail, MailError, Mailer};
 use async_trait::async_trait;
 use parking_lot::Mutex;
 use std::sync::Arc;
