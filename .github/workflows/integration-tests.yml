@@ -51,27 +51,32 @@ jobs:
           - 1025:1025
           - 8025:8025
 
-      minio:
-        image: minio/minio:latest
-        env:
-          MINIO_ROOT_USER: minioadmin
-          MINIO_ROOT_PASSWORD: minioadmin123
-        ports:
-          - 9000:9000
-          - 9001:9001
-        options: >-
-          --health-cmd "curl -f http://localhost:9000/minio/health/live || exit 1"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        # MinIO server starts automatically with the image
-
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
 
     - name: Install Rust
       uses: dtolnay/rust-toolchain@stable
+
+    - name: Start MinIO
+      run: |
+        docker run -d \
+          --name minio \
+          -p 9000:9000 \
+          -p 9001:9001 \
+          -e MINIO_ROOT_USER=minioadmin \
+          -e MINIO_ROOT_PASSWORD=minioadmin123 \
+          minio/minio:latest server /data --console-address ":9001"
+
+        # Wait for MinIO to be ready
+        for i in {1..30}; do
+          if curl -f http://localhost:9000/minio/health/live 2>/dev/null; then
+            echo "MinIO is ready!"
+            break
+          fi
+          echo "Waiting for MinIO... ($i/30)"
+          sleep 2
+        done
 
     - name: Cache cargo registry
       uses: actions/cache@v4
