@@ -272,7 +272,7 @@ mod tests {
         assert_eq!(registry.count(), 0);
         assert!(!registry.has_binding("user"));
 
-        registry.bind::<String>("user", |value, _db| async move {
+        registry.bind::<String, _, _>("user", |value, _db| async move {
             Some(format!("User: {}", value))
         });
 
@@ -286,8 +286,8 @@ mod tests {
     #[test]
     fn test_registry_clear() {
         let mut registry = ModelBindingRegistry::new();
-        registry.bind::<String>("user", |value, _db| async move { Some(value) });
-        registry.bind::<i32>("post", |_value, _db| async move { Some(42) });
+        registry.bind::<String, _, _>("user", |value, _db| async move { Some(value) });
+        registry.bind::<i32, _, _>("post", |_value, _db| async move { Some(42) });
 
         assert_eq!(registry.count(), 2);
 

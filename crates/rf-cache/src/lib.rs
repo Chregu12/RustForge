@@ -54,11 +54,22 @@ use tokio::sync::{Mutex, RwLock};
 
 pub mod advanced;
 pub mod config;
+pub mod drivers;
 
 #[cfg(feature = "redis-backend")]
 pub mod redis;
 
 pub use config::{CacheBackend, CacheConfig, CacheConfigBuilder};
+
+// Re-export drivers
+#[cfg(feature = "memcached")]
+pub use drivers::memcached::{MemcachedDriver, MemcachedOps};
+
+#[cfg(feature = "database")]
+pub use drivers::database::DatabaseDriver;
+
+#[cfg(feature = "file")]
+pub use drivers::file::FileDriver;
 
 /// Cache errors
 #[derive(Debug, Error)]
@@ -353,6 +364,15 @@ pub mod prelude {
 
     #[cfg(feature = "redis-backend")]
     pub use crate::{RedisCache, RedisTaggedCache};
+
+    #[cfg(feature = "memcached")]
+    pub use crate::{MemcachedDriver, MemcachedOps};
+
+    #[cfg(feature = "database")]
+    pub use crate::DatabaseDriver;
+
+    #[cfg(feature = "file")]
+    pub use crate::FileDriver;
 }
 
 #[cfg(test)]

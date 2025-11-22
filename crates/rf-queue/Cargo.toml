@@ -19,9 +19,19 @@ uuid.workspace = true
 redis = { workspace = true, optional = true }
 deadpool-redis = { workspace = true, optional = true }
 
+# Database support (optional)
+sea-orm = { workspace = true, optional = true }
+
+# AWS SQS support (optional)
+aws-config = { version = "1.0", optional = true }
+aws-sdk-sqs = { version = "1.0", optional = true }
+
 [dev-dependencies]
 tokio = { workspace = true, features = ["test-util", "macros", "rt-multi-thread"] }
 
 [features]
 default = []
 redis-backend = ["redis", "deadpool-redis"]
+database = ["sea-orm"]
+sqs = ["aws-config", "aws-sdk-sqs"]
+all-backends = ["redis-backend", "database", "sqs"]

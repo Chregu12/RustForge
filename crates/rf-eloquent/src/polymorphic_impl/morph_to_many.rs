@@ -37,11 +37,9 @@
 //! ```
 
 use super::polymorphic::{PolymorphicError, PolymorphicResult};
-use async_trait::async_trait;
 use sea_orm::{
-    sea_query::{Expr, Query, SimpleExpr},
-    ColumnTrait, Condition, DatabaseConnection, DbErr, EntityTrait, FromQueryResult, QueryFilter,
-    QuerySelect, Statement,
+    sea_query::{Alias, Iden as SeaIden},
+    ConnectionTrait, DatabaseConnection, EntityTrait, FromQueryResult, Statement,
 };
 use std::marker::PhantomData;
 
@@ -221,12 +219,16 @@ impl<T> MorphToMany<T> {
     /// ```
     pub async fn attach(
         &self,
-        db: &DatabaseConnection,
-        related_ids: Vec<i64>,
-        related_pivot_key: &str,
+        _db: &DatabaseConnection,
+        _related_ids: Vec<i64>,
+        _related_pivot_key: &str,
     ) -> PolymorphicResult<()> {
-        // Placeholder - would insert into pivot table
-        Ok(())
+        // TODO: Implement polymorphic attach
+        // This requires building dynamic INSERT queries through SeaORM
+        // For now, return a placeholder error
+        Err(PolymorphicError::NotImplemented(
+            "MorphToMany::attach not yet implemented".to_string()
+        ))
     }
 
     /// Detach related models from this relationship
@@ -241,12 +243,14 @@ impl<T> MorphToMany<T> {
     /// ```
     pub async fn detach(
         &self,
-        db: &DatabaseConnection,
-        related_ids: Vec<i64>,
-        related_pivot_key: &str,
+        _db: &DatabaseConnection,
+        _related_ids: Vec<i64>,
+        _related_pivot_key: &str,
     ) -> PolymorphicResult<()> {
-        // Placeholder - would delete from pivot table
-        Ok(())
+        // TODO: Implement polymorphic detach
+        Err(PolymorphicError::NotImplemented(
+            "MorphToMany::detach not yet implemented".to_string()
+        ))
     }
 
     /// Sync related models
@@ -261,15 +265,14 @@ impl<T> MorphToMany<T> {
     /// ```
     pub async fn sync(
         &self,
-        db: &DatabaseConnection,
-        related_ids: Vec<i64>,
-        related_pivot_key: &str,
+        _db: &DatabaseConnection,
+        _related_ids: Vec<i64>,
+        _related_pivot_key: &str,
     ) -> PolymorphicResult<()> {
-        // Placeholder - would:
-        // 1. Get current relationships
-        // 2. Determine which to add and remove
-        // 3. Execute attach/detach operations
-        Ok(())
+        // TODO: Implement polymorphic sync
+        Err(PolymorphicError::NotImplemented(
+            "MorphToMany::sync not yet implemented".to_string()
+        ))
     }
 
     /// Toggle related models
@@ -277,12 +280,14 @@ impl<T> MorphToMany<T> {
     /// Attach if not attached, detach if already attached.
     pub async fn toggle(
         &self,
-        db: &DatabaseConnection,
-        related_ids: Vec<i64>,
-        related_pivot_key: &str,
+        _db: &DatabaseConnection,
+        _related_ids: Vec<i64>,
+        _related_pivot_key: &str,
     ) -> PolymorphicResult<()> {
-        // Placeholder implementation
-        Ok(())
+        // TODO: Implement polymorphic toggle
+        Err(PolymorphicError::NotImplemented(
+            "MorphToMany::toggle not yet implemented".to_string()
+        ))
     }
 }
 

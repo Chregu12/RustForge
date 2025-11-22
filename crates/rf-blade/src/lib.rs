@@ -78,6 +78,9 @@ pub mod compiler_new;
 // Phase 2: Components system
 pub mod components;
 
+// Phase 19: Stacks system (@push/@stack)
+pub mod stacks;
+
 use parser::BladeParser;
 use compiler::BladeCompiler;
 pub use parser_new::Parser;

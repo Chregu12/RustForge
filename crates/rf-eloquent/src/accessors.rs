@@ -107,31 +107,66 @@ pub enum AttributeValue {
 }
 
 impl AttributeValue {
-    /// Convert to String
+    /// Convert to string or error
     pub fn as_string(&self) -> AttributeResult<String> {
         match self {
-            Self::String(s) => Ok(s.clone()),
-            Self::Integer(i) => Ok(i.to_string()),
-            Self::Float(f) => Ok(f.to_string()),
-            Self::Boolean(b) => Ok(b.to_string()),
-            Self::Json(v) => Ok(v.to_string()),
-            Self::Null => Ok(String::new()),
-            _ => Err(AttributeError::ConversionError(
-                "Cannot convert to string".to_string(),
-            )),
+            AttributeValue::String(s) => Ok(s.clone()),
+            _ => Err(AttributeError::ConversionError("Expected string".to_string())),
         }
     }
 
-    /// Convert to i64
+    /// Convert to integer or error
+    pub fn as_integer(&self) -> AttributeResult<i64> {
+        match self {
+            AttributeValue::Integer(i) => Ok(*i),
+            _ => Err(AttributeError::ConversionError("Expected integer".to_string())),
+        }
+    }
+
+    /// Convert to float or error
+    pub fn as_float(&self) -> AttributeResult<f64> {
+        match self {
+            AttributeValue::Float(f) => Ok(*f),
+            _ => Err(AttributeError::ConversionError("Expected float".to_string())),
+        }
+    }
+
+    /// Convert to boolean or error
+    pub fn as_boolean(&self) -> AttributeResult<bool> {
+        match self {
+            AttributeValue::Boolean(b) => Ok(*b),
+            _ => Err(AttributeError::ConversionError("Expected boolean".to_string())),
+        }
+    }
+
+    /// Convert to DateTime or error
+    pub fn as_datetime(&self) -> AttributeResult<DateTime<Utc>> {
+        match self {
+            AttributeValue::DateTime(dt) => Ok(*dt),
+            _ => Err(AttributeError::ConversionError("Expected datetime".to_string())),
+        }
+    }
+
+    /// Check if null
+    pub fn is_null(&self) -> bool {
+        matches!(self, AttributeValue::Null)
+    }
+
+    /// Convert to i64 (parses string if needed)
     pub fn as_i64(&self) -> AttributeResult<i64> {
         match self {
-            Self::Integer(i) => Ok(*i),
-            Self::String(s) => s
-                .parse()
-                .map_err(|_| AttributeError::ConversionError("Cannot parse to i64".to_string())),
-            _ => Err(AttributeError::ConversionError(
-                "Cannot convert to i64".to_string(),
-            )),
+            AttributeValue::Integer(i) => Ok(*i),
+            AttributeValue::String(s) => s.parse::<i64>()
+                .map_err(|_| AttributeError::ConversionError("Expected integer".to_string())),
+            _ => Err(AttributeError::ConversionError("Expected integer".to_string())),
+        }
+    }
+
+    /// Convert to JSON value
+    pub fn as_json(&self) -> AttributeResult<serde_json::Value> {
+        match self {
+            AttributeValue::Json(v) => Ok(v.clone()),
+            _ => Err(AttributeError::ConversionError("Expected JSON".to_string())),
         }
     }
 
@@ -159,11 +194,6 @@ impl AttributeValue {
                 "Cannot convert to bool".to_string(),
             )),
         }
-    }
-
-    /// Check if null
-    pub fn is_null(&self) -> bool {
-        matches!(self, Self::Null)
     }
 }
 

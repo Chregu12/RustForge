@@ -27,13 +27,59 @@ pub struct Image {
 
 impl Image {
     /// MorphTo: Get the imageable entity (User, Post, or Product)
-    pub async fn imageable(&self) -> Option<Imageable> {
+    ///
+    /// This demonstrates a polymorphic "belongs to" relationship
+    pub async fn imageable(&self, db: &crate::AppState) -> anyhow::Result<Option<Imageable>> {
         match self.imageable_type.as_str() {
-            "User" => None, // User::find(self.imageable_id).map(Imageable::User)
-            "Post" => None, // Post::find(self.imageable_id).map(Imageable::Post)
-            "Product" => None, // Product::find(self.imageable_id).map(Imageable::Product)
-            _ => None,
+            "User" => {
+                // REAL IMPLEMENTATION: rf_eloquent::morph_to::<user::Entity, user::Model>(db, self.imageable_id).await
+                Ok(Some(Imageable::User(super::User::factory(
+                    self.imageable_id,
+                    "Demo User",
+                    "user@example.com",
+                ))))
+            }
+            "Post" => {
+                // REAL IMPLEMENTATION: rf_eloquent::morph_to::<post::Entity, post::Model>(db, self.imageable_id).await
+                Ok(Some(Imageable::Post(super::Post::factory(
+                    self.imageable_id,
+                    1,
+                    "Demo Post",
+                ))))
+            }
+            "Product" => {
+                // REAL IMPLEMENTATION: rf_eloquent::morph_to::<product::Entity, product::Model>(db, self.imageable_id).await
+                Ok(Some(Imageable::Product(super::Product::factory(
+                    self.imageable_id,
+                    "Demo Product",
+                ))))
+            }
+            _ => Ok(None),
         }
+    }
+
+    /// Factory method
+    pub fn factory(id: i32, imageable_type: &str, imageable_id: i32, url: &str) -> Self {
+        Self {
+            id,
+            imageable_type: imageable_type.to_string(),
+            imageable_id,
+            url: url.to_string(),
+            filename: "demo-image.jpg".to_string(),
+            mime_type: "image/jpeg".to_string(),
+            size: 102400, // 100KB
+            width: Some(1920),
+            height: Some(1080),
+            is_featured: false,
+            created_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
+        }
+    }
+
+    /// Mark as featured
+    pub fn set_featured(&mut self, featured: bool) {
+        self.is_featured = featured;
+        self.updated_at = chrono::Utc::now();
     }
 }
 

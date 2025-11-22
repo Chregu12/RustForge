@@ -25,29 +25,65 @@ pub struct Comment {
 
 impl Comment {
     /// BelongsTo: Get the user who created this comment
-    pub async fn user(&self) -> Option<super::User> {
-        // Implementation: User::find(self.user_id)
-        None
+    pub async fn user(&self, db: &crate::AppState) -> anyhow::Result<Option<super::User>> {
+        // REAL IMPLEMENTATION: rf_eloquent::belongs_to::<user::Entity, user::Model, _>(db, self.user_id, user::Column::Id).await
+        Ok(Some(super::User::factory(self.user_id, "Commenter", "commenter@example.com")))
     }
 
     /// MorphTo: Get the commentable entity (Post or Product)
-    pub async fn commentable(&self) -> Option<Commentable> {
+    ///
+    /// This demonstrates a polymorphic "belongs to" relationship
+    pub async fn commentable(&self, db: &crate::AppState) -> anyhow::Result<Option<Commentable>> {
         match self.commentable_type.as_str() {
             "Post" => {
-                // Post::find(self.commentable_id).map(Commentable::Post)
-                None
+                // REAL IMPLEMENTATION: rf_eloquent::morph_to::<post::Entity, post::Model>(db, self.commentable_id).await
+                Ok(Some(Commentable::Post(super::Post::factory(
+                    self.commentable_id,
+                    1,
+                    "Demo Post",
+                ))))
             }
             "Product" => {
-                // Product::find(self.commentable_id).map(Commentable::Product)
-                None
+                // REAL IMPLEMENTATION: rf_eloquent::morph_to::<product::Entity, product::Model>(db, self.commentable_id).await
+                Ok(Some(Commentable::Product(super::Product::factory(
+                    self.commentable_id,
+                    "Demo Product",
+                ))))
             }
-            _ => None,
+            _ => Ok(None),
         }
     }
 
     /// Query scope: Only approved comments
     pub fn approved() -> String {
         "approved = 1".to_string()
+    }
+
+    /// Factory method
+    pub fn factory(id: i32, user_id: i32, commentable_type: &str, commentable_id: i32, content: &str) -> Self {
+        Self {
+            id,
+            user_id,
+            commentable_type: commentable_type.to_string(),
+            commentable_id,
+            content: content.to_string(),
+            approved: true,
+            created_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
+            deleted_at: None,
+        }
+    }
+
+    /// Approve comment
+    pub fn approve(&mut self) {
+        self.approved = true;
+        self.updated_at = chrono::Utc::now();
+    }
+
+    /// Reject/unapprove comment
+    pub fn reject(&mut self) {
+        self.approved = false;
+        self.updated_at = chrono::Utc::now();
     }
 }
 

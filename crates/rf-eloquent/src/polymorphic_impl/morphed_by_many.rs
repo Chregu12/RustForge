@@ -23,12 +23,10 @@
 //! let videos = tag.videos().get(&db).await?;
 //! ```
 
-use super::polymorphic::{PolymorphicError, PolymorphicResult};
-use async_trait::async_trait;
+use super::polymorphic::PolymorphicResult;
 use sea_orm::{
-    sea_query::{Expr, Query, SimpleExpr},
-    ColumnTrait, Condition, DatabaseConnection, DbErr, EntityTrait, FromQueryResult, QueryFilter,
-    QuerySelect, Statement,
+    sea_query::Alias,
+    DatabaseConnection, EntityTrait, FromQueryResult,
 };
 use std::marker::PhantomData;
 
@@ -125,52 +123,29 @@ where
     /// ```
     pub async fn get<E>(
         &self,
-        db: &DatabaseConnection,
-        entity: E,
-        related_pivot_key: &str,
+        _db: &DatabaseConnection,
+        _entity: E,
+        _related_pivot_key: &str,
     ) -> PolymorphicResult<Vec<T>>
     where
         E: EntityTrait,
         T: FromQueryResult,
     {
-        // Build the query manually
-        let table_name = entity.table_name();
-        let morph_type_col = self.morph_type_column();
-        let morph_id_col = self.morph_id_column();
-
-        let sql = format!(
-            r#"
-            SELECT {}.* FROM {}
-            INNER JOIN {} ON {}.id = {}.{}
-            WHERE {}.{} = ? AND {}.{} = ?
-            "#,
-            table_name,
-            table_name,
-            self.pivot_table,
-            table_name,
-            self.pivot_table,
-            morph_id_col,
-            self.pivot_table,
-            morph_type_col,
-            self.pivot_table,
-            related_pivot_key,
-        );
-
-        // Placeholder implementation
+        // TODO: Implement MorphedByMany::get()
         Ok(Vec::new())
     }
 
     /// Count parent models
     pub async fn count<E>(
         &self,
-        db: &DatabaseConnection,
-        entity: E,
-        related_pivot_key: &str,
+        _db: &DatabaseConnection,
+        _entity: E,
+        _related_pivot_key: &str,
     ) -> PolymorphicResult<u64>
     where
         E: EntityTrait,
     {
-        // Placeholder implementation
+        // TODO: Implement MorphedByMany::count()
         Ok(0)
     }
 
@@ -203,12 +178,15 @@ impl<T> MorphedByMany<T> {
     /// ```
     pub async fn attach(
         &self,
-        db: &DatabaseConnection,
-        parent_ids: Vec<i64>,
-        related_pivot_key: &str,
+        _db: &DatabaseConnection,
+        _parent_ids: Vec<i64>,
+        _related_pivot_key: &str,
     ) -> PolymorphicResult<()> {
-        // Placeholder - would insert into pivot table
-        Ok(())
+        // TODO: Implement MorphedByMany::attach()
+        use super::polymorphic::PolymorphicError;
+        Err(PolymorphicError::NotImplemented(
+            "MorphedByMany::attach not yet implemented".to_string()
+        ))
     }
 
     /// Detach parent models from this relationship
@@ -223,12 +201,15 @@ impl<T> MorphedByMany<T> {
     /// ```
     pub async fn detach(
         &self,
-        db: &DatabaseConnection,
-        parent_ids: Vec<i64>,
-        related_pivot_key: &str,
+        _db: &DatabaseConnection,
+        _parent_ids: Vec<i64>,
+        _related_pivot_key: &str,
     ) -> PolymorphicResult<()> {
-        // Placeholder - would delete from pivot table
-        Ok(())
+        // TODO: Implement MorphedByMany::detach()
+        use super::polymorphic::PolymorphicError;
+        Err(PolymorphicError::NotImplemented(
+            "MorphedByMany::detach not yet implemented".to_string()
+        ))
     }
 
     /// Sync parent models
@@ -243,12 +224,15 @@ impl<T> MorphedByMany<T> {
     /// ```
     pub async fn sync(
         &self,
-        db: &DatabaseConnection,
-        parent_ids: Vec<i64>,
-        related_pivot_key: &str,
+        _db: &DatabaseConnection,
+        _parent_ids: Vec<i64>,
+        _related_pivot_key: &str,
     ) -> PolymorphicResult<()> {
-        // Placeholder implementation
-        Ok(())
+        // TODO: Implement MorphedByMany::sync()
+        use super::polymorphic::PolymorphicError;
+        Err(PolymorphicError::NotImplemented(
+            "MorphedByMany::sync not yet implemented".to_string()
+        ))
     }
 }
 

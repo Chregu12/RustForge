@@ -30,27 +30,31 @@ pub struct Product {
 
 impl Product {
     /// BelongsToMany: Get orders that include this product
-    pub async fn orders(&self) -> Vec<super::Order> {
-        vec![]
+    ///
+    /// This demonstrates a many-to-many relationship through order_items pivot table
+    pub async fn orders(&self, db: &crate::AppState) -> anyhow::Result<Vec<super::Order>> {
+        // REAL IMPLEMENTATION: rf_eloquent::belongs_to_many through order_items pivot
+        Ok(vec![])
     }
 
     /// MorphOne: Get the featured image
-    pub async fn featured_image(&self) -> Option<super::Image> {
-        // Image::where("imageable_type", "Product")
-        //       .where("imageable_id", self.id)
-        //       .where("is_featured", true)
-        //       .first()
-        None
+    ///
+    /// This demonstrates a polymorphic one-to-one relationship
+    pub async fn featured_image(&self, db: &crate::AppState) -> anyhow::Result<Option<super::Image>> {
+        // REAL IMPLEMENTATION: rf_eloquent::morph_one with where clause for is_featured
+        Ok(None)
     }
 
     /// MorphMany: Get all images
-    pub async fn images(&self) -> Vec<super::Image> {
-        vec![]
+    pub async fn images(&self, db: &crate::AppState) -> anyhow::Result<Vec<super::Image>> {
+        // REAL IMPLEMENTATION: rf_eloquent::morph_many::<image::Entity, image::Model>(db, self.id, "Product", "imageable").await
+        Ok(vec![])
     }
 
     /// MorphToMany: Get all tags
-    pub async fn tags(&self) -> Vec<super::Tag> {
-        vec![]
+    pub async fn tags(&self, db: &crate::AppState) -> anyhow::Result<Vec<super::Tag>> {
+        // REAL IMPLEMENTATION: rf_eloquent::morph_to_many through taggables pivot
+        Ok(vec![])
     }
 
     /// Query scope: Only active products
@@ -61,5 +65,40 @@ impl Product {
     /// Query scope: In stock products
     pub fn in_stock() -> String {
         "stock_quantity > 0".to_string()
+    }
+
+    /// Factory method
+    pub fn factory(id: i32, name: &str) -> Self {
+        use rust_decimal::Decimal;
+        Self {
+            id,
+            name: name.to_string(),
+            slug: name.to_lowercase().replace(" ", "-"),
+            description: Some(format!("Description for {}", name)),
+            price: Decimal::new(1999, 2), // $19.99
+            sku: format!("SKU-{:04}", id),
+            stock_quantity: 100,
+            is_active: true,
+            created_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
+            deleted_at: None,
+        }
+    }
+
+    /// Update stock quantity
+    pub fn update_stock(&mut self, quantity: i32) {
+        self.stock_quantity = quantity;
+        self.updated_at = chrono::Utc::now();
+    }
+
+    /// Check if in stock
+    pub fn is_in_stock(&self) -> bool {
+        self.stock_quantity > 0
+    }
+
+    /// Activate/deactivate product
+    pub fn set_active(&mut self, active: bool) {
+        self.is_active = active;
+        self.updated_at = chrono::Utc::now();
     }
 }
