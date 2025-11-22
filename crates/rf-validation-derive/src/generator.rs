@@ -305,7 +305,7 @@ fn generate_rule_validation(field: &FieldInfo, rule: &ValidationRule) -> TokenSt
         // Number rules
         ValidationRule::Integer => {
             quote! {
-                if let Some(value) = #field_value {
+                if let Some(value) = #value_expr {
                     if value.parse::<i64>().is_err() {
                         errors.push(format!("{} must be an integer", #field_name_str));
                     }
@@ -315,7 +315,7 @@ fn generate_rule_validation(field: &FieldInfo, rule: &ValidationRule) -> TokenSt
 
         ValidationRule::Numeric => {
             quote! {
-                if let Some(value) = #field_value {
+                if let Some(value) = #value_expr {
                     if value.parse::<f64>().is_err() {
                         errors.push(format!("{} must be numeric", #field_name_str));
                     }
@@ -325,7 +325,7 @@ fn generate_rule_validation(field: &FieldInfo, rule: &ValidationRule) -> TokenSt
 
         ValidationRule::Digits(count) => {
             quote! {
-                if let Some(value) = #field_value {
+                if let Some(value) = #value_expr {
                     let digits: String = value.chars().filter(|c| c.is_digit(10)).collect();
                     if digits.len() != #count {
                         errors.push(format!("{} must have exactly {} digits", #field_name_str, #count));
@@ -336,7 +336,7 @@ fn generate_rule_validation(field: &FieldInfo, rule: &ValidationRule) -> TokenSt
 
         ValidationRule::DigitsBetween { min, max } => {
             quote! {
-                if let Some(value) = #field_value {
+                if let Some(value) = #value_expr {
                     let digits: String = value.chars().filter(|c| c.is_digit(10)).collect();
                     let len = digits.len();
                     if len < #min || len > #max {
@@ -348,7 +348,7 @@ fn generate_rule_validation(field: &FieldInfo, rule: &ValidationRule) -> TokenSt
 
         ValidationRule::Positive => {
             quote! {
-                if let Some(value) = #field_value {
+                if let Some(value) = #value_expr {
                     if let Ok(num) = value.parse::<f64>() {
                         if num <= 0.0 {
                             errors.push(format!("{} must be positive", #field_name_str));
@@ -362,7 +362,7 @@ fn generate_rule_validation(field: &FieldInfo, rule: &ValidationRule) -> TokenSt
 
         ValidationRule::Negative => {
             quote! {
-                if let Some(value) = #field_value {
+                if let Some(value) = #value_expr {
                     if let Ok(num) = value.parse::<f64>() {
                         if num >= 0.0 {
                             errors.push(format!("{} must be negative", #field_name_str));
@@ -377,7 +377,7 @@ fn generate_rule_validation(field: &FieldInfo, rule: &ValidationRule) -> TokenSt
         // Date rules
         ValidationRule::Date => {
             quote! {
-                if let Some(value) = #field_value {
+                if let Some(value) = #value_expr {
                     use chrono::NaiveDate;
                     if NaiveDate::parse_from_str(value, "%Y-%m-%d").is_err() {
                         errors.push(format!("{} must be a valid date (YYYY-MM-DD)", #field_name_str));
@@ -388,7 +388,7 @@ fn generate_rule_validation(field: &FieldInfo, rule: &ValidationRule) -> TokenSt
 
         ValidationRule::DateFormat(format_str) => {
             quote! {
-                if let Some(value) = #field_value {
+                if let Some(value) = #value_expr {
                     use chrono::NaiveDate;
                     if NaiveDate::parse_from_str(value, #format_str).is_err() {
                         errors.push(format!("{} must be a valid date with format {}", #field_name_str, #format_str));
@@ -399,7 +399,7 @@ fn generate_rule_validation(field: &FieldInfo, rule: &ValidationRule) -> TokenSt
 
         ValidationRule::Before(before_date) => {
             quote! {
-                if let Some(value) = #field_value {
+                if let Some(value) = #value_expr {
                     use chrono::NaiveDate;
                     if let Ok(date) = NaiveDate::parse_from_str(value, "%Y-%m-%d") {
                         if let Ok(before) = NaiveDate::parse_from_str(#before_date, "%Y-%m-%d") {
@@ -416,7 +416,7 @@ fn generate_rule_validation(field: &FieldInfo, rule: &ValidationRule) -> TokenSt
 
         ValidationRule::After(after_date) => {
             quote! {
-                if let Some(value) = #field_value {
+                if let Some(value) = #value_expr {
                     use chrono::NaiveDate;
                     if let Ok(date) = NaiveDate::parse_from_str(value, "%Y-%m-%d") {
                         if let Ok(after) = NaiveDate::parse_from_str(#after_date, "%Y-%m-%d") {
@@ -433,7 +433,7 @@ fn generate_rule_validation(field: &FieldInfo, rule: &ValidationRule) -> TokenSt
 
         ValidationRule::BetweenDates { start, end } => {
             quote! {
-                if let Some(value) = #field_value {
+                if let Some(value) = #value_expr {
                     use chrono::NaiveDate;
                     if let Ok(date) = NaiveDate::parse_from_str(value, "%Y-%m-%d") {
                         if let (Ok(start_date), Ok(end_date)) = (
@@ -519,10 +519,10 @@ fn generate_rule_validation(field: &FieldInfo, rule: &ValidationRule) -> TokenSt
             }
         }
 
-        ValidationRule::RequiredWith(other_fields) => {
+        ValidationRule::RequiredWith(other_field) => {
             quote! {
                 #[allow(unused_variables)]
-                let _required_with_fields = vec![#(#other_fields),*];
+                let _required_with_field = #other_field;
             }
         }
 
