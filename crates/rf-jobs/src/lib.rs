@@ -61,7 +61,7 @@ pub use context::JobContext;
 pub use error::{JobError, JobResult, QueueError, SchedulerError, WorkerError};
 pub use job::{FailedJob, Job, JobPayload};
 pub use queue::{QueueManager, QueuePriority};
-pub use rate_limit::{RateLimiter, RateLimitExt};
+pub use rate_limit::{RateLimitExt, RateLimiter};
 pub use registry::{BackoffStrategy, JobRegistry, JobWithRegistry};
 pub use scheduler::Scheduler;
 pub use serialization::{serialize_job, serialize_job_delayed, SerializedJob};

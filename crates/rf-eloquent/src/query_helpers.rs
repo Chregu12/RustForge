@@ -286,8 +286,8 @@ pub async fn belongs_to_many<RE, PE, M, K>(
     related_primary_key: RE::Column,
 ) -> Result<Vec<M>, DbErr>
 where
-    RE: EntityTrait,           // Related Entity
-    PE: EntityTrait,           // Pivot Entity
+    RE: EntityTrait, // Related Entity
+    PE: EntityTrait, // Pivot Entity
     M: FromQueryResult + Sized + Send,
     K: Into<Value> + Clone,
     <RE as EntityTrait>::Column: ColumnTrait,
@@ -306,11 +306,17 @@ where
         .filter(
             related_primary_key.in_subquery(
                 Query::select()
-                    .expr(sea_orm::sea_query::Expr::col((PE::default(), related_pivot_key)))
+                    .expr(sea_orm::sea_query::Expr::col((
+                        PE::default(),
+                        related_pivot_key,
+                    )))
                     .from(PE::default())
-                    .and_where(sea_orm::sea_query::Expr::col((PE::default(), foreign_pivot_key)).eq(parent_id.clone()))
-                    .to_owned()
-            )
+                    .and_where(
+                        sea_orm::sea_query::Expr::col((PE::default(), foreign_pivot_key))
+                            .eq(parent_id.clone()),
+                    )
+                    .to_owned(),
+            ),
         )
         .into_model::<M>()
         .all(db)
@@ -347,7 +353,7 @@ where
     RK: Into<Value> + Clone,
     <PE as EntityTrait>::Column: ColumnTrait,
 {
-    use sea_orm::sea_query::{Query, Expr};
+    use sea_orm::sea_query::{Expr, Query};
 
     // Build INSERT INTO pivot_table (foreign_key, related_key) VALUES (?, ?)
     let insert_stmt = Query::insert()
@@ -443,11 +449,25 @@ where
     <PE as EntityTrait>::Column: ColumnTrait,
 {
     // Step 1: Detach all existing relationships
-    detach::<PE, _, RK>(db, parent_id.clone(), None, foreign_pivot_key, related_pivot_key).await?;
+    detach::<PE, _, RK>(
+        db,
+        parent_id.clone(),
+        None,
+        foreign_pivot_key,
+        related_pivot_key,
+    )
+    .await?;
 
     // Step 2: Attach all new relationships
     for related_id in related_ids {
-        attach::<PE, _, _>(db, parent_id.clone(), related_id, foreign_pivot_key, related_pivot_key).await?;
+        attach::<PE, _, _>(
+            db,
+            parent_id.clone(),
+            related_id,
+            foreign_pivot_key,
+            related_pivot_key,
+        )
+        .await?;
     }
 
     Ok(())
@@ -509,8 +529,8 @@ pub async fn has_many_through<FE, TE, M, K>(
     through_primary_key: TE::Column,
 ) -> Result<Vec<M>, DbErr>
 where
-    FE: EntityTrait,           // Final Entity (e.g., Post)
-    TE: EntityTrait,           // Through Entity (e.g., User)
+    FE: EntityTrait, // Final Entity (e.g., Post)
+    TE: EntityTrait, // Through Entity (e.g., User)
     M: FromQueryResult + Sized + Send,
     K: Into<Value> + Clone,
     <FE as EntityTrait>::Column: ColumnTrait,
@@ -530,11 +550,17 @@ where
         .filter(
             final_foreign_key.in_subquery(
                 Query::select()
-                    .expr(sea_orm::sea_query::Expr::col((TE::default(), through_primary_key)))
+                    .expr(sea_orm::sea_query::Expr::col((
+                        TE::default(),
+                        through_primary_key,
+                    )))
                     .from(TE::default())
-                    .and_where(sea_orm::sea_query::Expr::col((TE::default(), through_foreign_key)).eq(parent_id.clone()))
-                    .to_owned()
-            )
+                    .and_where(
+                        sea_orm::sea_query::Expr::col((TE::default(), through_foreign_key))
+                            .eq(parent_id.clone()),
+                    )
+                    .to_owned(),
+            ),
         )
         .into_model::<M>()
         .all(db)

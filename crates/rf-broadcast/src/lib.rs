@@ -58,13 +58,13 @@
 //! # }
 //! ```
 
+pub mod auth;
 mod broadcaster;
 mod channel;
 mod error;
 mod event;
 mod memory;
 mod websocket;
-pub mod auth;
 
 #[cfg(feature = "redis-backend")]
 mod redis;
@@ -73,16 +73,16 @@ mod redis;
 #[cfg(feature = "pusher")]
 pub mod pusher;
 
+pub use auth::{AllowAllAuthorizer, ChannelAuthorizer, PublicOnlyAuthorizer, WebSocketAuth};
 pub use broadcaster::{Broadcaster, ConnectionId, PresenceInfo, UserId};
 pub use channel::Channel;
 pub use error::{BroadcastError, BroadcastResult};
 pub use event::{Event, SimpleEvent};
 pub use memory::{BroadcastMessage, MemoryBroadcaster};
 pub use websocket::{websocket_router, WsMessage, WsState};
-pub use auth::{WebSocketAuth, ChannelAuthorizer, AllowAllAuthorizer, PublicOnlyAuthorizer};
 
 #[cfg(feature = "redis-backend")]
 pub use redis::RedisBroadcaster;
 
 #[cfg(feature = "pusher")]
-pub use pusher::{PusherBroadcaster, PusherConfig, PusherEvent, PusherBatchResponse};
+pub use pusher::{PusherBatchResponse, PusherBroadcaster, PusherConfig, PusherEvent};

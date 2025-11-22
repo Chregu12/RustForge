@@ -100,9 +100,10 @@ fn test_integration_admin_can_do_everything() {
 
     // Test gate
     let mut gate = Gate::new();
-    gate.define("manage-users", Arc::new(|user: &User, _| {
-        user.has_permission("users.manage")
-    }));
+    gate.define(
+        "manage-users",
+        Arc::new(|user: &User, _| user.has_permission("users.manage")),
+    );
 
     assert!(gate.allows(&admin, "manage-users"));
 }
@@ -162,13 +163,11 @@ fn test_integration_viewer_read_only() {
 
 #[test]
 fn test_integration_multiple_roles() {
-    let writer_role = Role::new(4, "writer").with_permissions(vec![
-        Permission::new(1, "posts.create"),
-    ]);
+    let writer_role =
+        Role::new(4, "writer").with_permissions(vec![Permission::new(1, "posts.create")]);
 
-    let editor_role = Role::new(2, "editor").with_permissions(vec![
-        Permission::new(2, "posts.update"),
-    ]);
+    let editor_role =
+        Role::new(2, "editor").with_permissions(vec![Permission::new(2, "posts.update")]);
 
     let user = User::new_with_roles(4, vec![writer_role, editor_role]);
 
@@ -187,9 +186,10 @@ async fn test_integration_middleware_with_permissions() {
     let admin = User::new_admin(1);
 
     let mut gate = Gate::new();
-    gate.define("admin-panel", Arc::new(|user: &User, _| {
-        user.has_permission("users.manage")
-    }));
+    gate.define(
+        "admin-panel",
+        Arc::new(|user: &User, _| user.has_permission("users.manage")),
+    );
 
     let middleware = AuthorizeGateMiddleware::new(Arc::new(gate), "admin-panel");
 
@@ -201,16 +201,16 @@ async fn test_integration_middleware_with_permissions() {
 
 #[tokio::test]
 async fn test_integration_middleware_denies_insufficient_permissions() {
-    let editor_role = Role::new(2, "editor").with_permissions(vec![
-        Permission::new(1, "posts.create"),
-    ]);
+    let editor_role =
+        Role::new(2, "editor").with_permissions(vec![Permission::new(1, "posts.create")]);
 
     let editor = User::new_with_roles(2, vec![editor_role]);
 
     let mut gate = Gate::new();
-    gate.define("admin-panel", Arc::new(|user: &User, _| {
-        user.has_permission("users.manage")
-    }));
+    gate.define(
+        "admin-panel",
+        Arc::new(|user: &User, _| user.has_permission("users.manage")),
+    );
 
     let middleware = AuthorizeGateMiddleware::new(Arc::new(gate), "admin-panel");
 
@@ -232,13 +232,15 @@ fn test_integration_gate_with_permission_check() {
     let mut gate = Gate::new();
 
     // Define gates that check database permissions
-    gate.define("create-post", Arc::new(|user: &User, _| {
-        user.has_permission("posts.create")
-    }));
+    gate.define(
+        "create-post",
+        Arc::new(|user: &User, _| user.has_permission("posts.create")),
+    );
 
-    gate.define("delete-post", Arc::new(|user: &User, _| {
-        user.has_permission("posts.delete")
-    }));
+    gate.define(
+        "delete-post",
+        Arc::new(|user: &User, _| user.has_permission("posts.delete")),
+    );
 
     // Admin can do everything
     assert!(gate.allows(&admin, "create-post"));
@@ -301,9 +303,10 @@ fn test_integration_complex_authorization_scenario() {
 
     // Setup gate
     let mut gate = Gate::new();
-    gate.define("delete-any-post", Arc::new(|user: &User, _| {
-        user.has_permission("posts.delete")
-    }));
+    gate.define(
+        "delete-any-post",
+        Arc::new(|user: &User, _| user.has_permission("posts.delete")),
+    );
 
     // Setup policy
     let mut registry = PolicyRegistry::new();
@@ -350,9 +353,7 @@ fn test_integration_permission_inheritance() {
         Permission::new(3, "perm3"),
     ]);
 
-    let role3 = Role::new(3, "role3").with_permissions(vec![
-        Permission::new(4, "perm4"),
-    ]);
+    let role3 = Role::new(3, "role3").with_permissions(vec![Permission::new(4, "perm4")]);
 
     let user = User::new_with_roles(1, vec![role1, role2, role3]);
 

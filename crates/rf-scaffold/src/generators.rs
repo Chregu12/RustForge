@@ -1,10 +1,10 @@
 //! Code generators for different components
 
-use std::path::PathBuf;
+use crate::{ModelOptions, ScaffoldEngine, ScaffoldResult};
 use async_trait::async_trait;
-use serde::Serialize;
 use chrono::Utc;
-use crate::{ScaffoldEngine, ScaffoldResult, ModelOptions};
+use serde::Serialize;
+use std::path::PathBuf;
 
 /// Generator trait
 #[async_trait]
@@ -23,18 +23,24 @@ impl<'a> ModelGenerator<'a> {
         Self { engine }
     }
 
-    pub async fn generate(&self, name: &str, options: &ModelOptions<'_>) -> ScaffoldResult<PathBuf> {
+    pub async fn generate(
+        &self,
+        name: &str,
+        options: &ModelOptions<'_>,
+    ) -> ScaffoldResult<PathBuf> {
         let naming = self.engine.naming();
         let pascal_name = naming.to_pascal_case(name);
         let snake_name = naming.to_snake_case(&pascal_name);
 
         // Prepare template data
-        let fields: Vec<FieldData> = options.fields.iter().map(|(name, field_type)| {
-            FieldData {
+        let fields: Vec<FieldData> = options
+            .fields
+            .iter()
+            .map(|(name, field_type)| FieldData {
                 name: name.to_string(),
                 field_type: field_type.to_string(),
-            }
-        }).collect();
+            })
+            .collect();
 
         let data = ModelData {
             name: pascal_name.clone(),
@@ -46,7 +52,9 @@ impl<'a> ModelGenerator<'a> {
         let content = self.engine.render("model", &data).await?;
 
         // Write to file
-        let file_path = self.engine.base_path()
+        let file_path = self
+            .engine
+            .base_path()
             .join("src")
             .join("models")
             .join(format!("{}.rs", snake_name));
@@ -57,7 +65,9 @@ impl<'a> ModelGenerator<'a> {
         if options.with_migration {
             let migration_gen = MigrationGenerator::new(self.engine);
             let table_name = naming.pluralize(&snake_name);
-            migration_gen.generate_for_model(&pascal_name, &table_name, &options.fields).await?;
+            migration_gen
+                .generate_for_model(&pascal_name, &table_name, &options.fields)
+                .await?;
         }
 
         Ok(file_path)
@@ -114,7 +124,9 @@ impl<'a> ControllerGenerator<'a> {
         let content = self.engine.render(template, &data).await?;
 
         // Write to file
-        let file_path = self.engine.base_path()
+        let file_path = self
+            .engine
+            .base_path()
             .join("src")
             .join("controllers")
             .join(format!("{}.rs", snake_name));
@@ -164,9 +176,7 @@ impl<'a> MigrationGenerator<'a> {
         let file_name = format!("{}_{}.rs", timestamp, snake_name);
 
         // Write to file
-        let file_path = self.engine.base_path()
-            .join("migrations")
-            .join(file_name);
+        let file_path = self.engine.base_path().join("migrations").join(file_name);
 
         self.engine.write_file(&file_path, &content, false).await?;
 
@@ -177,18 +187,19 @@ impl<'a> MigrationGenerator<'a> {
         &self,
         _model_name: &str,
         table_name: &str,
-        fields: &[(&str, &str)]
+        fields: &[(&str, &str)],
     ) -> ScaffoldResult<PathBuf> {
         let naming = self.engine.naming();
         let migration_name = format!("create_{}_table", table_name);
 
-        let migration_fields: Vec<MigrationField> = fields.iter().map(|(name, field_type)| {
-            MigrationField {
+        let migration_fields: Vec<MigrationField> = fields
+            .iter()
+            .map(|(name, field_type)| MigrationField {
                 name: name.to_string(),
                 pascal_name: naming.to_pascal_case(name),
                 column_def: map_type_to_column_def(field_type),
-            }
-        }).collect();
+            })
+            .collect();
 
         let data = MigrationData {
             name: migration_name.clone(),
@@ -205,9 +216,7 @@ impl<'a> MigrationGenerator<'a> {
         let file_name = format!("{}_{}.rs", timestamp, naming.to_snake_case(&migration_name));
 
         // Write to file
-        let file_path = self.engine.base_path()
-            .join("migrations")
-            .join(file_name);
+        let file_path = self.engine.base_path().join("migrations").join(file_name);
 
         self.engine.write_file(&file_path, &content, false).await?;
 
@@ -254,7 +263,9 @@ impl<'a> ServiceGenerator<'a> {
         let content = self.engine.render("service", &data).await?;
 
         // Write to file
-        let file_path = self.engine.base_path()
+        let file_path = self
+            .engine
+            .base_path()
             .join("src")
             .join("services")
             .join(format!("{}.rs", snake_name));
@@ -296,7 +307,9 @@ impl<'a> RepositoryGenerator<'a> {
         let content = self.engine.render("repository", &data).await?;
 
         // Write to file
-        let file_path = self.engine.base_path()
+        let file_path = self
+            .engine
+            .base_path()
             .join("src")
             .join("repositories")
             .join(format!("{}.rs", snake_name));
@@ -393,6 +406,10 @@ mod tests {
 
         let path = result.unwrap();
         assert!(path.exists());
-        assert!(path.file_name().unwrap().to_string_lossy().contains("create_users_table"));
+        assert!(path
+            .file_name()
+            .unwrap()
+            .to_string_lossy()
+            .contains("create_users_table"));
     }
 }

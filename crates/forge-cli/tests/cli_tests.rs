@@ -17,25 +17,19 @@ fn test_help_flag() {
 #[test]
 fn test_version_flag() {
     let mut cmd = Command::cargo_bin("forge").unwrap();
-    cmd.arg("--version")
-        .assert()
-        .success();
+    cmd.arg("--version").assert().success();
 }
 
 #[test]
 fn test_about_command() {
     let mut cmd = Command::cargo_bin("forge").unwrap();
-    cmd.arg("about")
-        .assert()
-        .success();
+    cmd.arg("about").assert().success();
 }
 
 #[test]
 fn test_inspire_command() {
     let mut cmd = Command::cargo_bin("forge").unwrap();
-    cmd.arg("inspire")
-        .assert()
-        .success();
+    cmd.arg("inspire").assert().success();
 }
 
 #[test]
@@ -182,7 +176,10 @@ fn test_make_controller_with_project() {
         .stdout(predicate::str::contains("Created"));
 
     // Check that controller file was created
-    assert!(dir.path().join("src/controllers/user_controller.rs").exists());
+    assert!(dir
+        .path()
+        .join("src/controllers/user_controller.rs")
+        .exists());
 }
 
 #[test]
@@ -198,13 +195,14 @@ fn test_make_controller_api() {
         .success();
 
     // Check controller was created
-    assert!(dir.path().join("src/controllers/api_controller.rs").exists());
+    assert!(dir
+        .path()
+        .join("src/controllers/api_controller.rs")
+        .exists());
 }
 
 #[test]
 fn test_invalid_command() {
     let mut cmd = Command::cargo_bin("forge").unwrap();
-    cmd.arg("invalid-command")
-        .assert()
-        .failure();
+    cmd.arg("invalid-command").assert().failure();
 }

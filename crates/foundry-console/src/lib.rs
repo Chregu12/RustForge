@@ -8,22 +8,22 @@
 //! - Panels and boxes
 
 mod colors;
-mod table;
-mod progress;
 mod list;
 mod panel;
-mod spinner;
+mod progress;
 mod sections;
+mod spinner;
 mod styled;
+mod table;
 
-pub use colors::{Color, Style, Colorize};
-pub use table::{Table, TableRow, TableCell, BorderStyle};
-pub use progress::{ProgressBar, ProgressStyle};
+pub use colors::{Color, Colorize, Style};
 pub use list::{List, ListStyle};
 pub use panel::{Panel, PanelStyle};
+pub use progress::{ProgressBar, ProgressStyle};
+pub use sections::{debug, error, header, info, line, success, warning};
 pub use spinner::{Spinner, SpinnerStyle};
-pub use sections::{info, success, warning, error, debug, header, line};
-pub use styled::{bold, italic, underline, dim};
+pub use styled::{bold, dim, italic, underline};
+pub use table::{BorderStyle, Table, TableCell, TableRow};
 
 #[cfg(test)]
 mod tests {

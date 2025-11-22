@@ -250,7 +250,9 @@ async fn health() -> StatusCode {
     StatusCode::OK
 }
 
-async fn commands(State(state): State<AppState>) -> Result<Json<Vec<CommandDescriptor>>, HttpError> {
+async fn commands(
+    State(state): State<AppState>,
+) -> Result<Json<Vec<CommandDescriptor>>, HttpError> {
     let descriptors = state.invoker.descriptors()?;
     Ok(Json(descriptors))
 }

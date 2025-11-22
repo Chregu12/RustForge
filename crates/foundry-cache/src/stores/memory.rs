@@ -68,7 +68,12 @@ impl CacheStore for MemoryStore {
         }
     }
 
-    async fn set(&self, key: &str, value: CacheValue, ttl: Option<Duration>) -> Result<(), CacheError> {
+    async fn set(
+        &self,
+        key: &str,
+        value: CacheValue,
+        ttl: Option<Duration>,
+    ) -> Result<(), CacheError> {
         let final_value = if let Some(ttl) = ttl {
             CacheValue::with_ttl(value.data, ttl)
         } else {
@@ -166,7 +171,10 @@ mod tests {
         let store = MemoryStore::new();
         let value = CacheValue::from_string("expire_me");
 
-        store.set("ttl_key", value, Some(Duration::from_millis(100))).await.unwrap();
+        store
+            .set("ttl_key", value, Some(Duration::from_millis(100)))
+            .await
+            .unwrap();
 
         assert!(store.get("ttl_key").await.unwrap().is_some());
 

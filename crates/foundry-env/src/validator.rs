@@ -116,7 +116,9 @@ impl EnvValidator {
         match var_type {
             VarType::String => true,
             VarType::Integer => value.parse::<i64>().is_ok(),
-            VarType::Boolean => matches!(value.to_lowercase().as_str(), "true" | "false" | "1" | "0"),
+            VarType::Boolean => {
+                matches!(value.to_lowercase().as_str(), "true" | "false" | "1" | "0")
+            }
             VarType::Url => value.starts_with("http://") || value.starts_with("https://"),
             VarType::Path => !value.is_empty(),
         }

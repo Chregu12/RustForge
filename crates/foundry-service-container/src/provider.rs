@@ -111,10 +111,7 @@ impl ProviderRegistry {
 
             // Boot the provider
             provider.boot(container).await.map_err(|e| {
-                ContainerError::ProviderError(format!(
-                    "Failed to boot provider {}: {}",
-                    name, e
-                ))
+                ContainerError::ProviderError(format!("Failed to boot provider {}: {}", name, e))
             })?;
 
             // Mark as booted

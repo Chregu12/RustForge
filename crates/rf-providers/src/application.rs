@@ -55,9 +55,7 @@ impl Container {
         T: Any + Send + Sync + 'static,
         F: Fn() -> T + Send + Sync + 'static,
     {
-        let wrapped_factory = Arc::new(move || {
-            Box::new(factory()) as BoxedService
-        });
+        let wrapped_factory = Arc::new(move || Box::new(factory()) as BoxedService);
         let mut bindings = self.type_bindings.write().await;
         bindings.insert(TypeId::of::<T>(), wrapped_factory);
     }
@@ -101,9 +99,10 @@ impl Container {
             let singletons = self.type_singletons.read().await;
             if let Some(service) = singletons.get(&type_id) {
                 let boxed = Arc::clone(service);
-                if let Some(concrete) = Arc::downcast::<T>(
-                    unsafe { Arc::from_raw(Arc::into_raw(boxed) as *const T) }
-                ).ok() {
+                if let Some(concrete) =
+                    Arc::downcast::<T>(unsafe { Arc::from_raw(Arc::into_raw(boxed) as *const T) })
+                        .ok()
+                {
                     return Some(concrete);
                 }
             }

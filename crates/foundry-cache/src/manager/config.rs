@@ -58,7 +58,8 @@ impl CacheConfig {
 
         let redis = if matches!(driver, CacheDriver::Redis) {
             Some(RedisConfig {
-                url: std::env::var("REDIS_URL").unwrap_or_else(|_| "redis://127.0.0.1:6379".to_string()),
+                url: std::env::var("REDIS_URL")
+                    .unwrap_or_else(|_| "redis://127.0.0.1:6379".to_string()),
                 pool_size: std::env::var("REDIS_POOL_SIZE")
                     .ok()
                     .and_then(|s| s.parse().ok())

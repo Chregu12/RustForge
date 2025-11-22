@@ -57,11 +57,9 @@ impl Cache for MemcachedDriver {
 
         // Memcached operations are synchronous, so we use tokio::task::spawn_blocking
         let client = self.client.clone();
-        let result = tokio::task::spawn_blocking(move || {
-            client.get::<String>(&prefixed_key)
-        })
-        .await
-        .map_err(|e| CacheError::Backend(format!("Task join error: {}", e)))?;
+        let result = tokio::task::spawn_blocking(move || client.get::<String>(&prefixed_key))
+            .await
+            .map_err(|e| CacheError::Backend(format!("Task join error: {}", e)))?;
 
         match result {
             Ok(Some(value)) => {
@@ -81,17 +79,15 @@ impl Cache for MemcachedDriver {
         ttl: Duration,
     ) -> CacheResult<()> {
         let prefixed_key = self.make_key(key);
-        let serialized = serde_json::to_string(value)
-            .map_err(|e| CacheError::Serialization(e.to_string()))?;
+        let serialized =
+            serde_json::to_string(value).map_err(|e| CacheError::Serialization(e.to_string()))?;
         let expiration = ttl.as_secs() as u32;
 
         let client = self.client.clone();
-        tokio::task::spawn_blocking(move || {
-            client.set(&prefixed_key, serialized, expiration)
-        })
-        .await
-        .map_err(|e| CacheError::Backend(format!("Task join error: {}", e)))?
-        .map_err(|e| CacheError::Backend(format!("Memcached set error: {}", e)))?;
+        tokio::task::spawn_blocking(move || client.set(&prefixed_key, serialized, expiration))
+            .await
+            .map_err(|e| CacheError::Backend(format!("Task join error: {}", e)))?
+            .map_err(|e| CacheError::Backend(format!("Memcached set error: {}", e)))?;
 
         Ok(())
     }
@@ -100,12 +96,10 @@ impl Cache for MemcachedDriver {
         let prefixed_key = self.make_key(key);
         let client = self.client.clone();
 
-        tokio::task::spawn_blocking(move || {
-            client.delete(&prefixed_key)
-        })
-        .await
-        .map_err(|e| CacheError::Backend(format!("Task join error: {}", e)))?
-        .map_err(|e| CacheError::Backend(format!("Memcached delete error: {}", e)))?;
+        tokio::task::spawn_blocking(move || client.delete(&prefixed_key))
+            .await
+            .map_err(|e| CacheError::Backend(format!("Task join error: {}", e)))?
+            .map_err(|e| CacheError::Backend(format!("Memcached delete error: {}", e)))?;
 
         Ok(())
     }
@@ -114,11 +108,10 @@ impl Cache for MemcachedDriver {
         let prefixed_key = self.make_key(key);
         let client = self.client.clone();
 
-        let exists = tokio::task::spawn_blocking(move || {
-            client.get::<String>(&prefixed_key).is_ok()
-        })
-        .await
-        .map_err(|e| CacheError::Backend(format!("Task join error: {}", e)))?;
+        let exists =
+            tokio::task::spawn_blocking(move || client.get::<String>(&prefixed_key).is_ok())
+                .await
+                .map_err(|e| CacheError::Backend(format!("Task join error: {}", e)))?;
 
         Ok(exists)
     }
@@ -126,12 +119,10 @@ impl Cache for MemcachedDriver {
     async fn flush(&self) -> CacheResult<()> {
         let client = self.client.clone();
 
-        tokio::task::spawn_blocking(move || {
-            client.flush()
-        })
-        .await
-        .map_err(|e| CacheError::Backend(format!("Task join error: {}", e)))?
-        .map_err(|e| CacheError::Backend(format!("Memcached flush error: {}", e)))?;
+        tokio::task::spawn_blocking(move || client.flush())
+            .await
+            .map_err(|e| CacheError::Backend(format!("Task join error: {}", e)))?
+            .map_err(|e| CacheError::Backend(format!("Memcached flush error: {}", e)))?;
 
         Ok(())
     }
@@ -156,12 +147,10 @@ impl MemcachedOps for MemcachedDriver {
         let prefixed_key = self.make_key(key);
         let client = self.client.clone();
 
-        let result = tokio::task::spawn_blocking(move || {
-            client.increment(&prefixed_key, amount)
-        })
-        .await
-        .map_err(|e| CacheError::Backend(format!("Task join error: {}", e)))?
-        .map_err(|e| CacheError::Backend(format!("Memcached increment error: {}", e)))?;
+        let result = tokio::task::spawn_blocking(move || client.increment(&prefixed_key, amount))
+            .await
+            .map_err(|e| CacheError::Backend(format!("Task join error: {}", e)))?
+            .map_err(|e| CacheError::Backend(format!("Memcached increment error: {}", e)))?;
 
         Ok(result)
     }
@@ -170,12 +159,10 @@ impl MemcachedOps for MemcachedDriver {
         let prefixed_key = self.make_key(key);
         let client = self.client.clone();
 
-        let result = tokio::task::spawn_blocking(move || {
-            client.decrement(&prefixed_key, amount)
-        })
-        .await
-        .map_err(|e| CacheError::Backend(format!("Task join error: {}", e)))?
-        .map_err(|e| CacheError::Backend(format!("Memcached decrement error: {}", e)))?;
+        let result = tokio::task::spawn_blocking(move || client.decrement(&prefixed_key, amount))
+            .await
+            .map_err(|e| CacheError::Backend(format!("Task join error: {}", e)))?
+            .map_err(|e| CacheError::Backend(format!("Memcached decrement error: {}", e)))?;
 
         Ok(result)
     }
@@ -185,12 +172,10 @@ impl MemcachedOps for MemcachedDriver {
         let expiration = ttl.as_secs() as u32;
         let client = self.client.clone();
 
-        let result = tokio::task::spawn_blocking(move || {
-            client.touch(&prefixed_key, expiration)
-        })
-        .await
-        .map_err(|e| CacheError::Backend(format!("Task join error: {}", e)))?
-        .map_err(|e| CacheError::Backend(format!("Memcached touch error: {}", e)))?;
+        let result = tokio::task::spawn_blocking(move || client.touch(&prefixed_key, expiration))
+            .await
+            .map_err(|e| CacheError::Backend(format!("Task join error: {}", e)))?
+            .map_err(|e| CacheError::Backend(format!("Memcached touch error: {}", e)))?;
 
         Ok(result)
     }

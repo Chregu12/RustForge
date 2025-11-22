@@ -155,8 +155,7 @@ impl ObservabilityConfig {
                 .unwrap_or(false),
             service_name: std::env::var("OTEL_SERVICE_NAME")
                 .unwrap_or_else(|_| "rustforge".to_string()),
-            environment: std::env::var("ENVIRONMENT")
-                .unwrap_or_else(|_| "development".to_string()),
+            environment: std::env::var("ENVIRONMENT").unwrap_or_else(|_| "development".to_string()),
         }
     }
 }

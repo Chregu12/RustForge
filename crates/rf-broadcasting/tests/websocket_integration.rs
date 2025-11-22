@@ -107,10 +107,7 @@ async fn test_redis_broadcast_driver() {
     let driver = create_redis_driver().await;
 
     // Subscribe to channel
-    driver
-        .subscribe(&["test-redis".to_string()])
-        .await
-        .unwrap();
+    driver.subscribe(&["test-redis".to_string()]).await.unwrap();
 
     // Broadcast message
     let result = driver

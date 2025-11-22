@@ -1,6 +1,6 @@
 //! Order shipped notification email
 
-use crate::{Address, Mailable, MailBuilder};
+use crate::{Address, MailBuilder, Mailable};
 use serde::Serialize;
 
 /// Order shipped notification

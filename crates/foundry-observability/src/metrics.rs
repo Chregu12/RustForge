@@ -2,8 +2,7 @@
 
 use lazy_static::lazy_static;
 use prometheus::{
-    Histogram, HistogramOpts, HistogramVec,
-    IntCounterVec, IntGauge, IntGaugeVec, Opts, Registry,
+    Histogram, HistogramOpts, HistogramVec, IntCounterVec, IntGauge, IntGaugeVec, Opts, Registry,
 };
 use std::time::Instant;
 
@@ -58,7 +57,10 @@ impl Metrics {
         let metrics = Self {
             // Command metrics
             commands_total: IntCounterVec::new(
-                Opts::new("rustforge_commands_total", "Total number of commands executed"),
+                Opts::new(
+                    "rustforge_commands_total",
+                    "Total number of commands executed",
+                ),
                 &["command_name", "status"],
             )?,
             commands_success: IntCounterVec::new(
@@ -90,7 +92,10 @@ impl Metrics {
                 &["cache_name"],
             )?,
             cache_misses: IntCounterVec::new(
-                Opts::new("rustforge_cache_misses_total", "Total number of cache misses"),
+                Opts::new(
+                    "rustforge_cache_misses_total",
+                    "Total number of cache misses",
+                ),
                 &["cache_name"],
             )?,
             cache_size: IntGaugeVec::new(

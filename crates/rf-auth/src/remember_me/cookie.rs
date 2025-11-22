@@ -100,9 +100,9 @@ impl RememberMe {
     /// Returns `AuthError::TokenGeneration` if token generation fails
     pub fn generate_token(&self, user_id: i64) -> AuthResult<String> {
         let now = Utc::now();
-        let exp = now + chrono::Duration::from_std(self.ttl).map_err(|e| {
-            AuthError::TokenGeneration(format!("Invalid TTL duration: {}", e))
-        })?;
+        let exp = now
+            + chrono::Duration::from_std(self.ttl)
+                .map_err(|e| AuthError::TokenGeneration(format!("Invalid TTL duration: {}", e)))?;
 
         // Generate unique token ID for rotation
         let jti = uuid::Uuid::new_v4().to_string();
@@ -381,8 +381,7 @@ mod tests {
     #[test]
     fn test_different_secrets() {
         let remember1 = RememberMe::with_default_ttl(TEST_SECRET.to_string());
-        let remember2 =
-            RememberMe::with_default_ttl("different-secret-key-32-chars!!".to_string());
+        let remember2 = RememberMe::with_default_ttl("different-secret-key-32-chars!!".to_string());
 
         let token = remember1.generate_token(123).unwrap();
 

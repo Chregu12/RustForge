@@ -2,15 +2,15 @@
 //!
 //! Multi-language support with translation files and locale detection.
 
-pub mod translator;
 pub mod loader;
 pub mod locale;
 pub mod pluralization;
+pub mod translator;
 
-pub use translator::Translator;
-pub use loader::{TranslationLoader, FileLoader};
+pub use loader::{FileLoader, TranslationLoader};
 pub use locale::{Locale, LocaleDetector};
 pub use pluralization::PluralRules;
+pub use translator::Translator;
 
 #[derive(Debug, thiserror::Error)]
 pub enum I18nError {

@@ -22,7 +22,6 @@
 /// let rendered = stub.render(&vars)?;
 /// println!("{}", rendered);
 /// ```
-
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt;
@@ -223,7 +222,8 @@ impl StubManager {
     /// Load stubs from filesystem
     pub fn load_from_filesystem(&mut self) -> Result<(), StubError> {
         // Collect paths first to avoid borrow checker issues
-        let paths: Vec<_> = self.stub_paths
+        let paths: Vec<_> = self
+            .stub_paths
             .iter()
             .filter(|p| p.exists() && p.is_dir())
             .cloned()
@@ -468,12 +468,7 @@ mod tests {
 
     #[test]
     fn test_stub_placeholders() {
-        let stub = Stub::new(
-            "test",
-            "Test",
-            "{{name}}, {{email}}, {{phone}}",
-            "rs",
-        );
+        let stub = Stub::new("test", "Test", "{{name}}, {{email}}, {{phone}}", "rs");
         let placeholders = stub.get_placeholders();
         assert_eq!(placeholders.len(), 3);
         assert!(placeholders.contains(&"name".to_string()));

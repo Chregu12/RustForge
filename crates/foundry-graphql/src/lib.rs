@@ -1,9 +1,9 @@
-pub mod error;
-pub mod schema;
-pub mod types;
-pub mod resolvers;
 pub mod context;
+pub mod error;
+pub mod resolvers;
+pub mod schema;
 pub mod server;
+pub mod types;
 
 pub use context::GraphQLContext;
 pub use schema::{build_schema, RustForgeSchema};

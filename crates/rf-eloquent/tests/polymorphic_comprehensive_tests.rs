@@ -8,8 +8,7 @@
 //! - Integration Tests (5 tests)
 
 use rf_eloquent::polymorphic_impl::{
-    morph_many::*, morph_one::*, morph_to::*, morph_to_many::*,
-    polymorphic::*, type_registry::*,
+    morph_many::*, morph_one::*, morph_to::*, morph_to_many::*, polymorphic::*, type_registry::*,
 };
 use std::any::Any;
 use std::sync::Arc;
@@ -64,8 +63,7 @@ fn test_morph_one_multiple_parent_types() {
 #[test]
 fn test_morph_one_builder_pattern() {
     let morph_one = MorphOne::<String>::new(1, "Post", "imageable");
-    let builder = MorphOneBuilder::new(morph_one)
-        .order_by("created_at", "desc");
+    let builder = MorphOneBuilder::new(morph_one).order_by("created_at", "desc");
 
     assert_eq!(builder.relationship().parent_id(), 1);
     assert_eq!(builder.relationship().parent_type(), "Post");
@@ -117,8 +115,14 @@ fn test_morph_many_multiple_parent_types() {
     assert_eq!(photo_comments.parent_type(), "Photo");
 
     // Same relation name (all commentable)
-    assert_eq!(post_comments.relation_name(), video_comments.relation_name());
-    assert_eq!(video_comments.relation_name(), photo_comments.relation_name());
+    assert_eq!(
+        post_comments.relation_name(),
+        video_comments.relation_name()
+    );
+    assert_eq!(
+        video_comments.relation_name(),
+        photo_comments.relation_name()
+    );
 }
 
 #[test]
@@ -183,18 +187,18 @@ async fn test_morph_to_with_type_registry() {
     // Register Post type
     GLOBAL_TYPE_REGISTRY
         .register("Post", |id, _db| {
-            Box::pin(async move {
-                Ok(Box::new(format!("Post-{}", id)) as Box<dyn Any + Send + Sync>)
-            })
+            Box::pin(
+                async move { Ok(Box::new(format!("Post-{}", id)) as Box<dyn Any + Send + Sync>) },
+            )
         })
         .await;
 
     // Register Video type
     GLOBAL_TYPE_REGISTRY
         .register("Video", |id, _db| {
-            Box::pin(async move {
-                Ok(Box::new(format!("Video-{}", id)) as Box<dyn Any + Send + Sync>)
-            })
+            Box::pin(
+                async move { Ok(Box::new(format!("Video-{}", id)) as Box<dyn Any + Send + Sync>) },
+            )
         })
         .await;
 
@@ -270,7 +274,11 @@ fn test_morph_to_many_shared_pivot_table() {
 fn test_morph_to_many_builder_with_pivot() {
     let morph_to_many = MorphToMany::<String>::new(1, "Post", "taggable", "taggables");
     let builder = MorphToManyBuilder::new(morph_to_many)
-        .with_pivot(vec!["created_at".to_string(), "order".to_string(), "status".to_string()])
+        .with_pivot(vec![
+            "created_at".to_string(),
+            "order".to_string(),
+            "status".to_string(),
+        ])
         .order_by("name", "asc")
         .limit(25);
 
@@ -338,9 +346,9 @@ async fn test_multiple_morphable_types_registered() {
 
     GLOBAL_TYPE_REGISTRY
         .register("Page", |id, _db| {
-            Box::pin(async move {
-                Ok(Box::new(format!("Page-{}", id)) as Box<dyn Any + Send + Sync>)
-            })
+            Box::pin(
+                async move { Ok(Box::new(format!("Page-{}", id)) as Box<dyn Any + Send + Sync>) },
+            )
         })
         .await;
 
@@ -402,9 +410,7 @@ async fn test_type_registry_concurrent_registration() {
             let reg = Arc::clone(&registry);
             task::spawn(async move {
                 reg.register(&format!("Type{}", i), move |id, _db| {
-                    Box::pin(async move {
-                        Ok(Box::new(id * i) as Box<dyn Any + Send + Sync>)
-                    })
+                    Box::pin(async move { Ok(Box::new(id * i) as Box<dyn Any + Send + Sync>) })
                 })
                 .await;
             })
@@ -429,9 +435,9 @@ async fn test_morph_to_dynamic_resolution() {
     // Test dynamic type resolution
     GLOBAL_TYPE_REGISTRY
         .register("DynamicModel", |id, _db| {
-            Box::pin(async move {
-                Ok(Box::new(vec![id, id * 2, id * 3]) as Box<dyn Any + Send + Sync>)
-            })
+            Box::pin(
+                async move { Ok(Box::new(vec![id, id * 2, id * 3]) as Box<dyn Any + Send + Sync>) },
+            )
         })
         .await;
 

@@ -23,7 +23,7 @@ pub struct PersonalAccessToken {
 /// New token with plaintext value (only returned once)
 #[derive(Debug, Clone)]
 pub struct NewToken {
-    pub access_token: String,    // Plaintext token (show once)
+    pub access_token: String, // Plaintext token (show once)
     pub token: PersonalAccessToken,
 }
 

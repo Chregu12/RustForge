@@ -16,12 +16,13 @@ struct RegistryState {
     lookup: HashMap<String, usize>,
 }
 
-
 impl CommandRegistry {
     #[instrument(skip(self, command), fields(command_name = %command.descriptor().name))]
     pub fn register(&self, command: DynCommand) -> Result<(), ApplicationError> {
         let descriptor = command.descriptor().clone();
-        let mut inner = self.inner.lock()
+        let mut inner = self
+            .inner
+            .lock()
             .map_err(|_| ApplicationError::RegistryCorrupted)?;
         let index = inner.commands.len();
         let mut keys = Vec::new();
@@ -49,7 +50,9 @@ impl CommandRegistry {
 
     #[instrument(skip(self), fields(command))]
     pub fn resolve(&self, command: &str) -> Result<Option<DynCommand>, ApplicationError> {
-        let inner = self.inner.lock()
+        let inner = self
+            .inner
+            .lock()
             .map_err(|_| ApplicationError::RegistryCorrupted)?;
         let key = command.to_lowercase();
         let index = inner.lookup.get(&key);
@@ -65,7 +68,9 @@ impl CommandRegistry {
     }
 
     pub fn descriptors(&self) -> Result<Vec<CommandDescriptor>, ApplicationError> {
-        let inner = self.inner.lock()
+        let inner = self
+            .inner
+            .lock()
             .map_err(|_| ApplicationError::RegistryCorrupted)?;
         Ok(inner
             .commands
@@ -75,7 +80,9 @@ impl CommandRegistry {
     }
 
     pub fn len(&self) -> Result<usize, ApplicationError> {
-        let inner = self.inner.lock()
+        let inner = self
+            .inner
+            .lock()
             .map_err(|_| ApplicationError::RegistryCorrupted)?;
         Ok(inner.commands.len())
     }

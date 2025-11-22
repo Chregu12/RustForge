@@ -49,10 +49,7 @@ tokio = "1"
 fn test_sanitized_name() {
     // Test name sanitization logic
     let name = "My-Cool App";
-    let sanitized = name
-        .to_lowercase()
-        .replace('-', "_")
-        .replace(' ', "_");
+    let sanitized = name.to_lowercase().replace('-', "_").replace(' ', "_");
 
     assert_eq!(sanitized, "my_cool_app");
 }
@@ -105,16 +102,14 @@ edition = "2021"
 
 [dependencies]
 "#;
-        fs::write(project_path.join("Cargo.toml"), cargo_toml)
-            .expect("Failed to write Cargo.toml");
+        fs::write(project_path.join("Cargo.toml"), cargo_toml).expect("Failed to write Cargo.toml");
 
         // Create minimal main.rs
         let main_rs = r#"fn main() {
     println!("Hello, world!");
 }
 "#;
-        fs::write(project_path.join("src/main.rs"), main_rs)
-            .expect("Failed to write main.rs");
+        fs::write(project_path.join("src/main.rs"), main_rs).expect("Failed to write main.rs");
 
         // Verify structure
         assert!(project_path.join("Cargo.toml").exists());

@@ -64,7 +64,8 @@ impl JobInfo {
         self.completed_at = Some(Utc::now());
 
         if let Some(started) = self.started_at {
-            self.duration_ms = Some((self.completed_at.unwrap() - started).num_milliseconds() as u64);
+            self.duration_ms =
+                Some((self.completed_at.unwrap() - started).num_milliseconds() as u64);
         }
 
         self
@@ -77,7 +78,8 @@ impl JobInfo {
         self.error = Some(error.into());
 
         if let Some(started) = self.started_at {
-            self.duration_ms = Some((self.completed_at.unwrap() - started).num_milliseconds() as u64);
+            self.duration_ms =
+                Some((self.completed_at.unwrap() - started).num_milliseconds() as u64);
         }
 
         self
@@ -147,8 +149,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_job_info_creation() {
-        let info = JobInfo::new("SendEmailJob", "emails")
-            .with_payload(json!({"to": "user@example.com"}));
+        let info =
+            JobInfo::new("SendEmailJob", "emails").with_payload(json!({"to": "user@example.com"}));
 
         assert_eq!(info.job_name, "SendEmailJob");
         assert_eq!(info.queue, "emails");
@@ -189,9 +191,23 @@ mod tests {
         let storage = Storage::new();
         let watcher = JobWatcher::new(storage);
 
-        watcher.record(JobInfo::new("Job1", "default").processing().completed()).await;
-        watcher.record(JobInfo::new("Job2", "default").processing().failed("Connection timeout")).await;
-        watcher.record(JobInfo::new("Job3", "default").processing().failed("Invalid data")).await;
+        watcher
+            .record(JobInfo::new("Job1", "default").processing().completed())
+            .await;
+        watcher
+            .record(
+                JobInfo::new("Job2", "default")
+                    .processing()
+                    .failed("Connection timeout"),
+            )
+            .await;
+        watcher
+            .record(
+                JobInfo::new("Job3", "default")
+                    .processing()
+                    .failed("Invalid data"),
+            )
+            .await;
 
         let failed = watcher.failed_jobs().await;
         assert_eq!(failed.len(), 2);

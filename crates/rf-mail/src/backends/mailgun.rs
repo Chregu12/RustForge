@@ -47,7 +47,10 @@
 //! # }
 //! ```
 
-use crate::{error::{MailError, MailResult}, Mail, Mailer};
+use crate::{
+    error::{MailError, MailResult},
+    Mail, Mailer,
+};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -227,12 +230,7 @@ impl MailgunMailer {
 
         form.insert(
             "o:tracking-opens",
-            if self.config.track_opens {
-                "yes"
-            } else {
-                "no"
-            }
-            .to_string(),
+            if self.config.track_opens { "yes" } else { "no" }.to_string(),
         );
 
         // Test mode
@@ -351,10 +349,7 @@ mod tests {
 
     #[test]
     fn test_mailgun_region() {
-        assert_eq!(
-            MailgunRegion::US.api_base(),
-            "https://api.mailgun.net/v3"
-        );
+        assert_eq!(MailgunRegion::US.api_base(), "https://api.mailgun.net/v3");
         assert_eq!(
             MailgunRegion::EU.api_base(),
             "https://api.eu.mailgun.net/v3"

@@ -22,33 +22,25 @@ impl MaintenanceMode {
 
     /// Enable maintenance mode
     pub fn enable(&self) -> Result<()> {
-        let state = MaintenanceState::new(
-            self.config.message.clone(),
-            self.config.secret.clone(),
-        );
+        let state = MaintenanceState::new(self.config.message.clone(), self.config.secret.clone());
 
         let json = serde_json::to_string_pretty(&state)
             .context("Failed to serialize maintenance state")?;
 
-        fs::write(&self.config.file_path, json)
-            .context("Failed to write maintenance file")?;
+        fs::write(&self.config.file_path, json).context("Failed to write maintenance file")?;
 
         Ok(())
     }
 
     /// Enable with custom retry-after
     pub fn enable_with_retry(&self, retry_after_seconds: u64) -> Result<()> {
-        let state = MaintenanceState::new(
-            self.config.message.clone(),
-            self.config.secret.clone(),
-        )
-        .with_retry_after(retry_after_seconds);
+        let state = MaintenanceState::new(self.config.message.clone(), self.config.secret.clone())
+            .with_retry_after(retry_after_seconds);
 
         let json = serde_json::to_string_pretty(&state)
             .context("Failed to serialize maintenance state")?;
 
-        fs::write(&self.config.file_path, json)
-            .context("Failed to write maintenance file")?;
+        fs::write(&self.config.file_path, json).context("Failed to write maintenance file")?;
 
         Ok(())
     }
@@ -56,8 +48,7 @@ impl MaintenanceMode {
     /// Disable maintenance mode
     pub fn disable(&self) -> Result<()> {
         if self.config.file_path.exists() {
-            fs::remove_file(&self.config.file_path)
-                .context("Failed to remove maintenance file")?;
+            fs::remove_file(&self.config.file_path).context("Failed to remove maintenance file")?;
         }
         Ok(())
     }
@@ -71,8 +62,8 @@ impl MaintenanceMode {
         let content = fs::read_to_string(&self.config.file_path)
             .context("Failed to read maintenance file")?;
 
-        let state: MaintenanceState = serde_json::from_str(&content)
-            .context("Failed to parse maintenance state")?;
+        let state: MaintenanceState =
+            serde_json::from_str(&content).context("Failed to parse maintenance state")?;
 
         Ok(Some(state))
     }
@@ -85,8 +76,7 @@ impl MaintenanceMode {
             let json = serde_json::to_string_pretty(&state)
                 .context("Failed to serialize maintenance state")?;
 
-            fs::write(&self.config.file_path, json)
-                .context("Failed to write maintenance file")?;
+            fs::write(&self.config.file_path, json).context("Failed to write maintenance file")?;
         }
         Ok(())
     }

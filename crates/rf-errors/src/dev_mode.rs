@@ -243,7 +243,11 @@ impl<'a> DevErrorDisplay<'a> {
         let mut output = String::new();
         output.push('\n');
         output.push_str(&format!("{}\n", "Stack Trace:".bright_cyan().bold()));
-        output.push_str(&"  (Set RUST_BACKTRACE=1 for full trace)\n".bright_black().to_string());
+        output.push_str(
+            &"  (Set RUST_BACKTRACE=1 for full trace)\n"
+                .bright_black()
+                .to_string(),
+        );
 
         Some(output)
     }
@@ -262,8 +266,7 @@ pub fn format_dev_error(error: &RustForgeError) -> String {
 
 /// Format error with full backtrace
 pub fn format_dev_error_verbose(error: &RustForgeError) -> String {
-    DevErrorDisplay::new(error)
-        .format_terminal()
+    DevErrorDisplay::new(error).format_terminal()
 }
 
 /// Format error without code snippet (for logs)
@@ -276,8 +279,8 @@ pub fn format_dev_error_compact(error: &RustForgeError) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::error::DatabaseError;
     use crate::context::{ErrorContext, ErrorLocation};
+    use crate::error::DatabaseError;
 
     #[test]
     fn test_dev_display_creation() {

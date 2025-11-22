@@ -202,7 +202,8 @@ impl Worker {
                 for queue in &config.queues {
                     match queue_manager.pop_nowait(queue).await {
                         Ok(Some(payload)) => {
-                            Self::process_job(id, payload, &queue_manager, &registry, &config).await;
+                            Self::process_job(id, payload, &queue_manager, &registry, &config)
+                                .await;
                             processed = true;
                             break; // Process one job at a time
                         }
@@ -372,7 +373,10 @@ impl Worker {
 
             // Re-queue the SAME payload (not a DummyJob!)
             // This preserves all job data and metadata
-            if let Err(e) = queue_manager.push_raw(&payload.queue, payload.clone()).await {
+            if let Err(e) = queue_manager
+                .push_raw(&payload.queue, payload.clone())
+                .await
+            {
                 tracing::error!(
                     job_id = %payload.id,
                     job_type = %payload.job_type,

@@ -151,10 +151,7 @@ async fn test_redis_failed_job_handling() {
     let reserved = queue.reserve("default").await.unwrap();
     assert!(reserved.is_some());
 
-    queue
-        .fail(&job_id, "Test error message")
-        .await
-        .unwrap();
+    queue.fail(&job_id, "Test error message").await.unwrap();
 
     // Job should be in failed queue
     // (In real implementation, you'd query the failed queue)
@@ -166,7 +163,9 @@ async fn test_redis_failed_job_handling() {
 #[tokio::test]
 async fn test_redis_job_retry_with_exponential_backoff() {
     if !redis_available().await {
-        eprintln!("⏭️  Skipping test_redis_job_retry_with_exponential_backoff: Redis not available");
+        eprintln!(
+            "⏭️  Skipping test_redis_job_retry_with_exponential_backoff: Redis not available"
+        );
         eprintln!("   Start services with: ./scripts/test-env-up.sh");
         return;
     }
@@ -204,7 +203,9 @@ async fn test_redis_concurrent_workers() {
         return;
     }
     let redis_url = get_redis_url();
-    let queue = RedisQueue::new(&redis_url, "test_concurrent").await.unwrap();
+    let queue = RedisQueue::new(&redis_url, "test_concurrent")
+        .await
+        .unwrap();
     queue.clear("default").await.unwrap();
 
     // Push multiple jobs
@@ -328,7 +329,9 @@ async fn test_redis_queue_throughput() {
         return;
     }
     let redis_url = get_redis_url();
-    let queue = RedisQueue::new(&redis_url, "test_throughput").await.unwrap();
+    let queue = RedisQueue::new(&redis_url, "test_throughput")
+        .await
+        .unwrap();
     queue.clear("default").await.unwrap();
 
     let start = std::time::Instant::now();

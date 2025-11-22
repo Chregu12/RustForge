@@ -1,7 +1,7 @@
 //! Configuration manager
 
-use std::sync::{Arc, RwLock};
 use crate::{ConfigCache, ConfigRepository, Result};
+use std::sync::{Arc, RwLock};
 
 pub struct ConfigManager<R: ConfigRepository> {
     repository: R,
@@ -36,7 +36,9 @@ impl<R: ConfigRepository> ConfigManager<R> {
     }
 
     pub async fn set(&self, key: String, value: serde_json::Value) -> Result<()> {
-        self.repository.set(key.clone(), value.clone(), &self.environment).await?;
+        self.repository
+            .set(key.clone(), value.clone(), &self.environment)
+            .await?;
         self.cache.write().unwrap().set(key, value);
         Ok(())
     }

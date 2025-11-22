@@ -27,7 +27,9 @@ impl OptimizeCommand {
         Self { descriptor }
     }
 
-    async fn optimize_config_cache(_ctx: &CommandContext) -> Result<OptimizationResult, CommandError> {
+    async fn optimize_config_cache(
+        _ctx: &CommandContext,
+    ) -> Result<OptimizationResult, CommandError> {
         info!("Optimizing config cache...");
 
         // Create cache directory if it doesn't exist
@@ -56,8 +58,11 @@ impl OptimizeCommand {
             "_cached_at": chrono::Utc::now().to_rfc3339(),
         });
 
-        fs::write(&cached_file, serde_json::to_string_pretty(&cache_content).unwrap())
-            .map_err(|e| CommandError::Message(format!("Failed to write config cache: {}", e)))?;
+        fs::write(
+            &cached_file,
+            serde_json::to_string_pretty(&cache_content).unwrap(),
+        )
+        .map_err(|e| CommandError::Message(format!("Failed to write config cache: {}", e)))?;
 
         Ok(OptimizationResult {
             name: "Config Cache".to_string(),
@@ -68,7 +73,9 @@ impl OptimizeCommand {
         })
     }
 
-    async fn optimize_route_cache(_ctx: &CommandContext) -> Result<OptimizationResult, CommandError> {
+    async fn optimize_route_cache(
+        _ctx: &CommandContext,
+    ) -> Result<OptimizationResult, CommandError> {
         info!("Optimizing route cache...");
 
         // Create cache directory if it doesn't exist
@@ -123,7 +130,9 @@ impl OptimizeCommand {
         })
     }
 
-    async fn optimize_in_memory_cache(ctx: &CommandContext) -> Result<OptimizationResult, CommandError> {
+    async fn optimize_in_memory_cache(
+        ctx: &CommandContext,
+    ) -> Result<OptimizationResult, CommandError> {
         info!("Optimizing in-memory cache...");
 
         // Pre-warm certain cache keys
@@ -152,7 +161,8 @@ impl OptimizeCommand {
             ));
         }
 
-        hints.push("Consider running 'cargo build --release' for production deployment".to_string());
+        hints
+            .push("Consider running 'cargo build --release' for production deployment".to_string());
         hints.push("Run 'foundry optimize' regularly to maintain optimal performance".to_string());
 
         // Check if all optimizations succeeded
@@ -225,7 +235,10 @@ impl FoundryCommand for OptimizeCommand {
         let total_operations = success_count + errors.len();
 
         let mut message_lines = vec![
-            format!("Application optimization completed: {}/{} successful", success_count, total_operations),
+            format!(
+                "Application optimization completed: {}/{} successful",
+                success_count, total_operations
+            ),
             String::new(),
         ];
 
@@ -295,9 +308,12 @@ mod tests {
             seeds: std::sync::Arc::new(foundry_infra::SeaOrmSeedService::default()),
             validation: std::sync::Arc::new(foundry_infra::SimpleValidationService::default()),
             storage: std::sync::Arc::new(foundry_infra::FileStorageAdapter::new(
-                std::sync::Arc::new(foundry_storage::manager::StorageManager::new(
-                    foundry_storage::config::StorageConfig::from_env()
-                ).unwrap())
+                std::sync::Arc::new(
+                    foundry_storage::manager::StorageManager::new(
+                        foundry_storage::config::StorageConfig::from_env(),
+                    )
+                    .unwrap(),
+                ),
             )),
             cache: std::sync::Arc::new(foundry_infra::InMemoryCacheStore::default()),
             queue: std::sync::Arc::new(foundry_infra::InMemoryQueue::default()),
@@ -313,9 +329,7 @@ mod tests {
         let result = command.execute(ctx).await.unwrap();
 
         // Should succeed or partially succeed
-        assert!(
-            result.status == CommandStatus::Success || result.status == CommandStatus::Failure
-        );
+        assert!(result.status == CommandStatus::Success || result.status == CommandStatus::Failure);
         assert!(result.message.is_some());
         assert!(result.data.is_some());
 
@@ -372,7 +386,9 @@ mod tests {
     #[tokio::test]
     async fn test_optimize_in_memory_cache() {
         let ctx = create_test_context();
-        let result = OptimizeCommand::optimize_in_memory_cache(&ctx).await.unwrap();
+        let result = OptimizeCommand::optimize_in_memory_cache(&ctx)
+            .await
+            .unwrap();
 
         assert_eq!(result.name, "In-Memory Cache");
         assert_eq!(result.status, "success");
@@ -380,15 +396,13 @@ mod tests {
 
     #[tokio::test]
     async fn test_performance_hints_generation() {
-        let results = vec![
-            OptimizationResult {
-                name: "Test".to_string(),
-                status: "success".to_string(),
-                details: "Details".to_string(),
-                files_cached: 5,
-                size_bytes: 1024,
-            },
-        ];
+        let results = vec![OptimizationResult {
+            name: "Test".to_string(),
+            status: "success".to_string(),
+            details: "Details".to_string(),
+            files_cached: 5,
+            size_bytes: 1024,
+        }];
 
         let hints = OptimizeCommand::calculate_performance_hints(&results);
         assert!(!hints.is_empty());

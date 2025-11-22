@@ -129,9 +129,7 @@ where
         morph_type: &str,
         morph_id: i64,
     ) -> PolymorphicResult<Box<dyn Any + Send + Sync>> {
-        GLOBAL_TYPE_REGISTRY
-            .resolve(morph_type, morph_id, db)
-            .await
+        GLOBAL_TYPE_REGISTRY.resolve(morph_type, morph_id, db).await
     }
 }
 
@@ -201,9 +199,7 @@ mod tests {
         // Register a test type
         GLOBAL_TYPE_REGISTRY
             .register("DynamicModel", |id, _db| {
-                Box::pin(async move {
-                    Ok(Box::new(id * 2) as Box<dyn Any + Send + Sync>)
-                })
+                Box::pin(async move { Ok(Box::new(id * 2) as Box<dyn Any + Send + Sync>) })
             })
             .await;
 

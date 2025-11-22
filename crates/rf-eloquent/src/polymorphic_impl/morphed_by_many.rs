@@ -24,10 +24,7 @@
 //! ```
 
 use super::polymorphic::PolymorphicResult;
-use sea_orm::{
-    sea_query::Alias,
-    DatabaseConnection, EntityTrait, FromQueryResult,
-};
+use sea_orm::{sea_query::Alias, DatabaseConnection, EntityTrait, FromQueryResult};
 use std::marker::PhantomData;
 
 /// MorphedByMany relationship - inverse of MorphToMany
@@ -185,7 +182,7 @@ impl<T> MorphedByMany<T> {
         // TODO: Implement MorphedByMany::attach()
         use super::polymorphic::PolymorphicError;
         Err(PolymorphicError::NotImplemented(
-            "MorphedByMany::attach not yet implemented".to_string()
+            "MorphedByMany::attach not yet implemented".to_string(),
         ))
     }
 
@@ -208,7 +205,7 @@ impl<T> MorphedByMany<T> {
         // TODO: Implement MorphedByMany::detach()
         use super::polymorphic::PolymorphicError;
         Err(PolymorphicError::NotImplemented(
-            "MorphedByMany::detach not yet implemented".to_string()
+            "MorphedByMany::detach not yet implemented".to_string(),
         ))
     }
 
@@ -231,7 +228,7 @@ impl<T> MorphedByMany<T> {
         // TODO: Implement MorphedByMany::sync()
         use super::polymorphic::PolymorphicError;
         Err(PolymorphicError::NotImplemented(
-            "MorphedByMany::sync not yet implemented".to_string()
+            "MorphedByMany::sync not yet implemented".to_string(),
         ))
     }
 }

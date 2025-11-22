@@ -21,12 +21,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("✨ Installing authentication scaffolding...\n");
 
     // Install with full options
-    breeze.install(&InstallOptions {
-        with_api: true,
-        with_email_verification: true,
-        with_password_reset: true,
-        output_dir: None,
-    }).await?;
+    breeze
+        .install(&InstallOptions {
+            with_api: true,
+            with_email_verification: true,
+            with_password_reset: true,
+            output_dir: None,
+        })
+        .await?;
 
     println!("✅ Installation complete!\n");
 
@@ -39,7 +41,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     if views_dir.exists() {
         for entry in std::fs::read_dir(views_dir.join("auth"))? {
             let entry = entry?;
-            println!("  - resources/views/auth/{}", entry.file_name().to_string_lossy());
+            println!(
+                "  - resources/views/auth/{}",
+                entry.file_name().to_string_lossy()
+            );
         }
     }
 
@@ -49,7 +54,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     if controllers_dir.exists() {
         for entry in std::fs::read_dir(&controllers_dir)? {
             let entry = entry?;
-            println!("  - src/controllers/auth/{}", entry.file_name().to_string_lossy());
+            println!(
+                "  - src/controllers/auth/{}",
+                entry.file_name().to_string_lossy()
+            );
         }
     }
 

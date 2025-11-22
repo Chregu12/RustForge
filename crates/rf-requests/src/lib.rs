@@ -41,19 +41,19 @@
 //! }
 //! ```
 
-pub mod form_request;
 pub mod authorization;
+pub mod form_request;
 pub mod validation;
 
+pub use authorization::{
+    Authorizable, AuthorizationChecker, AuthorizationPolicy, AuthorizationResult,
+};
 pub use form_request::{
     FormRequest, FormRequestError, FormRequestResult, ValidationRule, ValidationRulesBuilder,
 };
-pub use authorization::{
-    Authorizable, AuthorizationPolicy, AuthorizationChecker, AuthorizationResult,
-};
 pub use validation::{
-    Validator, ValidationResult, EmailValidator, LengthValidator, UrlValidator, NumericValidator,
-    CustomMessages,
+    CustomMessages, EmailValidator, LengthValidator, NumericValidator, UrlValidator,
+    ValidationResult, Validator,
 };
 
 #[cfg(test)]

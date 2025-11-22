@@ -30,7 +30,7 @@ impl Default for HealthCheckConfig {
             cache_url: None,
             min_rust_version: Some("1.70.0".to_string()),
             min_disk_space_mb: 1024, // 1 GB
-            min_memory_mb: 512,       // 512 MB
+            min_memory_mb: 512,      // 512 MB
         }
     }
 }

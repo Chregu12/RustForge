@@ -122,7 +122,10 @@ struct RegisterUserRequest;
 impl FormRequest for RegisterUserRequest {
     fn rules(&self) -> FormRequestValidator {
         FormRequestValidator::new()
-            .rule("name", vec![required(), min_length(3), max_length(50), alpha()])
+            .rule(
+                "name",
+                vec![required(), min_length(3), max_length(50), alpha()],
+            )
             .rule("email", vec![required(), email(), max_length(255)])
             .rule(
                 "password",
@@ -242,7 +245,10 @@ fn example_all_validation_rules() {
 
     // Format rules
     data.insert("ip".to_string(), "192.168.1.1".to_string());
-    data.insert("uuid".to_string(), "550e8400-e29b-41d4-a716-446655440000".to_string());
+    data.insert(
+        "uuid".to_string(),
+        "550e8400-e29b-41d4-a716-446655440000".to_string(),
+    );
 
     // Comparison rules
     data.insert("password".to_string(), "secret".to_string());

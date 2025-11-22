@@ -46,9 +46,6 @@ impl TestSeeder {
     }
 
     pub async fn run_seeder(&mut self, name: &str) -> anyhow::Result<()> {
-        
-        
-
         Box::pin(async move {
             if self.executed.contains(&name.to_string()) {
                 return Ok(());
@@ -77,7 +74,8 @@ impl TestSeeder {
             self.executed.push(name.to_string());
 
             Ok(())
-        }).await
+        })
+        .await
     }
 
     pub fn reset(&mut self) {

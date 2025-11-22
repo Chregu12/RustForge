@@ -153,7 +153,9 @@ impl RedisCache {
 
         // Try to acquire distributed lock
         let lock_key = self.lock_key(key);
-        let lock_acquired = self.acquire_lock(&lock_key, Duration::from_secs(10)).await?;
+        let lock_acquired = self
+            .acquire_lock(&lock_key, Duration::from_secs(10))
+            .await?;
 
         if lock_acquired {
             // We got the lock, double-check cache and compute if needed
@@ -213,7 +215,8 @@ impl RedisCache {
             .await
             .map_err(|e| CacheError::Backend(e.to_string()))?;
 
-        let _: () = conn.del(lock_key)
+        let _: () = conn
+            .del(lock_key)
             .await
             .map_err(|e| CacheError::Backend(e.to_string()))?;
 
@@ -231,7 +234,8 @@ impl RedisCache {
         let tag_key = self.tag_key(tag);
         let cache_key = self.cache_key(key);
 
-        let _: () = conn.sadd(&tag_key, &cache_key)
+        let _: () = conn
+            .sadd(&tag_key, &cache_key)
             .await
             .map_err(|e| CacheError::Backend(e.to_string()))?;
 
@@ -256,13 +260,15 @@ impl RedisCache {
 
         // Delete all keys
         if !keys.is_empty() {
-            let _: () = conn.del(&keys)
+            let _: () = conn
+                .del(&keys)
                 .await
                 .map_err(|e| CacheError::Backend(e.to_string()))?;
         }
 
         // Delete tag set
-        let _: () = conn.del(&tag_key)
+        let _: () = conn
+            .del(&tag_key)
             .await
             .map_err(|e| CacheError::Backend(e.to_string()))?;
 
@@ -313,7 +319,8 @@ impl Cache for RedisCache {
         let data =
             serde_json::to_vec(value).map_err(|e| CacheError::Serialization(e.to_string()))?;
 
-        let _: () = conn.set_ex(&cache_key, data, ttl.as_secs())
+        let _: () = conn
+            .set_ex(&cache_key, data, ttl.as_secs())
             .await
             .map_err(|e| CacheError::Backend(e.to_string()))?;
 
@@ -329,7 +336,8 @@ impl Cache for RedisCache {
 
         let cache_key = self.cache_key(key);
 
-        let _: () = conn.del(&cache_key)
+        let _: () = conn
+            .del(&cache_key)
             .await
             .map_err(|e| CacheError::Backend(e.to_string()))?;
 
@@ -369,7 +377,8 @@ impl Cache for RedisCache {
 
         // Delete all keys
         if !keys.is_empty() {
-            let _: () = conn.del(&keys)
+            let _: () = conn
+                .del(&keys)
                 .await
                 .map_err(|e| CacheError::Backend(e.to_string()))?;
         }
@@ -424,18 +433,18 @@ mod tests {
     use std::sync::Arc;
 
     async fn create_test_cache() -> RedisCache {
-        let redis_url = std::env::var("REDIS_URL")
-            .unwrap_or_else(|_| "redis://localhost:6379".to_string());
+        let redis_url =
+            std::env::var("REDIS_URL").unwrap_or_else(|_| "redis://localhost:6379".to_string());
         RedisCache::new(&redis_url, "test").await.unwrap()
     }
 
     #[tokio::test]
-async fn test_redis_basic_operations() {
-    if !redis_available().await {
-        eprintln!("⏭️  Skipping test_redis_basic_operations: Redis not available");
-        eprintln!("   Start services with: ./scripts/test-env-up.sh");
-        return;
-    }
+    async fn test_redis_basic_operations() {
+        if !redis_available().await {
+            eprintln!("⏭️  Skipping test_redis_basic_operations: Redis not available");
+            eprintln!("   Start services with: ./scripts/test-env-up.sh");
+            return;
+        }
         let cache = create_test_cache().await;
         cache.flush().await.unwrap();
 
@@ -454,12 +463,12 @@ async fn test_redis_basic_operations() {
     }
 
     #[tokio::test]
-async fn test_redis_distributed_cache() {
-    if !redis_available().await {
-        eprintln!("⏭️  Skipping test_redis_distributed_cache: Redis not available");
-        eprintln!("   Start services with: ./scripts/test-env-up.sh");
-        return;
-    }
+    async fn test_redis_distributed_cache() {
+        if !redis_available().await {
+            eprintln!("⏭️  Skipping test_redis_distributed_cache: Redis not available");
+            eprintln!("   Start services with: ./scripts/test-env-up.sh");
+            return;
+        }
         let cache1 = create_test_cache().await;
         let cache2 = create_test_cache().await;
 
@@ -477,12 +486,12 @@ async fn test_redis_distributed_cache() {
     }
 
     #[tokio::test]
-async fn test_redis_ttl_expiration() {
-    if !redis_available().await {
-        eprintln!("⏭️  Skipping test_redis_ttl_expiration: Redis not available");
-        eprintln!("   Start services with: ./scripts/test-env-up.sh");
-        return;
-    }
+    async fn test_redis_ttl_expiration() {
+        if !redis_available().await {
+            eprintln!("⏭️  Skipping test_redis_ttl_expiration: Redis not available");
+            eprintln!("   Start services with: ./scripts/test-env-up.sh");
+            return;
+        }
         let cache = create_test_cache().await;
         cache.flush().await.unwrap();
 
@@ -501,12 +510,12 @@ async fn test_redis_ttl_expiration() {
     }
 
     #[tokio::test]
-async fn test_redis_tags() {
-    if !redis_available().await {
-        eprintln!("⏭️  Skipping test_redis_tags: Redis not available");
-        eprintln!("   Start services with: ./scripts/test-env-up.sh");
-        return;
-    }
+    async fn test_redis_tags() {
+        if !redis_available().await {
+            eprintln!("⏭️  Skipping test_redis_tags: Redis not available");
+            eprintln!("   Start services with: ./scripts/test-env-up.sh");
+            return;
+        }
         let cache = create_test_cache().await;
         cache.flush().await.unwrap();
 
@@ -533,12 +542,12 @@ async fn test_redis_tags() {
     }
 
     #[tokio::test]
-async fn test_redis_remember_with_lock() {
-    if !redis_available().await {
-        eprintln!("⏭️  Skipping test_redis_remember_with_lock: Redis not available");
-        eprintln!("   Start services with: ./scripts/test-env-up.sh");
-        return;
-    }
+    async fn test_redis_remember_with_lock() {
+        if !redis_available().await {
+            eprintln!("⏭️  Skipping test_redis_remember_with_lock: Redis not available");
+            eprintln!("   Start services with: ./scripts/test-env-up.sh");
+            return;
+        }
         let cache = create_test_cache().await;
         cache.flush().await.unwrap();
 
@@ -568,12 +577,14 @@ async fn test_redis_remember_with_lock() {
     }
 
     #[tokio::test]
-async fn test_redis_concurrent_stampede_prevention() {
-    if !redis_available().await {
-        eprintln!("⏭️  Skipping test_redis_concurrent_stampede_prevention: Redis not available");
-        eprintln!("   Start services with: ./scripts/test-env-up.sh");
-        return;
-    }
+    async fn test_redis_concurrent_stampede_prevention() {
+        if !redis_available().await {
+            eprintln!(
+                "⏭️  Skipping test_redis_concurrent_stampede_prevention: Redis not available"
+            );
+            eprintln!("   Start services with: ./scripts/test-env-up.sh");
+            return;
+        }
         let cache = Arc::new(create_test_cache().await);
         cache.flush().await.unwrap();
 

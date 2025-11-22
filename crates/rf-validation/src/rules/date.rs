@@ -180,10 +180,7 @@ impl BeforeRule {
             .map(|dt| dt.with_timezone(&Utc))
             .or_else(|_| {
                 NaiveDate::parse_from_str(&date_str, "%Y-%m-%d").map(|d| {
-                    DateTime::<Utc>::from_naive_utc_and_offset(
-                        d.and_hms_opt(0, 0, 0).unwrap(),
-                        Utc,
-                    )
+                    DateTime::<Utc>::from_naive_utc_and_offset(d.and_hms_opt(0, 0, 0).unwrap(), Utc)
                 })
             })
             .unwrap_or_else(|_| Utc::now());
@@ -203,16 +200,13 @@ impl Rule for BeforeRule {
             return Ok(());
         }
 
-        let value_date = DateRule::parse_date(value)
-            .ok_or_else(|| "Value must be a valid date".to_string())?;
+        let value_date =
+            DateRule::parse_date(value).ok_or_else(|| "Value must be a valid date".to_string())?;
 
         if value_date < self.date {
             Ok(())
         } else {
-            Err(format!(
-                "This field must be before {}",
-                self.date_str
-            ))
+            Err(format!("This field must be before {}", self.date_str))
         }
     }
 
@@ -242,10 +236,7 @@ impl AfterRule {
             .map(|dt| dt.with_timezone(&Utc))
             .or_else(|_| {
                 NaiveDate::parse_from_str(&date_str, "%Y-%m-%d").map(|d| {
-                    DateTime::<Utc>::from_naive_utc_and_offset(
-                        d.and_hms_opt(0, 0, 0).unwrap(),
-                        Utc,
-                    )
+                    DateTime::<Utc>::from_naive_utc_and_offset(d.and_hms_opt(0, 0, 0).unwrap(), Utc)
                 })
             })
             .unwrap_or_else(|_| Utc::now());
@@ -265,8 +256,8 @@ impl Rule for AfterRule {
             return Ok(());
         }
 
-        let value_date = DateRule::parse_date(value)
-            .ok_or_else(|| "Value must be a valid date".to_string())?;
+        let value_date =
+            DateRule::parse_date(value).ok_or_else(|| "Value must be a valid date".to_string())?;
 
         if value_date > self.date {
             Ok(())
@@ -305,10 +296,7 @@ impl BetweenDatesRule {
             .map(|dt| dt.with_timezone(&Utc))
             .or_else(|_| {
                 NaiveDate::parse_from_str(&start_str, "%Y-%m-%d").map(|d| {
-                    DateTime::<Utc>::from_naive_utc_and_offset(
-                        d.and_hms_opt(0, 0, 0).unwrap(),
-                        Utc,
-                    )
+                    DateTime::<Utc>::from_naive_utc_and_offset(d.and_hms_opt(0, 0, 0).unwrap(), Utc)
                 })
             })
             .unwrap_or_else(|_| Utc::now());
@@ -345,8 +333,8 @@ impl Rule for BetweenDatesRule {
             return Ok(());
         }
 
-        let value_date = DateRule::parse_date(value)
-            .ok_or_else(|| "Value must be a valid date".to_string())?;
+        let value_date =
+            DateRule::parse_date(value).ok_or_else(|| "Value must be a valid date".to_string())?;
 
         if value_date >= self.start && value_date <= self.end {
             Ok(())
@@ -410,8 +398,8 @@ impl Rule for BeforeOrEqualRule {
             return Ok(());
         }
 
-        let value_date = DateRule::parse_date(value)
-            .ok_or_else(|| "Value must be a valid date".to_string())?;
+        let value_date =
+            DateRule::parse_date(value).ok_or_else(|| "Value must be a valid date".to_string())?;
 
         if value_date <= self.date {
             Ok(())
@@ -449,10 +437,7 @@ impl AfterOrEqualRule {
             .map(|dt| dt.with_timezone(&Utc))
             .or_else(|_| {
                 NaiveDate::parse_from_str(&date_str, "%Y-%m-%d").map(|d| {
-                    DateTime::<Utc>::from_naive_utc_and_offset(
-                        d.and_hms_opt(0, 0, 0).unwrap(),
-                        Utc,
-                    )
+                    DateTime::<Utc>::from_naive_utc_and_offset(d.and_hms_opt(0, 0, 0).unwrap(), Utc)
                 })
             })
             .unwrap_or_else(|_| Utc::now());
@@ -472,8 +457,8 @@ impl Rule for AfterOrEqualRule {
             return Ok(());
         }
 
-        let value_date = DateRule::parse_date(value)
-            .ok_or_else(|| "Value must be a valid date".to_string())?;
+        let value_date =
+            DateRule::parse_date(value).ok_or_else(|| "Value must be a valid date".to_string())?;
 
         if value_date >= self.date {
             Ok(())

@@ -71,7 +71,9 @@ impl FoundryCommand for DownCommand {
         fs::write(&path, serde_json::to_string_pretty(&content).unwrap())
             .map_err(|e| CommandError::Other(e.into()))?;
 
-        Ok(CommandResult::success("Anwendung ist jetzt im Wartungsmodus."))
+        Ok(CommandResult::success(
+            "Anwendung ist jetzt im Wartungsmodus.",
+        ))
     }
 }
 
@@ -87,7 +89,9 @@ impl FoundryCommand for UpCommand {
             fs::remove_file(path).map_err(|e| CommandError::Other(e.into()))?;
             Ok(CommandResult::success("Anwendung ist jetzt wieder online."))
         } else {
-            Ok(CommandResult::success("Anwendung war nicht im Wartungsmodus."))
+            Ok(CommandResult::success(
+                "Anwendung war nicht im Wartungsmodus.",
+            ))
         }
     }
 }

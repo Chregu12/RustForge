@@ -29,7 +29,11 @@ impl Channel for SlackChannel {
         "slack"
     }
 
-    async fn send(&self, notification: &dyn Notification, _recipient: &dyn std::any::Any) -> ChannelResult {
+    async fn send(
+        &self,
+        notification: &dyn Notification,
+        _recipient: &dyn std::any::Any,
+    ) -> ChannelResult {
         let payload = json!({
             "text": notification.title(),
             "blocks": [

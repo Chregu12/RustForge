@@ -1,11 +1,11 @@
 mod aliases;
+mod commands;
 mod completion;
 mod config;
 mod errors;
 mod help;
 mod interactive;
 mod progress;
-mod commands;
 
 use anyhow::Result;
 use clap::{CommandFactory, Parser, Subcommand};
@@ -517,7 +517,13 @@ async fn main() -> Result<()> {
             }
         },
         Commands::Queue(queue_cmd) => match queue_cmd {
-            QueueCommands::Work { queue, tries, timeout, max_jobs, memory } => {
+            QueueCommands::Work {
+                queue,
+                tries,
+                timeout,
+                max_jobs,
+                memory,
+            } => {
                 commands::queue::work(queue.as_deref(), tries, timeout, max_jobs, memory).await?;
             }
             QueueCommands::Listen { queue } => {
@@ -555,7 +561,10 @@ async fn main() -> Result<()> {
                 println!();
                 completion::print_install_instructions(shell);
             } else {
-                errors::print_error(&format!("Unknown shell: {}. Supported shells: bash, zsh, fish, powershell", shell));
+                errors::print_error(&format!(
+                    "Unknown shell: {}. Supported shells: bash, zsh, fish, powershell",
+                    shell
+                ));
                 std::process::exit(1);
             }
         }

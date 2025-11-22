@@ -5,10 +5,10 @@
 
 #![cfg(feature = "meilisearch")]
 
+use async_trait::async_trait;
 use rf_search::driver::{ConfigurableDriver, SearchDriver, SearchError};
 use rf_search::drivers::MeilisearchDriver;
-use rf_search::searchable::{Searchable, SearchOptions};
-use async_trait::async_trait;
+use rf_search::searchable::{SearchOptions, Searchable};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -78,7 +78,11 @@ async fn test_meilisearch_driver_creation() {
     let driver = setup_driver().await;
 
     let result = driver.health_check().await;
-    assert!(result.is_ok(), "Health check should succeed. Make sure Meilisearch is running at {}", get_meili_url());
+    assert!(
+        result.is_ok(),
+        "Health check should succeed. Make sure Meilisearch is running at {}",
+        get_meili_url()
+    );
 }
 
 #[tokio::test]
@@ -209,7 +213,10 @@ async fn test_search_documents() {
     assert!(result.is_ok(), "Search should succeed");
 
     let search_result = result.unwrap();
-    assert!(!search_result.hits.is_empty(), "Should find at least one result");
+    assert!(
+        !search_result.hits.is_empty(),
+        "Should find at least one result"
+    );
 
     cleanup_index(&driver).await;
 }
@@ -245,9 +252,7 @@ async fn test_search_with_filters() {
     tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
 
     // Search with filter
-    let options = SearchOptions::new()
-        .filter("category", "books")
-        .limit(10);
+    let options = SearchOptions::new().filter("category", "books").limit(10);
 
     let result = driver.search::<Product>("Rust", Some(options)).await;
     assert!(result.is_ok(), "Search with filter should succeed");
@@ -389,7 +394,10 @@ fn test_meilisearch_stub_returns_error() {
     use rf_search::drivers::MeilisearchDriver;
 
     let result = MeilisearchDriver::new("http://localhost:7700", None);
-    assert!(result.is_err(), "Should return error when feature not enabled");
+    assert!(
+        result.is_err(),
+        "Should return error when feature not enabled"
+    );
 
     if let Err(SearchError::FeatureNotEnabled(feature)) = result {
         assert_eq!(feature, "meilisearch");

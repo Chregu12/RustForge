@@ -2,12 +2,12 @@
 //!
 //! Demonstrates factory states, sequences, and relationships
 
+use async_trait::async_trait;
 use rf_testing::{
     factory::{Factory, FactoryDefinition},
     factory_advanced::{EnhancedFactory, Sequence},
-    Fake, FactoryError,
+    FactoryError, Fake,
 };
-use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
 // Models
@@ -133,8 +133,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         })
         .create()
         .await?;
-    println!("   Created admin: {} - Role: {}, Verified: {}",
-        admin.name, admin.role, admin.is_verified);
+    println!(
+        "   Created admin: {} - Role: {}, Verified: {}",
+        admin.name, admin.role, admin.is_verified
+    );
 
     let unverified = UserFactory::new()
         .state(|u| {
@@ -142,21 +144,32 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         })
         .create()
         .await?;
-    println!("   Created unverified user: {} - Verified: {}",
-        unverified.name, unverified.is_verified);
+    println!(
+        "   Created unverified user: {} - Verified: {}",
+        unverified.name, unverified.is_verified
+    );
 
     // 3. Sequences
     println!("\n3️⃣  Sequence demonstration:");
 
     let seq = Sequence::new();
-    println!("   Sequence values: {}, {}, {}", seq.next(), seq.next(), seq.next());
+    println!(
+        "   Sequence values: {}, {}, {}",
+        seq.next(),
+        seq.next(),
+        seq.next()
+    );
     println!("   Current value: {}", seq.current());
     seq.reset();
     println!("   After reset: {}", seq.next());
 
     let custom_seq = Sequence::starting_at(100);
-    println!("   Custom sequence starting at 100: {}, {}, {}",
-        custom_seq.next(), custom_seq.next(), custom_seq.next());
+    println!(
+        "   Custom sequence starting at 100: {}, {}, {}",
+        custom_seq.next(),
+        custom_seq.next(),
+        custom_seq.next()
+    );
 
     // 4. Batch creation
     println!("\n4️⃣  Batch creation:");
@@ -252,8 +265,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         UserFactory::new().create().await?
     };
 
-    println!("   Created conditional user: {} - Role: {}",
-        conditional_user.name, conditional_user.role);
+    println!(
+        "   Created conditional user: {} - Role: {}",
+        conditional_user.name, conditional_user.role
+    );
 
     // 10. Unique emails with sequence
     println!("\n🔟 Unique emails with sequences:");
@@ -264,10 +279,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let unique_users: Vec<User> = (0..3)
         .map(|_| {
             let id = EMAIL_SEQ.next();
-            UserFactory::new()
-                .state(move |u| {
-                    u.email = format!("unique.user.{}@example.com", id);
-                })
+            UserFactory::new().state(move |u| {
+                u.email = format!("unique.user.{}@example.com", id);
+            })
         })
         .collect::<Vec<_>>();
 

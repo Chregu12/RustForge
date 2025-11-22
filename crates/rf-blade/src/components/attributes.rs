@@ -58,10 +58,8 @@ impl AttributeBag {
             if key == "class" {
                 // Merge class attributes
                 if let Some(existing) = self.attributes.get("class") {
-                    self.attributes.insert(
-                        key.clone(),
-                        format!("{} {}", existing, value),
-                    );
+                    self.attributes
+                        .insert(key.clone(), format!("{} {}", existing, value));
                 } else {
                     self.attributes.insert(key.clone(), value.clone());
                 }
@@ -281,7 +279,10 @@ mod tests {
     #[test]
     fn test_html_escape() {
         let mut bag = AttributeBag::new();
-        bag.set("data".to_string(), "<script>alert('xss')</script>".to_string());
+        bag.set(
+            "data".to_string(),
+            "<script>alert('xss')</script>".to_string(),
+        );
 
         let html = bag.to_html();
 

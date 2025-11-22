@@ -5,10 +5,18 @@ use std::collections::HashMap;
 #[async_trait]
 pub trait TemplateEngine: Send + Sync {
     /// Render a template with the given context
-    async fn render(&self, template: &str, context: &HashMap<String, serde_json::Value>) -> Result<String, TemplateEngineError>;
+    async fn render(
+        &self,
+        template: &str,
+        context: &HashMap<String, serde_json::Value>,
+    ) -> Result<String, TemplateEngineError>;
 
     /// Render a template from file
-    async fn render_file(&self, path: &str, context: &HashMap<String, serde_json::Value>) -> Result<String, TemplateEngineError>;
+    async fn render_file(
+        &self,
+        path: &str,
+        context: &HashMap<String, serde_json::Value>,
+    ) -> Result<String, TemplateEngineError>;
 }
 
 #[derive(Debug, thiserror::Error)]

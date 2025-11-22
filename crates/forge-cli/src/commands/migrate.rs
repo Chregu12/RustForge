@@ -109,9 +109,16 @@ pub async fn run() -> Result<()> {
     }
 
     println!();
-    println!("{} All migrations completed successfully!", "✓".green().bold());
+    println!(
+        "{} All migrations completed successfully!",
+        "✓".green().bold()
+    );
     println!();
-    println!("  {} To rollback, use: {}", "ℹ".blue(), "forge migrate:rollback".yellow());
+    println!(
+        "  {} To rollback, use: {}",
+        "ℹ".blue(),
+        "forge migrate:rollback".yellow()
+    );
 
     Ok(())
 }
@@ -122,7 +129,12 @@ pub async fn rollback(steps: Option<usize>) -> Result<()> {
 
     let steps = steps.unwrap_or(1);
 
-    println!("{}", format!("Rolling back {} batch(es)...", steps).yellow().bold());
+    println!(
+        "{}",
+        format!("Rolling back {} batch(es)...", steps)
+            .yellow()
+            .bold()
+    );
     println!();
 
     // Note: This is a placeholder implementation
@@ -189,7 +201,10 @@ pub async fn rollback(steps: Option<usize>) -> Result<()> {
 pub async fn rollback_batch(batch: usize) -> Result<()> {
     ensure_forge_project()?;
 
-    println!("{}", format!("Rolling back batch {}...", batch).yellow().bold());
+    println!(
+        "{}",
+        format!("Rolling back batch {}...", batch).yellow().bold()
+    );
     println!();
 
     // Note: This is a placeholder implementation
@@ -258,7 +273,10 @@ pub async fn fresh(seed: bool) -> Result<()> {
     ensure_forge_project()?;
 
     println!("{}", "Running fresh migrations...".yellow().bold());
-    println!("  {} This will drop all tables and re-run migrations", "⚠".red());
+    println!(
+        "  {} This will drop all tables and re-run migrations",
+        "⚠".red()
+    );
     if seed {
         println!("  {} Database will be seeded after migration", "ℹ".blue());
     }
@@ -315,7 +333,10 @@ pub async fn fresh(seed: bool) -> Result<()> {
     // Placeholder output
     println!("  {} Re-running all migrations...", "•".cyan());
     println!();
-    println!("{} Fresh migration completed successfully!", "✓".green().bold());
+    println!(
+        "{} Fresh migration completed successfully!",
+        "✓".green().bold()
+    );
 
     // Run seeder if requested
     if seed {
@@ -336,7 +357,10 @@ pub async fn reset() -> Result<()> {
     ensure_forge_project()?;
 
     println!("{}", "Resetting migrations...".yellow().bold());
-    println!("  {} This will rollback all migrations and re-run them", "⚠".red());
+    println!(
+        "  {} This will rollback all migrations and re-run them",
+        "⚠".red()
+    );
     println!();
 
     // Rollback all migrations
@@ -357,7 +381,10 @@ pub async fn reset() -> Result<()> {
     println!();
     println!("  {} Re-running all migrations...", "•".cyan());
     println!();
-    println!("{} Migration reset completed successfully!", "✓".green().bold());
+    println!(
+        "{} Migration reset completed successfully!",
+        "✓".green().bold()
+    );
 
     Ok(())
 }
@@ -431,7 +458,8 @@ pub async fn status() -> Result<()> {
     */
 
     // Placeholder output
-    println!("  {:<60} {:<10} {:<6} {}",
+    println!(
+        "  {:<60} {:<10} {:<6} {}",
         "Migration".bold(),
         "Status".bold(),
         "Batch".bold(),
@@ -458,7 +486,8 @@ pub async fn status() -> Result<()> {
         println!("  {} No migrations found", "ℹ".blue());
     } else {
         for migration in migrations {
-            println!("  {} {:<58} {:<10} {:<6} {}",
+            println!(
+                "  {} {:<58} {:<10} {:<6} {}",
                 "·".bright_black(),
                 migration,
                 "Pending".bright_black(),
@@ -469,8 +498,14 @@ pub async fn status() -> Result<()> {
     }
 
     println!();
-    println!("  {} Database connection not configured in this placeholder", "ℹ".blue());
-    println!("  {} Use rf-orm Migrator in your application for full functionality", "ℹ".blue());
+    println!(
+        "  {} Database connection not configured in this placeholder",
+        "ℹ".blue()
+    );
+    println!(
+        "  {} Use rf-orm Migrator in your application for full functionality",
+        "ℹ".blue()
+    );
 
     Ok(())
 }

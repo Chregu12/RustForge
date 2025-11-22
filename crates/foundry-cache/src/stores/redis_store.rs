@@ -15,7 +15,10 @@ impl RedisStore {
         Self::with_prefix(url, "cache:")
     }
 
-    pub fn with_prefix(url: impl Into<String>, prefix: impl Into<String>) -> Result<Self, CacheError> {
+    pub fn with_prefix(
+        url: impl Into<String>,
+        prefix: impl Into<String>,
+    ) -> Result<Self, CacheError> {
         let cfg = Config {
             url: Some(url.into()),
             ..Default::default()
@@ -32,7 +35,8 @@ impl RedisStore {
     }
 
     pub fn from_env() -> Result<Self, CacheError> {
-        let url = std::env::var("REDIS_URL").unwrap_or_else(|_| "redis://127.0.0.1:6379".to_string());
+        let url =
+            std::env::var("REDIS_URL").unwrap_or_else(|_| "redis://127.0.0.1:6379".to_string());
         let prefix = std::env::var("CACHE_PREFIX").unwrap_or_else(|_| "cache:".to_string());
         Self::with_prefix(url, prefix)
     }
@@ -72,7 +76,12 @@ impl CacheStore for RedisStore {
         }
     }
 
-    async fn set(&self, key: &str, value: CacheValue, ttl: Option<Duration>) -> Result<(), CacheError> {
+    async fn set(
+        &self,
+        key: &str,
+        value: CacheValue,
+        ttl: Option<Duration>,
+    ) -> Result<(), CacheError> {
         let mut conn = self
             .pool
             .get()
@@ -211,7 +220,7 @@ impl CacheStore for RedisStore {
             .map_err(|e| CacheError::Redis(e.to_string()))?;
 
         Ok(CacheStats {
-            hits: 0,  // Would need to track separately
+            hits: 0, // Would need to track separately
             misses: 0,
             size: 0,
             entries: keys.len() as u64,
@@ -225,12 +234,12 @@ mod tests {
     use super::*;
 
     #[tokio::test]
-async fn test_redis_store_get_set() {
-    if !redis_available().await {
-        eprintln!("⏭️  Skipping test_redis_store_get_set: Redis not available");
-        eprintln!("   Start services with: ./scripts/test-env-up.sh");
-        return;
-    }
+    async fn test_redis_store_get_set() {
+        if !redis_available().await {
+            eprintln!("⏭️  Skipping test_redis_store_get_set: Redis not available");
+            eprintln!("   Start services with: ./scripts/test-env-up.sh");
+            return;
+        }
         let store = RedisStore::new("redis://127.0.0.1:6379").unwrap();
         let value = CacheValue::from_string("test_value");
 
@@ -244,12 +253,12 @@ async fn test_redis_store_get_set() {
     }
 
     #[tokio::test]
-async fn test_redis_store_increment() {
-    if !redis_available().await {
-        eprintln!("⏭️  Skipping test_redis_store_increment: Redis not available");
-        eprintln!("   Start services with: ./scripts/test-env-up.sh");
-        return;
-    }
+    async fn test_redis_store_increment() {
+        if !redis_available().await {
+            eprintln!("⏭️  Skipping test_redis_store_increment: Redis not available");
+            eprintln!("   Start services with: ./scripts/test-env-up.sh");
+            return;
+        }
         let store = RedisStore::new("redis://127.0.0.1:6379").unwrap();
 
         let result = store.increment("counter", 5).await.unwrap();

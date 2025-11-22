@@ -14,8 +14,7 @@ pub type UserId = String;
 #[async_trait]
 pub trait Broadcaster: Send + Sync {
     /// Broadcast event to channel
-    async fn broadcast(&self, channel: &Channel, event: &dyn Event)
-        -> Result<(), BroadcastError>;
+    async fn broadcast(&self, channel: &Channel, event: &dyn Event) -> Result<(), BroadcastError>;
 
     /// Subscribe connection to channel
     async fn subscribe(

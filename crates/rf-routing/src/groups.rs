@@ -252,9 +252,7 @@ pub struct RouteGroupRegistry {
 impl RouteGroupRegistry {
     /// Create a new route group registry.
     pub fn new() -> Self {
-        Self {
-            groups: Vec::new(),
-        }
+        Self { groups: Vec::new() }
     }
 
     /// Register a route group.
@@ -310,9 +308,7 @@ mod tests {
 
     #[test]
     fn test_route_group_middleware() {
-        let group = RouteGroup::new()
-            .middleware("auth")
-            .middleware("throttle");
+        let group = RouteGroup::new().middleware("auth").middleware("throttle");
 
         assert_eq!(group.get_middleware().len(), 2);
         assert!(group.get_middleware().contains(&"auth".to_string()));

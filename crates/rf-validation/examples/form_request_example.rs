@@ -32,10 +32,7 @@ impl FormRequest for CreateUserRequest {
 
         rules.insert(
             "email",
-            vec![
-                Box::new(RequiredRule) as Box<dyn Rule>,
-                Box::new(EmailRule),
-            ],
+            vec![Box::new(RequiredRule) as Box<dyn Rule>, Box::new(EmailRule)],
         );
 
         rules.insert(
@@ -62,7 +59,10 @@ impl FormRequest for CreateUserRequest {
         messages.insert("email.required", "Please provide an email address");
         messages.insert("email.email", "Please provide a valid email address");
         messages.insert("password.required", "Password is required");
-        messages.insert("password.min_length", "Password must be at least 8 characters");
+        messages.insert(
+            "password.min_length",
+            "Password must be at least 8 characters",
+        );
         messages.insert("name.required", "Name is required");
         messages.insert("name.min_length", "Name must be at least 2 characters");
         messages
@@ -129,7 +129,10 @@ impl FormRequest for UpdateUserRequest {
         }
 
         if self.name.is_some() {
-            rules.insert("name", vec![Box::new(MinLengthRule::new(2)) as Box<dyn Rule>]);
+            rules.insert(
+                "name",
+                vec![Box::new(MinLengthRule::new(2)) as Box<dyn Rule>],
+            );
         }
 
         rules
@@ -167,7 +170,9 @@ async fn update_user(Validated(request): Validated<UpdateUserRequest>) -> impl I
     // Update user in database
     let user = UserResponse {
         id: 1,
-        email: request.email.unwrap_or_else(|| "existing@example.com".to_string()),
+        email: request
+            .email
+            .unwrap_or_else(|| "existing@example.com".to_string()),
         name: request.name.unwrap_or_else(|| "Existing Name".to_string()),
     };
 
@@ -183,28 +188,34 @@ async fn main() {
     println!("Server running on http://localhost:3000");
     println!("\nExample requests:");
     println!("\n1. Valid request:");
-    println!(r#"curl -X POST http://localhost:3000/users \
+    println!(
+        r#"curl -X POST http://localhost:3000/users \
   -H "Content-Type: application/json" \
-  -d '{{"email": "user@example.com", "password": "password123", "name": "John Doe", "age": 25}}'"#);
+  -d '{{"email": "user@example.com", "password": "password123", "name": "John Doe", "age": 25}}'"#
+    );
 
     println!("\n2. Invalid request (short password):");
-    println!(r#"curl -X POST http://localhost:3000/users \
+    println!(
+        r#"curl -X POST http://localhost:3000/users \
   -H "Content-Type: application/json" \
-  -d '{{"email": "user@example.com", "password": "short", "name": "John Doe"}}'"#);
+  -d '{{"email": "user@example.com", "password": "short", "name": "John Doe"}}'"#
+    );
 
     println!("\n3. Invalid request (bad email):");
-    println!(r#"curl -X POST http://localhost:3000/users \
+    println!(
+        r#"curl -X POST http://localhost:3000/users \
   -H "Content-Type: application/json" \
-  -d '{{"email": "not-an-email", "password": "password123", "name": "John Doe"}}'"#);
+  -d '{{"email": "not-an-email", "password": "password123", "name": "John Doe"}}'"#
+    );
 
     println!("\n4. Update request:");
-    println!(r#"curl -X POST http://localhost:3000/users/1 \
+    println!(
+        r#"curl -X POST http://localhost:3000/users/1 \
   -H "Content-Type: application/json" \
-  -d '{{"name": "Jane Doe"}}'"#);
+  -d '{{"name": "Jane Doe"}}'"#
+    );
 
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000")
-        .await
-        .unwrap();
+    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
 
     axum::serve(listener, app).await.unwrap();
 }

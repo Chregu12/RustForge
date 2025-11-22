@@ -6,7 +6,7 @@ use qrcode::QrCode;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
-use totp_rs::{Algorithm, TOTP, Secret};
+use totp_rs::{Algorithm, Secret, TOTP};
 
 /// 2FA errors
 #[derive(Debug, Error)]
@@ -71,7 +71,11 @@ impl TotpManager {
         let image = qr.render::<image::Luma<u8>>().build();
 
         let mut bytes = Vec::new();
-        image.write_to(&mut std::io::Cursor::new(&mut bytes), image::ImageFormat::Png)
+        image
+            .write_to(
+                &mut std::io::Cursor::new(&mut bytes),
+                image::ImageFormat::Png,
+            )
             .map_err(|e| TwoFactorError::QrCodeError(e.to_string()))?;
 
         Ok(bytes)
@@ -80,13 +84,17 @@ impl TotpManager {
     /// Verify a TOTP code
     pub fn verify(&self, secret: &str, code: &str) -> TwoFactorResult<bool> {
         let totp = self.create_totp(secret, "")?;
-        Ok(totp.check_current(code).map_err(|_| TwoFactorError::InvalidCode)?)
+        Ok(totp
+            .check_current(code)
+            .map_err(|_| TwoFactorError::InvalidCode)?)
     }
 
     /// Generate current TOTP code (for testing)
     pub fn generate_code(&self, secret: &str) -> TwoFactorResult<String> {
         let totp = self.create_totp(secret, "")?;
-        Ok(totp.generate_current().map_err(|e| TwoFactorError::TotpError(e.to_string()))?)
+        Ok(totp
+            .generate_current()
+            .map_err(|e| TwoFactorError::TotpError(e.to_string()))?)
     }
 
     fn create_totp(&self, secret: &str, account: &str) -> TwoFactorResult<TOTP> {

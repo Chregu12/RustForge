@@ -2,8 +2,8 @@
 //!
 //! Provides customizable error pages for different HTTP status codes.
 
-use crate::error::RustForgeError;
 use crate::context::ErrorContext;
+use crate::error::RustForgeError;
 use std::collections::HashMap;
 
 /// Error pages handler
@@ -16,8 +16,7 @@ impl ErrorPages {
     /// Create a new error pages handler
     pub fn new() -> Self {
         Self {
-            environment: std::env::var("APP_ENV")
-                .unwrap_or_else(|_| "production".to_string()),
+            environment: std::env::var("APP_ENV").unwrap_or_else(|_| "production".to_string()),
             custom_pages: HashMap::new(),
         }
     }
@@ -64,7 +63,8 @@ impl ErrorPages {
     fn render_dev_page(&self, error: &RustForgeError) -> String {
         let status_code = error.status_code();
         let title = get_status_title(status_code);
-        let error_id = error.context()
+        let error_id = error
+            .context()
             .map(|c| c.error_id.clone())
             .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
 
@@ -133,7 +133,8 @@ impl ErrorPages {
         let status_code = error.status_code();
         let title = get_status_title(status_code);
         let message = get_user_friendly_message(status_code);
-        let error_id = error.context()
+        let error_id = error
+            .context()
             .map(|c| c.error_id.clone())
             .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
 
@@ -269,10 +270,12 @@ mod tests {
 
     #[test]
     fn test_set_custom_page() {
-        let pages = ErrorPages::new()
-            .set_page(404, "errors/404.blade.php");
+        let pages = ErrorPages::new().set_page(404, "errors/404.blade.php");
 
-        assert_eq!(pages.custom_pages.get(&404), Some(&"errors/404.blade.php".to_string()));
+        assert_eq!(
+            pages.custom_pages.get(&404),
+            Some(&"errors/404.blade.php".to_string())
+        );
     }
 
     #[test]

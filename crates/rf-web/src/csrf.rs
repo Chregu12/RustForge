@@ -31,8 +31,7 @@ impl CsrfToken {
         rand::thread_rng().fill_bytes(&mut bytes);
 
         Self {
-            token: base64::engine::general_purpose::URL_SAFE_NO_PAD
-                .encode(&bytes),
+            token: base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(&bytes),
             created_at: Utc::now(),
         }
     }
@@ -205,10 +204,7 @@ impl CsrfMiddleware {
         // TODO: Validate token against session token
         // For now, we'll just check if a token exists
         if token.is_none() {
-            return (
-                StatusCode::FORBIDDEN,
-                "CSRF token mismatch",
-            ).into_response();
+            return (StatusCode::FORBIDDEN, "CSRF token mismatch").into_response();
         }
 
         next.run(req).await
@@ -274,9 +270,14 @@ where
 {
     type Response = S::Response;
     type Error = S::Error;
-    type Future = std::pin::Pin<Box<dyn std::future::Future<Output = Result<Self::Response, Self::Error>> + Send>>;
+    type Future = std::pin::Pin<
+        Box<dyn std::future::Future<Output = Result<Self::Response, Self::Error>> + Send>,
+    >;
 
-    fn poll_ready(&mut self, cx: &mut std::task::Context<'_>) -> std::task::Poll<Result<(), Self::Error>> {
+    fn poll_ready(
+        &mut self,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Result<(), Self::Error>> {
         self.inner.poll_ready(cx)
     }
 
@@ -321,7 +322,10 @@ pub fn csrf_token() -> CsrfToken {
 
 /// Helper function to generate CSRF field HTML
 pub fn csrf_field(token: &CsrfToken) -> String {
-    format!(r#"<input type="hidden" name="_token" value="{}">"#, token.token())
+    format!(
+        r#"<input type="hidden" name="_token" value="{}">"#,
+        token.token()
+    )
 }
 
 /// Helper function to get CSRF meta tag HTML

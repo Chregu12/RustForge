@@ -42,7 +42,11 @@ pub struct ValidationError {
 }
 
 impl ValidationError {
-    pub fn new(field: impl Into<String>, message: impl Into<String>, rule: impl Into<String>) -> Self {
+    pub fn new(
+        field: impl Into<String>,
+        message: impl Into<String>,
+        rule: impl Into<String>,
+    ) -> Self {
         Self {
             field: field.into(),
             message: message.into(),
@@ -160,7 +164,12 @@ impl From<HashMap<String, String>> for ValidationData {
 
 /// Trait for validation rules
 pub trait ValidationRuleTrait: Send + Sync {
-    fn validate(&self, field: &str, value: Option<&str>, data: &ValidationData) -> Result<(), ValidationError>;
+    fn validate(
+        &self,
+        field: &str,
+        value: Option<&str>,
+        data: &ValidationData,
+    ) -> Result<(), ValidationError>;
     fn name(&self) -> &str;
 }
 
@@ -173,7 +182,12 @@ pub trait ValidationRuleTrait: Send + Sync {
 pub struct Required;
 
 impl ValidationRuleTrait for Required {
-    fn validate(&self, field: &str, value: Option<&str>, _data: &ValidationData) -> Result<(), ValidationError> {
+    fn validate(
+        &self,
+        field: &str,
+        value: Option<&str>,
+        _data: &ValidationData,
+    ) -> Result<(), ValidationError> {
         if value.is_none() || value.unwrap().trim().is_empty() {
             return Err(ValidationError::new(
                 field,
@@ -206,13 +220,21 @@ impl RequiredIf {
 }
 
 impl ValidationRuleTrait for RequiredIf {
-    fn validate(&self, field: &str, value: Option<&str>, data: &ValidationData) -> Result<(), ValidationError> {
+    fn validate(
+        &self,
+        field: &str,
+        value: Option<&str>,
+        data: &ValidationData,
+    ) -> Result<(), ValidationError> {
         if let Some(other_value) = data.get(&self.other_field) {
             if other_value == self.value {
                 if value.is_none() || value.unwrap().trim().is_empty() {
                     return Err(ValidationError::new(
                         field,
-                        format!("The {} field is required when {} is {}.", field, self.other_field, self.value),
+                        format!(
+                            "The {} field is required when {} is {}.",
+                            field, self.other_field, self.value
+                        ),
                         "required_if",
                     ));
                 }
@@ -241,12 +263,20 @@ impl RequiredWith {
 }
 
 impl ValidationRuleTrait for RequiredWith {
-    fn validate(&self, field: &str, value: Option<&str>, data: &ValidationData) -> Result<(), ValidationError> {
+    fn validate(
+        &self,
+        field: &str,
+        value: Option<&str>,
+        data: &ValidationData,
+    ) -> Result<(), ValidationError> {
         if data.has(&self.other_field) {
             if value.is_none() || value.unwrap().trim().is_empty() {
                 return Err(ValidationError::new(
                     field,
-                    format!("The {} field is required when {} is present.", field, self.other_field),
+                    format!(
+                        "The {} field is required when {} is present.",
+                        field, self.other_field
+                    ),
                     "required_with",
                 ));
             }
@@ -264,7 +294,12 @@ impl ValidationRuleTrait for RequiredWith {
 pub struct Email;
 
 impl ValidationRuleTrait for Email {
-    fn validate(&self, field: &str, value: Option<&str>, _data: &ValidationData) -> Result<(), ValidationError> {
+    fn validate(
+        &self,
+        field: &str,
+        value: Option<&str>,
+        _data: &ValidationData,
+    ) -> Result<(), ValidationError> {
         if let Some(v) = value {
             if !v.is_empty() {
                 let email_regex = Regex::new(r"^[^\s@]+@[^\s@]+\.[^\s@]+$").unwrap();
@@ -290,7 +325,12 @@ impl ValidationRuleTrait for Email {
 pub struct Url;
 
 impl ValidationRuleTrait for Url {
-    fn validate(&self, field: &str, value: Option<&str>, _data: &ValidationData) -> Result<(), ValidationError> {
+    fn validate(
+        &self,
+        field: &str,
+        value: Option<&str>,
+        _data: &ValidationData,
+    ) -> Result<(), ValidationError> {
         if let Some(v) = value {
             if !v.is_empty() {
                 let url_regex = Regex::new(r"^https?://[^\s/$.?#].[^\s]*$").unwrap();
@@ -316,7 +356,12 @@ impl ValidationRuleTrait for Url {
 pub struct Ip;
 
 impl ValidationRuleTrait for Ip {
-    fn validate(&self, field: &str, value: Option<&str>, _data: &ValidationData) -> Result<(), ValidationError> {
+    fn validate(
+        &self,
+        field: &str,
+        value: Option<&str>,
+        _data: &ValidationData,
+    ) -> Result<(), ValidationError> {
         if let Some(v) = value {
             if !v.is_empty() {
                 if v.parse::<std::net::IpAddr>().is_err() {
@@ -341,12 +386,17 @@ impl ValidationRuleTrait for Ip {
 pub struct Uuid;
 
 impl ValidationRuleTrait for Uuid {
-    fn validate(&self, field: &str, value: Option<&str>, _data: &ValidationData) -> Result<(), ValidationError> {
+    fn validate(
+        &self,
+        field: &str,
+        value: Option<&str>,
+        _data: &ValidationData,
+    ) -> Result<(), ValidationError> {
         if let Some(v) = value {
             if !v.is_empty() {
-                let uuid_regex = Regex::new(
-                    r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
-                ).unwrap();
+                let uuid_regex =
+                    Regex::new(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
+                        .unwrap();
                 if !uuid_regex.is_match(v) {
                     return Err(ValidationError::new(
                         field,
@@ -377,12 +427,20 @@ impl MinLength {
 }
 
 impl ValidationRuleTrait for MinLength {
-    fn validate(&self, field: &str, value: Option<&str>, _data: &ValidationData) -> Result<(), ValidationError> {
+    fn validate(
+        &self,
+        field: &str,
+        value: Option<&str>,
+        _data: &ValidationData,
+    ) -> Result<(), ValidationError> {
         if let Some(v) = value {
             if v.len() < self.min {
                 return Err(ValidationError::new(
                     field,
-                    format!("The {} field must be at least {} characters.", field, self.min),
+                    format!(
+                        "The {} field must be at least {} characters.",
+                        field, self.min
+                    ),
                     "min",
                 ));
             }
@@ -408,12 +466,20 @@ impl MaxLength {
 }
 
 impl ValidationRuleTrait for MaxLength {
-    fn validate(&self, field: &str, value: Option<&str>, _data: &ValidationData) -> Result<(), ValidationError> {
+    fn validate(
+        &self,
+        field: &str,
+        value: Option<&str>,
+        _data: &ValidationData,
+    ) -> Result<(), ValidationError> {
         if let Some(v) = value {
             if v.len() > self.max {
                 return Err(ValidationError::new(
                     field,
-                    format!("The {} field must not exceed {} characters.", field, self.max),
+                    format!(
+                        "The {} field must not exceed {} characters.",
+                        field, self.max
+                    ),
                     "max",
                 ));
             }
@@ -440,13 +506,21 @@ impl Between {
 }
 
 impl ValidationRuleTrait for Between {
-    fn validate(&self, field: &str, value: Option<&str>, _data: &ValidationData) -> Result<(), ValidationError> {
+    fn validate(
+        &self,
+        field: &str,
+        value: Option<&str>,
+        _data: &ValidationData,
+    ) -> Result<(), ValidationError> {
         if let Some(v) = value {
             let len = v.len();
             if len < self.min || len > self.max {
                 return Err(ValidationError::new(
                     field,
-                    format!("The {} field must be between {} and {} characters.", field, self.min, self.max),
+                    format!(
+                        "The {} field must be between {} and {} characters.",
+                        field, self.min, self.max
+                    ),
                     "between",
                 ));
             }
@@ -472,12 +546,20 @@ impl Size {
 }
 
 impl ValidationRuleTrait for Size {
-    fn validate(&self, field: &str, value: Option<&str>, _data: &ValidationData) -> Result<(), ValidationError> {
+    fn validate(
+        &self,
+        field: &str,
+        value: Option<&str>,
+        _data: &ValidationData,
+    ) -> Result<(), ValidationError> {
         if let Some(v) = value {
             if v.len() != self.size {
                 return Err(ValidationError::new(
                     field,
-                    format!("The {} field must be exactly {} characters.", field, self.size),
+                    format!(
+                        "The {} field must be exactly {} characters.",
+                        field, self.size
+                    ),
                     "size",
                 ));
             }
@@ -495,7 +577,12 @@ impl ValidationRuleTrait for Size {
 pub struct Numeric;
 
 impl ValidationRuleTrait for Numeric {
-    fn validate(&self, field: &str, value: Option<&str>, _data: &ValidationData) -> Result<(), ValidationError> {
+    fn validate(
+        &self,
+        field: &str,
+        value: Option<&str>,
+        _data: &ValidationData,
+    ) -> Result<(), ValidationError> {
         if let Some(v) = value {
             if !v.is_empty() && v.parse::<f64>().is_err() {
                 return Err(ValidationError::new(
@@ -518,7 +605,12 @@ impl ValidationRuleTrait for Numeric {
 pub struct Integer;
 
 impl ValidationRuleTrait for Integer {
-    fn validate(&self, field: &str, value: Option<&str>, _data: &ValidationData) -> Result<(), ValidationError> {
+    fn validate(
+        &self,
+        field: &str,
+        value: Option<&str>,
+        _data: &ValidationData,
+    ) -> Result<(), ValidationError> {
         if let Some(v) = value {
             if !v.is_empty() && v.parse::<i64>().is_err() {
                 return Err(ValidationError::new(
@@ -541,7 +633,12 @@ impl ValidationRuleTrait for Integer {
 pub struct StringRule;
 
 impl ValidationRuleTrait for StringRule {
-    fn validate(&self, _field: &str, _value: Option<&str>, _data: &ValidationData) -> Result<(), ValidationError> {
+    fn validate(
+        &self,
+        _field: &str,
+        _value: Option<&str>,
+        _data: &ValidationData,
+    ) -> Result<(), ValidationError> {
         // In Rust, everything from form data is already a string
         Ok(())
     }
@@ -556,11 +653,18 @@ impl ValidationRuleTrait for StringRule {
 pub struct Boolean;
 
 impl ValidationRuleTrait for Boolean {
-    fn validate(&self, field: &str, value: Option<&str>, _data: &ValidationData) -> Result<(), ValidationError> {
+    fn validate(
+        &self,
+        field: &str,
+        value: Option<&str>,
+        _data: &ValidationData,
+    ) -> Result<(), ValidationError> {
         if let Some(v) = value {
             if !v.is_empty() {
                 let v_lower = v.to_lowercase();
-                if !["true", "false", "1", "0", "yes", "no", "on", "off"].contains(&v_lower.as_str()) {
+                if !["true", "false", "1", "0", "yes", "no", "on", "off"]
+                    .contains(&v_lower.as_str())
+                {
                     return Err(ValidationError::new(
                         field,
                         format!("The {} field must be a boolean value.", field),
@@ -582,7 +686,12 @@ impl ValidationRuleTrait for Boolean {
 pub struct Array;
 
 impl ValidationRuleTrait for Array {
-    fn validate(&self, _field: &str, _value: Option<&str>, _data: &ValidationData) -> Result<(), ValidationError> {
+    fn validate(
+        &self,
+        _field: &str,
+        _value: Option<&str>,
+        _data: &ValidationData,
+    ) -> Result<(), ValidationError> {
         // For form data, we consider comma-separated values as arrays
         Ok(())
     }
@@ -605,7 +714,12 @@ impl Min {
 }
 
 impl ValidationRuleTrait for Min {
-    fn validate(&self, field: &str, value: Option<&str>, _data: &ValidationData) -> Result<(), ValidationError> {
+    fn validate(
+        &self,
+        field: &str,
+        value: Option<&str>,
+        _data: &ValidationData,
+    ) -> Result<(), ValidationError> {
         if let Some(v) = value {
             if !v.is_empty() {
                 if let Ok(num) = v.parse::<f64>() {
@@ -640,7 +754,12 @@ impl Max {
 }
 
 impl ValidationRuleTrait for Max {
-    fn validate(&self, field: &str, value: Option<&str>, _data: &ValidationData) -> Result<(), ValidationError> {
+    fn validate(
+        &self,
+        field: &str,
+        value: Option<&str>,
+        _data: &ValidationData,
+    ) -> Result<(), ValidationError> {
         if let Some(v) = value {
             if !v.is_empty() {
                 if let Ok(num) = v.parse::<f64>() {
@@ -667,7 +786,12 @@ impl ValidationRuleTrait for Max {
 pub struct Confirmed;
 
 impl ValidationRuleTrait for Confirmed {
-    fn validate(&self, field: &str, value: Option<&str>, data: &ValidationData) -> Result<(), ValidationError> {
+    fn validate(
+        &self,
+        field: &str,
+        value: Option<&str>,
+        data: &ValidationData,
+    ) -> Result<(), ValidationError> {
         let confirmation_field = format!("{}_confirmation", field);
         let confirmation_value = data.get(&confirmation_field);
 
@@ -701,7 +825,12 @@ impl Same {
 }
 
 impl ValidationRuleTrait for Same {
-    fn validate(&self, field: &str, value: Option<&str>, data: &ValidationData) -> Result<(), ValidationError> {
+    fn validate(
+        &self,
+        field: &str,
+        value: Option<&str>,
+        data: &ValidationData,
+    ) -> Result<(), ValidationError> {
         let other_value = data.get(&self.other_field);
         if value != other_value {
             return Err(ValidationError::new(
@@ -733,12 +862,20 @@ impl Different {
 }
 
 impl ValidationRuleTrait for Different {
-    fn validate(&self, field: &str, value: Option<&str>, data: &ValidationData) -> Result<(), ValidationError> {
+    fn validate(
+        &self,
+        field: &str,
+        value: Option<&str>,
+        data: &ValidationData,
+    ) -> Result<(), ValidationError> {
         let other_value = data.get(&self.other_field);
         if value == other_value && value.is_some() {
             return Err(ValidationError::new(
                 field,
-                format!("The {} field must be different from {}.", field, self.other_field),
+                format!(
+                    "The {} field must be different from {}.",
+                    field, self.other_field
+                ),
                 "different",
             ));
         }
@@ -763,7 +900,12 @@ impl In {
 }
 
 impl ValidationRuleTrait for In {
-    fn validate(&self, field: &str, value: Option<&str>, _data: &ValidationData) -> Result<(), ValidationError> {
+    fn validate(
+        &self,
+        field: &str,
+        value: Option<&str>,
+        _data: &ValidationData,
+    ) -> Result<(), ValidationError> {
         if let Some(v) = value {
             if !v.is_empty() && !self.values.contains(&v.to_string()) {
                 return Err(ValidationError::new(
@@ -794,7 +936,12 @@ impl NotIn {
 }
 
 impl ValidationRuleTrait for NotIn {
-    fn validate(&self, field: &str, value: Option<&str>, _data: &ValidationData) -> Result<(), ValidationError> {
+    fn validate(
+        &self,
+        field: &str,
+        value: Option<&str>,
+        _data: &ValidationData,
+    ) -> Result<(), ValidationError> {
         if let Some(v) = value {
             if !v.is_empty() && self.values.contains(&v.to_string()) {
                 return Err(ValidationError::new(
@@ -827,12 +974,16 @@ impl RegexRule {
 }
 
 impl ValidationRuleTrait for RegexRule {
-    fn validate(&self, field: &str, value: Option<&str>, _data: &ValidationData) -> Result<(), ValidationError> {
+    fn validate(
+        &self,
+        field: &str,
+        value: Option<&str>,
+        _data: &ValidationData,
+    ) -> Result<(), ValidationError> {
         if let Some(v) = value {
             if !v.is_empty() {
-                let re = Regex::new(&self.pattern).map_err(|_| {
-                    ValidationError::new(field, "Invalid regex pattern", "regex")
-                })?;
+                let re = Regex::new(&self.pattern)
+                    .map_err(|_| ValidationError::new(field, "Invalid regex pattern", "regex"))?;
                 if !re.is_match(v) {
                     return Err(ValidationError::new(
                         field,
@@ -855,7 +1006,12 @@ impl ValidationRuleTrait for RegexRule {
 pub struct Alpha;
 
 impl ValidationRuleTrait for Alpha {
-    fn validate(&self, field: &str, value: Option<&str>, _data: &ValidationData) -> Result<(), ValidationError> {
+    fn validate(
+        &self,
+        field: &str,
+        value: Option<&str>,
+        _data: &ValidationData,
+    ) -> Result<(), ValidationError> {
         if let Some(v) = value {
             if !v.is_empty() && !v.chars().all(|c| c.is_alphabetic()) {
                 return Err(ValidationError::new(
@@ -878,7 +1034,12 @@ impl ValidationRuleTrait for Alpha {
 pub struct AlphaNumeric;
 
 impl ValidationRuleTrait for AlphaNumeric {
-    fn validate(&self, field: &str, value: Option<&str>, _data: &ValidationData) -> Result<(), ValidationError> {
+    fn validate(
+        &self,
+        field: &str,
+        value: Option<&str>,
+        _data: &ValidationData,
+    ) -> Result<(), ValidationError> {
         if let Some(v) = value {
             if !v.is_empty() && !v.chars().all(|c| c.is_alphanumeric()) {
                 return Err(ValidationError::new(
@@ -901,7 +1062,12 @@ impl ValidationRuleTrait for AlphaNumeric {
 pub struct Date;
 
 impl ValidationRuleTrait for Date {
-    fn validate(&self, field: &str, value: Option<&str>, _data: &ValidationData) -> Result<(), ValidationError> {
+    fn validate(
+        &self,
+        field: &str,
+        value: Option<&str>,
+        _data: &ValidationData,
+    ) -> Result<(), ValidationError> {
         if let Some(v) = value {
             if !v.is_empty() {
                 let date_regex = Regex::new(r"^\d{4}-\d{2}-\d{2}$").unwrap();
@@ -915,7 +1081,8 @@ impl ValidationRuleTrait for Date {
                 // Basic validation for month and day ranges
                 let parts: Vec<&str> = v.split('-').collect();
                 if parts.len() == 3 {
-                    if let (Ok(month), Ok(day)) = (parts[1].parse::<u32>(), parts[2].parse::<u32>()) {
+                    if let (Ok(month), Ok(day)) = (parts[1].parse::<u32>(), parts[2].parse::<u32>())
+                    {
                         if month == 0 || month > 12 || day == 0 || day > 31 {
                             return Err(ValidationError::new(
                                 field,
@@ -943,14 +1110,17 @@ pub struct Before {
 
 impl Before {
     pub fn new(date: impl Into<String>) -> Self {
-        Self {
-            date: date.into(),
-        }
+        Self { date: date.into() }
     }
 }
 
 impl ValidationRuleTrait for Before {
-    fn validate(&self, field: &str, value: Option<&str>, _data: &ValidationData) -> Result<(), ValidationError> {
+    fn validate(
+        &self,
+        field: &str,
+        value: Option<&str>,
+        _data: &ValidationData,
+    ) -> Result<(), ValidationError> {
         if let Some(v) = value {
             if !v.is_empty() {
                 if v >= &self.date {
@@ -978,14 +1148,17 @@ pub struct After {
 
 impl After {
     pub fn new(date: impl Into<String>) -> Self {
-        Self {
-            date: date.into(),
-        }
+        Self { date: date.into() }
     }
 }
 
 impl ValidationRuleTrait for After {
-    fn validate(&self, field: &str, value: Option<&str>, _data: &ValidationData) -> Result<(), ValidationError> {
+    fn validate(
+        &self,
+        field: &str,
+        value: Option<&str>,
+        _data: &ValidationData,
+    ) -> Result<(), ValidationError> {
         if let Some(v) = value {
             if !v.is_empty() {
                 if v <= &self.date {
@@ -1013,7 +1186,10 @@ pub fn required() -> Box<dyn ValidationRuleTrait> {
     Box::new(Required)
 }
 
-pub fn required_if(other_field: impl Into<String>, value: impl Into<String>) -> Box<dyn ValidationRuleTrait> {
+pub fn required_if(
+    other_field: impl Into<String>,
+    value: impl Into<String>,
+) -> Box<dyn ValidationRuleTrait> {
     Box::new(RequiredIf::new(other_field, value))
 }
 
@@ -1147,7 +1323,11 @@ impl Validator {
     }
 
     /// Add validation rules for a field
-    pub fn rule(mut self, field: impl Into<String>, rules: Vec<Box<dyn ValidationRuleTrait>>) -> Self {
+    pub fn rule(
+        mut self,
+        field: impl Into<String>,
+        rules: Vec<Box<dyn ValidationRuleTrait>>,
+    ) -> Self {
         self.rules.insert(field.into(), rules);
         self
     }
@@ -1168,9 +1348,7 @@ impl Validator {
             for rule in rules {
                 if let Err(error) = rule.validate(field, value, &self.data) {
                     // Use custom message if provided
-                    let message = self.messages.get(field)
-                        .cloned()
-                        .unwrap_or(error.message);
+                    let message = self.messages.get(field).cloned().unwrap_or(error.message);
                     errors.add(field, message);
                     break; // Stop at first error for this field
                 }
@@ -1193,9 +1371,7 @@ impl Validator {
 
             for rule in rules {
                 if let Err(error) = rule.validate(field, value, &self.data) {
-                    let message = self.messages.get(field)
-                        .cloned()
-                        .unwrap_or(error.message);
+                    let message = self.messages.get(field).cloned().unwrap_or(error.message);
                     errors.add(field, message);
                     break;
                 }
@@ -1239,7 +1415,12 @@ impl<F> ValidationRuleTrait for CustomRule<F>
 where
     F: Fn(&str, Option<&str>, &ValidationData) -> Result<(), String> + Send + Sync,
 {
-    fn validate(&self, field: &str, value: Option<&str>, data: &ValidationData) -> Result<(), ValidationError> {
+    fn validate(
+        &self,
+        field: &str,
+        value: Option<&str>,
+        data: &ValidationData,
+    ) -> Result<(), ValidationError> {
         (self.validator)(field, value, data)
             .map_err(|msg| ValidationError::new(field, msg, &self.name))
     }
@@ -1295,7 +1476,9 @@ impl ValidationRule {
             ValidationRule::Required => Required.validate(field, value, &data),
             ValidationRule::MinLength(min) => MinLength::new(*min).validate(field, value, &data),
             ValidationRule::MaxLength(max) => MaxLength::new(*max).validate(field, value, &data),
-            ValidationRule::Pattern(pattern) => RegexRule::new(pattern).validate(field, value, &data),
+            ValidationRule::Pattern(pattern) => {
+                RegexRule::new(pattern).validate(field, value, &data)
+            }
             ValidationRule::Email => Email.validate(field, value, &data),
             ValidationRule::Url => Url.validate(field, value, &data),
             ValidationRule::Numeric => Numeric.validate(field, value, &data),
@@ -1310,7 +1493,10 @@ impl ValidationRule {
                             if num < *min || num > *max {
                                 return Err(ValidationError::new(
                                     field,
-                                    format!("The {} field must be between {} and {}.", field, min, max),
+                                    format!(
+                                        "The {} field must be between {} and {}.",
+                                        field, min, max
+                                    ),
                                     "between",
                                 ));
                             }

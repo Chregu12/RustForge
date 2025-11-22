@@ -64,7 +64,11 @@ impl NamingConvention {
                 // Add underscore before uppercase if:
                 // - Previous char was lowercase, or
                 // - This is not the first char and we have multiple consecutive uppercase (like "HTTPClient")
-                if i > 0 && (prev_lowercase || (prev_uppercase && name.chars().nth(i + 1).map_or(false, |c| c.is_lowercase()))) {
+                if i > 0
+                    && (prev_lowercase
+                        || (prev_uppercase
+                            && name.chars().nth(i + 1).map_or(false, |c| c.is_lowercase())))
+                {
                     result.push('_');
                 }
                 result.push(ch.to_lowercase().next().unwrap());
@@ -127,7 +131,13 @@ impl NamingConvention {
         for (singular, plural) in &irregular {
             if lower == *singular {
                 return if word.chars().next().unwrap().is_uppercase() {
-                    plural.chars().next().unwrap().to_uppercase().chain(plural.chars().skip(1)).collect()
+                    plural
+                        .chars()
+                        .next()
+                        .unwrap()
+                        .to_uppercase()
+                        .chain(plural.chars().skip(1))
+                        .collect()
                 } else {
                     plural.to_string()
                 };
@@ -140,7 +150,12 @@ impl NamingConvention {
         }
 
         // Special endings
-        if lower.ends_with("ch") || lower.ends_with("sh") || lower.ends_with("ss") || lower.ends_with('x') || lower.ends_with('z') {
+        if lower.ends_with("ch")
+            || lower.ends_with("sh")
+            || lower.ends_with("ss")
+            || lower.ends_with('x')
+            || lower.ends_with('z')
+        {
             return format!("{}es", word);
         }
 
@@ -197,7 +212,13 @@ impl NamingConvention {
         for (plural, singular) in &irregular {
             if lower == *plural {
                 return if word.chars().next().unwrap().is_uppercase() {
-                    singular.chars().next().unwrap().to_uppercase().chain(singular.chars().skip(1)).collect()
+                    singular
+                        .chars()
+                        .next()
+                        .unwrap()
+                        .to_uppercase()
+                        .chain(singular.chars().skip(1))
+                        .collect()
                 } else {
                     singular.to_string()
                 };
@@ -217,7 +238,11 @@ impl NamingConvention {
             return word[..word.len() - 2].to_string();
         }
 
-        if lower.ends_with("ches") || lower.ends_with("shes") || lower.ends_with("xes") || lower.ends_with("zes") {
+        if lower.ends_with("ches")
+            || lower.ends_with("shes")
+            || lower.ends_with("xes")
+            || lower.ends_with("zes")
+        {
             return word[..word.len() - 2].to_string();
         }
 
@@ -240,7 +265,14 @@ impl NamingConvention {
     /// assert_eq!(nc.extract_base("User"), "User");
     /// ```
     pub fn extract_base(&self, name: &str) -> String {
-        let suffixes = ["Controller", "Service", "Model", "Repository", "Factory", "Seeder"];
+        let suffixes = [
+            "Controller",
+            "Service",
+            "Model",
+            "Repository",
+            "Factory",
+            "Seeder",
+        ];
 
         for suffix in &suffixes {
             if name.ends_with(suffix) && name.len() > suffix.len() {

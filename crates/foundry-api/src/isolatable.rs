@@ -22,7 +22,6 @@
 ///     Err(e) => eprintln!("Could not acquire lock: {}", e),
 /// }
 /// ```
-
 use std::fs::{self, File};
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -42,17 +41,11 @@ pub enum LockStrategy {
 #[derive(Debug, Clone)]
 pub enum IsolationError {
     /// Command is already running
-    AlreadyRunning {
-        command: String,
-        locked_at: String,
-    },
+    AlreadyRunning { command: String, locked_at: String },
     /// Failed to create lock file
     LockFileError(String),
     /// Lock timeout exceeded
-    Timeout {
-        command: String,
-        timeout: Duration,
-    },
+    Timeout { command: String, timeout: Duration },
     /// Permission denied
     PermissionDenied(String),
     /// Other IO error
@@ -63,11 +56,19 @@ impl std::fmt::Display for IsolationError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             IsolationError::AlreadyRunning { command, locked_at } => {
-                write!(f, "Command '{}' is already running (locked at: {})", command, locked_at)
+                write!(
+                    f,
+                    "Command '{}' is already running (locked at: {})",
+                    command, locked_at
+                )
             }
             IsolationError::LockFileError(msg) => write!(f, "Lock file error: {}", msg),
             IsolationError::Timeout { command, timeout } => {
-                write!(f, "Command '{}' is locked, timeout after {:?}", command, timeout)
+                write!(
+                    f,
+                    "Command '{}' is locked, timeout after {:?}",
+                    command, timeout
+                )
             }
             IsolationError::PermissionDenied(msg) => write!(f, "Permission denied: {}", msg),
             IsolationError::IoError(msg) => write!(f, "IO error: {}", msg),
@@ -153,10 +154,7 @@ impl CommandIsolation {
     }
 
     /// Try to acquire lock with timeout
-    pub fn lock_with_timeout(
-        &self,
-        timeout: Duration,
-    ) -> Result<IsolationGuard, IsolationError> {
+    pub fn lock_with_timeout(&self, timeout: Duration) -> Result<IsolationGuard, IsolationError> {
         let start = Instant::now();
 
         loop {
@@ -187,8 +185,8 @@ impl CommandIsolation {
 
         // Check if lock file already exists
         if lock_path.exists() {
-            let locked_at = fs::read_to_string(&lock_path)
-                .unwrap_or_else(|_| "unknown time".to_string());
+            let locked_at =
+                fs::read_to_string(&lock_path).unwrap_or_else(|_| "unknown time".to_string());
 
             return Err(IsolationError::AlreadyRunning {
                 command: self.command.clone(),
@@ -282,16 +280,14 @@ mod tests {
 
     #[test]
     fn test_isolation_with_timeout() {
-        let isolation = CommandIsolation::new("test")
-            .with_timeout(Duration::from_secs(30));
+        let isolation = CommandIsolation::new("test").with_timeout(Duration::from_secs(30));
 
         assert!(isolation.timeout.is_some());
     }
 
     #[test]
     fn test_memory_lock_success() {
-        let isolation = CommandIsolation::new("test")
-            .with_strategy(LockStrategy::Memory);
+        let isolation = CommandIsolation::new("test").with_strategy(LockStrategy::Memory);
 
         let guard = isolation.lock();
         assert!(guard.is_ok());
@@ -299,8 +295,7 @@ mod tests {
 
     #[test]
     fn test_memory_lock_already_running() {
-        let isolation = CommandIsolation::new("test")
-            .with_strategy(LockStrategy::Memory);
+        let isolation = CommandIsolation::new("test").with_strategy(LockStrategy::Memory);
 
         let _guard1 = isolation.lock().unwrap();
         let result = isolation.lock();
@@ -316,8 +311,7 @@ mod tests {
 
     #[test]
     fn test_is_locked() {
-        let isolation = CommandIsolation::new("test")
-            .with_strategy(LockStrategy::Memory);
+        let isolation = CommandIsolation::new("test").with_strategy(LockStrategy::Memory);
 
         assert!(!isolation.is_locked());
         let _guard = isolation.lock().unwrap();
@@ -326,8 +320,7 @@ mod tests {
 
     #[test]
     fn test_lock_guard_drop() {
-        let isolation = CommandIsolation::new("test")
-            .with_strategy(LockStrategy::Memory);
+        let isolation = CommandIsolation::new("test").with_strategy(LockStrategy::Memory);
 
         {
             let _guard = isolation.lock().unwrap();

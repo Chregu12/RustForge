@@ -39,7 +39,7 @@
 pub mod gate;
 pub mod policy;
 
-pub use gate::{Gate, GateRegistry, GateCallback};
+pub use gate::{Gate, GateCallback, GateRegistry};
 pub use policy::{Policy, PolicyRegistry, ResourcePolicy};
 
 use thiserror::Error;

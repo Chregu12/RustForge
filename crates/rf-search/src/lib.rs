@@ -87,14 +87,14 @@ pub use in_memory::*;
 
 // Export new driver-based search
 pub mod driver;
-pub mod searchable;
 pub mod drivers;
+pub mod searchable;
 
 #[cfg(feature = "metrics")]
 pub mod metrics;
 
-pub use driver::{SearchDriver, ConfigurableDriver, SearchError, Result};
-pub use searchable::{Searchable, SearchResult, SearchHit, SearchOptions};
+pub use driver::{ConfigurableDriver, Result, SearchDriver, SearchError};
+pub use searchable::{SearchHit, SearchOptions, SearchResult, Searchable};
 
 #[cfg(feature = "metrics")]
 pub use metrics::MetricsWrapper;

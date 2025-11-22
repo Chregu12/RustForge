@@ -45,11 +45,9 @@
 ///     Ok(())
 /// }
 /// ```
-
 use sqlx::{
     postgres::{PgPool, PgPoolOptions},
-    Postgres,
-    Error as SqlxError,
+    Error as SqlxError, Postgres,
 };
 use std::sync::Arc;
 use std::time::Duration;
@@ -97,8 +95,8 @@ impl Default for PoolConfig {
             max_connections: 32,
             min_connections: 5,
             acquire_timeout_secs: 3,
-            idle_timeout_secs: 600,   // 10 minutes
-            max_lifetime_secs: 1800,  // 30 minutes
+            idle_timeout_secs: 600,  // 10 minutes
+            max_lifetime_secs: 1800, // 30 minutes
         }
     }
 }
@@ -172,14 +170,11 @@ impl DatabasePool {
     /// # }
     /// ```
     pub async fn acquire(&self) -> Result<sqlx::pool::PoolConnection<Postgres>> {
-        self.pool
-            .acquire()
-            .await
-            .map_err(|e| match e {
-                SqlxError::PoolTimedOut => PoolError::Timeout(self.config.acquire_timeout_secs),
-                SqlxError::PoolClosed => PoolError::PoolExhausted,
-                other => PoolError::Connection(other),
-            })
+        self.pool.acquire().await.map_err(|e| match e {
+            SqlxError::PoolTimedOut => PoolError::Timeout(self.config.acquire_timeout_secs),
+            SqlxError::PoolClosed => PoolError::PoolExhausted,
+            other => PoolError::Connection(other),
+        })
     }
 
     /// Get the underlying pool for advanced operations

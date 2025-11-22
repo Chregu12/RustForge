@@ -60,9 +60,11 @@ impl MemoryMailer {
 
     /// Check if any message was sent to the given email
     pub fn was_sent_to(&self, email: &str) -> bool {
-        self.sent.lock().unwrap().iter().any(|msg| {
-            msg.to.iter().any(|addr| addr.email == email)
-        })
+        self.sent
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|msg| msg.to.iter().any(|addr| addr.email == email))
     }
 
     /// Check if any message was sent with the given subject

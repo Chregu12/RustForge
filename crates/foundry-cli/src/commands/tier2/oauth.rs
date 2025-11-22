@@ -3,7 +3,10 @@
 use clap::Parser;
 
 #[derive(Debug, Parser)]
-#[command(name = "oauth:list-providers", about = "List configured OAuth providers")]
+#[command(
+    name = "oauth:list-providers",
+    about = "List configured OAuth providers"
+)]
 pub struct OAuthListCommand;
 
 impl OAuthListCommand {

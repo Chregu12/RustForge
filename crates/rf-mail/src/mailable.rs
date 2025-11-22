@@ -38,37 +38,34 @@ pub trait Mailable: Send + Sync {
     /// # Errors
     ///
     /// Returns an error if building or sending fails.
-    fn send(&self, mailer: &dyn Mailer) -> impl std::future::Future<Output = Result<(), MailError>> + Send {
+    fn send(
+        &self,
+        mailer: &dyn Mailer,
+    ) -> impl std::future::Future<Output = Result<(), MailError>> + Send {
         async move {
             let mail = self.build().build()?;
 
             // Convert Mail to Message
             let message = match mail.body {
-                crate::MailBody::Html(html) => {
-                    crate::MessageBuilder::new()
-                        .from(mail.from.clone())
-                        .to_many(mail.to.clone())
-                        .subject(mail.subject.clone())
-                        .html(html)
-                        .build()?
-                }
-                crate::MailBody::Text(text) => {
-                    crate::MessageBuilder::new()
-                        .from(mail.from.clone())
-                        .to_many(mail.to.clone())
-                        .subject(mail.subject.clone())
-                        .text(text)
-                        .build()?
-                }
-                crate::MailBody::Both { html, text } => {
-                    crate::MessageBuilder::new()
-                        .from(mail.from.clone())
-                        .to_many(mail.to.clone())
-                        .subject(mail.subject.clone())
-                        .html(html)
-                        .text(text)
-                        .build()?
-                }
+                crate::MailBody::Html(html) => crate::MessageBuilder::new()
+                    .from(mail.from.clone())
+                    .to_many(mail.to.clone())
+                    .subject(mail.subject.clone())
+                    .html(html)
+                    .build()?,
+                crate::MailBody::Text(text) => crate::MessageBuilder::new()
+                    .from(mail.from.clone())
+                    .to_many(mail.to.clone())
+                    .subject(mail.subject.clone())
+                    .text(text)
+                    .build()?,
+                crate::MailBody::Both { html, text } => crate::MessageBuilder::new()
+                    .from(mail.from.clone())
+                    .to_many(mail.to.clone())
+                    .subject(mail.subject.clone())
+                    .html(html)
+                    .text(text)
+                    .build()?,
             };
 
             mailer.send(&message).await
@@ -111,31 +108,25 @@ pub trait MailableAsync: Send + Sync {
 
         // Convert Mail to Message
         let message = match mail.body {
-            crate::MailBody::Html(html) => {
-                crate::MessageBuilder::new()
-                    .from(mail.from.clone())
-                    .to_many(mail.to.clone())
-                    .subject(mail.subject.clone())
-                    .html(html)
-                    .build()?
-            }
-            crate::MailBody::Text(text) => {
-                crate::MessageBuilder::new()
-                    .from(mail.from.clone())
-                    .to_many(mail.to.clone())
-                    .subject(mail.subject.clone())
-                    .text(text)
-                    .build()?
-            }
-            crate::MailBody::Both { html, text } => {
-                crate::MessageBuilder::new()
-                    .from(mail.from.clone())
-                    .to_many(mail.to.clone())
-                    .subject(mail.subject.clone())
-                    .html(html)
-                    .text(text)
-                    .build()?
-            }
+            crate::MailBody::Html(html) => crate::MessageBuilder::new()
+                .from(mail.from.clone())
+                .to_many(mail.to.clone())
+                .subject(mail.subject.clone())
+                .html(html)
+                .build()?,
+            crate::MailBody::Text(text) => crate::MessageBuilder::new()
+                .from(mail.from.clone())
+                .to_many(mail.to.clone())
+                .subject(mail.subject.clone())
+                .text(text)
+                .build()?,
+            crate::MailBody::Both { html, text } => crate::MessageBuilder::new()
+                .from(mail.from.clone())
+                .to_many(mail.to.clone())
+                .subject(mail.subject.clone())
+                .html(html)
+                .text(text)
+                .build()?,
         };
 
         mailer.send(&message).await

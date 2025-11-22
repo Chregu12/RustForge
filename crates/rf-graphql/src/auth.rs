@@ -173,7 +173,9 @@ where
             if (self.check_ownership)(ctx, user.id) {
                 Ok(())
             } else {
-                Err(async_graphql::Error::new("Forbidden: You don't own this resource"))
+                Err(async_graphql::Error::new(
+                    "Forbidden: You don't own this resource",
+                ))
             }
         }
     }

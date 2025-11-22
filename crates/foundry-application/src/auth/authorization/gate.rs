@@ -89,10 +89,9 @@ impl GateRegistry {
 
         // Run after callbacks
         let after_callbacks = self.after_callbacks.read().await;
-        let final_result =
-            after_callbacks
-                .iter()
-                .fold(result, |acc, callback| callback(args, acc));
+        let final_result = after_callbacks
+            .iter()
+            .fold(result, |acc, callback| callback(args, acc));
 
         final_result
     }

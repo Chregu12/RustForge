@@ -53,10 +53,7 @@ async fn demo_email_validation() {
     let mut validator = Validator::new(data);
     validator.rules(HashMap::from([(
         "email",
-        vec![
-            Box::new(RequiredRule) as Box<dyn Rule>,
-            Box::new(EmailRule),
-        ],
+        vec![Box::new(RequiredRule) as Box<dyn Rule>, Box::new(EmailRule)],
     )]));
 
     match validator.validate().await {
@@ -76,10 +73,7 @@ async fn demo_email_validation() {
     let mut validator = Validator::new(data);
     validator.rules(HashMap::from([(
         "email",
-        vec![
-            Box::new(RequiredRule) as Box<dyn Rule>,
-            Box::new(EmailRule),
-        ],
+        vec![Box::new(RequiredRule) as Box<dyn Rule>, Box::new(EmailRule)],
     )]));
 
     match validator.validate().await {
@@ -134,7 +128,10 @@ async fn demo_age_validation() {
             Box::new(MinRule::new(18)),
         ],
     )]));
-    validator.messages(HashMap::from([("age.min", "You must be at least 18 years old")]));
+    validator.messages(HashMap::from([(
+        "age.min",
+        "You must be at least 18 years old",
+    )]));
 
     match validator.validate().await {
         Ok(_) => println!("✅ Validation passed"),
@@ -183,10 +180,7 @@ async fn demo_password_confirmation() {
 
     let mut validator = Validator::new(data);
     validator.rules(HashMap::from([
-        (
-            "password",
-            vec![Box::new(RequiredRule) as Box<dyn Rule>],
-        ),
+        ("password", vec![Box::new(RequiredRule) as Box<dyn Rule>]),
         (
             "password_confirmation",
             vec![
@@ -319,10 +313,7 @@ async fn demo_user_registration() {
         ),
         (
             "email",
-            vec![
-                Box::new(RequiredRule) as Box<dyn Rule>,
-                Box::new(EmailRule),
-            ],
+            vec![Box::new(RequiredRule) as Box<dyn Rule>, Box::new(EmailRule)],
         ),
         (
             "age",
@@ -360,12 +351,21 @@ async fn demo_user_registration() {
 
     validator.messages(HashMap::from([
         ("username.required", "Username is required"),
-        ("username.min_length", "Username must be at least 3 characters"),
-        ("username.alpha_numeric", "Username can only contain letters and numbers"),
+        (
+            "username.min_length",
+            "Username must be at least 3 characters",
+        ),
+        (
+            "username.alpha_numeric",
+            "Username can only contain letters and numbers",
+        ),
         ("email.required", "Email is required"),
         ("email.email", "Please provide a valid email address"),
         ("age.min", "You must be at least 18 years old"),
-        ("password.min_length", "Password must be at least 8 characters"),
+        (
+            "password.min_length",
+            "Password must be at least 8 characters",
+        ),
         ("password_confirmation.same", "Passwords must match"),
     ]));
 

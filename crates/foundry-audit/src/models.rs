@@ -45,11 +45,7 @@ pub struct AuditLog {
 }
 
 impl AuditLog {
-    pub fn new(
-        action: AuditAction,
-        auditable_type: String,
-        auditable_id: String,
-    ) -> Self {
+    pub fn new(action: AuditAction, auditable_type: String, auditable_id: String) -> Self {
         Self {
             id: Uuid::new_v4(),
             user_id: None,
@@ -111,10 +107,7 @@ pub struct AuditChanges {
 }
 
 impl AuditChanges {
-    pub fn extract(
-        old: &serde_json::Value,
-        new: &serde_json::Value,
-    ) -> Vec<Self> {
+    pub fn extract(old: &serde_json::Value, new: &serde_json::Value) -> Vec<Self> {
         let mut changes = Vec::new();
 
         if let (Some(old_obj), Some(new_obj)) = (old.as_object(), new.as_object()) {

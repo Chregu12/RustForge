@@ -119,7 +119,8 @@ impl RequestWatcher {
         if let Some(mut info) = requests.remove(&request_id) {
             info.status = status;
             info.duration_ms = duration_ms;
-            info.completed_at = info.started_at + chrono::Duration::milliseconds(duration_ms as i64);
+            info.completed_at =
+                info.started_at + chrono::Duration::milliseconds(duration_ms as i64);
 
             let entry = Entry::new(
                 EntryType::Request,

@@ -125,10 +125,10 @@ impl RequestBuilder {
     }
 
     pub async fn send(self) -> anyhow::Result<Response> {
-        let mut request = self.client.inner().request(
-            Method::from(self.method),
-            &self.url,
-        );
+        let mut request = self
+            .client
+            .inner()
+            .request(Method::from(self.method), &self.url);
 
         // Add headers
         for (key, value) in &self.headers {
@@ -143,16 +143,16 @@ impl RequestBuilder {
         // Add body
         if let Some(body) = self.body {
             request = match body {
-                RequestBody::Json(json) => {
-                    request.header(header::CONTENT_TYPE, "application/json").json(&json)
-                }
+                RequestBody::Json(json) => request
+                    .header(header::CONTENT_TYPE, "application/json")
+                    .json(&json),
                 RequestBody::Form(form) => request.form(&form),
-                RequestBody::Text(text) => {
-                    request.header(header::CONTENT_TYPE, "text/plain").body(text)
-                }
-                RequestBody::Bytes(bytes) => {
-                    request.header(header::CONTENT_TYPE, "application/octet-stream").body(bytes)
-                }
+                RequestBody::Text(text) => request
+                    .header(header::CONTENT_TYPE, "text/plain")
+                    .body(text),
+                RequestBody::Bytes(bytes) => request
+                    .header(header::CONTENT_TYPE, "application/octet-stream")
+                    .body(bytes),
             };
         }
 
@@ -173,20 +173,18 @@ impl RequestBuilder {
 
         while attempts <= retry_config.max_retries {
             match request.try_clone() {
-                Some(req) => {
-                    match req.send().await {
-                        Ok(response) => {
-                            return Ok(Response::new(response));
-                        }
-                        Err(e) => {
-                            last_error = Some(e);
-                            attempts += 1;
-                            if attempts <= retry_config.max_retries {
-                                tokio::time::sleep(retry_config.delay).await;
-                            }
+                Some(req) => match req.send().await {
+                    Ok(response) => {
+                        return Ok(Response::new(response));
+                    }
+                    Err(e) => {
+                        last_error = Some(e);
+                        attempts += 1;
+                        if attempts <= retry_config.max_retries {
+                            tokio::time::sleep(retry_config.delay).await;
                         }
                     }
-                }
+                },
                 None => {
                     return Err(anyhow::anyhow!("Cannot clone request for retry"));
                 }

@@ -1,6 +1,8 @@
 use async_trait::async_trait;
 use foundry_domain::{CommandDescriptor, CommandKind};
-use foundry_plugins::{CommandContext, CommandError, CommandResult, CommandStatus, FoundryCommand, QueueJob};
+use foundry_plugins::{
+    CommandContext, CommandError, CommandResult, CommandStatus, FoundryCommand, QueueJob,
+};
 use serde_json::json;
 use std::time::Duration;
 use tokio::time::sleep;
@@ -91,10 +93,7 @@ impl FoundryCommand for QueueWorkCommand {
         let timeout_seconds = Self::parse_timeout(&ctx.args);
         let timeout_duration = Duration::from_secs(timeout_seconds);
 
-        info!(
-            timeout_seconds = timeout_seconds,
-            "Queue worker starting"
-        );
+        info!(timeout_seconds = timeout_seconds, "Queue worker starting");
 
         let start_time = std::time::Instant::now();
         let jobs_processed = 0;
@@ -172,9 +171,12 @@ mod tests {
             seeds: std::sync::Arc::new(foundry_infra::SeaOrmSeedService::default()),
             validation: std::sync::Arc::new(foundry_infra::SimpleValidationService::default()),
             storage: std::sync::Arc::new(foundry_infra::FileStorageAdapter::new(
-                std::sync::Arc::new(foundry_storage::manager::StorageManager::new(
-                    foundry_storage::config::StorageConfig::from_env()
-                ).unwrap())
+                std::sync::Arc::new(
+                    foundry_storage::manager::StorageManager::new(
+                        foundry_storage::config::StorageConfig::from_env(),
+                    )
+                    .unwrap(),
+                ),
             )),
             cache: std::sync::Arc::new(foundry_infra::InMemoryCacheStore::default()),
             queue: std::sync::Arc::new(foundry_infra::InMemoryQueue::default()),
@@ -188,10 +190,7 @@ mod tests {
         let ctx = create_test_context(vec![]);
 
         // This will timeout after ~5 seconds since there are no jobs
-        let result = tokio::time::timeout(
-            Duration::from_secs(10),
-            command.execute(ctx)
-        ).await;
+        let result = tokio::time::timeout(Duration::from_secs(10), command.execute(ctx)).await;
 
         assert!(result.is_ok());
         let command_result = result.unwrap().unwrap();
@@ -203,10 +202,7 @@ mod tests {
         let command = QueueWorkCommand::new();
         let ctx = create_test_context(vec!["--timeout=2".to_string()]);
 
-        let result = tokio::time::timeout(
-            Duration::from_secs(10),
-            command.execute(ctx)
-        ).await;
+        let result = tokio::time::timeout(Duration::from_secs(10), command.execute(ctx)).await;
 
         assert!(result.is_ok());
         let command_result = result.unwrap().unwrap();

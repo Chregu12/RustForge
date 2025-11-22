@@ -1,13 +1,13 @@
-//! # Polymorphic Relationships Example
-//!
-//! This example demonstrates all 5 polymorphic relationship types in RustForge:
-//! 1. MorphTo - Belongs to multiple model types
-//! 2. MorphMany - Has many of a polymorphic model
-//! 3. MorphOne - Has one of a polymorphic model
-//! 4. MorphToMany - Many-to-many polymorphic
-//! 5. MorphedByMany - Inverse of MorphToMany
-//!
-//! This is a comprehensive guide showing Laravel-equivalent polymorphic relationships in Rust.
+// # Polymorphic Relationships Example
+//
+// This example demonstrates all 5 polymorphic relationship types in RustForge:
+// 1. MorphTo - Belongs to multiple model types
+// 2. MorphMany - Has many of a polymorphic model
+// 3. MorphOne - Has one of a polymorphic model
+// 4. MorphToMany - Many-to-many polymorphic
+// 5. MorphedByMany - Inverse of MorphToMany
+//
+// This is a comprehensive guide showing Laravel-equivalent polymorphic relationships in Rust.
 
 use rf_eloquent::relationships::{
     morph_many::MorphMany, morph_one::MorphOne, morph_to::MorphTo, morph_to_many::MorphToMany,

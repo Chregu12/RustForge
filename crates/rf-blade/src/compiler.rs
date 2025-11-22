@@ -2,8 +2,8 @@
 //!
 //! Compiles parsed Blade templates into executable HTML
 
+use crate::parser::{Directive, ParsedTemplate};
 use crate::{BladeResult, CompiledTemplate};
-use crate::parser::{ParsedTemplate, Directive};
 
 /// Blade template compiler
 pub struct BladeCompiler;
@@ -54,11 +54,13 @@ impl BladeCompiler {
         let mut result = html.to_string();
 
         // Remove inline sections
-        let inline_re = regex::Regex::new(r#"@section\(['"](.*?)['"]\s*,\s*['"](.*?)['"]\)"#).unwrap();
+        let inline_re =
+            regex::Regex::new(r#"@section\(['"](.*?)['"]\s*,\s*['"](.*?)['"]\)"#).unwrap();
         result = inline_re.replace_all(&result, "").to_string();
 
         // Remove block sections
-        let block_re = regex::Regex::new(r#"(?s)@section\(['"](.*?)['"]\)(.*?)@endsection"#).unwrap();
+        let block_re =
+            regex::Regex::new(r#"(?s)@section\(['"](.*?)['"]\)(.*?)@endsection"#).unwrap();
         result = block_re.replace_all(&result, "").to_string();
 
         result
@@ -70,42 +72,51 @@ impl BladeCompiler {
 
         // Compile @if directives
         let if_re = regex::Regex::new(r"(?s)@if\((.*?)\)(.*?)@endif").unwrap();
-        result = if_re.replace_all(&result, |caps: &regex::Captures| {
-            let condition = &caps[1];
-            let content = &caps[2];
+        result = if_re
+            .replace_all(&result, |caps: &regex::Captures| {
+                let condition = &caps[1];
+                let content = &caps[2];
 
-            // For now, we'll keep a placeholder that gets evaluated during render
-            // In a full implementation, this would compile to actual logic
-            format!("<!-- if {} -->{}", condition, content)
-        }).to_string();
+                // For now, we'll keep a placeholder that gets evaluated during render
+                // In a full implementation, this would compile to actual logic
+                format!("<!-- if {} -->{}", condition, content)
+            })
+            .to_string();
 
         // Compile @foreach directives
-        let foreach_re = regex::Regex::new(r"(?s)@foreach\(\$(.*?)\s+as\s+\$(.*?)\)(.*?)@endforeach").unwrap();
-        result = foreach_re.replace_all(&result, |caps: &regex::Captures| {
-            let items = &caps[1];
-            let item = &caps[2];
-            let content = &caps[3];
+        let foreach_re =
+            regex::Regex::new(r"(?s)@foreach\(\$(.*?)\s+as\s+\$(.*?)\)(.*?)@endforeach").unwrap();
+        result = foreach_re
+            .replace_all(&result, |caps: &regex::Captures| {
+                let items = &caps[1];
+                let item = &caps[2];
+                let content = &caps[3];
 
-            // Generate loop code with proper iteration
-            format!(
-                "{{{{ for {} in &{} }}}}\n{}\n{{{{ endfor }}}}",
-                item, items, content
-            )
-        }).to_string();
+                // Generate loop code with proper iteration
+                format!(
+                    "{{{{ for {} in &{} }}}}\n{}\n{{{{ endfor }}}}",
+                    item, items, content
+                )
+            })
+            .to_string();
 
         // Compile @auth directives
         let auth_re = regex::Regex::new(r"(?s)@auth(.*?)@endauth").unwrap();
-        result = auth_re.replace_all(&result, |caps: &regex::Captures| {
-            let content = &caps[1];
-            format!("<!-- auth -->{}", content)
-        }).to_string();
+        result = auth_re
+            .replace_all(&result, |caps: &regex::Captures| {
+                let content = &caps[1];
+                format!("<!-- auth -->{}", content)
+            })
+            .to_string();
 
         // Compile @guest directives
         let guest_re = regex::Regex::new(r"(?s)@guest(.*?)@endguest").unwrap();
-        result = guest_re.replace_all(&result, |caps: &regex::Captures| {
-            let content = &caps[1];
-            format!("<!-- guest -->{}", content)
-        }).to_string();
+        result = guest_re
+            .replace_all(&result, |caps: &regex::Captures| {
+                let content = &caps[1];
+                format!("<!-- guest -->{}", content)
+            })
+            .to_string();
 
         Ok(result)
     }

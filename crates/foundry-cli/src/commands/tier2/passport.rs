@@ -7,7 +7,10 @@ use uuid::Uuid;
 
 /// Install Passport OAuth2 Server
 #[derive(Debug, Parser)]
-#[command(name = "passport:install", about = "Install Passport OAuth2 server with encryption keys")]
+#[command(
+    name = "passport:install",
+    about = "Install Passport OAuth2 server with encryption keys"
+)]
 pub struct PassportInstallCommand;
 
 impl PassportInstallCommand {

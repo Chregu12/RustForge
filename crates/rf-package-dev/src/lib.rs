@@ -28,10 +28,10 @@
 //! # }
 //! ```
 
-mod package;
 mod discovery;
+mod package;
 mod publishing;
 
-pub use package::{Package, PackageBuilder, PackageError, PackageResult};
 pub use discovery::{Discovery, DiscoveryConfig};
+pub use package::{Package, PackageBuilder, PackageError, PackageResult};
 pub use publishing::{AssetType, PublishConfig, Publisher};

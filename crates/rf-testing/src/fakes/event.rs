@@ -91,7 +91,10 @@ impl EventFake {
     /// Panics if the event was not dispatched exactly N times.
     pub fn assert_dispatched_times(&self, event_type: &str, times: usize) {
         let records = self.records.lock().unwrap();
-        let count = records.iter().filter(|r| r.event_type == event_type).count();
+        let count = records
+            .iter()
+            .filter(|r| r.event_type == event_type)
+            .count();
 
         if count != times {
             panic!(

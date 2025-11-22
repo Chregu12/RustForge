@@ -56,11 +56,10 @@ mod collection_tests {
     #[test]
     fn test_collection_tap() {
         let mut tapped = false;
-        let coll = Collection::new(vec![1, 2, 3])
-            .tap(|c| {
-                tapped = true;
-                assert_eq!(c.count(), 3);
-            });
+        let coll = Collection::new(vec![1, 2, 3]).tap(|c| {
+            tapped = true;
+            assert_eq!(c.count(), 3);
+        });
         assert!(tapped);
         assert_eq!(coll.count(), 3);
     }
@@ -74,8 +73,14 @@ mod collection_tests {
         }
 
         let users = Collection::new(vec![
-            User { id: 1, name: "John".to_string() },
-            User { id: 2, name: "Jane".to_string() },
+            User {
+                id: 1,
+                name: "John".to_string(),
+            },
+            User {
+                id: 2,
+                name: "Jane".to_string(),
+            },
         ]);
 
         let names = users.pluck(|u| u.name.clone());
@@ -145,9 +150,18 @@ mod collection_tests {
         }
 
         let users = Collection::new(vec![
-            User { role: "admin".to_string(), name: "John".to_string() },
-            User { role: "user".to_string(), name: "Jane".to_string() },
-            User { role: "admin".to_string(), name: "Bob".to_string() },
+            User {
+                role: "admin".to_string(),
+                name: "John".to_string(),
+            },
+            User {
+                role: "user".to_string(),
+                name: "Jane".to_string(),
+            },
+            User {
+                role: "admin".to_string(),
+                name: "Bob".to_string(),
+            },
         ]);
 
         let by_role = users.group_by(|u| u.role.clone());
@@ -173,9 +187,18 @@ mod collection_tests {
         }
 
         let users = Collection::new(vec![
-            User { id: 1, name: "John".to_string() },
-            User { id: 1, name: "John Doe".to_string() },
-            User { id: 2, name: "Jane".to_string() },
+            User {
+                id: 1,
+                name: "John".to_string(),
+            },
+            User {
+                id: 1,
+                name: "John Doe".to_string(),
+            },
+            User {
+                id: 2,
+                name: "Jane".to_string(),
+            },
         ]);
 
         let unique = users.unique_by(|u| u.id);
@@ -304,15 +327,29 @@ mod collection_tests {
         }
 
         let products = Collection::new(vec![
-            Product { name: "A".to_string(), price: 10.0, category: "electronics".to_string() },
-            Product { name: "B".to_string(), price: 20.0, category: "books".to_string() },
-            Product { name: "C".to_string(), price: 15.0, category: "electronics".to_string() },
-            Product { name: "D".to_string(), price: 25.0, category: "electronics".to_string() },
+            Product {
+                name: "A".to_string(),
+                price: 10.0,
+                category: "electronics".to_string(),
+            },
+            Product {
+                name: "B".to_string(),
+                price: 20.0,
+                category: "books".to_string(),
+            },
+            Product {
+                name: "C".to_string(),
+                price: 15.0,
+                category: "electronics".to_string(),
+            },
+            Product {
+                name: "D".to_string(),
+                price: 25.0,
+                category: "electronics".to_string(),
+            },
         ]);
 
-        let electronics = products
-            .filter(|p| p.category == "electronics")
-            .to_vec();
+        let electronics = products.filter(|p| p.category == "electronics").to_vec();
 
         assert_eq!(electronics.len(), 3);
     }
@@ -331,11 +368,7 @@ mod performance_tests {
 
         // Vec operation
         let start = Instant::now();
-        let vec_result: Vec<i32> = data
-            .iter()
-            .filter(|n| *n % 2 == 0)
-            .map(|n| n * 2)
-            .collect();
+        let vec_result: Vec<i32> = data.iter().filter(|n| *n % 2 == 0).map(|n| n * 2).collect();
         let vec_duration = start.elapsed();
 
         // Collection operation
@@ -351,7 +384,10 @@ mod performance_tests {
 
         // Collection overhead should be minimal (within 2x)
         // Note: This is a rough check and may vary by system
-        println!("Vec time: {:?}, Collection time: {:?}", vec_duration, coll_duration);
+        println!(
+            "Vec time: {:?}, Collection time: {:?}",
+            vec_duration, coll_duration
+        );
         // In practice, Collection should be nearly as fast as Vec
     }
 }

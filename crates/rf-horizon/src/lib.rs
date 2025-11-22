@@ -143,9 +143,10 @@ impl HorizonBuilder {
 
     /// Build the Horizon instance
     pub fn build(self) -> Horizon {
-        let collector = self.queue_manager.as_ref().map(|qm| {
-            MetricsCollector::new(qm.clone(), self.config.monitored_queues.clone())
-        });
+        let collector = self
+            .queue_manager
+            .as_ref()
+            .map(|qm| MetricsCollector::new(qm.clone(), self.config.monitored_queues.clone()));
 
         Horizon {
             config: Arc::new(self.config),

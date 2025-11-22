@@ -2,8 +2,8 @@
 //!
 //! Demonstrates complete component system functionality
 
-use rf_blade::components::*;
 use rf_blade::compiler_new::{Compiler, RenderContext};
+use rf_blade::components::*;
 use rf_blade::parser_new::Parser;
 use serde_json::json;
 use std::sync::Arc;

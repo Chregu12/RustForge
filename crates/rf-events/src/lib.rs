@@ -287,9 +287,7 @@ mod tests {
             }
 
             dispatcher
-                .listen(CountListener {
-                    count: count_clone,
-                })
+                .listen(CountListener { count: count_clone })
                 .await;
         }
 

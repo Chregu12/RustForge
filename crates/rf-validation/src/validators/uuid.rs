@@ -1,12 +1,11 @@
 //! UUID validation
 
-use regex::Regex;
 use once_cell::sync::Lazy;
+use regex::Regex;
 
 static UUID_REGEX: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(
-        r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
-    ).unwrap()
+    Regex::new(r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
+        .unwrap()
 });
 
 /// Validate UUID

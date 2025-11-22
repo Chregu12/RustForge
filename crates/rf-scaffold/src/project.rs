@@ -1,9 +1,9 @@
 //! Project scaffolding
 
-use std::path::{Path, PathBuf};
+use crate::{ProjectOptions, ProjectType, ScaffoldEngine, ScaffoldResult};
 use serde::Serialize;
+use std::path::{Path, PathBuf};
 use tokio::fs;
-use crate::{ScaffoldEngine, ScaffoldResult, ProjectOptions, ProjectType};
 
 /// Project scaffolder
 pub struct ProjectScaffolder<'a> {
@@ -20,7 +20,8 @@ impl<'a> ProjectScaffolder<'a> {
         let project_path = self.engine.base_path().join(options.name);
 
         // Create project structure
-        self.create_directory_structure(&project_path, options).await?;
+        self.create_directory_structure(&project_path, options)
+            .await?;
 
         // Create Cargo.toml
         self.create_cargo_toml(&project_path, options).await?;
@@ -40,7 +41,11 @@ impl<'a> ProjectScaffolder<'a> {
         Ok(project_path)
     }
 
-    async fn create_directory_structure(&self, project_path: &Path, options: &ProjectOptions<'_>) -> ScaffoldResult<()> {
+    async fn create_directory_structure(
+        &self,
+        project_path: &Path,
+        options: &ProjectOptions<'_>,
+    ) -> ScaffoldResult<()> {
         // Base directories
         fs::create_dir_all(project_path.join("src")).await?;
 
@@ -73,7 +78,11 @@ impl<'a> ProjectScaffolder<'a> {
         Ok(())
     }
 
-    async fn create_cargo_toml(&self, project_path: &Path, options: &ProjectOptions<'_>) -> ScaffoldResult<()> {
+    async fn create_cargo_toml(
+        &self,
+        project_path: &Path,
+        options: &ProjectOptions<'_>,
+    ) -> ScaffoldResult<()> {
         let data = CargoTomlData {
             name: options.name.to_string(),
             project_type: match options.project_type {
@@ -81,12 +90,14 @@ impl<'a> ProjectScaffolder<'a> {
                 ProjectType::FullStack => "full-stack",
                 ProjectType::Microservice => "microservice",
                 ProjectType::Cli => "cli",
-            }.to_string(),
+            }
+            .to_string(),
             with_database: options.with_database,
             with_auth: options.with_auth,
         };
 
-        let content = format!(r#"[package]
+        let content = format!(
+            r#"[package]
 name = "{}"
 version = "0.1.0"
 edition = "2021"
@@ -99,7 +110,10 @@ anyhow = "1.0"
 tokio = {{ version = "1.37", features = ["macros", "rt-multi-thread"] }}
 "#,
             data.name,
-            if matches!(options.project_type, ProjectType::Api | ProjectType::FullStack | ProjectType::Microservice) {
+            if matches!(
+                options.project_type,
+                ProjectType::Api | ProjectType::FullStack | ProjectType::Microservice
+            ) {
                 r#"axum = "0.8"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
@@ -131,17 +145,15 @@ argon2 = "0.5"
         Ok(())
     }
 
-    async fn create_entry_point(&self, project_path: &Path, options: &ProjectOptions<'_>) -> ScaffoldResult<()> {
+    async fn create_entry_point(
+        &self,
+        project_path: &Path,
+        options: &ProjectOptions<'_>,
+    ) -> ScaffoldResult<()> {
         let content = match options.project_type {
-            ProjectType::Api | ProjectType::FullStack => {
-                API_MAIN_TEMPLATE
-            }
-            ProjectType::Microservice => {
-                MICROSERVICE_MAIN_TEMPLATE
-            }
-            ProjectType::Cli => {
-                CLI_MAIN_TEMPLATE
-            }
+            ProjectType::Api | ProjectType::FullStack => API_MAIN_TEMPLATE,
+            ProjectType::Microservice => MICROSERVICE_MAIN_TEMPLATE,
+            ProjectType::Cli => CLI_MAIN_TEMPLATE,
         };
 
         let path = project_path.join("src/main.rs");
@@ -150,7 +162,11 @@ argon2 = "0.5"
         Ok(())
     }
 
-    async fn create_env_file(&self, project_path: &Path, options: &ProjectOptions<'_>) -> ScaffoldResult<()> {
+    async fn create_env_file(
+        &self,
+        project_path: &Path,
+        options: &ProjectOptions<'_>,
+    ) -> ScaffoldResult<()> {
         let mut content = String::from("# Application Configuration\n");
         content.push_str("APP_NAME=my-app\n");
         content.push_str("APP_ENV=development\n");
@@ -174,8 +190,13 @@ argon2 = "0.5"
         Ok(())
     }
 
-    async fn create_readme(&self, project_path: &Path, options: &ProjectOptions<'_>) -> ScaffoldResult<()> {
-        let content = format!(r#"# {}
+    async fn create_readme(
+        &self,
+        project_path: &Path,
+        options: &ProjectOptions<'_>,
+    ) -> ScaffoldResult<()> {
+        let content = format!(
+            r#"# {}
 
 A RustForge {} project.
 
@@ -380,8 +401,8 @@ fn main() -> anyhow::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tempfile::tempdir;
     use crate::ScaffoldEngine;
+    use tempfile::tempdir;
 
     #[tokio::test]
     async fn test_create_api_project() {

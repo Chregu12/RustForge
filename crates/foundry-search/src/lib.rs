@@ -2,13 +2,13 @@
 //!
 //! Full-text search with database and Elasticsearch support.
 
-pub mod traits;
 pub mod engines;
 pub mod query;
+pub mod traits;
 
-pub use traits::{Searchable, SearchEngine};
 pub use engines::{DatabaseSearch, ElasticsearchEngine};
 pub use query::{SearchQuery, SearchResult};
+pub use traits::{SearchEngine, Searchable};
 
 #[derive(Debug, thiserror::Error)]
 pub enum SearchError {

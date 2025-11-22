@@ -28,7 +28,11 @@ pub fn debug(message: &str) {
 
 /// Print a header/section title
 pub fn header(message: &str) {
-    println!("\n{}\n{}", message.bold().underline(), "=".repeat(message.len()));
+    println!(
+        "\n{}\n{}",
+        message.bold().underline(),
+        "=".repeat(message.len())
+    );
 }
 
 /// Print a simple line

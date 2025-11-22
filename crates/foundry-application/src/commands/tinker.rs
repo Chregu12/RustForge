@@ -31,7 +31,7 @@ impl TinkerCommand {
                      - delete <Model> <id>           # Delete record\n\
                      - sql <query>                    # Execute raw SQL\n\
                      - help                           # Show this help\n\
-                     - exit                           # Exit tinker"
+                     - exit                           # Exit tinker",
                 )
                 .category(CommandKind::Utility)
                 .build(),
@@ -61,7 +61,9 @@ impl FoundryCommand for TinkerCommand {
                 // JSON mode: Not supported for REPL
                 Ok(CommandResult {
                     status: CommandStatus::Success,
-                    message: Some("tinker command works best in human (interactive) mode".to_string()),
+                    message: Some(
+                        "tinker command works best in human (interactive) mode".to_string(),
+                    ),
                     data: Some(json!({
                         "info": "Use 'foundry tinker' without --json flag for interactive mode"
                     })),
@@ -102,9 +104,8 @@ impl TinkerCommand {
         println!("║                  Type 'help' for available commands              ║");
         println!("╚════════════════════════════════════════════════════════════════╝\n");
 
-        let mut rl = DefaultEditor::new().map_err(|e| {
-            CommandError::Message(format!("Failed to initialize REPL: {}", e))
-        })?;
+        let mut rl = DefaultEditor::new()
+            .map_err(|e| CommandError::Message(format!("Failed to initialize REPL: {}", e)))?;
 
         let mut session = TinkerSession {
             db,
@@ -155,7 +156,11 @@ impl TinkerCommand {
         })
     }
 
-    async fn process_command(&self, input: &str, session: &mut TinkerSession) -> Result<String, String> {
+    async fn process_command(
+        &self,
+        input: &str,
+        session: &mut TinkerSession,
+    ) -> Result<String, String> {
         let input = input.trim();
 
         // Check for exit commands
@@ -173,29 +178,19 @@ impl TinkerCommand {
         self.execute_query(query, session).await
     }
 
-    async fn execute_query(&self, query: Query, session: &mut TinkerSession) -> Result<String, String> {
+    async fn execute_query(
+        &self,
+        query: Query,
+        session: &mut TinkerSession,
+    ) -> Result<String, String> {
         match query {
-            Query::Find { model, id } => {
-                session.find_by_id(&model, &id).await
-            }
-            Query::List { model, limit } => {
-                session.list_records(&model, limit).await
-            }
-            Query::Count { model } => {
-                session.count_records(&model).await
-            }
-            Query::Create { model, data } => {
-                session.create_record(&model, data).await
-            }
-            Query::Update { model, id, data } => {
-                session.update_record(&model, &id, data).await
-            }
-            Query::Delete { model, id } => {
-                session.delete_record(&model, &id).await
-            }
-            Query::Sql { query: sql } => {
-                session.execute_raw_sql(&sql).await
-            }
+            Query::Find { model, id } => session.find_by_id(&model, &id).await,
+            Query::List { model, limit } => session.list_records(&model, limit).await,
+            Query::Count { model } => session.count_records(&model).await,
+            Query::Create { model, data } => session.create_record(&model, data).await,
+            Query::Update { model, id, data } => session.update_record(&model, &id, data).await,
+            Query::Delete { model, id } => session.delete_record(&model, &id).await,
+            Query::Sql { query: sql } => session.execute_raw_sql(&sql).await,
         }
     }
 
@@ -232,7 +227,7 @@ impl TinkerCommand {
   tinker> delete User 1
   tinker> sql SELECT * FROM users WHERE created_at > '2024-01-01';
 "#
-            .to_string()
+        .to_string()
     }
 }
 
@@ -250,18 +245,22 @@ impl TinkerSession {
 
         let backend = self.db.get_database_backend();
         let stmt = match self.db_type.as_str() {
-            "postgres" => {
-                sea_orm::Statement::from_string(
-                    backend,
-                    format!("SELECT * FROM \"{}\" WHERE id = '{}' LIMIT 1;", table, escape_sql(id)),
-                )
-            }
-            "sqlite" => {
-                sea_orm::Statement::from_string(
-                    backend,
-                    format!("SELECT * FROM \"{}\" WHERE id = '{}' LIMIT 1;", table, escape_sql(id)),
-                )
-            }
+            "postgres" => sea_orm::Statement::from_string(
+                backend,
+                format!(
+                    "SELECT * FROM \"{}\" WHERE id = '{}' LIMIT 1;",
+                    table,
+                    escape_sql(id)
+                ),
+            ),
+            "sqlite" => sea_orm::Statement::from_string(
+                backend,
+                format!(
+                    "SELECT * FROM \"{}\" WHERE id = '{}' LIMIT 1;",
+                    table,
+                    escape_sql(id)
+                ),
+            ),
             _ => return Err(format!("Unsupported database type: {}", self.db_type)),
         };
 
@@ -299,7 +298,12 @@ impl TinkerSession {
             return Ok(format!("📭 No records found in '{}'", table));
         }
 
-        let mut output = format!("📋 {} records from '{}' (showing {})\n", rows.len(), table, limit_val);
+        let mut output = format!(
+            "📋 {} records from '{}' (showing {})\n",
+            rows.len(),
+            table,
+            limit_val
+        );
         output.push_str(&self.format_rows(&rows)?);
         Ok(output)
     }
@@ -368,7 +372,12 @@ impl TinkerSession {
         ))
     }
 
-    async fn update_record(&mut self, table: &str, id: &str, data: Value) -> Result<String, String> {
+    async fn update_record(
+        &mut self,
+        table: &str,
+        id: &str,
+        data: Value,
+    ) -> Result<String, String> {
         // Validate table exists
         self.validate_table(table).await?;
 
@@ -425,7 +434,10 @@ impl TinkerSession {
             .await
             .map_err(|e| format!("Delete failed: {}", e))?;
 
-        Ok(format!("🗑️  Successfully deleted record {} from '{}'", id, table))
+        Ok(format!(
+            "🗑️  Successfully deleted record {} from '{}'",
+            id, table
+        ))
     }
 
     async fn execute_raw_sql(&mut self, sql: &str) -> Result<String, String> {
@@ -573,7 +585,11 @@ impl Query {
 
                 let mut limit = None;
                 if parts.len() >= 4 && parts[2] == "--limit" {
-                    limit = Some(parts[3].parse().map_err(|_| "limit must be a number".to_string())?);
+                    limit = Some(
+                        parts[3]
+                            .parse()
+                            .map_err(|_| "limit must be a number".to_string())?,
+                    );
                 }
 
                 Ok(Query::List {
@@ -609,8 +625,8 @@ impl Query {
                     .1;
                 let json_str = format!("{{{}", json_str);
 
-                let data: Value = serde_json::from_str(&json_str)
-                    .map_err(|e| format!("Invalid JSON: {}", e))?;
+                let data: Value =
+                    serde_json::from_str(&json_str).map_err(|e| format!("Invalid JSON: {}", e))?;
 
                 Ok(Query::Create {
                     model: parts[1].to_string(),
@@ -628,8 +644,8 @@ impl Query {
                     .1;
                 let json_str = format!("{{{}", json_str);
 
-                let data: Value = serde_json::from_str(&json_str)
-                    .map_err(|e| format!("Invalid JSON: {}", e))?;
+                let data: Value =
+                    serde_json::from_str(&json_str).map_err(|e| format!("Invalid JSON: {}", e))?;
 
                 Ok(Query::Update {
                     model: parts[1].to_string(),

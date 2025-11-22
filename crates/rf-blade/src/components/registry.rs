@@ -262,8 +262,8 @@ impl Default for ComponentRegistry {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::class_component::BaseComponent;
+    use super::*;
 
     #[test]
     fn test_create_registry() {

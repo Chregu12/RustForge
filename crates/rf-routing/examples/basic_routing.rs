@@ -10,7 +10,7 @@ use axum::{
     Router,
 };
 use futures::future::BoxFuture;
-use rf_routing::{register_middleware, pipeline, RouteGroup};
+use rf_routing::{pipeline, register_middleware, RouteGroup};
 
 async fn home() -> &'static str {
     "Welcome Home!"

@@ -240,10 +240,11 @@ pub fn decode_cursor(cursor: &str) -> Result<i64, String> {
     let decoded = base64::Engine::decode(&base64::engine::general_purpose::STANDARD, cursor)
         .map_err(|e| format!("Invalid cursor: {}", e))?;
 
-    let id_str = String::from_utf8(decoded)
-        .map_err(|e| format!("Invalid cursor encoding: {}", e))?;
+    let id_str =
+        String::from_utf8(decoded).map_err(|e| format!("Invalid cursor encoding: {}", e))?;
 
-    id_str.parse::<i64>()
+    id_str
+        .parse::<i64>()
         .map_err(|e| format!("Invalid cursor ID: {}", e))
 }
 

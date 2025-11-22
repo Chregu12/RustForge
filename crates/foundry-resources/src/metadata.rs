@@ -1,6 +1,6 @@
 //! Resource metadata and links
 
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 /// Metadata for resources

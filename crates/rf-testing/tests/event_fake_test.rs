@@ -12,10 +12,13 @@ fn test_event_fake_basic_usage() {
     fake.assert_nothing_dispatched();
 
     // Dispatch an event
-    fake.dispatch_simple("UserCreated", json!({
-        "user_id": 1,
-        "email": "test@example.com"
-    }));
+    fake.dispatch_simple(
+        "UserCreated",
+        json!({
+            "user_id": 1,
+            "email": "test@example.com"
+        }),
+    );
 
     assert_eq!(fake.count(), 1);
     fake.assert_dispatched("UserCreated");
@@ -27,10 +30,13 @@ fn test_event_fake_multiple_events() {
 
     // Dispatch multiple events
     for i in 0..5 {
-        fake.dispatch_simple("UserCreated", json!({
-            "user_id": i,
-            "email": format!("user{}@example.com", i)
-        }));
+        fake.dispatch_simple(
+            "UserCreated",
+            json!({
+                "user_id": i,
+                "email": format!("user{}@example.com", i)
+            }),
+        );
     }
 
     fake.assert_dispatched_times("UserCreated", 5);
@@ -74,10 +80,13 @@ fn test_event_fake_assert_not_dispatched_fails() {
 fn test_event_fake_assert_dispatched_with() {
     let fake = EventFake::new();
 
-    fake.dispatch_simple("UserCreated", json!({
-        "user_id": 1,
-        "email": "test@example.com"
-    }));
+    fake.dispatch_simple(
+        "UserCreated",
+        json!({
+            "user_id": 1,
+            "email": "test@example.com"
+        }),
+    );
 
     fake.assert_dispatched_with("UserCreated", |payload| {
         payload["user_id"] == 1 && payload["email"] == "test@example.com"

@@ -170,8 +170,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_empty_liveness() {
-        let checker = HealthChecker::new()
-            .add_check(AlwaysHealthyCheck::new("test"));
+        let checker = HealthChecker::new().add_check(AlwaysHealthyCheck::new("test"));
 
         let response = checker.check_liveness().await;
 

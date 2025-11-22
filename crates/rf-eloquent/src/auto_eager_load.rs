@@ -92,11 +92,7 @@ impl NPlusOnePattern {
         format!(
             "N+1 query detected: {} queries for {}.{} in {:?}. \
              Consider using: Model::with(\"{}\").get()",
-            self.query_count,
-            self.model,
-            self.relation,
-            self.duration,
-            self.relation
+            self.query_count, self.model, self.relation, self.duration, self.relation
         )
     }
 }
@@ -153,11 +149,7 @@ impl QueryTracker {
     /// * `relation` - Relationship name if applicable (e.g., Some("posts"))
     /// * `sql` - Optional SQL query for debugging
     pub fn log_query(&self, model: &str, relation: Option<&str>, sql: Option<String>) {
-        let key = format!(
-            "{}:{}",
-            model,
-            relation.unwrap_or("_primary_")
-        );
+        let key = format!("{}:{}", model, relation.unwrap_or("_primary_"));
 
         // Update grouped queries
         {
@@ -207,9 +199,10 @@ impl QueryTracker {
 
                 let mut patterns = self.patterns.lock().unwrap();
                 // Only add if not already detected
-                if !patterns.iter().any(|p| {
-                    p.model == pattern.model && p.relation == pattern.relation
-                }) {
+                if !patterns
+                    .iter()
+                    .any(|p| p.model == pattern.model && p.relation == pattern.relation)
+                {
                     patterns.push(pattern);
                 }
             }
@@ -370,7 +363,11 @@ mod tests {
 
         // Load user for each post (N+1 pattern)
         for _ in 0..5 {
-            tracker.log_query("User", Some("posts"), Some("SELECT * FROM users WHERE id = ?".to_string()));
+            tracker.log_query(
+                "User",
+                Some("posts"),
+                Some("SELECT * FROM users WHERE id = ?".to_string()),
+            );
         }
 
         let patterns = tracker.detect_n_plus_one();

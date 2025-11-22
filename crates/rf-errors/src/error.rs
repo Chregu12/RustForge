@@ -126,15 +126,33 @@ pub struct DatabaseError {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum DatabaseErrorKind {
-    Connection { host: String, database: String, user: String },
-    Query { query: String, error: String },
-    Migration { version: String, error: String },
-    Transaction { error: String },
-    PoolExhausted { max_connections: usize },
+    Connection {
+        host: String,
+        database: String,
+        user: String,
+    },
+    Query {
+        query: String,
+        error: String,
+    },
+    Migration {
+        version: String,
+        error: String,
+    },
+    Transaction {
+        error: String,
+    },
+    PoolExhausted {
+        max_connections: usize,
+    },
 }
 
 impl DatabaseError {
-    pub fn connection(host: impl Into<String>, database: impl Into<String>, user: impl Into<String>) -> Self {
+    pub fn connection(
+        host: impl Into<String>,
+        database: impl Into<String>,
+        user: impl Into<String>,
+    ) -> Self {
         Self {
             kind: DatabaseErrorKind::Connection {
                 host: host.into(),
@@ -212,7 +230,11 @@ impl ValidationError {
 
 impl fmt::Display for ValidationError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Validation failed for field '{}': {}", self.field, self.message)
+        write!(
+            f,
+            "Validation failed for field '{}': {}",
+            self.field, self.message
+        )
     }
 }
 
@@ -331,7 +353,11 @@ impl CacheError {
 
 impl fmt::Display for CacheError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Cache operation '{}' failed: {}", self.operation, self.message)
+        write!(
+            f,
+            "Cache operation '{}' failed: {}",
+            self.operation, self.message
+        )
     }
 }
 
@@ -367,7 +393,11 @@ impl QueueError {
 
 impl fmt::Display for QueueError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Queue operation '{}' failed: {}", self.operation, self.message)
+        write!(
+            f,
+            "Queue operation '{}' failed: {}",
+            self.operation, self.message
+        )
     }
 }
 
@@ -486,9 +516,17 @@ impl StorageError {
 impl fmt::Display for StorageError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if let Some(ref path) = self.path {
-            write!(f, "Storage operation '{}' on '{}': {}", self.operation, path, self.message)
+            write!(
+                f,
+                "Storage operation '{}' on '{}': {}",
+                self.operation, path, self.message
+            )
         } else {
-            write!(f, "Storage operation '{}': {}", self.operation, self.message)
+            write!(
+                f,
+                "Storage operation '{}': {}",
+                self.operation, self.message
+            )
         }
     }
 }
@@ -519,7 +557,11 @@ impl MailError {
 
 impl fmt::Display for MailError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Mail operation '{}' failed: {}", self.operation, self.message)
+        write!(
+            f,
+            "Mail operation '{}' failed: {}",
+            self.operation, self.message
+        )
     }
 }
 
@@ -554,7 +596,11 @@ impl ConfigurationError {
 
 impl fmt::Display for ConfigurationError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Configuration error for '{}': {}", self.key, self.message)
+        write!(
+            f,
+            "Configuration error for '{}': {}",
+            self.key, self.message
+        )
     }
 }
 
@@ -575,8 +621,7 @@ mod tests {
 
     #[test]
     fn test_validation_error_creation() {
-        let err = ValidationError::new("email", "Invalid email format")
-            .with_value("not-an-email");
+        let err = ValidationError::new("email", "Invalid email format").with_value("not-an-email");
         assert_eq!(err.field, "email");
         assert_eq!(err.value, Some("not-an-email".to_string()));
     }

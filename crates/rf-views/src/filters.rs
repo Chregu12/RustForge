@@ -174,15 +174,9 @@ impl Filter for TruncateFilter {
             .as_str()
             .ok_or_else(|| tera::Error::msg("Value must be a string"))?;
 
-        let length = args
-            .get("length")
-            .and_then(|v| v.as_u64())
-            .unwrap_or(100) as usize;
+        let length = args.get("length").and_then(|v| v.as_u64()).unwrap_or(100) as usize;
 
-        let suffix = args
-            .get("suffix")
-            .and_then(|v| v.as_str())
-            .unwrap_or("...");
+        let suffix = args.get("suffix").and_then(|v| v.as_str()).unwrap_or("...");
 
         if text.len() <= length {
             Ok(Value::String(text.to_string()))
@@ -268,10 +262,7 @@ mod tests {
         args.insert("length".to_string(), Value::Number(10.into()));
 
         let result = filter
-            .filter(
-                &Value::String("This is a long text".to_string()),
-                &args,
-            )
+            .filter(&Value::String("This is a long text".to_string()), &args)
             .unwrap();
         assert_eq!(result.as_str().unwrap(), "This is a ...");
     }

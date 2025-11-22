@@ -1,16 +1,16 @@
-//! Jobs Demo - Background Job Processing Examples
-//!
-//! This demo showcases:
-//! - Defining background jobs
-//! - Dispatching jobs to queue
-//! - Worker pool processing
-//! - Job scheduling
-//! - Retry logic
-//! - Failed job handling
+// Jobs Demo - Background Job Processing Examples
+//
+// This demo showcases:
+// - Defining background jobs
+// - Dispatching jobs to queue
+// - Worker pool processing
+// - Job scheduling
+// - Retry logic
+// - Failed job handling
 
 use async_trait::async_trait;
 use rf_jobs::{
-    BackoffStrategy, Job, JobContext, JobResult, JobRegistry, JobWithRegistry, QueueManager,
+    BackoffStrategy, Job, JobContext, JobRegistry, JobResult, JobWithRegistry, QueueManager,
     Scheduler, WorkerConfig, WorkerPool,
 };
 use serde::{Deserialize, Serialize};
@@ -229,13 +229,14 @@ struct FailingJob {
 #[async_trait]
 impl Job for FailingJob {
     async fn handle(&self, ctx: JobContext) -> JobResult {
-        ctx.log(&format!("Attempting job (will fail {} times)", self.fail_count));
+        ctx.log(&format!(
+            "Attempting job (will fail {} times)",
+            self.fail_count
+        ));
 
         if ctx.attempt() <= self.fail_count {
             ctx.warn("Job failed, will retry");
-            return Err(rf_jobs::JobError::Custom(
-                "Simulated failure".to_string(),
-            ));
+            return Err(rf_jobs::JobError::Custom("Simulated failure".to_string()));
         }
 
         ctx.log("Job succeeded!");
@@ -290,7 +291,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("==========================================\n");
 
     // Check if Redis is available
-    let redis_url = std::env::var("REDIS_URL").unwrap_or_else(|_| "redis://localhost:6379".to_string());
+    let redis_url =
+        std::env::var("REDIS_URL").unwrap_or_else(|_| "redis://localhost:6379".to_string());
 
     println!("📡 Connecting to Redis at: {}", redis_url);
 
@@ -362,7 +364,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // 5. Failing job (will retry)
     let failing_job = FailingJob { fail_count: 2 };
     let job_id = manager.dispatch(failing_job).await?;
-    println!("❌ Failing job dispatched: {} (will fail 2 times, then succeed)", job_id);
+    println!(
+        "❌ Failing job dispatched: {} (will fail 2 times, then succeed)",
+        job_id
+    );
 
     println!("\n👷 Starting worker pool...\n");
 

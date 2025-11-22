@@ -147,7 +147,8 @@ impl Validator {
     /// The key format is "field.rule" (e.g., "email.required", "age.min")
     pub fn messages(&mut self, messages: HashMap<&str, &str>) -> &mut Self {
         for (key, message) in messages {
-            self.custom_messages.insert(key.to_string(), message.to_string());
+            self.custom_messages
+                .insert(key.to_string(), message.to_string());
         }
         self
     }
@@ -280,7 +281,10 @@ mod tests {
             "field1",
             vec![Box::new(AlwaysFailRule) as Box<dyn Rule>],
         )]));
-        validator.messages(HashMap::from([("field1.always_fail", "Custom error message")]));
+        validator.messages(HashMap::from([(
+            "field1.always_fail",
+            "Custom error message",
+        )]));
 
         let result = validator.validate().await;
         assert!(result.is_err());
@@ -293,13 +297,19 @@ mod tests {
     #[tokio::test]
     async fn test_validated_data_accessors() {
         let mut data = HashMap::new();
-        data.insert("string_field".to_string(), Value::String("test".to_string()));
+        data.insert(
+            "string_field".to_string(),
+            Value::String("test".to_string()),
+        );
         data.insert("int_field".to_string(), Value::Number(42.into()));
         data.insert("bool_field".to_string(), Value::Bool(true));
 
         let validated = ValidatedData::new(data);
 
-        assert_eq!(validated.get_string("string_field"), Some("test".to_string()));
+        assert_eq!(
+            validated.get_string("string_field"),
+            Some("test".to_string())
+        );
         assert_eq!(validated.get_i64("int_field"), Some(42));
         assert_eq!(validated.get_bool("bool_field"), Some(true));
     }

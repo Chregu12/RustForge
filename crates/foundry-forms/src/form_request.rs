@@ -103,7 +103,11 @@ impl FormRequestValidator {
         }
     }
 
-    pub fn rule(mut self, field: impl Into<String>, rules: Vec<Box<dyn ValidationRuleTrait>>) -> Self {
+    pub fn rule(
+        mut self,
+        field: impl Into<String>,
+        rules: Vec<Box<dyn ValidationRuleTrait>>,
+    ) -> Self {
         self.rules.insert(field.into(), rules);
         self
     }

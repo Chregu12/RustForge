@@ -56,13 +56,13 @@ impl QueueManager {
     /// ```
     pub async fn new(redis_url: &str) -> Result<Self, QueueError> {
         let cfg = Config::from_url(redis_url);
-        let pool = cfg
-            .create_pool(Some(Runtime::Tokio1))
-            .map_err(|e| QueueError::ConnectionError(redis::RedisError::from((
+        let pool = cfg.create_pool(Some(Runtime::Tokio1)).map_err(|e| {
+            QueueError::ConnectionError(redis::RedisError::from((
                 redis::ErrorKind::IoError,
                 "Pool creation failed",
                 e.to_string(),
-            ))))?;
+            )))
+        })?;
 
         Ok(Self { pool })
     }
@@ -85,11 +85,7 @@ impl QueueManager {
     }
 
     /// Dispatch job to specific queue
-    pub async fn dispatch_to<J: Job>(
-        &self,
-        job: J,
-        queue: &str,
-    ) -> Result<Uuid, QueueError> {
+    pub async fn dispatch_to<J: Job>(&self, job: J, queue: &str) -> Result<Uuid, QueueError> {
         let payload = JobPayload::new(job)?;
         let job_id = payload.id;
 
@@ -182,13 +178,18 @@ impl QueueManager {
         let json = serde_json::to_string(&payload)?;
         let score = payload.available_at.timestamp();
 
-        conn.zadd::<_, _, _, ()>("queue:delayed", json, score).await?;
+        conn.zadd::<_, _, _, ()>("queue:delayed", json, score)
+            .await?;
 
         Ok(())
     }
 
     /// Pop job from queue (blocking)
-    pub async fn pop(&self, queue: &str, timeout: Duration) -> Result<Option<JobPayload>, QueueError> {
+    pub async fn pop(
+        &self,
+        queue: &str,
+        timeout: Duration,
+    ) -> Result<Option<JobPayload>, QueueError> {
         let mut conn = self.pool.get().await.map_err(|e| {
             QueueError::ConnectionError(redis::RedisError::from((
                 redis::ErrorKind::IoError,
@@ -200,9 +201,8 @@ impl QueueManager {
         let queue_key = format!("queue:{}", queue);
 
         // Use BLPOP for blocking pop
-        let result: Option<(String, String)> = conn
-            .blpop(&queue_key, timeout.as_secs() as f64)
-            .await?;
+        let result: Option<(String, String)> =
+            conn.blpop(&queue_key, timeout.as_secs() as f64).await?;
 
         match result {
             Some((_key, json)) => {
@@ -237,9 +237,8 @@ impl QueueManager {
         ];
 
         // Use BLPOP with multiple keys (Redis pops from first non-empty queue)
-        let result: Option<(String, String)> = conn
-            .blpop(&queue_keys, timeout.as_secs() as f64)
-            .await?;
+        let result: Option<(String, String)> =
+            conn.blpop(&queue_keys, timeout.as_secs() as f64).await?;
 
         match result {
             Some((_key, json)) => {
@@ -285,9 +284,7 @@ impl QueueManager {
         let now = chrono::Utc::now().timestamp();
 
         // Get all jobs with score <= now
-        let jobs: Vec<String> = conn
-            .zrangebyscore("queue:delayed", 0, now)
-            .await?;
+        let jobs: Vec<String> = conn.zrangebyscore("queue:delayed", 0, now).await?;
 
         let mut moved = 0;
 
@@ -449,15 +446,13 @@ mod tests {
     // They are marked with #[ignore] by default
 
     #[tokio::test]
-async fn test_queue_dispatch() {
-    if !redis_available().await {
-        eprintln!("⏭️  Skipping test_queue_dispatch: Redis not available");
-        eprintln!("   Start services with: ./scripts/test-env-up.sh");
-        return;
-    }
-        let manager = QueueManager::new("redis://localhost:6379")
-            .await
-            .unwrap();
+    async fn test_queue_dispatch() {
+        if !redis_available().await {
+            eprintln!("⏭️  Skipping test_queue_dispatch: Redis not available");
+            eprintln!("   Start services with: ./scripts/test-env-up.sh");
+            return;
+        }
+        let manager = QueueManager::new("redis://localhost:6379").await.unwrap();
 
         let job = TestJob { value: 42 };
         let job_id = manager.dispatch(job).await.unwrap();
@@ -466,15 +461,13 @@ async fn test_queue_dispatch() {
     }
 
     #[tokio::test]
-async fn test_queue_size() {
-    if !redis_available().await {
-        eprintln!("⏭️  Skipping test_queue_size: Redis not available");
-        eprintln!("   Start services with: ./scripts/test-env-up.sh");
-        return;
-    }
-        let manager = QueueManager::new("redis://localhost:6379")
-            .await
-            .unwrap();
+    async fn test_queue_size() {
+        if !redis_available().await {
+            eprintln!("⏭️  Skipping test_queue_size: Redis not available");
+            eprintln!("   Start services with: ./scripts/test-env-up.sh");
+            return;
+        }
+        let manager = QueueManager::new("redis://localhost:6379").await.unwrap();
 
         manager.clear("test").await.unwrap();
 
@@ -486,15 +479,13 @@ async fn test_queue_size() {
     }
 
     #[tokio::test]
-async fn test_queue_pop() {
-    if !redis_available().await {
-        eprintln!("⏭️  Skipping test_queue_pop: Redis not available");
-        eprintln!("   Start services with: ./scripts/test-env-up.sh");
-        return;
-    }
-        let manager = QueueManager::new("redis://localhost:6379")
-            .await
-            .unwrap();
+    async fn test_queue_pop() {
+        if !redis_available().await {
+            eprintln!("⏭️  Skipping test_queue_pop: Redis not available");
+            eprintln!("   Start services with: ./scripts/test-env-up.sh");
+            return;
+        }
+        let manager = QueueManager::new("redis://localhost:6379").await.unwrap();
 
         manager.clear("test").await.unwrap();
 

@@ -1,12 +1,12 @@
 //! Rate limit middleware for Axum
 
+use crate::{RateLimitStorage, RateLimiter};
 use axum::{
     extract::Request,
     http::StatusCode,
     middleware::Next,
     response::{IntoResponse, Response},
 };
-use crate::{RateLimiter, RateLimitStorage};
 
 pub struct RateLimitMiddleware<S: RateLimitStorage> {
     limiter: RateLimiter<S>,
@@ -32,9 +32,7 @@ impl<S: RateLimitStorage> RateLimitMiddleware<S> {
 
                 response
             }
-            Ok(false) => {
-                (StatusCode::TOO_MANY_REQUESTS, "Rate limit exceeded").into_response()
-            }
+            Ok(false) => (StatusCode::TOO_MANY_REQUESTS, "Rate limit exceeded").into_response(),
             Err(_) => next.run(request).await,
         }
     }

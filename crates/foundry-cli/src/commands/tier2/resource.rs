@@ -82,14 +82,7 @@ impl {}Collection {{
     }}
 }}
 "#,
-            self.name,
-            self.name,
-            self.name,
-            self.name,
-            self.name,
-            self.name,
-            self.name,
-            self.name
+            self.name, self.name, self.name, self.name, self.name, self.name, self.name, self.name
         )
     }
 }

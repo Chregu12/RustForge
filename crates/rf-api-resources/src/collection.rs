@@ -1,6 +1,6 @@
 //! Resource collection handling with pagination support.
 
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 /// Pagination metadata.
@@ -231,8 +231,14 @@ mod tests {
     #[test]
     fn test_collection() {
         let items = vec![
-            TestItem { id: 1, name: "Item 1".to_string() },
-            TestItem { id: 2, name: "Item 2".to_string() },
+            TestItem {
+                id: 1,
+                name: "Item 1".to_string(),
+            },
+            TestItem {
+                id: 2,
+                name: "Item 2".to_string(),
+            },
         ];
 
         let collection = Collection::new(items);
@@ -242,9 +248,10 @@ mod tests {
 
     #[test]
     fn test_paginated_collection() {
-        let items = vec![
-            TestItem { id: 1, name: "Item 1".to_string() },
-        ];
+        let items = vec![TestItem {
+            id: 1,
+            name: "Item 1".to_string(),
+        }];
         let meta = PaginationMeta::new(1, 10, 1);
         let collection = PaginatedCollection::new(items, meta);
 
@@ -265,9 +272,10 @@ mod tests {
 
     #[test]
     fn test_wrapped_collection() {
-        let items = vec![
-            TestItem { id: 1, name: "Item 1".to_string() },
-        ];
+        let items = vec![TestItem {
+            id: 1,
+            name: "Item 1".to_string(),
+        }];
         let collection = Collection::new(items);
         let wrapped = collection.wrap("items");
 

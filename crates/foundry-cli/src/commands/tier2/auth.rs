@@ -6,7 +6,10 @@ use clap::Parser;
 
 /// Install authentication scaffolding
 #[derive(Debug, Parser)]
-#[command(name = "auth:install", about = "Install authentication scaffolding (Breeze/Jetstream equivalent)")]
+#[command(
+    name = "auth:install",
+    about = "Install authentication scaffolding (Breeze/Jetstream equivalent)"
+)]
 pub struct AuthInstallCommand {
     /// UI stack to use (basic, enhanced, headless)
     #[arg(short, long, default_value = "basic")]
@@ -191,7 +194,10 @@ impl AuthTest2FACommand {
 
 /// Generate recovery codes
 #[derive(Debug, Parser)]
-#[command(name = "auth:recovery-codes", about = "Generate new recovery codes for a user")]
+#[command(
+    name = "auth:recovery-codes",
+    about = "Generate new recovery codes for a user"
+)]
 pub struct AuthRecoveryCodesCommand {
     /// User ID or email
     #[arg(short, long)]
@@ -211,10 +217,7 @@ impl AuthRecoveryCodesCommand {
         println!("");
 
         for i in 1..=self.count {
-            let code = format!("{:04}-{:04}",
-                1000 + i * 111,
-                5000 + i * 123
-            );
+            let code = format!("{:04}-{:04}", 1000 + i * 111, 5000 + i * 123);
             println!("  {}. {}", i, code);
         }
 
@@ -278,7 +281,10 @@ impl AuthUsersCommand {
 
 /// Send verification email
 #[derive(Debug, Parser)]
-#[command(name = "auth:send-verification", about = "Send email verification link to a user")]
+#[command(
+    name = "auth:send-verification",
+    about = "Send email verification link to a user"
+)]
 pub struct AuthSendVerificationCommand {
     /// User ID or email
     #[arg(short, long)]

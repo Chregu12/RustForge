@@ -1,7 +1,7 @@
-use async_trait::async_trait;
 use crate::container::Container;
 use crate::error::Result;
 use crate::provider::ServiceProvider;
+use async_trait::async_trait;
 
 /// Mail service provider for email services
 pub struct MailServiceProvider;
@@ -66,11 +66,9 @@ impl ServiceProvider for MailServiceProvider {
 
         container
             .singleton("mail.from.name", || {
-                Ok(std::env::var("MAIL_FROM_NAME")
-                    .unwrap_or_else(|_| {
-                        std::env::var("APP_NAME")
-                            .unwrap_or_else(|_| "Foundry".to_string())
-                    }))
+                Ok(std::env::var("MAIL_FROM_NAME").unwrap_or_else(|_| {
+                    std::env::var("APP_NAME").unwrap_or_else(|_| "Foundry".to_string())
+                }))
             })
             .await?;
 
@@ -109,8 +107,7 @@ impl ServiceProvider for MailServiceProvider {
 
         container
             .singleton("mail.ses.region", || {
-                Ok(std::env::var("AWS_DEFAULT_REGION")
-                    .unwrap_or_else(|_| "us-east-1".to_string()))
+                Ok(std::env::var("AWS_DEFAULT_REGION").unwrap_or_else(|_| "us-east-1".to_string()))
             })
             .await?;
 

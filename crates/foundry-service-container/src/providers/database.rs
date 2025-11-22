@@ -1,7 +1,7 @@
-use async_trait::async_trait;
 use crate::container::Container;
 use crate::error::Result;
 use crate::provider::ServiceProvider;
+use async_trait::async_trait;
 
 /// Database service provider for database connections and configurations
 pub struct DatabaseServiceProvider;

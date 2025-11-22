@@ -322,18 +322,14 @@ impl<T> Collection<T> {
     where
         F: FnMut(&T) -> bool,
     {
-        let (matched, unmatched): (Vec<T>, Vec<T>) = self.items.into_iter().partition(|item| f(item));
+        let (matched, unmatched): (Vec<T>, Vec<T>) =
+            self.items.into_iter().partition(|item| f(item));
         (Collection::new(matched), Collection::new(unmatched))
     }
 
     /// Zip with another collection
     pub fn zip<U>(self, other: Collection<U>) -> Collection<(T, U)> {
-        Collection::new(
-            self.items
-                .into_iter()
-                .zip(other.items)
-                .collect(),
-        )
+        Collection::new(self.items.into_iter().zip(other.items).collect())
     }
 
     /// Key the collection by a function
@@ -608,12 +604,7 @@ impl<T> Collection<T> {
     where
         F: FnMut(&T) -> bool,
     {
-        Collection::new(
-            self.items
-                .into_iter()
-                .take_while(|item| !f(item))
-                .collect(),
-        )
+        Collection::new(self.items.into_iter().take_while(|item| !f(item)).collect())
     }
 
     /// Take while predicate is true

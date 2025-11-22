@@ -2,7 +2,7 @@
 //!
 //! Different algorithms for distributing data across shards.
 
-use super::manager::{ShardResult, ShardStrategy, ShardError};
+use super::manager::{ShardError, ShardResult, ShardStrategy};
 use async_trait::async_trait;
 use std::collections::{HashMap, HashSet};
 use std::hash::{Hash, Hasher};
@@ -123,9 +123,9 @@ impl RangeStrategy {
 #[async_trait]
 impl ShardStrategy for RangeStrategy {
     async fn get_shard(&self, key: &str) -> ShardResult<String> {
-        let id: i64 = key.parse().map_err(|_| {
-            ShardError::InvalidKey(format!("Key '{}' is not a valid integer", key))
-        })?;
+        let id: i64 = key
+            .parse()
+            .map_err(|_| ShardError::InvalidKey(format!("Key '{}' is not a valid integer", key)))?;
 
         for (min, max, shard_name) in &self.ranges {
             if id >= *min && id <= *max {
@@ -397,14 +397,8 @@ mod tests {
 
         let strategy = TenantStrategy::new(map);
 
-        assert_eq!(
-            strategy.get_shard("tenant_a").await.unwrap(),
-            "shard1"
-        );
-        assert_eq!(
-            strategy.get_shard("tenant_b").await.unwrap(),
-            "shard2"
-        );
+        assert_eq!(strategy.get_shard("tenant_a").await.unwrap(), "shard1");
+        assert_eq!(strategy.get_shard("tenant_b").await.unwrap(), "shard2");
     }
 
     #[tokio::test]
@@ -414,10 +408,7 @@ mod tests {
 
         let strategy = TenantStrategy::with_default(map, "default_shard".to_string());
 
-        assert_eq!(
-            strategy.get_shard("tenant_a").await.unwrap(),
-            "shard1"
-        );
+        assert_eq!(strategy.get_shard("tenant_a").await.unwrap(), "shard1");
         assert_eq!(
             strategy.get_shard("unknown_tenant").await.unwrap(),
             "default_shard"
@@ -438,10 +429,7 @@ mod tests {
         let mut strategy = TenantStrategy::new(HashMap::new());
 
         strategy.add_tenant("tenant_x".to_string(), "shard_x".to_string());
-        assert_eq!(
-            strategy.get_shard("tenant_x").await.unwrap(),
-            "shard_x"
-        );
+        assert_eq!(strategy.get_shard("tenant_x").await.unwrap(), "shard_x");
 
         strategy.remove_tenant("tenant_x");
         assert!(strategy.get_shard("tenant_x").await.is_err());
@@ -467,10 +455,7 @@ mod tests {
         let strategy = GeographicStrategy::with_default(map, "shard_global".to_string());
 
         assert_eq!(strategy.get_shard("US").await.unwrap(), "shard_us");
-        assert_eq!(
-            strategy.get_shard("APAC").await.unwrap(),
-            "shard_global"
-        );
+        assert_eq!(strategy.get_shard("APAC").await.unwrap(), "shard_global");
     }
 
     #[tokio::test]
@@ -478,9 +463,7 @@ mod tests {
         let strategy = HashStrategy::new(vec!["shard1".into(), "shard2".into()]);
 
         // Same key should always hash to same shard
-        let results: Vec<_> = (0..100)
-            .map(|_| strategy.hash_key("test_key"))
-            .collect();
+        let results: Vec<_> = (0..100).map(|_| strategy.hash_key("test_key")).collect();
 
         assert!(results.iter().all(|&x| x == results[0]));
     }

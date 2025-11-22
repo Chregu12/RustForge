@@ -65,7 +65,9 @@ impl DatabaseDriver {
             .filter(cache_entry::Column::ExpiresAt.lt(Utc::now()))
             .exec(&self.db)
             .await
-            .map_err(|e| CacheError::Backend(format!("Failed to clean up expired entries: {}", e)))?;
+            .map_err(|e| {
+                CacheError::Backend(format!("Failed to clean up expired entries: {}", e))
+            })?;
 
         Ok(result.rows_affected)
     }
@@ -92,9 +94,7 @@ impl Cache for DatabaseDriver {
                 if let Some(expires_at) = e.expires_at {
                     if expires_at < Utc::now() {
                         // Delete expired entry
-                        let _ = cache_entry::Entity::delete_by_id(key)
-                            .exec(&self.db)
-                            .await;
+                        let _ = cache_entry::Entity::delete_by_id(key).exec(&self.db).await;
                         return Ok(None);
                     }
                 }
@@ -114,8 +114,8 @@ impl Cache for DatabaseDriver {
         value: &T,
         ttl: Duration,
     ) -> CacheResult<()> {
-        let serialized = serde_json::to_vec(value)
-            .map_err(|e| CacheError::Serialization(e.to_string()))?;
+        let serialized =
+            serde_json::to_vec(value).map_err(|e| CacheError::Serialization(e.to_string()))?;
 
         let expires_at = Utc::now() + ChronoDuration::seconds(ttl.as_secs() as i64);
 
@@ -161,9 +161,7 @@ impl Cache for DatabaseDriver {
                 if let Some(expires_at) = e.expires_at {
                     if expires_at < Utc::now() {
                         // Delete expired entry
-                        let _ = cache_entry::Entity::delete_by_id(key)
-                            .exec(&self.db)
-                            .await;
+                        let _ = cache_entry::Entity::delete_by_id(key).exec(&self.db).await;
                         return Ok(false);
                     }
                 }

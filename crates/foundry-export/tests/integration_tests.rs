@@ -8,8 +8,16 @@ fn test_csv_export() {
     let data = ExportData::new(
         vec!["ID".to_string(), "Name".to_string(), "Email".to_string()],
         vec![
-            vec!["1".to_string(), "Alice".to_string(), "alice@example.com".to_string()],
-            vec!["2".to_string(), "Bob".to_string(), "bob@example.com".to_string()],
+            vec![
+                "1".to_string(),
+                "Alice".to_string(),
+                "alice@example.com".to_string(),
+            ],
+            vec![
+                "2".to_string(),
+                "Bob".to_string(),
+                "bob@example.com".to_string(),
+            ],
         ],
     );
 
@@ -47,10 +55,9 @@ fn test_excel_export() {
 fn test_pdf_export() {
     let data = ExportData::new(
         vec!["ID".to_string(), "Name".to_string()],
-        vec![
-            vec!["1".to_string(), "Alice".to_string()],
-        ],
-    ).with_title("Test Report");
+        vec![vec!["1".to_string(), "Alice".to_string()]],
+    )
+    .with_title("Test Report");
 
     let exporter = Exporter::new();
     let result = exporter.export(data, ExportFormat::Pdf);
@@ -73,12 +80,9 @@ fn test_export_from_json() {
 
 #[test]
 fn test_export_with_metadata() {
-    let data = ExportData::new(
-        vec!["ID".to_string()],
-        vec![vec!["1".to_string()]],
-    )
-    .with_title("My Report")
-    .with_author("Test User");
+    let data = ExportData::new(vec!["ID".to_string()], vec![vec!["1".to_string()]])
+        .with_title("My Report")
+        .with_author("Test User");
 
     assert_eq!(data.metadata.title, Some("My Report".to_string()));
     assert_eq!(data.metadata.author, Some("Test User".to_string()));

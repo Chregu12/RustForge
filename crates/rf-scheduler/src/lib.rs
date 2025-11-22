@@ -178,7 +178,11 @@ impl Scheduler {
     }
 
     /// Schedule task to run every N minutes
-    pub async fn every_minutes(&self, minutes: u32, task: impl Task + 'static) -> SchedulerResult<()> {
+    pub async fn every_minutes(
+        &self,
+        minutes: u32,
+        task: impl Task + 'static,
+    ) -> SchedulerResult<()> {
         let cron = format!("*/{} * * * *", minutes);
         self.schedule(&cron, task).await
     }
@@ -338,12 +342,18 @@ mod tests {
     async fn test_shortcuts() {
         let scheduler = Scheduler::new();
 
-        assert!(scheduler.hourly(TestTask {
-            name: "hourly".to_string(),
-        }).await.is_ok());
+        assert!(scheduler
+            .hourly(TestTask {
+                name: "hourly".to_string(),
+            })
+            .await
+            .is_ok());
 
-        assert!(scheduler.daily(TestTask {
-            name: "daily".to_string(),
-        }).await.is_ok());
+        assert!(scheduler
+            .daily(TestTask {
+                name: "daily".to_string(),
+            })
+            .await
+            .is_ok());
     }
 }

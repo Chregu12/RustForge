@@ -68,7 +68,11 @@ pub struct StructuredLogger;
 
 impl StructuredLogger {
     /// Log with trace correlation
-    pub fn log(level: Level, message: impl Into<String>, fields: HashMap<String, serde_json::Value>) {
+    pub fn log(
+        level: Level,
+        message: impl Into<String>,
+        fields: HashMap<String, serde_json::Value>,
+    ) {
         let mut entry = LogEntry::new(level.as_str(), message);
         entry.fields = fields;
 
@@ -181,7 +185,10 @@ mod tests {
             .with_field("component", serde_json::json!("database"));
 
         assert_eq!(entry.fields.len(), 2);
-        assert_eq!(entry.fields.get("error_code"), Some(&serde_json::json!(500)));
+        assert_eq!(
+            entry.fields.get("error_code"),
+            Some(&serde_json::json!(500))
+        );
     }
 
     #[test]

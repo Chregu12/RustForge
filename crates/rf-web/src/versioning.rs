@@ -35,12 +35,12 @@
 //!     .route("/users", get(handler));
 //! ```
 
+use async_trait::async_trait;
 use axum::{
     extract::FromRequestParts,
     http::{header, request::Parts, HeaderValue, StatusCode},
     response::{IntoResponse, Response},
 };
-use async_trait::async_trait;
 use std::fmt;
 
 /// API version
@@ -305,10 +305,7 @@ mod tests {
         assert_eq!(extract_version_from_accept(accept), Some("1".to_string()));
 
         let accept = "application/vnd.api.v2.5+json";
-        assert_eq!(
-            extract_version_from_accept(accept),
-            Some("2.5".to_string())
-        );
+        assert_eq!(extract_version_from_accept(accept), Some("2.5".to_string()));
 
         let accept = "application/json";
         assert_eq!(extract_version_from_accept(accept), None);

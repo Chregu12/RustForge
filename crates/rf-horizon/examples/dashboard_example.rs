@@ -3,9 +3,9 @@
 //! This example demonstrates how to set up and run the Horizon dashboard
 //! for monitoring jobs and queues in a RustForge application.
 
+use anyhow::Result;
 use rf_horizon::Horizon;
 use rf_jobs::QueueManager;
-use anyhow::Result;
 
 #[tokio::main]
 async fn main() -> Result<()> {

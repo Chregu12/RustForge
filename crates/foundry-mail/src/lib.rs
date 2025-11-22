@@ -37,24 +37,28 @@
 //! ```
 
 pub mod domain;
-pub mod templates;
-pub mod transports;
 pub mod mailable;
 pub mod mailer;
+pub mod templates;
+pub mod transports;
 
 pub use domain::{Address, AddressList, Attachment, Content, Envelope, Message};
-pub use templates::{TemplateEngine, TemplateRenderer, TeraRenderer, HandlebarsRenderer, RenderContext};
-pub use transports::{MailTransport, SmtpTransport, SmtpConfig, TransportError};
 pub use mailable::{Mailable, MailableEnvelope, MailableError, TemplateMailable};
 pub use mailer::{Mailer, MailerError, QueuedMailer};
+pub use templates::{
+    HandlebarsRenderer, RenderContext, TemplateEngine, TemplateRenderer, TeraRenderer,
+};
+pub use transports::{MailTransport, SmtpConfig, SmtpTransport, TransportError};
 
 /// Prelude module for convenient imports
 pub mod prelude {
     pub use crate::domain::{Address, AddressList, Attachment, Content, Message};
-    pub use crate::templates::{TemplateEngine, TemplateRenderer, TeraRenderer, HandlebarsRenderer, RenderContext};
-    pub use crate::transports::{MailTransport, SmtpTransport, SmtpConfig};
     pub use crate::mailable::{Mailable, MailableEnvelope, TemplateMailable};
     pub use crate::mailer::{Mailer, MailerError};
+    pub use crate::templates::{
+        HandlebarsRenderer, RenderContext, TemplateEngine, TemplateRenderer, TeraRenderer,
+    };
+    pub use crate::transports::{MailTransport, SmtpConfig, SmtpTransport};
     pub use std::sync::Arc;
 }
 

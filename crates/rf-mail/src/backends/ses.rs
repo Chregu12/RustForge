@@ -47,7 +47,10 @@
 //! # }
 //! ```
 
-use crate::{error::{MailError, MailResult}, Mail, Mailer};
+use crate::{
+    error::{MailError, MailResult},
+    Mail, Mailer,
+};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -108,10 +111,7 @@ impl SesMailer {
 
     /// Get SES endpoint URL
     fn endpoint_url(&self) -> String {
-        format!(
-            "https://email.{}.amazonaws.com",
-            self.config.region
-        )
+        format!("https://email.{}.amazonaws.com", self.config.region)
     }
 
     /// Send using AWS SES API (SendEmail action)
@@ -160,10 +160,7 @@ impl SesMailer {
 
         // Reply-to
         if let Some(reply_to) = &mail.reply_to {
-            params.insert(
-                "ReplyToAddresses.member.1",
-                reply_to.email.clone(),
-            );
+            params.insert("ReplyToAddresses.member.1", reply_to.email.clone());
         }
 
         // Subject
@@ -195,14 +192,8 @@ impl SesMailer {
 
         // Tags
         for (i, (key, value)) in self.config.tags.iter().enumerate() {
-            params.insert(
-                format!("Tags.member.{}.Name", i + 1),
-                key.clone(),
-            );
-            params.insert(
-                format!("Tags.member.{}.Value", i + 1),
-                value.clone(),
-            );
+            params.insert(format!("Tags.member.{}.Name", i + 1), key.clone());
+            params.insert(format!("Tags.member.{}.Value", i + 1), value.clone());
         }
 
         // Build request body
@@ -258,16 +249,10 @@ impl SesMailer {
         let amz_date = now.format("%Y%m%dT%H%M%SZ").to_string();
 
         // Create credential scope
-        let credential_scope = format!(
-            "{}/{}/ses/aws4_request",
-            date_stamp, self.config.region
-        );
+        let credential_scope = format!("{}/{}/ses/aws4_request", date_stamp, self.config.region);
 
         // Create canonical request (simplified)
-        let canonical_request = format!(
-            "POST\n/\n\n\n\n{}",
-            hex::encode(Sha256::digest(b""))
-        );
+        let canonical_request = format!("POST\n/\n\n\n\n{}", hex::encode(Sha256::digest(b"")));
 
         // Create string to sign
         let string_to_sign = format!(
@@ -323,7 +308,10 @@ impl Mailer for SesMailer {
 
         let response = self.send_via_api(&mail).await?;
 
-        tracing::info!("Email sent via AWS SES - MessageID: {}", response.message_id);
+        tracing::info!(
+            "Email sent via AWS SES - MessageID: {}",
+            response.message_id
+        );
 
         Ok(())
     }

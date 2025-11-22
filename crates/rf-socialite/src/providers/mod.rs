@@ -1,16 +1,16 @@
 //! OAuth2 provider configurations
 
+mod facebook;
+mod generic;
 mod github;
 mod google;
-mod facebook;
 mod twitter;
-mod generic;
 
+pub use facebook::FacebookProvider;
+pub use generic::GenericProvider;
 pub use github::GitHubProvider;
 pub use google::GoogleProvider;
-pub use facebook::FacebookProvider;
 pub use twitter::TwitterProvider;
-pub use generic::GenericProvider;
 
 /// OAuth2 provider
 #[derive(Debug, Clone)]

@@ -101,8 +101,7 @@ impl FileDriver {
         file.read_to_end(&mut buffer)
             .map_err(|e| CacheError::Backend(format!("Failed to read cache file: {}", e)))?;
 
-        serde_json::from_slice(&buffer)
-            .map_err(|e| CacheError::Deserialization(e.to_string()))
+        serde_json::from_slice(&buffer).map_err(|e| CacheError::Deserialization(e.to_string()))
     }
 
     /// Write cache entry to file atomically
@@ -122,8 +121,8 @@ impl FileDriver {
             .open(&temp_path)
             .map_err(|e| CacheError::Backend(format!("Failed to create temp file: {}", e)))?;
 
-        let serialized = serde_json::to_vec(entry)
-            .map_err(|e| CacheError::Serialization(e.to_string()))?;
+        let serialized =
+            serde_json::to_vec(entry).map_err(|e| CacheError::Serialization(e.to_string()))?;
 
         temp_file
             .write_all(&serialized)
@@ -152,7 +151,9 @@ impl FileDriver {
             if let Ok(read_dir) = fs::read_dir(&walk_path) {
                 for entry in read_dir.flatten() {
                     if let Ok(path) = entry.path().canonicalize() {
-                        if path.is_file() && path.extension().and_then(|s| s.to_str()) == Some("cache") {
+                        if path.is_file()
+                            && path.extension().and_then(|s| s.to_str()) == Some("cache")
+                        {
                             entries.push(path);
                         }
                     }
@@ -216,8 +217,8 @@ impl Cache for FileDriver {
         let _guard = lock.lock().await;
 
         // Serialize value
-        let data = serde_json::to_vec(value)
-            .map_err(|e| CacheError::Serialization(e.to_string()))?;
+        let data =
+            serde_json::to_vec(value).map_err(|e| CacheError::Serialization(e.to_string()))?;
 
         // Create entry
         let entry = FileCacheEntry::new(data, ttl);

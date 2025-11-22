@@ -127,19 +127,17 @@ impl SessionMiddleware {
             .get(header::COOKIE)
             .and_then(|cookies| cookies.to_str().ok())
             .and_then(|cookie_str| {
-                cookie_str
-                    .split(';')
-                    .find_map(|cookie| {
-                        let mut parts = cookie.trim().splitn(2, '=');
-                        let name = parts.next()?.trim();
-                        let value = parts.next()?.trim();
+                cookie_str.split(';').find_map(|cookie| {
+                    let mut parts = cookie.trim().splitn(2, '=');
+                    let name = parts.next()?.trim();
+                    let value = parts.next()?.trim();
 
-                        if name == self.config.cookie_name {
-                            Some(value.to_string())
-                        } else {
-                            None
-                        }
-                    })
+                    if name == self.config.cookie_name {
+                        Some(value.to_string())
+                    } else {
+                        None
+                    }
+                })
             })
     }
 
@@ -204,10 +202,9 @@ impl SessionMiddleware {
 
         // Set cookie in response
         let cookie = self.build_cookie(&session_id);
-        response.headers_mut().insert(
-            header::SET_COOKIE,
-            cookie.parse().unwrap(),
-        );
+        response
+            .headers_mut()
+            .insert(header::SET_COOKIE, cookie.parse().unwrap());
 
         response
     }

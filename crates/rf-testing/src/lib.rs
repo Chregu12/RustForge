@@ -123,32 +123,31 @@
 //!
 //! For more detailed documentation, see the [Testing Guide](TESTING_GUIDE.md).
 
-mod error;
-mod http;
-mod http_client;
 pub mod assertions;
+pub mod database;
+pub mod docker;
+mod error;
 pub mod factory;
 pub mod factory_advanced;
-pub mod seeder;
 pub mod fake;
-pub mod database;
 pub mod fakes;
-pub mod docker;
+mod http;
+mod http_client;
+pub mod seeder;
 
-pub use error::{TestError, TestResult};
-pub use http::{HttpTester, TestResponse};
-pub use http_client::{TestClient, RequestBuilder, TestResponseBuilder};
-pub use factory::{Factory, FactoryBuilder, FactoryError, FactoryDefinition};
-pub use factory_advanced::{Sequence, EnhancedFactory, FactoryState, RelationshipBuilder};
-pub use seeder::{Seeder, DatabaseSeeder, SeederRunner, SeederError};
-pub use fake::Fake;
-pub use database::{TestDatabase, TestDatabaseConfig, DatabaseTestError, refresh_database};
-pub use fakes::{QueueFake, EventFake};
+pub use database::{refresh_database, DatabaseTestError, TestDatabase, TestDatabaseConfig};
 pub use docker::{
+    database_available, mailhog_available, postgres_available, redis_available, s3_available,
     DockerCompose, Service,
-    redis_available, postgres_available, database_available,
-    s3_available, mailhog_available
 };
+pub use error::{TestError, TestResult};
+pub use factory::{Factory, FactoryBuilder, FactoryDefinition, FactoryError};
+pub use factory_advanced::{EnhancedFactory, FactoryState, RelationshipBuilder, Sequence};
+pub use fake::Fake;
+pub use fakes::{EventFake, QueueFake};
+pub use http::{HttpTester, TestResponse};
+pub use http_client::{RequestBuilder, TestClient, TestResponseBuilder};
+pub use seeder::{DatabaseSeeder, Seeder, SeederError, SeederRunner};
 
 // Re-export database assertion macros (defined in database.rs)
 // The macros are automatically available at crate root when defined with #[macro_export]

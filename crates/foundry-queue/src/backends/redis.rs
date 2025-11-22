@@ -37,10 +37,9 @@ impl RedisBackend {
 
     /// Create from environment variables
     pub fn from_env() -> QueueResult<Self> {
-        let url = std::env::var("REDIS_URL")
-            .unwrap_or_else(|_| "redis://127.0.0.1:6379".to_string());
-        let prefix = std::env::var("QUEUE_PREFIX")
-            .unwrap_or_else(|_| "queue:".to_string());
+        let url =
+            std::env::var("REDIS_URL").unwrap_or_else(|_| "redis://127.0.0.1:6379".to_string());
+        let prefix = std::env::var("QUEUE_PREFIX").unwrap_or_else(|_| "queue:".to_string());
         Self::with_prefix(url, prefix)
     }
 
@@ -263,9 +262,7 @@ impl QueueBackend for RedisBackend {
         let now = chrono::Utc::now().timestamp();
 
         // Get all jobs with score (execute_at) <= now
-        let job_ids: Vec<String> = conn
-            .zrangebyscore(&delayed_key, "-inf", now)
-            .await?;
+        let job_ids: Vec<String> = conn.zrangebyscore(&delayed_key, "-inf", now).await?;
 
         let mut jobs = Vec::new();
         for job_id in job_ids {
@@ -304,12 +301,12 @@ mod tests {
     }
 
     #[tokio::test]
-async fn test_redis_push_pop() {
-    if !redis_available().await {
-        eprintln!("⏭️  Skipping test_redis_push_pop: Redis not available");
-        eprintln!("   Start services with: ./scripts/test-env-up.sh");
-        return;
-    }
+    async fn test_redis_push_pop() {
+        if !redis_available().await {
+            eprintln!("⏭️  Skipping test_redis_push_pop: Redis not available");
+            eprintln!("   Start services with: ./scripts/test-env-up.sh");
+            return;
+        }
         let backend = create_test_backend().await.unwrap();
         backend.clear().await.unwrap();
 
@@ -327,12 +324,12 @@ async fn test_redis_push_pop() {
     }
 
     #[tokio::test]
-async fn test_redis_priority() {
-    if !redis_available().await {
-        eprintln!("⏭️  Skipping test_redis_priority: Redis not available");
-        eprintln!("   Start services with: ./scripts/test-env-up.sh");
-        return;
-    }
+    async fn test_redis_priority() {
+        if !redis_available().await {
+            eprintln!("⏭️  Skipping test_redis_priority: Redis not available");
+            eprintln!("   Start services with: ./scripts/test-env-up.sh");
+            return;
+        }
         let backend = create_test_backend().await.unwrap();
         backend.clear().await.unwrap();
 
@@ -351,12 +348,12 @@ async fn test_redis_priority() {
     }
 
     #[tokio::test]
-async fn test_redis_delayed() {
-    if !redis_available().await {
-        eprintln!("⏭️  Skipping test_redis_delayed: Redis not available");
-        eprintln!("   Start services with: ./scripts/test-env-up.sh");
-        return;
-    }
+    async fn test_redis_delayed() {
+        if !redis_available().await {
+            eprintln!("⏭️  Skipping test_redis_delayed: Redis not available");
+            eprintln!("   Start services with: ./scripts/test-env-up.sh");
+            return;
+        }
         let backend = create_test_backend().await.unwrap();
         backend.clear().await.unwrap();
 
@@ -375,12 +372,12 @@ async fn test_redis_delayed() {
     }
 
     #[tokio::test]
-async fn test_redis_failed_jobs() {
-    if !redis_available().await {
-        eprintln!("⏭️  Skipping test_redis_failed_jobs: Redis not available");
-        eprintln!("   Start services with: ./scripts/test-env-up.sh");
-        return;
-    }
+    async fn test_redis_failed_jobs() {
+        if !redis_available().await {
+            eprintln!("⏭️  Skipping test_redis_failed_jobs: Redis not available");
+            eprintln!("   Start services with: ./scripts/test-env-up.sh");
+            return;
+        }
         let backend = create_test_backend().await.unwrap();
         backend.clear().await.unwrap();
 

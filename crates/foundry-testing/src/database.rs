@@ -103,7 +103,9 @@ impl TestDatabase {
 
     /// Create a shared test database instance
     pub async fn shared() -> Arc<Mutex<Self>> {
-        Arc::new(Mutex::new(Self::new().await.expect("Failed to create test database")))
+        Arc::new(Mutex::new(
+            Self::new().await.expect("Failed to create test database"),
+        ))
     }
 }
 

@@ -116,7 +116,9 @@ impl User {
         let parts: Vec<&str> = full_name.split_whitespace().collect();
 
         match parts.len() {
-            0 => Err(AttributeError::ValidationError("Name cannot be empty".to_string())),
+            0 => Err(AttributeError::ValidationError(
+                "Name cannot be empty".to_string(),
+            )),
             1 => {
                 self.first_name = parts[0].to_string();
                 self.last_name = String::new();
@@ -144,12 +146,16 @@ impl ModelEvents for User {
 
         // Validate email
         if self.email.is_empty() {
-            return Err(EventError::ValidationFailed("Email is required".to_string()));
+            return Err(EventError::ValidationFailed(
+                "Email is required".to_string(),
+            ));
         }
 
         // Validate password
         if self.password_hash.is_empty() {
-            return Err(EventError::ValidationFailed("Password is required".to_string()));
+            return Err(EventError::ValidationFailed(
+                "Password is required".to_string(),
+            ));
         }
 
         println!("✅ Validation passed");
@@ -176,7 +182,9 @@ impl ModelEvents for User {
 
         // Validate changes
         if self.email.is_empty() {
-            return Err(EventError::ValidationFailed("Email cannot be empty".to_string()));
+            return Err(EventError::ValidationFailed(
+                "Email cannot be empty".to_string(),
+            ));
         }
 
         Ok(())
@@ -291,7 +299,7 @@ fn capitalize(s: &str) -> String {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("🚀 Eloquent Mutators & Observers Demo\n");
-    println!("=" .repeat(60));
+    println!("=".repeat(60));
 
     // Create a new user
     println!("\n📝 Creating new user...\n");

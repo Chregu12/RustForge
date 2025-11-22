@@ -111,7 +111,9 @@ impl AttributeValue {
     pub fn as_string(&self) -> AttributeResult<String> {
         match self {
             AttributeValue::String(s) => Ok(s.clone()),
-            _ => Err(AttributeError::ConversionError("Expected string".to_string())),
+            _ => Err(AttributeError::ConversionError(
+                "Expected string".to_string(),
+            )),
         }
     }
 
@@ -119,7 +121,9 @@ impl AttributeValue {
     pub fn as_integer(&self) -> AttributeResult<i64> {
         match self {
             AttributeValue::Integer(i) => Ok(*i),
-            _ => Err(AttributeError::ConversionError("Expected integer".to_string())),
+            _ => Err(AttributeError::ConversionError(
+                "Expected integer".to_string(),
+            )),
         }
     }
 
@@ -127,7 +131,9 @@ impl AttributeValue {
     pub fn as_float(&self) -> AttributeResult<f64> {
         match self {
             AttributeValue::Float(f) => Ok(*f),
-            _ => Err(AttributeError::ConversionError("Expected float".to_string())),
+            _ => Err(AttributeError::ConversionError(
+                "Expected float".to_string(),
+            )),
         }
     }
 
@@ -135,7 +141,9 @@ impl AttributeValue {
     pub fn as_boolean(&self) -> AttributeResult<bool> {
         match self {
             AttributeValue::Boolean(b) => Ok(*b),
-            _ => Err(AttributeError::ConversionError("Expected boolean".to_string())),
+            _ => Err(AttributeError::ConversionError(
+                "Expected boolean".to_string(),
+            )),
         }
     }
 
@@ -143,7 +151,9 @@ impl AttributeValue {
     pub fn as_datetime(&self) -> AttributeResult<DateTime<Utc>> {
         match self {
             AttributeValue::DateTime(dt) => Ok(*dt),
-            _ => Err(AttributeError::ConversionError("Expected datetime".to_string())),
+            _ => Err(AttributeError::ConversionError(
+                "Expected datetime".to_string(),
+            )),
         }
     }
 
@@ -156,9 +166,12 @@ impl AttributeValue {
     pub fn as_i64(&self) -> AttributeResult<i64> {
         match self {
             AttributeValue::Integer(i) => Ok(*i),
-            AttributeValue::String(s) => s.parse::<i64>()
+            AttributeValue::String(s) => s
+                .parse::<i64>()
                 .map_err(|_| AttributeError::ConversionError("Expected integer".to_string())),
-            _ => Err(AttributeError::ConversionError("Expected integer".to_string())),
+            _ => Err(AttributeError::ConversionError(
+                "Expected integer".to_string(),
+            )),
         }
     }
 
@@ -365,8 +378,7 @@ pub mod common_mutators {
             .decode(value)
             .map_err(|e| AttributeError::ConversionError(e.to_string()))
             .and_then(|bytes| {
-                String::from_utf8(bytes)
-                    .map_err(|e| AttributeError::ConversionError(e.to_string()))
+                String::from_utf8(bytes).map_err(|e| AttributeError::ConversionError(e.to_string()))
             })
     }
 
@@ -416,10 +428,7 @@ mod tests {
         assert!(bag.has("age"));
         assert_eq!(bag.len(), 2);
 
-        assert_eq!(
-            bag.get("name").unwrap().as_string().unwrap(),
-            "John"
-        );
+        assert_eq!(bag.get("name").unwrap().as_string().unwrap(), "John");
         assert_eq!(bag.get("age").unwrap().as_i64().unwrap(), 30);
 
         bag.remove("name");
@@ -434,15 +443,9 @@ mod tests {
     fn test_common_accessors() {
         assert_eq!(common_accessors::uppercase("hello"), "HELLO");
         assert_eq!(common_accessors::lowercase("HELLO"), "hello");
-        assert_eq!(
-            common_accessors::title_case("hello world"),
-            "Hello World"
-        );
+        assert_eq!(common_accessors::title_case("hello world"), "Hello World");
         assert_eq!(common_accessors::truncate("hello world", 5), "hello...");
-        assert_eq!(
-            common_accessors::strip_html("<p>Hello</p>"),
-            "Hello"
-        );
+        assert_eq!(common_accessors::strip_html("<p>Hello</p>"), "Hello");
     }
 
     #[test]

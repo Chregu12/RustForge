@@ -34,10 +34,10 @@
 //! # }
 //! ```
 
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
-use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tokio::fs;
 use tokio::process::Command;
@@ -155,7 +155,7 @@ impl ViteDevServer {
 
         if vite_check.is_err() || !vite_check?.success() {
             return Err(ViteError::NotFound(
-                "Vite not found. Install with: npm install -D vite".to_string()
+                "Vite not found. Install with: npm install -D vite".to_string(),
             ));
         }
 
@@ -199,7 +199,10 @@ impl ViteDevServer {
     /// Generate link tag for CSS
     pub fn link(&self, entry: &str) -> ViteResult<String> {
         let base_url = self.url();
-        Ok(format!(r#"<link rel="stylesheet" href="{}/{}">"#, base_url, entry))
+        Ok(format!(
+            r#"<link rel="stylesheet" href="{}/{}">"#,
+            base_url, entry
+        ))
     }
 
     /// Stop the dev server
@@ -236,7 +239,7 @@ impl ViteBuild {
 
         if vite_check.is_err() || !vite_check?.success() {
             return Err(ViteError::NotFound(
-                "Vite not found. Install with: npm install -D vite".to_string()
+                "Vite not found. Install with: npm install -D vite".to_string(),
             ));
         }
 
@@ -283,9 +286,10 @@ impl ViteManifest {
 
     /// Generate script tag for production
     pub fn script(&self, entry: &str) -> ViteResult<String> {
-        let manifest_entry = self.entries.get(entry).ok_or_else(|| {
-            ViteError::ManifestError(format!("Entry not found: {}", entry))
-        })?;
+        let manifest_entry = self
+            .entries
+            .get(entry)
+            .ok_or_else(|| ViteError::ManifestError(format!("Entry not found: {}", entry)))?;
 
         let build_path = format!("/{}/{}", self.build_dir.display(), manifest_entry.file);
 
@@ -304,9 +308,10 @@ impl ViteManifest {
 
     /// Generate link tag for CSS
     pub fn link(&self, entry: &str) -> ViteResult<String> {
-        let manifest_entry = self.entries.get(entry).ok_or_else(|| {
-            ViteError::ManifestError(format!("Entry not found: {}", entry))
-        })?;
+        let manifest_entry = self
+            .entries
+            .get(entry)
+            .ok_or_else(|| ViteError::ManifestError(format!("Entry not found: {}", entry)))?;
 
         let build_path = format!("/{}/{}", self.build_dir.display(), manifest_entry.file);
         Ok(format!(r#"<link rel="stylesheet" href="{}">"#, build_path))
@@ -400,10 +405,9 @@ mod tests {
         let manifest_path = temp_dir.join("manifest.json");
         fs::write(&manifest_path, manifest_json).await.ok();
 
-        let manifest = ViteManifest::load(
-            &manifest_path,
-            PathBuf::from("public/build")
-        ).await.unwrap();
+        let manifest = ViteManifest::load(&manifest_path, PathBuf::from("public/build"))
+            .await
+            .unwrap();
 
         let entry = manifest.get("resources/js/app.js").unwrap();
         assert_eq!(entry.file, "assets/app-abc123.js");
@@ -431,10 +435,9 @@ mod tests {
         let manifest_path = temp_dir.join("manifest.json");
         fs::write(&manifest_path, manifest_json).await.ok();
 
-        let manifest = ViteManifest::load(
-            &manifest_path,
-            PathBuf::from("public/build")
-        ).await.unwrap();
+        let manifest = ViteManifest::load(&manifest_path, PathBuf::from("public/build"))
+            .await
+            .unwrap();
 
         let script_tag = manifest.script("resources/js/app.js").unwrap();
 

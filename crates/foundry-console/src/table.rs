@@ -117,7 +117,12 @@ impl TableCell {
                 let padding = width.saturating_sub(content.len());
                 let left_pad = padding / 2;
                 let right_pad = padding - left_pad;
-                format!("{}{}{}", " ".repeat(left_pad), self.content, " ".repeat(right_pad))
+                format!(
+                    "{}{}{}",
+                    " ".repeat(left_pad),
+                    self.content,
+                    " ".repeat(right_pad)
+                )
             }
             Alignment::Right => format!("{:>width$}", self.content, width = width + ansi_overhead),
         }
@@ -264,28 +269,30 @@ impl Table {
 
     fn render_border(&self, chars: &TableChars, col_widths: &[usize], is_top: bool) -> String {
         let mut parts = Vec::new();
-        parts.push((if is_top {
-            chars.top_left
-        } else {
-            chars.bottom_left
-        }).to_string());
+        parts.push(
+            (if is_top {
+                chars.top_left
+            } else {
+                chars.bottom_left
+            })
+            .to_string(),
+        );
 
         for (idx, width) in col_widths.iter().enumerate() {
             parts.push(chars.horizontal.to_string().repeat(width + 2));
             if idx < col_widths.len() - 1 {
-                parts.push((if is_top {
-                    chars.top_t
-                } else {
-                    chars.bottom_t
-                }).to_string());
+                parts.push((if is_top { chars.top_t } else { chars.bottom_t }).to_string());
             }
         }
 
-        parts.push((if is_top {
-            chars.top_right
-        } else {
-            chars.bottom_right
-        }).to_string());
+        parts.push(
+            (if is_top {
+                chars.top_right
+            } else {
+                chars.bottom_right
+            })
+            .to_string(),
+        );
 
         parts.concat()
     }
@@ -355,8 +362,7 @@ mod tests {
 
     #[test]
     fn test_table_creation() {
-        let table = Table::new()
-            .with_headers(vec!["Name".to_string(), "Age".to_string()]);
+        let table = Table::new().with_headers(vec!["Name".to_string(), "Age".to_string()]);
 
         assert!(table.headers.is_some());
     }

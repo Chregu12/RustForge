@@ -50,9 +50,7 @@ impl Envelope {
     }
 
     pub fn recipients(&self) -> impl Iterator<Item = &Address> {
-        self.to.iter()
-            .chain(self.cc.iter())
-            .chain(self.bcc.iter())
+        self.to.iter().chain(self.cc.iter()).chain(self.bcc.iter())
     }
 
     pub fn recipient_count(&self) -> usize {

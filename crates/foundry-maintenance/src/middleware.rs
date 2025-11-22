@@ -62,7 +62,8 @@ impl MaintenanceMiddleware {
     /// Read maintenance state from file
     fn read_state(&self) -> Result<MaintenanceState, std::io::Error> {
         let content = std::fs::read_to_string(&self.file_path)?;
-        serde_json::from_str(&content).map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))
+        serde_json::from_str(&content)
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))
     }
 
     /// Create maintenance response
@@ -119,10 +120,9 @@ impl MaintenanceMiddleware {
 
         // Add Retry-After header if specified
         if let Some(retry_after) = state.retry_after {
-            response.headers_mut().insert(
-                "Retry-After",
-                retry_after.to_string().parse().unwrap(),
-            );
+            response
+                .headers_mut()
+                .insert("Retry-After", retry_after.to_string().parse().unwrap());
         }
 
         response
@@ -161,10 +161,7 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let file_path = temp_dir.path().join(".maintenance");
 
-        let state = MaintenanceState::new(
-            Some("Test".to_string()),
-            Some("secret".to_string()),
-        );
+        let state = MaintenanceState::new(Some("Test".to_string()), Some("secret".to_string()));
 
         std::fs::write(&file_path, serde_json::to_string(&state).unwrap()).unwrap();
 
@@ -180,10 +177,7 @@ mod tests {
         let file_path = temp_dir.path().join(".maintenance");
 
         let middleware = MaintenanceMiddleware::new(file_path);
-        let state = MaintenanceState::new(
-            Some("Custom message".to_string()),
-            None,
-        );
+        let state = MaintenanceState::new(Some("Custom message".to_string()), None);
 
         let response = middleware.maintenance_response(&state);
         assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);

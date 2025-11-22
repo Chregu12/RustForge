@@ -32,4 +32,4 @@ mod middleware;
 mod token;
 
 pub use middleware::RequireVerified;
-pub use token::{EmailVerification, VerificationClaims, Verifiable};
+pub use token::{EmailVerification, Verifiable, VerificationClaims};

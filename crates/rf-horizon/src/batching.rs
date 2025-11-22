@@ -1,12 +1,12 @@
 //! Job batching with progress tracking
 
+use anyhow::Result;
+use async_trait::async_trait;
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use uuid::Uuid;
-use chrono::{DateTime, Utc};
-use anyhow::Result;
-use async_trait::async_trait;
 
 /// Job trait for batch execution
 #[async_trait]
@@ -379,12 +379,10 @@ mod tests {
         let called = Arc::new(AtomicBool::new(false));
         let called_clone = Arc::clone(&called);
 
-        let jobs: Vec<Arc<dyn Job>> = vec![
-            Arc::new(TestJob {
-                name: "job1".to_string(),
-                should_fail: false,
-            }),
-        ];
+        let jobs: Vec<Arc<dyn Job>> = vec![Arc::new(TestJob {
+            name: "job1".to_string(),
+            should_fail: false,
+        })];
 
         let handle = Batch::new("then-batch")
             .jobs(jobs)
@@ -406,12 +404,10 @@ mod tests {
         let called = Arc::new(AtomicBool::new(false));
         let called_clone = Arc::clone(&called);
 
-        let jobs: Vec<Arc<dyn Job>> = vec![
-            Arc::new(TestJob {
-                name: "job1".to_string(),
-                should_fail: true,
-            }),
-        ];
+        let jobs: Vec<Arc<dyn Job>> = vec![Arc::new(TestJob {
+            name: "job1".to_string(),
+            should_fail: true,
+        })];
 
         let handle = Batch::new("catch-batch")
             .jobs(jobs)

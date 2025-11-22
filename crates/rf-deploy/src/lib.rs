@@ -165,10 +165,7 @@ impl DockerComposeBuilder {
             build: Some(".".to_string()),
             image: None,
             ports: vec![format!("{}:{}", port, port)],
-            environment: vec![
-                "RUST_LOG=info".to_string(),
-                format!("PORT={}", port),
-            ],
+            environment: vec!["RUST_LOG=info".to_string(), format!("PORT={}", port)],
             depends_on: Vec::new(),
             volumes: None,
             command: None,
@@ -199,7 +196,8 @@ impl DockerComposeBuilder {
         // Add postgres as dependency to app
         if let Some(app) = self.services.get_mut(&self.app_name) {
             app.depends_on.push("postgres".to_string());
-            app.environment.push("DATABASE_URL=postgres://postgres:postgres@postgres:5432/app".to_string());
+            app.environment
+                .push("DATABASE_URL=postgres://postgres:postgres@postgres:5432/app".to_string());
         }
 
         self
@@ -222,7 +220,8 @@ impl DockerComposeBuilder {
         // Add redis as dependency to app
         if let Some(app) = self.services.get_mut(&self.app_name) {
             app.depends_on.push("redis".to_string());
-            app.environment.push("REDIS_URL=redis://redis:6379".to_string());
+            app.environment
+                .push("REDIS_URL=redis://redis:6379".to_string());
         }
 
         self
@@ -479,8 +478,7 @@ mod tests {
 
     #[test]
     fn test_kubernetes_service() {
-        let k8s = KubernetesBuilder::new("my-app", "my-app:latest")
-            .port(8000);
+        let k8s = KubernetesBuilder::new("my-app", "my-app:latest").port(8000);
 
         let service = k8s.build_service().unwrap();
 

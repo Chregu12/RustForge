@@ -4,7 +4,7 @@
 //!
 //! Run with: cargo run --example basic_scoped
 
-use rf_container::{ScopeManager, ScopedContainer, ServiceRegistry, Scope};
+use rf_container::{Scope, ScopeManager, ScopedContainer, ServiceRegistry};
 use std::sync::{Arc, Mutex};
 
 #[derive(Clone)]

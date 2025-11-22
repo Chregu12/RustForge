@@ -85,11 +85,18 @@ impl {} {{
     }}
 }}
 "#,
-            form_name, form_name, form_name, form_name.to_lowercase()
+            form_name,
+            form_name,
+            form_name,
+            form_name.to_lowercase()
         );
 
-        ctx.artifacts.write_file(&form_path, &content, ctx.options.force)?;
+        ctx.artifacts
+            .write_file(&form_path, &content, ctx.options.force)?;
 
-        Ok(CommandResult::success(format!("Form created: {}", form_path)))
+        Ok(CommandResult::success(format!(
+            "Form created: {}",
+            form_path
+        )))
     }
 }

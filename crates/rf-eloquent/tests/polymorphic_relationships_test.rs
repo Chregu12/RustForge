@@ -10,8 +10,8 @@
 //! Total: 30+ comprehensive tests
 
 use rf_eloquent::relationships::{
-    morph_many::*, morph_one::*, morph_to::*, morph_to_many::*, morphed_by_many::*,
-    polymorphic::*, type_registry::*,
+    morph_many::*, morph_one::*, morph_to::*, morph_to_many::*, morphed_by_many::*, polymorphic::*,
+    type_registry::*,
 };
 use std::any::Any;
 use std::sync::Arc;
@@ -49,9 +49,9 @@ async fn test_morph_to_type_registry_integration() {
     // Register a test type
     GLOBAL_TYPE_REGISTRY
         .register("Post", |id, _db| {
-            Box::pin(async move {
-                Ok(Box::new(format!("Post-{}", id)) as Box<dyn Any + Send + Sync>)
-            })
+            Box::pin(
+                async move { Ok(Box::new(format!("Post-{}", id)) as Box<dyn Any + Send + Sync>) },
+            )
         })
         .await;
 
@@ -81,9 +81,9 @@ async fn test_morph_to_dynamic_resolution() {
     // Register multiple types
     GLOBAL_TYPE_REGISTRY
         .register("Video", |id, _db| {
-            Box::pin(async move {
-                Ok(Box::new(format!("Video-{}", id)) as Box<dyn Any + Send + Sync>)
-            })
+            Box::pin(
+                async move { Ok(Box::new(format!("Video-{}", id)) as Box<dyn Any + Send + Sync>) },
+            )
         })
         .await;
 
@@ -322,8 +322,8 @@ fn test_morphed_by_many_builder_creation() {
 #[test]
 fn test_morphed_by_many_builder_with_pivot() {
     let morphed_by_many = MorphedByMany::<String>::new(1, "Post", "taggable", "taggables");
-    let builder = MorphedByManyBuilder::new(morphed_by_many)
-        .with_pivot(vec!["created_at".to_string()]);
+    let builder =
+        MorphedByManyBuilder::new(morphed_by_many).with_pivot(vec!["created_at".to_string()]);
 
     assert_eq!(builder.relationship().related_id(), 1);
 }
@@ -350,17 +350,17 @@ async fn test_type_registry_register_multiple_types() {
 
     registry
         .register("Model1", |id, _db| {
-            Box::pin(async move {
-                Ok(Box::new(format!("Model1-{}", id)) as Box<dyn Any + Send + Sync>)
-            })
+            Box::pin(
+                async move { Ok(Box::new(format!("Model1-{}", id)) as Box<dyn Any + Send + Sync>) },
+            )
         })
         .await;
 
     registry
         .register("Model2", |id, _db| {
-            Box::pin(async move {
-                Ok(Box::new(format!("Model2-{}", id)) as Box<dyn Any + Send + Sync>)
-            })
+            Box::pin(
+                async move { Ok(Box::new(format!("Model2-{}", id)) as Box<dyn Any + Send + Sync>) },
+            )
         })
         .await;
 
@@ -379,9 +379,7 @@ async fn test_type_registry_resolve_with_different_ids() {
 
     registry
         .register("TestModel", |id, _db| {
-            Box::pin(async move {
-                Ok(Box::new(id * 10) as Box<dyn Any + Send + Sync>)
-            })
+            Box::pin(async move { Ok(Box::new(id * 10) as Box<dyn Any + Send + Sync>) })
         })
         .await;
 
@@ -426,12 +424,12 @@ fn test_morph_relation_column_consistency() {
     let morph_many = MorphMany::<String>::new(1, "Post", "testable");
     let morph_one = MorphOne::<String>::new(1, "Post", "testable");
 
-    assert_eq!(
-        morph_to.morph_type_column(),
-        morph_many.morph_type_column()
-    );
+    assert_eq!(morph_to.morph_type_column(), morph_many.morph_type_column());
     assert_eq!(morph_to.morph_id_column(), morph_many.morph_id_column());
-    assert_eq!(morph_many.morph_type_column(), morph_one.morph_type_column());
+    assert_eq!(
+        morph_many.morph_type_column(),
+        morph_one.morph_type_column()
+    );
 }
 
 #[test]

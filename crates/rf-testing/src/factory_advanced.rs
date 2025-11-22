@@ -5,9 +5,9 @@
 use crate::factory::{Factory, FactoryError};
 use async_trait::async_trait;
 use std::collections::HashMap;
-use std::pin::Pin;
 use std::future::Future;
 use std::marker::PhantomData;
+use std::pin::Pin;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
@@ -113,11 +113,8 @@ impl<F: Factory> FactoryState<F> {
 }
 
 /// After-create callback type
-pub type AfterCreateCallback<T> = Box<
-    dyn Fn(T) -> Pin<Box<dyn Future<Output = Result<(), FactoryError>> + Send>>
-        + Send
-        + Sync,
->;
+pub type AfterCreateCallback<T> =
+    Box<dyn Fn(T) -> Pin<Box<dyn Future<Output = Result<(), FactoryError>> + Send>> + Send + Sync>;
 
 /// Enhanced factory with states and relationships
 pub struct EnhancedFactory<F: Factory> {
@@ -192,9 +189,7 @@ impl<F: Factory + Default> EnhancedFactory<F> {
     /// ```
     pub fn after_create<Fn>(mut self, callback: Fn) -> Self
     where
-        Fn: (FnOnce(
-                F::Model,
-            ) -> Pin<Box<dyn Future<Output = Result<(), FactoryError>> + Send>>)
+        Fn: (FnOnce(F::Model) -> Pin<Box<dyn Future<Output = Result<(), FactoryError>> + Send>>)
             + Send
             + Sync
             + 'static

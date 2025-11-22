@@ -16,8 +16,8 @@
 //! // DB!().query("SELECT * FROM users");
 //! ```
 
-pub mod macros;
 pub mod facades;
+pub mod macros;
 
 /// Trait for facade implementations
 pub trait Facade: Send + Sync {

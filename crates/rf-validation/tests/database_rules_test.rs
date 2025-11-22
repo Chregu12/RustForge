@@ -5,9 +5,7 @@
 
 use rf_validation::rules::database::{SimpleExistsRule, SimpleUniqueRule};
 use rf_validation::validator::Rule;
-use sea_orm::{
-    ConnectionTrait, Database, DatabaseBackend, DatabaseConnection, Statement, DbErr,
-};
+use sea_orm::{ConnectionTrait, Database, DatabaseBackend, DatabaseConnection, DbErr, Statement};
 use serde_json::Value;
 use std::collections::HashMap;
 
@@ -25,7 +23,8 @@ async fn setup_test_db() -> Result<DatabaseConnection, DbErr> {
             username TEXT NOT NULL UNIQUE,
             role_id INTEGER
         )
-        "#.to_string(),
+        "#
+        .to_string(),
     ))
     .await?;
 
@@ -36,7 +35,8 @@ async fn setup_test_db() -> Result<DatabaseConnection, DbErr> {
             id INTEGER PRIMARY KEY,
             name TEXT NOT NULL UNIQUE
         )
-        "#.to_string(),
+        "#
+        .to_string(),
     ))
     .await?;
 
@@ -48,7 +48,8 @@ async fn setup_test_db() -> Result<DatabaseConnection, DbErr> {
             (1, 'admin'),
             (2, 'user'),
             (3, 'moderator')
-        "#.to_string(),
+        "#
+        .to_string(),
     ))
     .await?;
 
@@ -59,7 +60,8 @@ async fn setup_test_db() -> Result<DatabaseConnection, DbErr> {
             (1, 'john@example.com', 'john_doe', 2),
             (2, 'jane@example.com', 'jane_smith', 1),
             (3, 'bob@example.com', 'bob_jones', 2)
-        "#.to_string(),
+        "#
+        .to_string(),
     ))
     .await?;
 
@@ -72,7 +74,9 @@ async fn setup_test_db() -> Result<DatabaseConnection, DbErr> {
 
 #[tokio::test]
 async fn test_unique_rule_fails_for_existing_email() {
-    let db = setup_test_db().await.expect("Failed to setup test database");
+    let db = setup_test_db()
+        .await
+        .expect("Failed to setup test database");
 
     let rule = SimpleUniqueRule::new(db, "users", "email");
     let value = Value::String("john@example.com".to_string());
@@ -89,7 +93,9 @@ async fn test_unique_rule_fails_for_existing_email() {
 
 #[tokio::test]
 async fn test_unique_rule_passes_for_new_email() {
-    let db = setup_test_db().await.expect("Failed to setup test database");
+    let db = setup_test_db()
+        .await
+        .expect("Failed to setup test database");
 
     let rule = SimpleUniqueRule::new(db, "users", "email");
     let value = Value::String("new@example.com".to_string());
@@ -102,7 +108,9 @@ async fn test_unique_rule_passes_for_new_email() {
 
 #[tokio::test]
 async fn test_unique_rule_with_except_excludes_current_record() {
-    let db = setup_test_db().await.expect("Failed to setup test database");
+    let db = setup_test_db()
+        .await
+        .expect("Failed to setup test database");
 
     // Test updating user ID 1's email to the same value (should pass)
     let rule = SimpleUniqueRule::new(db.clone(), "users", "email").except(1);
@@ -130,7 +138,9 @@ async fn test_unique_rule_with_except_excludes_current_record() {
 
 #[tokio::test]
 async fn test_unique_rule_with_null_value() {
-    let db = setup_test_db().await.expect("Failed to setup test database");
+    let db = setup_test_db()
+        .await
+        .expect("Failed to setup test database");
 
     let rule = SimpleUniqueRule::new(db, "users", "email");
     let value = Value::Null;
@@ -143,7 +153,9 @@ async fn test_unique_rule_with_null_value() {
 
 #[tokio::test]
 async fn test_unique_rule_with_numeric_value() {
-    let db = setup_test_db().await.expect("Failed to setup test database");
+    let db = setup_test_db()
+        .await
+        .expect("Failed to setup test database");
 
     // Test with existing role_id
     let rule = SimpleUniqueRule::new(db.clone(), "users", "role_id");
@@ -161,7 +173,9 @@ async fn test_unique_rule_with_numeric_value() {
 
 #[tokio::test]
 async fn test_unique_rule_with_custom_id_column() {
-    let db = setup_test_db().await.expect("Failed to setup test database");
+    let db = setup_test_db()
+        .await
+        .expect("Failed to setup test database");
 
     let rule = SimpleUniqueRule::new(db, "users", "email")
         .with_id_column("id")
@@ -184,7 +198,9 @@ async fn test_unique_rule_with_custom_id_column() {
 
 #[tokio::test]
 async fn test_exists_rule_passes_for_existing_value() {
-    let db = setup_test_db().await.expect("Failed to setup test database");
+    let db = setup_test_db()
+        .await
+        .expect("Failed to setup test database");
 
     let rule = SimpleExistsRule::new(db, "roles", "id");
     let value = Value::Number(serde_json::Number::from(1));
@@ -197,7 +213,9 @@ async fn test_exists_rule_passes_for_existing_value() {
 
 #[tokio::test]
 async fn test_exists_rule_fails_for_non_existing_value() {
-    let db = setup_test_db().await.expect("Failed to setup test database");
+    let db = setup_test_db()
+        .await
+        .expect("Failed to setup test database");
 
     let rule = SimpleExistsRule::new(db, "roles", "id");
     let value = Value::Number(serde_json::Number::from(999));
@@ -214,7 +232,9 @@ async fn test_exists_rule_fails_for_non_existing_value() {
 
 #[tokio::test]
 async fn test_exists_rule_with_string_value() {
-    let db = setup_test_db().await.expect("Failed to setup test database");
+    let db = setup_test_db()
+        .await
+        .expect("Failed to setup test database");
 
     let rule = SimpleExistsRule::new(db.clone(), "roles", "name");
     let value = Value::String("admin".to_string());
@@ -235,7 +255,9 @@ async fn test_exists_rule_with_string_value() {
 
 #[tokio::test]
 async fn test_exists_rule_with_null_value() {
-    let db = setup_test_db().await.expect("Failed to setup test database");
+    let db = setup_test_db()
+        .await
+        .expect("Failed to setup test database");
 
     let rule = SimpleExistsRule::new(db, "roles", "id");
     let value = Value::Null;
@@ -248,7 +270,9 @@ async fn test_exists_rule_with_null_value() {
 
 #[tokio::test]
 async fn test_exists_rule_for_foreign_key_validation() {
-    let db = setup_test_db().await.expect("Failed to setup test database");
+    let db = setup_test_db()
+        .await
+        .expect("Failed to setup test database");
 
     // Valid foreign key
     let rule = SimpleExistsRule::new(db.clone(), "roles", "id");
@@ -280,7 +304,9 @@ async fn test_exists_rule_for_foreign_key_validation() {
 
 #[tokio::test]
 async fn test_user_registration_validation() {
-    let db = setup_test_db().await.expect("Failed to setup test database");
+    let db = setup_test_db()
+        .await
+        .expect("Failed to setup test database");
 
     // Scenario: User tries to register with existing email
     let email_rule = SimpleUniqueRule::new(db.clone(), "users", "email");
@@ -324,7 +350,9 @@ async fn test_user_registration_validation() {
 
 #[tokio::test]
 async fn test_user_update_validation() {
-    let db = setup_test_db().await.expect("Failed to setup test database");
+    let db = setup_test_db()
+        .await
+        .expect("Failed to setup test database");
 
     // Scenario: User ID 1 updates their profile
     let user_id = 1;
@@ -336,10 +364,7 @@ async fn test_user_update_validation() {
     let result = email_rule
         .validate(&Value::String("john@example.com".to_string()), &data)
         .await;
-    assert!(
-        result.is_ok(),
-        "Should allow user to keep their own email"
-    );
+    assert!(result.is_ok(), "Should allow user to keep their own email");
 
     // Should not allow using another user's email
     let result2 = email_rule
@@ -360,7 +385,9 @@ async fn test_user_update_validation() {
 
 #[tokio::test]
 async fn test_rule_name_methods() {
-    let db = setup_test_db().await.expect("Failed to setup test database");
+    let db = setup_test_db()
+        .await
+        .expect("Failed to setup test database");
 
     let unique_rule = SimpleUniqueRule::new(db.clone(), "users", "email");
     assert_eq!(unique_rule.name(), "unique");
@@ -371,7 +398,9 @@ async fn test_rule_name_methods() {
 
 #[tokio::test]
 async fn test_error_messages() {
-    let db = setup_test_db().await.expect("Failed to setup test database");
+    let db = setup_test_db()
+        .await
+        .expect("Failed to setup test database");
 
     // Test unique rule error message
     let unique_rule = SimpleUniqueRule::new(db.clone(), "users", "email");

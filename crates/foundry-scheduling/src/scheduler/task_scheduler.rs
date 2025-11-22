@@ -1,4 +1,6 @@
-use crate::jobs::{JobContext, JobRunner, RunnerConfig, ScheduledJob, JobState as InternalJobState};
+use crate::jobs::{
+    JobContext, JobRunner, JobState as InternalJobState, RunnerConfig, ScheduledJob,
+};
 use chrono::{DateTime, Utc};
 use std::sync::Arc;
 use tracing::info;
@@ -32,7 +34,8 @@ impl TaskScheduler {
         func: F,
     ) where
         F: Fn(JobContext) -> Fut + Send + Sync + 'static,
-        Fut: std::future::Future<Output = Result<(), super::super::jobs::JobError>> + Send + 'static,
+        Fut:
+            std::future::Future<Output = Result<(), super::super::jobs::JobError>> + Send + 'static,
     {
         use crate::jobs::scheduled_job::FunctionJob;
 
@@ -101,9 +104,7 @@ mod tests {
         let scheduler = TaskScheduler::new();
 
         scheduler
-            .schedule_fn("test_job", "* * * * *", |_ctx| async {
-                Ok(())
-            })
+            .schedule_fn("test_job", "* * * * *", |_ctx| async { Ok(()) })
             .await;
 
         let jobs = scheduler.list_jobs().await;

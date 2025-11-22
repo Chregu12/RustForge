@@ -117,7 +117,9 @@ pub use backends::{SendGridConfig, SendGridMailer};
 pub use backends::{SesConfig, SesMailer};
 
 pub use builder::MessageBuilder;
-pub use config::{Encryption, MailConfig, MailDriver, SendmailConfig, SmtpConfig as SmtpMailConfig};
+pub use config::{
+    Encryption, MailConfig, MailDriver, SendmailConfig, SmtpConfig as SmtpMailConfig,
+};
 pub use error::{MailError, MailResult};
 pub use mail::{Mail, MailBody};
 pub use mail_builder::MailBuilder;

@@ -73,10 +73,12 @@ impl ResourceBuilder {
         F: FnOnce(Self, &T) -> Self,
     {
         if let Some(rel) = relation {
-            self.loaded_relations.insert(relation_name.to_string(), true);
+            self.loaded_relations
+                .insert(relation_name.to_string(), true);
             f(self, rel)
         } else {
-            self.loaded_relations.insert(relation_name.to_string(), false);
+            self.loaded_relations
+                .insert(relation_name.to_string(), false);
             self
         }
     }
@@ -86,7 +88,8 @@ impl ResourceBuilder {
     where
         F: FnOnce(Self, &[T]) -> Self,
     {
-        self.loaded_relations.insert(relation_name.to_string(), !relation.is_empty());
+        self.loaded_relations
+            .insert(relation_name.to_string(), !relation.is_empty());
         if !relation.is_empty() {
             f(self, relation)
         } else {
@@ -124,7 +127,10 @@ impl ResourceBuilder {
 
     /// Check if a relation was loaded
     pub fn is_loaded(&self, relation: &str) -> bool {
-        self.loaded_relations.get(relation).copied().unwrap_or(false)
+        self.loaded_relations
+            .get(relation)
+            .copied()
+            .unwrap_or(false)
     }
 }
 
@@ -234,13 +240,19 @@ mod tests {
         let show_timestamps = true;
         let resource = ResourceBuilder::new()
             .add("id", 1)
-            .merge_when(show_timestamps, json!({
-                "created_at": "2024-01-01",
-                "updated_at": "2024-01-02"
-            }))
-            .merge_when(false, json!({
-                "hidden": "value"
-            }))
+            .merge_when(
+                show_timestamps,
+                json!({
+                    "created_at": "2024-01-01",
+                    "updated_at": "2024-01-02"
+                }),
+            )
+            .merge_when(
+                false,
+                json!({
+                    "hidden": "value"
+                }),
+            )
             .build();
 
         assert_eq!(resource["id"], 1);

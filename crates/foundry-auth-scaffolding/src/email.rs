@@ -45,8 +45,12 @@ impl EmailService {
 
     /// Send password reset email
     pub fn send_password_reset(&self, to: &str, token: &str) -> EmailResult<()> {
-        let reset_url = format!("{}/password/reset?token={}&email={}",
-            self.config.app_url, token, urlencoding::encode(to));
+        let reset_url = format!(
+            "{}/password/reset?token={}&email={}",
+            self.config.app_url,
+            token,
+            urlencoding::encode(to)
+        );
 
         let body = format!(
             r#"Hello,
@@ -119,10 +123,7 @@ Regards,
             .header(ContentType::TEXT_PLAIN)
             .body(body.to_string())?;
 
-        let creds = Credentials::new(
-            self.smtp_username.clone(),
-            self.smtp_password.clone(),
-        );
+        let creds = Credentials::new(self.smtp_username.clone(), self.smtp_password.clone());
 
         let mailer = SmtpTransport::relay(&self.smtp_host)?
             .credentials(creds)

@@ -179,16 +179,16 @@ mod tests {
 
     #[test]
     fn test_with_trace_id() {
-        let problem = ProblemDetails::new(500, "Error", "Something went wrong")
-            .with_trace_id("trace-123");
+        let problem =
+            ProblemDetails::new(500, "Error", "Something went wrong").with_trace_id("trace-123");
 
         assert_eq!(problem.trace_id, "trace-123");
     }
 
     #[test]
     fn test_with_instance() {
-        let problem = ProblemDetails::new(404, "Not Found", "User not found")
-            .with_instance("/api/users/123");
+        let problem =
+            ProblemDetails::new(404, "Not Found", "User not found").with_instance("/api/users/123");
 
         assert_eq!(problem.instance, "/api/users/123");
     }

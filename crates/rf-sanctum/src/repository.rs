@@ -2,9 +2,7 @@
 
 use crate::{models, NewToken, PersonalAccessToken, SanctumError};
 use chrono::{DateTime, Utc};
-use sea_orm::{
-    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set,
-};
+use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
 use serde_json::json;
 
 /// Repository for Personal Access Token operations
@@ -59,7 +57,10 @@ impl<'a> TokenRepository<'a> {
     }
 
     /// Find a token by its hashed value
-    pub async fn find_by_token(&self, hashed_token: &str) -> Result<Option<models::Model>, SanctumError> {
+    pub async fn find_by_token(
+        &self,
+        hashed_token: &str,
+    ) -> Result<Option<models::Model>, SanctumError> {
         let token = models::Entity::find()
             .filter(models::Column::Token.eq(hashed_token))
             .one(self.db)
@@ -85,9 +86,7 @@ impl<'a> TokenRepository<'a> {
 
     /// Revoke a token by ID
     pub async fn revoke(&self, token_id: i64) -> Result<(), SanctumError> {
-        models::Entity::delete_by_id(token_id)
-            .exec(self.db)
-            .await?;
+        models::Entity::delete_by_id(token_id).exec(self.db).await?;
         Ok(())
     }
 

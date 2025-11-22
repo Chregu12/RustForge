@@ -1,7 +1,7 @@
-//! User entity
+// User entity
 
 use chrono::{DateTime, Utc};
-use rf_orm::{SoftDelete, Set};
+use rf_orm::{Set, SoftDelete};
 use sea_orm::{entity::prelude::*, ActiveValue};
 use serde::{Deserialize, Serialize};
 

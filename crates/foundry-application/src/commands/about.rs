@@ -3,8 +3,8 @@ use foundry_domain::{CommandDescriptor, CommandKind};
 use foundry_plugins::{CommandContext, CommandError, CommandResult, CommandStatus, FoundryCommand};
 use serde::Deserialize;
 use serde_json::json;
-use std::process::Command;
 use std::fs;
+use std::process::Command;
 
 #[derive(Deserialize)]
 #[allow(dead_code)]
@@ -84,7 +84,8 @@ impl FoundryCommand for AboutCommand {
             details.push(("Database Driver", db_driver.to_string()));
         }
 
-        let message: String = details.iter()
+        let message: String = details
+            .iter()
             .map(|(key, value)| format!("{key}: {value}"))
             .collect::<Vec<_>>()
             .join("\n");

@@ -107,8 +107,18 @@ pub fn display_aliases(user_aliases: &HashMap<String, String>) {
     println!("  forge <alias> [OPTIONS]");
     println!();
     println!("{}", "Examples:".bold());
-    println!("  {} {} {}", "forge m:m User".cyan(), "→".dimmed(), "forge make:model User".dimmed());
-    println!("  {} {} {}", "forge mg:fresh".cyan(), "→".dimmed(), "forge migrate fresh --seed".dimmed());
+    println!(
+        "  {} {} {}",
+        "forge m:m User".cyan(),
+        "→".dimmed(),
+        "forge make:model User".dimmed()
+    );
+    println!(
+        "  {} {} {}",
+        "forge mg:fresh".cyan(),
+        "→".dimmed(),
+        "forge migrate fresh --seed".dimmed()
+    );
     println!();
 }
 

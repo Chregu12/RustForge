@@ -1,6 +1,8 @@
 //! Integration tests for database assertion macros
 
-use rf_testing::{assert_database_has, assert_database_missing, assert_database_count, assert_database_empty};
+use rf_testing::{
+    assert_database_count, assert_database_empty, assert_database_has, assert_database_missing,
+};
 
 #[tokio::test]
 async fn test_assert_database_has_macro() {

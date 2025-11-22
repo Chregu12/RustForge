@@ -1,10 +1,10 @@
 use async_trait::async_trait;
+use foundry_console::{info, success, ProgressBar, ProgressStyle};
 use foundry_domain::{CommandDescriptor, CommandKind};
 use foundry_plugins::{
     CommandContext, CommandError, CommandResult, CommandStatus, FoundryCommand, FoundryMigration,
     MigrationPlan, MigrationRun, MigrationStep, ResponseFormat,
 };
-use foundry_console::{ProgressBar, ProgressStyle, success, info};
 use sea_orm::ConnectionTrait;
 use serde_json::json;
 
@@ -625,7 +625,9 @@ impl DbDumpCommand {
         Self {
             descriptor: CommandDescriptor::builder("database.dump", "db:dump")
                 .summary("Erstellt SQL-Dump der Datenbank")
-                .description("Exportiert das Datenbankschema und optional die Daten in eine SQL-Datei.")
+                .description(
+                    "Exportiert das Datenbankschema und optional die Daten in eine SQL-Datei.",
+                )
                 .category(CommandKind::Database)
                 .alias("db:dump")
                 .build(),
@@ -666,7 +668,11 @@ impl FoundryCommand for DbDumpCommand {
 
     async fn execute(&self, ctx: CommandContext) -> Result<CommandResult, CommandError> {
         let format = ctx.format.clone();
-        let output_file = ctx.args.first().unwrap_or(&"database_dump.sql".to_string()).clone();
+        let output_file = ctx
+            .args
+            .first()
+            .unwrap_or(&"database_dump.sql".to_string())
+            .clone();
 
         let db_url = config_value(&ctx, "DATABASE_URL").ok_or_else(|| {
             CommandError::Message("DATABASE_URL nicht in der Konfiguration gefunden.".into())
@@ -689,7 +695,10 @@ impl FoundryCommand for DbDumpCommand {
 
         let message = match format {
             ResponseFormat::Human => {
-                format!("db:dump → Datenbank erfolgreich nach '{}' exportiert.", output_file)
+                format!(
+                    "db:dump → Datenbank erfolgreich nach '{}' exportiert.",
+                    output_file
+                )
             }
             ResponseFormat::Json => "executed db:dump".to_string(),
         };
@@ -715,7 +724,11 @@ impl FoundryCommand for SchemaDumpCommand {
 
     async fn execute(&self, ctx: CommandContext) -> Result<CommandResult, CommandError> {
         let format = ctx.format.clone();
-        let output_file = ctx.args.first().unwrap_or(&"database_schema_dump.sql".to_string()).clone();
+        let output_file = ctx
+            .args
+            .first()
+            .unwrap_or(&"database_schema_dump.sql".to_string())
+            .clone();
 
         let db_url = config_value(&ctx, "DATABASE_URL").ok_or_else(|| {
             CommandError::Message("DATABASE_URL nicht in der Konfiguration gefunden.".into())
@@ -738,7 +751,10 @@ impl FoundryCommand for SchemaDumpCommand {
 
         let message = match format {
             ResponseFormat::Human => {
-                format!("schema:dump → Datenbankschema erfolgreich nach '{}' exportiert.", output_file)
+                format!(
+                    "schema:dump → Datenbankschema erfolgreich nach '{}' exportiert.",
+                    output_file
+                )
             }
             ResponseFormat::Json => "executed schema:dump".to_string(),
         };
@@ -756,12 +772,18 @@ impl FoundryCommand for SchemaDumpCommand {
     }
 }
 
-async fn generate_schema_dump(db: &sea_orm::DatabaseConnection, db_connection: &str) -> Result<String, CommandError> {
+async fn generate_schema_dump(
+    db: &sea_orm::DatabaseConnection,
+    db_connection: &str,
+) -> Result<String, CommandError> {
     let backend = db.get_database_backend();
     let mut dump = String::new();
 
     dump.push_str("-- Database Schema Dump\n");
-    dump.push_str(&format!("-- Generated at: {}\n", chrono::Utc::now().format("%Y-%m-%d %H:%M:%S")));
+    dump.push_str(&format!(
+        "-- Generated at: {}\n",
+        chrono::Utc::now().format("%Y-%m-%d %H:%M:%S")
+    ));
     dump.push_str(&format!("-- Database: {}\n\n", db_connection));
 
     let tables = get_all_tables(db, db_connection).await?;
@@ -794,7 +816,9 @@ async fn generate_schema_dump(db: &sea_orm::DatabaseConnection, db_connection: &
         let rows = db
             .query_all(sea_orm::Statement::from_string(backend, schema_query))
             .await
-            .map_err(|e| CommandError::Message(format!("Fehler beim Abrufen des Schemas: {}", e)))?;
+            .map_err(|e| {
+                CommandError::Message(format!("Fehler beim Abrufen des Schemas: {}", e))
+            })?;
 
         dump.push_str(&format!("CREATE TABLE \"{}\" (\n", table));
 
@@ -838,7 +862,10 @@ async fn generate_schema_dump(db: &sea_orm::DatabaseConnection, db_connection: &
     Ok(dump)
 }
 
-async fn get_all_tables(db: &sea_orm::DatabaseConnection, db_connection: &str) -> Result<Vec<String>, CommandError> {
+async fn get_all_tables(
+    db: &sea_orm::DatabaseConnection,
+    db_connection: &str,
+) -> Result<Vec<String>, CommandError> {
     let backend = db.get_database_backend();
     let query = match db_connection {
         "postgres" => {
@@ -877,7 +904,11 @@ async fn get_all_tables(db: &sea_orm::DatabaseConnection, db_connection: &str) -
     Ok(tables)
 }
 
-async fn drop_table(db: &sea_orm::DatabaseConnection, db_connection: &str, table: &str) -> Result<(), CommandError> {
+async fn drop_table(
+    db: &sea_orm::DatabaseConnection,
+    db_connection: &str,
+    table: &str,
+) -> Result<(), CommandError> {
     let backend = db.get_database_backend();
     let query = match db_connection {
         "postgres" => format!("DROP TABLE IF EXISTS \"{}\" CASCADE", table),
@@ -892,17 +923,25 @@ async fn drop_table(db: &sea_orm::DatabaseConnection, db_connection: &str, table
 
     db.execute(sea_orm::Statement::from_string(backend, query))
         .await
-        .map_err(|e| CommandError::Message(format!("Fehler beim Löschen der Tabelle {}: {}", table, e)))?;
+        .map_err(|e| {
+            CommandError::Message(format!("Fehler beim Löschen der Tabelle {}: {}", table, e))
+        })?;
 
     Ok(())
 }
 
-async fn generate_dump(db: &sea_orm::DatabaseConnection, db_connection: &str) -> Result<String, CommandError> {
+async fn generate_dump(
+    db: &sea_orm::DatabaseConnection,
+    db_connection: &str,
+) -> Result<String, CommandError> {
     let backend = db.get_database_backend();
     let mut dump = String::new();
 
     dump.push_str("-- Database Dump\n");
-    dump.push_str(&format!("-- Generated at: {}\n", chrono::Utc::now().format("%Y-%m-%d %H:%M:%S")));
+    dump.push_str(&format!(
+        "-- Generated at: {}\n",
+        chrono::Utc::now().format("%Y-%m-%d %H:%M:%S")
+    ));
     dump.push_str(&format!("-- Database: {}\n\n", db_connection));
 
     let tables = get_all_tables(db, db_connection).await?;
@@ -935,7 +974,9 @@ async fn generate_dump(db: &sea_orm::DatabaseConnection, db_connection: &str) ->
         let rows = db
             .query_all(sea_orm::Statement::from_string(backend, schema_query))
             .await
-            .map_err(|e| CommandError::Message(format!("Fehler beim Abrufen des Schemas: {}", e)))?;
+            .map_err(|e| {
+                CommandError::Message(format!("Fehler beim Abrufen des Schemas: {}", e))
+            })?;
 
         dump.push_str(&format!("CREATE TABLE \"{}\" (\n", table));
 
@@ -1376,7 +1417,10 @@ mod tests {
 
         let result = command.execute(ctx).await.expect("command succeeds");
         assert_eq!(result.status, CommandStatus::Success);
-        assert!(result.message.unwrap().contains("würde alle Tabellen löschen"));
+        assert!(result
+            .message
+            .unwrap()
+            .contains("würde alle Tabellen löschen"));
         assert_eq!(migrations.apply_calls.load(Ordering::SeqCst), 1);
         assert_eq!(seeds.calls.load(Ordering::SeqCst), 1);
     }

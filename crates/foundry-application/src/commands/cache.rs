@@ -186,9 +186,12 @@ mod tests {
             seeds: std::sync::Arc::new(foundry_infra::SeaOrmSeedService::default()),
             validation: std::sync::Arc::new(foundry_infra::SimpleValidationService::default()),
             storage: std::sync::Arc::new(foundry_infra::FileStorageAdapter::new(
-                std::sync::Arc::new(foundry_storage::manager::StorageManager::new(
-                    foundry_storage::config::StorageConfig::from_env()
-                ).unwrap())
+                std::sync::Arc::new(
+                    foundry_storage::manager::StorageManager::new(
+                        foundry_storage::config::StorageConfig::from_env(),
+                    )
+                    .unwrap(),
+                ),
             )),
             cache: std::sync::Arc::new(foundry_infra::InMemoryCacheStore::default()),
             queue: std::sync::Arc::new(foundry_infra::InMemoryQueue::default()),
@@ -219,7 +222,9 @@ mod tests {
 
         // Check that only config cache is cleared
         if !cleared.is_empty() {
-            assert!(cleared.iter().any(|item| item["cache"].as_str() == Some("config")));
+            assert!(cleared
+                .iter()
+                .any(|item| item["cache"].as_str() == Some("config")));
         }
     }
 

@@ -37,23 +37,23 @@
 //! # }
 //! ```
 
+pub mod manager;
 pub mod store;
 pub mod stores;
-pub mod manager;
 pub mod tags;
 pub mod zero_copy;
 
-pub use store::{CacheStore, CacheValue, CacheStats, CacheError};
-pub use stores::{MemoryStore, RedisStore, FileStore};
-pub use manager::{CacheManager, CacheConfig};
+pub use manager::{CacheConfig, CacheManager};
+pub use store::{CacheError, CacheStats, CacheStore, CacheValue};
+pub use stores::{FileStore, MemoryStore, RedisStore};
 pub use tags::TaggedCache;
-pub use zero_copy::{ZeroCopyCache, CachedData, ZeroCopyError};
+pub use zero_copy::{CachedData, ZeroCopyCache, ZeroCopyError};
 
 /// Prelude module for convenient imports
 pub mod prelude {
-    pub use crate::store::{CacheStore, CacheValue, CacheStats, CacheError};
-    pub use crate::stores::{MemoryStore, RedisStore, FileStore};
-    pub use crate::manager::{CacheManager, CacheConfig};
+    pub use crate::manager::{CacheConfig, CacheManager};
+    pub use crate::store::{CacheError, CacheStats, CacheStore, CacheValue};
+    pub use crate::stores::{FileStore, MemoryStore, RedisStore};
     pub use crate::tags::TaggedCache;
 }
 
@@ -67,7 +67,8 @@ mod tests {
         let cache = MemoryStore::new();
 
         let value = CacheValue::from_string("test_value");
-        cache.set("test_key", value.clone(), Some(Duration::from_secs(60)))
+        cache
+            .set("test_key", value.clone(), Some(Duration::from_secs(60)))
             .await
             .unwrap();
 

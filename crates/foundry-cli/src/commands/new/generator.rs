@@ -145,7 +145,10 @@ impl ProjectGenerator {
                     println!(" ⚠️");
                     println!("  ⚠️  Could not create database: {}", e);
                     println!("  💡 You may need to create it manually:");
-                    println!("     psql -U {} -c 'CREATE DATABASE {};'", db_config.username, db_config.name);
+                    println!(
+                        "     psql -U {} -c 'CREATE DATABASE {};'",
+                        db_config.username, db_config.name
+                    );
                 }
             }
 
@@ -160,7 +163,10 @@ impl ProjectGenerator {
     }
 
     /// Create PostgreSQL database
-    async fn create_database(&self, db_config: &crate::commands::new::config::DatabaseConfig) -> Result<()> {
+    async fn create_database(
+        &self,
+        db_config: &crate::commands::new::config::DatabaseConfig,
+    ) -> Result<()> {
         use sqlx::postgres::PgPoolOptions;
 
         // Connect to postgres database
@@ -171,9 +177,7 @@ impl ProjectGenerator {
 
         // Create new database
         let query = format!("CREATE DATABASE {}", db_config.name);
-        sqlx::query(&query)
-            .execute(&pool)
-            .await?;
+        sqlx::query(&query).execute(&pool).await?;
 
         Ok(())
     }
@@ -181,9 +185,7 @@ impl ProjectGenerator {
     /// Run database migrations
     async fn run_migrations(&self) -> Result<()> {
         // Check if sqlx-cli is installed
-        let output = Command::new("sqlx")
-            .arg("--version")
-            .output();
+        let output = Command::new("sqlx").arg("--version").output();
 
         if output.is_ok() && output.unwrap().status.success() {
             print!("  🔄 Running migrations...");
@@ -258,8 +260,8 @@ impl ProjectGenerator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::path::PathBuf;
     use crate::commands::new::config::{Feature, TemplateType};
+    use std::path::PathBuf;
 
     #[test]
     fn test_generator_creation() {

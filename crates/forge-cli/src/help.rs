@@ -45,7 +45,10 @@ impl CommandHelp {
         let border = "─".repeat(self.name.len() + 14);
         println!();
         println!("┌{}┐", border);
-        println!("│  {}  │", style(format!("forge {}", self.name)).bold().cyan());
+        println!(
+            "│  {}  │",
+            style(format!("forge {}", self.name)).bold().cyan()
+        );
         println!("├{}┤", border);
         println!("│  {}  │", self.description);
         println!("└{}┘", border);
@@ -65,7 +68,11 @@ impl CommandHelp {
             println!("{}", style("Arguments:").bold().green());
             for arg in &self.arguments {
                 let required = if arg.required { " (required)" } else { "" };
-                println!("  {}{}", style(&arg.name).cyan().bold(), style(required).red());
+                println!(
+                    "  {}{}",
+                    style(&arg.name).cyan().bold(),
+                    style(required).red()
+                );
                 println!("    {}", arg.description);
             }
             println!();
@@ -75,11 +82,13 @@ impl CommandHelp {
         if !self.options.is_empty() {
             println!("{}", style("Options:").bold().green());
             for opt in &self.options {
-                let short = opt.short
+                let short = opt
+                    .short
                     .as_ref()
                     .map(|s| format!("-{}, ", s))
                     .unwrap_or_default();
-                let default_str = opt.default
+                let default_str = opt
+                    .default
                     .as_ref()
                     .map(|d| format!(" (default: {})", style(d).yellow()))
                     .unwrap_or_default();
@@ -129,13 +138,11 @@ pub fn make_model_help() -> CommandHelp {
             "forge make:model <NAME> [OPTIONS]".to_string(),
             "forge make:model  (interactive mode)".to_string(),
         ],
-        arguments: vec![
-            Argument {
-                name: "<NAME>".to_string(),
-                description: "The name of the model (e.g., User, BlogPost)".to_string(),
-                required: false,
-            },
-        ],
+        arguments: vec![Argument {
+            name: "<NAME>".to_string(),
+            description: "The name of the model (e.g., User, BlogPost)".to_string(),
+            required: false,
+        }],
         options: vec![
             CommandOption {
                 short: Some("m".to_string()),
@@ -208,13 +215,11 @@ pub fn make_controller_help() -> CommandHelp {
             "forge make:controller <NAME> [OPTIONS]".to_string(),
             "forge make:controller  (interactive mode)".to_string(),
         ],
-        arguments: vec![
-            Argument {
-                name: "<NAME>".to_string(),
-                description: "The name of the controller (e.g., UserController)".to_string(),
-                required: false,
-            },
-        ],
+        arguments: vec![Argument {
+            name: "<NAME>".to_string(),
+            description: "The name of the controller (e.g., UserController)".to_string(),
+            required: false,
+        }],
         options: vec![
             CommandOption {
                 short: None,
@@ -271,9 +276,7 @@ pub fn migrate_help() -> CommandHelp {
     CommandHelp {
         name: "migrate".to_string(),
         description: "Run database migrations".to_string(),
-        usage: vec![
-            "forge migrate [SUBCOMMAND]".to_string(),
-        ],
+        usage: vec!["forge migrate [SUBCOMMAND]".to_string()],
         arguments: vec![],
         options: vec![
             CommandOption {
@@ -311,10 +314,7 @@ pub fn migrate_help() -> CommandHelp {
                 command: "forge migrate status".to_string(),
             },
         ],
-        see_also: vec![
-            "make:migration".to_string(),
-            "db:seed".to_string(),
-        ],
+        see_also: vec!["make:migration".to_string(), "db:seed".to_string()],
         tips: vec![
             "Always backup your database before running migrations in production".to_string(),
             "Use 'migrate fresh' in development to reset your database".to_string(),
@@ -342,24 +342,48 @@ pub fn display_main_help() {
 
     // Project Management
     println!("  {}", style("Project Management:").yellow().bold());
-    println!("    {}  Create a new RustForge project", style("new").cyan());
+    println!(
+        "    {}  Create a new RustForge project",
+        style("new").cyan()
+    );
     println!("    {}  Show framework information", style("about").cyan());
-    println!("    {}  Optimize application for production", style("optimize").cyan());
+    println!(
+        "    {}  Optimize application for production",
+        style("optimize").cyan()
+    );
     println!();
 
     // Code Generation
     println!("  {}", style("Code Generation (make:*):").yellow().bold());
     println!("    {}  Generate a new model", style("make:model").cyan());
-    println!("    {}  Generate a new controller", style("make:controller").cyan());
-    println!("    {}  Generate a new migration", style("make:migration").cyan());
-    println!("    {}  Generate a new factory", style("make:factory").cyan());
+    println!(
+        "    {}  Generate a new controller",
+        style("make:controller").cyan()
+    );
+    println!(
+        "    {}  Generate a new migration",
+        style("make:migration").cyan()
+    );
+    println!(
+        "    {}  Generate a new factory",
+        style("make:factory").cyan()
+    );
     println!("    {}  Generate a new seeder", style("make:seeder").cyan());
-    println!("    {}  Generate a new request", style("make:request").cyan());
+    println!(
+        "    {}  Generate a new request",
+        style("make:request").cyan()
+    );
     println!("    {}  Generate a new policy", style("make:policy").cyan());
     println!("    {}  Generate a new job", style("make:job").cyan());
     println!("    {}  Generate a new event", style("make:event").cyan());
-    println!("    {}  Generate a new listener", style("make:listener").cyan());
-    println!("    {}  Generate a new middleware", style("make:middleware").cyan());
+    println!(
+        "    {}  Generate a new listener",
+        style("make:listener").cyan()
+    );
+    println!(
+        "    {}  Generate a new middleware",
+        style("make:middleware").cyan()
+    );
     println!();
 
     // Database
@@ -379,12 +403,23 @@ pub fn display_main_help() {
     println!("    {}  List all routes", style("route:list").cyan());
     println!("    {}  Manage cache", style("cache:clear").cyan());
     println!("    {}  Manage queue", style("queue:work").cyan());
-    println!("    {}  Generate shell completions", style("completion").cyan());
+    println!(
+        "    {}  Generate shell completions",
+        style("completion").cyan()
+    );
     println!();
 
     println!("{}", style("Options:").bold().green());
-    println!("  {}, {}  Print help information", style("-h").cyan(), style("--help").cyan());
-    println!("  {}, {}  Print version information", style("-V").cyan(), style("--version").cyan());
+    println!(
+        "  {}, {}  Print help information",
+        style("-h").cyan(),
+        style("--help").cyan()
+    );
+    println!(
+        "  {}, {}  Print version information",
+        style("-V").cyan(),
+        style("--version").cyan()
+    );
     println!();
 
     println!("{}", style("Examples:").bold().green());
@@ -392,7 +427,10 @@ pub fn display_main_help() {
     println!("  {}", style("forge new my-app").cyan());
     println!();
     println!("  # Generate a model with migration and factory");
-    println!("  {}", style("forge make:model User --migration --factory").cyan());
+    println!(
+        "  {}",
+        style("forge make:model User --migration --factory").cyan()
+    );
     println!();
     println!("  # Run migrations and seed database");
     println!("  {}", style("forge migrate fresh --seed").cyan());
@@ -401,7 +439,10 @@ pub fn display_main_help() {
     println!("  {}", style("forge serve").cyan());
     println!();
 
-    println!("{}", style("For more information on a specific command:").bold());
+    println!(
+        "{}",
+        style("For more information on a specific command:").bold()
+    );
     println!("  forge <COMMAND> --help");
     println!();
 }

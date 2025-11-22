@@ -98,12 +98,7 @@ impl MetricsCollector {
     }
 
     /// Record a job success
-    pub async fn record_job_success(
-        &self,
-        job_id: &str,
-        queue: &str,
-        processing_time_ms: f64,
-    ) {
+    pub async fn record_job_success(&self, job_id: &str, queue: &str, processing_time_ms: f64) {
         // Update metrics
         let mut metrics_map = self.metrics.write().await;
         if let Some(metrics) = metrics_map.get_mut(queue) {
@@ -139,11 +134,7 @@ impl MetricsCollector {
     }
 
     /// Update worker status
-    pub async fn update_worker_status(
-        &self,
-        worker_id: &str,
-        processing: Option<String>,
-    ) {
+    pub async fn update_worker_status(&self, worker_id: &str, processing: Option<String>) {
         let mut workers = self.workers.write().await;
         if let Some(worker) = workers.iter_mut().find(|w| w.id == worker_id) {
             if let Some(job_name) = processing {
@@ -158,9 +149,7 @@ impl MetricsCollector {
     pub async fn cleanup_workers(&self, timeout_secs: i64) {
         let mut workers = self.workers.write().await;
         let now = Utc::now();
-        workers.retain(|w| {
-            (now - w.last_activity).num_seconds() < timeout_secs
-        });
+        workers.retain(|w| (now - w.last_activity).num_seconds() < timeout_secs);
     }
 
     /// Get metrics for a specific queue
@@ -279,9 +268,7 @@ mod tests {
             .expect("Failed to create queue manager");
         let collector = MetricsCollector::new(queue_manager, vec!["default".to_string()]);
 
-        collector
-            .register_worker("worker-1", "default")
-            .await;
+        collector.register_worker("worker-1", "default").await;
 
         let workers = collector.get_workers().await;
         assert_eq!(workers.len(), 1);

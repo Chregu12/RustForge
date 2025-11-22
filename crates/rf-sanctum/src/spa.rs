@@ -42,10 +42,7 @@ pub async fn sanctum_csrf_cookie() -> impl IntoResponse {
         .secure(true) // Should be true in production
         .to_string();
 
-    (
-        StatusCode::NO_CONTENT,
-        [(header::SET_COOKIE, cookie)],
-    )
+    (StatusCode::NO_CONTENT, [(header::SET_COOKIE, cookie)])
 }
 
 /// Middleware to verify CSRF token for SPA requests

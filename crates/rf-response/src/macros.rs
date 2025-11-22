@@ -32,10 +32,13 @@ macro_rules! redirect {
 #[macro_export]
 macro_rules! download {
     ($path:expr) => {
-        $crate::Response::download($path, std::path::Path::new($path)
-            .file_name()
-            .and_then(|s| s.to_str())
-            .unwrap_or("download"))
+        $crate::Response::download(
+            $path,
+            std::path::Path::new($path)
+                .file_name()
+                .and_then(|s| s.to_str())
+                .unwrap_or("download"),
+        )
     };
     ($path:expr, $filename:expr) => {
         $crate::Response::download($path, $filename)

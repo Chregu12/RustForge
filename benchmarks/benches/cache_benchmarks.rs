@@ -1,17 +1,17 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion, BenchmarkId, BatchSize};
+use criterion::{black_box, criterion_group, criterion_main, BatchSize, BenchmarkId, Criterion};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::runtime::Runtime;
 
-//! # Cache Performance Benchmarks
-//!
-//! Comprehensive benchmarks for cache operations:
-//! - Redis operations (get, set, delete)
-//! - In-memory cache operations
-//! - Cache hit vs miss scenarios
-//! - Concurrent cache access
-//! - Tag-based invalidation
-//! - Cache warming strategies
+// # Cache Performance Benchmarks
+//
+// Comprehensive benchmarks for cache operations:
+// - Redis operations (get, set, delete)
+// - In-memory cache operations
+// - Cache hit vs miss scenarios
+// - Concurrent cache access
+// - Tag-based invalidation
+// - Cache warming strategies
 
 // Mock cache implementation for benchmarking
 struct MockCache {
@@ -61,17 +61,15 @@ fn benchmark_cache_get(c: &mut Criterion) {
             cache.set("key1".to_string(), vec![1, 2, 3, 4, 5]).await;
         });
 
-        b.to_async(&runtime).iter(|| async {
-            black_box(cache.get("key1").await)
-        });
+        b.to_async(&runtime)
+            .iter(|| async { black_box(cache.get("key1").await) });
     });
 
     group.bench_function("miss", |b| {
         let cache = MockCache::new();
 
-        b.to_async(&runtime).iter(|| async {
-            black_box(cache.get("nonexistent").await)
-        });
+        b.to_async(&runtime)
+            .iter(|| async { black_box(cache.get("nonexistent").await) });
     });
 
     group.finish();
@@ -83,23 +81,19 @@ fn benchmark_cache_set(c: &mut Criterion) {
     let runtime = Runtime::new().unwrap();
 
     for size in [100, 1024, 10240, 102400].iter() {
-        group.bench_with_input(
-            BenchmarkId::new("value_size", size),
-            size,
-            |b, &size| {
-                let cache = MockCache::new();
-                b.to_async(&runtime).iter_batched(
-                    || {
-                        let value = vec![0u8; size];
-                        (format!("key_{}", size), value)
-                    },
-                    |(key, value)| async move {
-                        cache.set(key, value).await;
-                    },
-                    BatchSize::SmallInput,
-                );
-            },
-        );
+        group.bench_with_input(BenchmarkId::new("value_size", size), size, |b, &size| {
+            let cache = MockCache::new();
+            b.to_async(&runtime).iter_batched(
+                || {
+                    let value = vec![0u8; size];
+                    (format!("key_{}", size), value)
+                },
+                |(key, value)| async move {
+                    cache.set(key, value).await;
+                },
+                BatchSize::SmallInput,
+            );
+        });
     }
 
     group.finish();
@@ -226,43 +220,35 @@ fn benchmark_bulk_operations(c: &mut Criterion) {
     let runtime = Runtime::new().unwrap();
 
     for count in [100, 1000, 10000].iter() {
-        group.bench_with_input(
-            BenchmarkId::new("bulk_set", count),
-            count,
-            |b, &count| {
-                let cache = MockCache::new();
+        group.bench_with_input(BenchmarkId::new("bulk_set", count), count, |b, &count| {
+            let cache = MockCache::new();
 
-                b.to_async(&runtime).iter(|| async {
-                    for i in 0..count {
-                        cache.set(format!("key{}", i), vec![i as u8; 100]).await;
-                    }
-                });
+            b.to_async(&runtime).iter(|| async {
+                for i in 0..count {
+                    cache.set(format!("key{}", i), vec![i as u8; 100]).await;
+                }
+            });
 
-                // Clear for next iteration
-                cache.clear();
-            },
-        );
+            // Clear for next iteration
+            cache.clear();
+        });
 
-        group.bench_with_input(
-            BenchmarkId::new("bulk_get", count),
-            count,
-            |b, &count| {
-                let cache = MockCache::new();
+        group.bench_with_input(BenchmarkId::new("bulk_get", count), count, |b, &count| {
+            let cache = MockCache::new();
 
-                // Pre-populate
-                runtime.block_on(async {
-                    for i in 0..count {
-                        cache.set(format!("key{}", i), vec![i as u8; 100]).await;
-                    }
-                });
+            // Pre-populate
+            runtime.block_on(async {
+                for i in 0..count {
+                    cache.set(format!("key{}", i), vec![i as u8; 100]).await;
+                }
+            });
 
-                b.to_async(&runtime).iter(|| async {
-                    for i in 0..count {
-                        let _ = cache.get(&format!("key{}", i)).await;
-                    }
-                });
-            },
-        );
+            b.to_async(&runtime).iter(|| async {
+                for i in 0..count {
+                    let _ = cache.get(&format!("key{}", i)).await;
+                }
+            });
+        });
     }
 
     group.finish();

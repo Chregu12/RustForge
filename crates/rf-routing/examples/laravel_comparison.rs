@@ -19,7 +19,9 @@ fn main() {
     println!("---------------");
 
     println!("\nLaravel:");
-    println!(r#"  Route::get('/users/{{id}}', [UserController::class, 'show'])->name('users.show');"#);
+    println!(
+        r#"  Route::get('/users/{{id}}', [UserController::class, 'show'])->name('users.show');"#
+    );
     println!(r#"  route('users.show', ['id' => 123]); // "/users/123""#);
 
     println!("\nrf-routing:");
@@ -137,8 +139,8 @@ fn main() {
     println!(r#"      ->only(['index', 'show']);"#);
 
     println!("\nrf-routing:");
-    let filtered = ResourceRouter::new("posts")
-        .only(vec![ControllerAction::Index, ControllerAction::Show]);
+    let filtered =
+        ResourceRouter::new("posts").only(vec![ControllerAction::Index, ControllerAction::Show]);
     println!(r#"  let posts = ResourceRouter::new("posts")"#);
     println!(r#"      .only(vec![ControllerAction::Index, ControllerAction::Show]);"#);
     println!("  // Actions: {:?}", filtered.actions());
@@ -189,10 +191,7 @@ fn main() {
         .add("throttle:60,1");
     println!(r#"  let web = MiddlewareGroup::new("web")"#);
     println!(r#"      .add("session").add("csrf").add("errors");"#);
-    println!(
-        "  // Middleware: {:?}",
-        web_group.middleware()
-    );
+    println!("  // Middleware: {:?}", web_group.middleware());
     println!();
 
     // ============================================================================

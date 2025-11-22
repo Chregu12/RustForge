@@ -361,10 +361,7 @@ mod tests {
         registry.compose("posts.index", &mut context).unwrap();
 
         // Both composers should run
-        assert_eq!(
-            context.get("section").unwrap(),
-            &serde_json::json!("posts")
-        );
+        assert_eq!(context.get("section").unwrap(), &serde_json::json!("posts"));
         assert_eq!(context.get("page").unwrap(), &serde_json::json!("index"));
     }
 
@@ -403,9 +400,7 @@ mod tests {
     fn test_clear() {
         let registry = ComposerRegistry::new();
 
-        registry
-            .composer_fn("test", |_, _| Ok(()))
-            .unwrap();
+        registry.composer_fn("test", |_, _| Ok(())).unwrap();
 
         assert_eq!(registry.composer_count(), 1);
 

@@ -5,8 +5,8 @@ use rustyline::completion::{Completer, Pair};
 use rustyline::highlight::Highlighter;
 use rustyline::hint::Hinter;
 use rustyline::validate::Validator;
-use rustyline::{Helper, Context};
 use rustyline::Result as RustylineResult;
+use rustyline::{Context, Helper};
 
 /// Tab completer for Tinker
 pub struct TinkerCompleter {

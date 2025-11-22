@@ -148,7 +148,13 @@ impl Compiler {
                 then_branch,
                 else_if_branches,
                 else_branch,
-            } => self.compile_if(condition, then_branch, else_if_branches, else_branch, context),
+            } => self.compile_if(
+                condition,
+                then_branch,
+                else_if_branches,
+                else_branch,
+                context,
+            ),
 
             AstNode::ForEach {
                 collection,
@@ -211,11 +217,14 @@ impl Compiler {
                 }
             }
 
-            AstNode::Csrf => Ok(r#"<input type="hidden" name="_token" value="__CSRF_TOKEN__">"#.to_string()),
-
-            AstNode::Method { method } => {
-                Ok(format!(r#"<input type="hidden" name="_method" value="{}">"#, method))
+            AstNode::Csrf => {
+                Ok(r#"<input type="hidden" name="_token" value="__CSRF_TOKEN__">"#.to_string())
             }
+
+            AstNode::Method { method } => Ok(format!(
+                r#"<input type="hidden" name="_method" value="{}">"#,
+                method
+            )),
 
             AstNode::Json { variable } => {
                 if let Some(value) = context.get_var(variable) {
@@ -227,7 +236,10 @@ impl Compiler {
 
             AstNode::Dump { variable } => {
                 if let Some(value) = context.get_var(variable) {
-                    Ok(format!("<pre>{}</pre>", serde_json::to_string_pretty(value).unwrap_or_default()))
+                    Ok(format!(
+                        "<pre>{}</pre>",
+                        serde_json::to_string_pretty(value).unwrap_or_default()
+                    ))
                 } else {
                     Ok("<pre>null</pre>".to_string())
                 }
@@ -297,7 +309,9 @@ impl Compiler {
         let registry = context
             .component_registry
             .as_ref()
-            .ok_or_else(|| CompileError::EvaluationError("Component registry not available".to_string()))?
+            .ok_or_else(|| {
+                CompileError::EvaluationError("Component registry not available".to_string())
+            })?
             .clone();
 
         // Build props from attributes

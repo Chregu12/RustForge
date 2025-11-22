@@ -1,8 +1,6 @@
 use async_trait::async_trait;
 use foundry_domain::CommandDescriptor;
-use foundry_plugins::{
-    FoundryCommand, CommandContext, CommandResult, CommandError, AppError,
-};
+use foundry_plugins::{AppError, CommandContext, CommandError, CommandResult, FoundryCommand};
 use std::fs;
 use std::io::Write;
 use std::path::Path;
@@ -55,14 +53,16 @@ impl FoundryCommand for KeyGenerateCommand {
         if !env_path.exists() {
             // Copy from .env.example if it exists
             if Path::new(".env.example").exists() {
-                fs::copy(".env.example", ".env")
-                    .map_err(|e| CommandError::Message(format!("Failed to copy .env.example: {}", e)))?;
+                fs::copy(".env.example", ".env").map_err(|e| {
+                    CommandError::Message(format!("Failed to copy .env.example: {}", e))
+                })?;
             } else {
                 // Create new .env file
                 let mut file = fs::File::create(".env")
                     .map_err(|e| CommandError::Message(format!("Failed to create .env: {}", e)))?;
-                writeln!(file, "APP_KEY={}", encoded_key)
-                    .map_err(|e| CommandError::Message(format!("Failed to write to .env: {}", e)))?;
+                writeln!(file, "APP_KEY={}", encoded_key).map_err(|e| {
+                    CommandError::Message(format!("Failed to write to .env: {}", e))
+                })?;
                 return Ok(CommandResult::success(format!(
                     "Application key set successfully.\nKey: {}",
                     encoded_key
@@ -75,9 +75,9 @@ impl FoundryCommand for KeyGenerateCommand {
             .map_err(|e| CommandError::Message(format!("Failed to read .env: {}", e)))?;
 
         // Check if APP_KEY already exists and is not empty
-        let has_key = env_content
-            .lines()
-            .any(|line| line.starts_with("APP_KEY=") && !line.trim_start_matches("APP_KEY=").is_empty());
+        let has_key = env_content.lines().any(|line| {
+            line.starts_with("APP_KEY=") && !line.trim_start_matches("APP_KEY=").is_empty()
+        });
 
         if has_key && !force {
             return Ok(CommandResult::failure(AppError::new(
@@ -171,9 +171,11 @@ fn generate_key() -> Vec<u8> {
 
 /// Base64 encode bytes
 fn base64_encode(bytes: &[u8]) -> String {
-    
     let mut buf = String::new();
-    let mut encoder = base64::write::EncoderStringWriter::new(&mut buf, &base64::engine::general_purpose::STANDARD);
+    let mut encoder = base64::write::EncoderStringWriter::new(
+        &mut buf,
+        &base64::engine::general_purpose::STANDARD,
+    );
     encoder.write_all(bytes).unwrap();
     drop(encoder);
     buf
@@ -222,7 +224,8 @@ mod base64 {
 
             impl Engine for Standard {
                 fn encode(&self, input: &[u8]) -> String {
-                    const CHARSET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+                    const CHARSET: &[u8] =
+                        b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
                     let mut result = String::new();
                     let mut i = 0;
 

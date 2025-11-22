@@ -51,13 +51,11 @@ pub async fn health_check() -> impl IntoResponse {
 pub async fn health_check_detailed() -> Response {
     // Create basic health checks
     // In production, these would check actual components
-    let checks = vec![
-        serde_json::json!({
-            "name": "application",
-            "status": "healthy",
-            "message": "Application is running",
-        }),
-    ];
+    let checks = vec![serde_json::json!({
+        "name": "application",
+        "status": "healthy",
+        "message": "Application is running",
+    })];
 
     let status = json!({
         "status": "healthy",

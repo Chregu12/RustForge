@@ -7,8 +7,7 @@ use axum::{
     Router,
 };
 use foundry_observability::{
-    init_observability, shutdown_observability,
-    ObservabilityConfig, TracingMiddleware, METRICS,
+    init_observability, shutdown_observability, ObservabilityConfig, TracingMiddleware, METRICS,
 };
 use serde_json::json;
 use std::time::Instant;
@@ -84,7 +83,6 @@ async fn list_users() -> impl IntoResponse {
 
     Json(json!({ "users": users }))
 }
-
 
 async fn heavy_operation() -> impl IntoResponse {
     // Simulate heavy computation

@@ -105,7 +105,10 @@ pub fn oauth2_routes<R: ClientRepository + 'static>() -> Router<Arc<OAuth2Server
         .route("/token", post(token_endpoint::<R>))
         .route("/introspect", post(introspect_endpoint::<R>))
         .route("/revoke", post(revoke_endpoint::<R>))
-        .route("/.well-known/oauth-authorization-server", get(metadata_endpoint::<R>))
+        .route(
+            "/.well-known/oauth-authorization-server",
+            get(metadata_endpoint::<R>),
+        )
 }
 
 /// Authorization endpoint (GET /oauth/authorize)

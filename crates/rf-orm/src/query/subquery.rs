@@ -184,11 +184,7 @@ where
     }
 
     /// Add a WHERE IN clause
-    pub fn where_in(
-        mut self,
-        column: &str,
-        values: Vec<impl Into<sea_orm::Value>>,
-    ) -> Self {
+    pub fn where_in(mut self, column: &str, values: Vec<impl Into<sea_orm::Value>>) -> Self {
         let values = values.into_iter().map(|v| v.into()).collect();
         self.where_clauses
             .push(WhereClause::In(column.to_string(), values));
@@ -196,11 +192,7 @@ where
     }
 
     /// Add a WHERE NOT IN clause
-    pub fn where_not_in(
-        mut self,
-        column: &str,
-        values: Vec<impl Into<sea_orm::Value>>,
-    ) -> Self {
+    pub fn where_not_in(mut self, column: &str, values: Vec<impl Into<sea_orm::Value>>) -> Self {
         let values = values.into_iter().map(|v| v.into()).collect();
         self.where_clauses
             .push(WhereClause::NotIn(column.to_string(), values));
@@ -236,8 +228,7 @@ where
     /// subquery.where_raw("DATE(created_at) = CURDATE()")
     /// ```
     pub fn where_raw(mut self, sql: &str) -> Self {
-        self.where_clauses
-            .push(WhereClause::Raw(sql.to_string()));
+        self.where_clauses.push(WhereClause::Raw(sql.to_string()));
         self
     }
 
@@ -313,7 +304,11 @@ where
 
         // Build ORDER BY clause
         if let Some((column, direction)) = &self.order_by {
-            sql.push_str(&format!(" ORDER BY {} {}", column, direction.to_uppercase()));
+            sql.push_str(&format!(
+                " ORDER BY {} {}",
+                column,
+                direction.to_uppercase()
+            ));
         }
 
         // Build LIMIT clause
@@ -450,7 +445,11 @@ impl SubqueryBuilder {
 
         // Add ORDER BY
         if let Some((column, direction)) = &self.order_by {
-            sql.push_str(&format!(" ORDER BY {} {}", column, direction.to_uppercase()));
+            sql.push_str(&format!(
+                " ORDER BY {} {}",
+                column,
+                direction.to_uppercase()
+            ));
         }
 
         // Add LIMIT

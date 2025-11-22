@@ -61,7 +61,10 @@ struct PriorityJob {
 #[async_trait]
 impl Job for PriorityJob {
     async fn handle(&self, ctx: JobContext) -> JobResult {
-        ctx.log(&format!("Executing PriorityJob {} with priority {}", self.id, self.priority));
+        ctx.log(&format!(
+            "Executing PriorityJob {} with priority {}",
+            self.id, self.priority
+        ));
         tokio::time::sleep(Duration::from_millis(10)).await;
         Ok(())
     }
@@ -87,20 +90,29 @@ async fn test_job_chain_creation() {
         .then(TestJob { value: 3 })
         .expect("Failed to add job");
 
-    let chain_id = chain.dispatch(&manager).await.expect("Failed to dispatch chain");
+    let chain_id = chain
+        .dispatch(&manager)
+        .await
+        .expect("Failed to dispatch chain");
 
     // Verify chain was created
     assert!(!chain_id.is_nil());
 
     // Load chain state
-    let state = manager.load_chain_state(chain_id).await.expect("Failed to load chain state");
+    let state = manager
+        .load_chain_state(chain_id)
+        .await
+        .expect("Failed to load chain state");
     assert_eq!(state.total_jobs, 3);
     assert_eq!(state.current_index, 0);
     assert_eq!(state.status, ChainStatus::Pending);
     assert_eq!(state.name, Some("test-chain".to_string()));
 
     // Cleanup
-    manager.delete_chain(chain_id).await.expect("Failed to delete chain");
+    manager
+        .delete_chain(chain_id)
+        .await
+        .expect("Failed to delete chain");
 }
 
 #[tokio::test]
@@ -122,22 +134,37 @@ async fn test_job_chain_progress() {
         .then(TestJob { value: 3 })
         .expect("Failed to add job");
 
-    let chain_id = chain.dispatch(&manager).await.expect("Failed to dispatch chain");
+    let chain_id = chain
+        .dispatch(&manager)
+        .await
+        .expect("Failed to dispatch chain");
 
     // Check initial progress
-    let (current, total) = manager.chain_progress(chain_id).await.expect("Failed to get progress");
+    let (current, total) = manager
+        .chain_progress(chain_id)
+        .await
+        .expect("Failed to get progress");
     assert_eq!(current, 0);
     assert_eq!(total, 3);
 
     // Simulate job completion
-    manager.handle_chain_job_completion(chain_id, 0).await.expect("Failed to complete job");
+    manager
+        .handle_chain_job_completion(chain_id, 0)
+        .await
+        .expect("Failed to complete job");
 
-    let (current, total) = manager.chain_progress(chain_id).await.expect("Failed to get progress");
+    let (current, total) = manager
+        .chain_progress(chain_id)
+        .await
+        .expect("Failed to get progress");
     assert_eq!(current, 1);
     assert_eq!(total, 3);
 
     // Cleanup
-    manager.delete_chain(chain_id).await.expect("Failed to delete chain");
+    manager
+        .delete_chain(chain_id)
+        .await
+        .expect("Failed to delete chain");
 }
 
 #[tokio::test]
@@ -158,13 +185,19 @@ async fn test_job_batch_creation() {
         .add_many(jobs)
         .expect("Failed to add jobs");
 
-    let batch_id = batch.dispatch(&manager).await.expect("Failed to dispatch batch");
+    let batch_id = batch
+        .dispatch(&manager)
+        .await
+        .expect("Failed to dispatch batch");
 
     // Verify batch was created
     assert!(!batch_id.is_nil());
 
     // Load batch state
-    let state = manager.load_batch_state(batch_id).await.expect("Failed to load batch state");
+    let state = manager
+        .load_batch_state(batch_id)
+        .await
+        .expect("Failed to load batch state");
     assert_eq!(state.total, 10);
     assert_eq!(state.pending, 10);
     assert_eq!(state.completed, 0);
@@ -172,7 +205,10 @@ async fn test_job_batch_creation() {
     assert_eq!(state.name, Some("test-batch".to_string()));
 
     // Cleanup
-    manager.delete_batch(batch_id).await.expect("Failed to delete batch");
+    manager
+        .delete_batch(batch_id)
+        .await
+        .expect("Failed to delete batch");
 }
 
 #[tokio::test]
@@ -188,11 +224,12 @@ async fn test_job_batch_progress() {
 
     let jobs: Vec<TestJob> = (0..5).map(|i| TestJob { value: i }).collect();
 
-    let batch = JobBatch::new()
-        .add_many(jobs)
-        .expect("Failed to add jobs");
+    let batch = JobBatch::new().add_many(jobs).expect("Failed to add jobs");
 
-    let batch_id = batch.dispatch(&manager).await.expect("Failed to dispatch batch");
+    let batch_id = batch
+        .dispatch(&manager)
+        .await
+        .expect("Failed to dispatch batch");
 
     // Check initial progress
     let (completed, failed, pending, total) = manager
@@ -205,8 +242,14 @@ async fn test_job_batch_progress() {
     assert_eq!(total, 5);
 
     // Simulate job completion
-    manager.handle_batch_job_completion(batch_id).await.expect("Failed to complete job");
-    manager.handle_batch_job_completion(batch_id).await.expect("Failed to complete job");
+    manager
+        .handle_batch_job_completion(batch_id)
+        .await
+        .expect("Failed to complete job");
+    manager
+        .handle_batch_job_completion(batch_id)
+        .await
+        .expect("Failed to complete job");
 
     let (completed, failed, pending, total) = manager
         .batch_progress(batch_id)
@@ -218,7 +261,10 @@ async fn test_job_batch_progress() {
     assert_eq!(total, 5);
 
     // Cleanup
-    manager.delete_batch(batch_id).await.expect("Failed to delete batch");
+    manager
+        .delete_batch(batch_id)
+        .await
+        .expect("Failed to delete batch");
 }
 
 #[tokio::test]
@@ -239,7 +285,10 @@ async fn test_batch_allow_failures() {
         .expect("Failed to add jobs")
         .allow_failures(true);
 
-    let batch_id = batch.dispatch(&manager).await.expect("Failed to dispatch batch");
+    let batch_id = batch
+        .dispatch(&manager)
+        .await
+        .expect("Failed to dispatch batch");
 
     // Simulate one job failure
     manager
@@ -248,16 +297,28 @@ async fn test_batch_allow_failures() {
         .expect("Failed to handle job failure");
 
     // Complete remaining jobs
-    manager.handle_batch_job_completion(batch_id).await.expect("Failed to complete job");
-    manager.handle_batch_job_completion(batch_id).await.expect("Failed to complete job");
+    manager
+        .handle_batch_job_completion(batch_id)
+        .await
+        .expect("Failed to complete job");
+    manager
+        .handle_batch_job_completion(batch_id)
+        .await
+        .expect("Failed to complete job");
 
-    let state = manager.load_batch_state(batch_id).await.expect("Failed to load batch state");
+    let state = manager
+        .load_batch_state(batch_id)
+        .await
+        .expect("Failed to load batch state");
     assert_eq!(state.status, BatchStatus::Completed); // Should complete despite failure
     assert_eq!(state.failed, 1);
     assert_eq!(state.completed, 2);
 
     // Cleanup
-    manager.delete_batch(batch_id).await.expect("Failed to delete batch");
+    manager
+        .delete_batch(batch_id)
+        .await
+        .expect("Failed to delete batch");
 }
 
 #[tokio::test]
@@ -309,7 +370,10 @@ async fn test_rate_limiter_remaining() {
 
     let limiter = RateLimiter::new(manager.clone());
 
-    limiter.reset("test_remaining").await.expect("Failed to reset");
+    limiter
+        .reset("test_remaining")
+        .await
+        .expect("Failed to reset");
 
     // Check initial remaining
     let remaining = limiter
@@ -334,7 +398,10 @@ async fn test_rate_limiter_remaining() {
     assert_eq!(remaining, 7);
 
     // Cleanup
-    limiter.reset("test_remaining").await.expect("Failed to reset");
+    limiter
+        .reset("test_remaining")
+        .await
+        .expect("Failed to reset");
 }
 
 #[tokio::test]
@@ -350,17 +417,35 @@ async fn test_priority_queue_dispatch() {
 
     // Dispatch jobs with different priorities
     let high_id = manager
-        .dispatch_with_priority(PriorityJob { id: 1, priority: "high".to_string() }, QueuePriority::High)
+        .dispatch_with_priority(
+            PriorityJob {
+                id: 1,
+                priority: "high".to_string(),
+            },
+            QueuePriority::High,
+        )
         .await
         .expect("Failed to dispatch high priority job");
 
     let default_id = manager
-        .dispatch_with_priority(PriorityJob { id: 2, priority: "default".to_string() }, QueuePriority::Default)
+        .dispatch_with_priority(
+            PriorityJob {
+                id: 2,
+                priority: "default".to_string(),
+            },
+            QueuePriority::Default,
+        )
         .await
         .expect("Failed to dispatch default priority job");
 
     let low_id = manager
-        .dispatch_with_priority(PriorityJob { id: 3, priority: "low".to_string() }, QueuePriority::Low)
+        .dispatch_with_priority(
+            PriorityJob {
+                id: 3,
+                priority: "low".to_string(),
+            },
+            QueuePriority::Low,
+        )
         .await
         .expect("Failed to dispatch low priority job");
 
@@ -369,18 +454,36 @@ async fn test_priority_queue_dispatch() {
     assert!(!low_id.is_nil());
 
     // Verify jobs are in correct queues
-    let high_size = manager.size("default:high").await.expect("Failed to get queue size");
-    let default_size = manager.size("default:default").await.expect("Failed to get queue size");
-    let low_size = manager.size("default:low").await.expect("Failed to get queue size");
+    let high_size = manager
+        .size("default:high")
+        .await
+        .expect("Failed to get queue size");
+    let default_size = manager
+        .size("default:default")
+        .await
+        .expect("Failed to get queue size");
+    let low_size = manager
+        .size("default:low")
+        .await
+        .expect("Failed to get queue size");
 
     assert_eq!(high_size, 1);
     assert_eq!(default_size, 1);
     assert_eq!(low_size, 1);
 
     // Cleanup
-    manager.clear("default:high").await.expect("Failed to clear queue");
-    manager.clear("default:default").await.expect("Failed to clear queue");
-    manager.clear("default:low").await.expect("Failed to clear queue");
+    manager
+        .clear("default:high")
+        .await
+        .expect("Failed to clear queue");
+    manager
+        .clear("default:default")
+        .await
+        .expect("Failed to clear queue");
+    manager
+        .clear("default:low")
+        .await
+        .expect("Failed to clear queue");
 }
 
 #[tokio::test]
@@ -395,9 +498,18 @@ async fn test_priority_queue_pop_order() {
         .expect("Failed to connect to Redis");
 
     // Clear queues
-    manager.clear("test:high").await.expect("Failed to clear queue");
-    manager.clear("test:default").await.expect("Failed to clear queue");
-    manager.clear("test:low").await.expect("Failed to clear queue");
+    manager
+        .clear("test:high")
+        .await
+        .expect("Failed to clear queue");
+    manager
+        .clear("test:default")
+        .await
+        .expect("Failed to clear queue");
+    manager
+        .clear("test:low")
+        .await
+        .expect("Failed to clear queue");
 
     // Dispatch in reverse priority order
     manager
@@ -426,9 +538,18 @@ async fn test_priority_queue_pop_order() {
     assert_eq!(job.value, 1); // High priority job
 
     // Cleanup
-    manager.clear("test:high").await.expect("Failed to clear queue");
-    manager.clear("test:default").await.expect("Failed to clear queue");
-    manager.clear("test:low").await.expect("Failed to clear queue");
+    manager
+        .clear("test:high")
+        .await
+        .expect("Failed to clear queue");
+    manager
+        .clear("test:default")
+        .await
+        .expect("Failed to clear queue");
+    manager
+        .clear("test:low")
+        .await
+        .expect("Failed to clear queue");
 }
 
 #[tokio::test]
@@ -448,17 +569,29 @@ async fn test_chain_cancellation() {
         .then(TestJob { value: 2 })
         .expect("Failed to add job");
 
-    let chain_id = chain.dispatch(&manager).await.expect("Failed to dispatch chain");
+    let chain_id = chain
+        .dispatch(&manager)
+        .await
+        .expect("Failed to dispatch chain");
 
     // Cancel the chain
-    manager.cancel_chain(chain_id).await.expect("Failed to cancel chain");
+    manager
+        .cancel_chain(chain_id)
+        .await
+        .expect("Failed to cancel chain");
 
     // Verify chain is cancelled
-    let state = manager.load_chain_state(chain_id).await.expect("Failed to load chain state");
+    let state = manager
+        .load_chain_state(chain_id)
+        .await
+        .expect("Failed to load chain state");
     assert_eq!(state.status, ChainStatus::Cancelled);
 
     // Cleanup
-    manager.delete_chain(chain_id).await.expect("Failed to delete chain");
+    manager
+        .delete_chain(chain_id)
+        .await
+        .expect("Failed to delete chain");
 }
 
 #[tokio::test]
@@ -478,15 +611,27 @@ async fn test_batch_cancellation() {
         .add(TestJob { value: 2 })
         .expect("Failed to add job");
 
-    let batch_id = batch.dispatch(&manager).await.expect("Failed to dispatch batch");
+    let batch_id = batch
+        .dispatch(&manager)
+        .await
+        .expect("Failed to dispatch batch");
 
     // Cancel the batch
-    manager.cancel_batch(batch_id).await.expect("Failed to cancel batch");
+    manager
+        .cancel_batch(batch_id)
+        .await
+        .expect("Failed to cancel batch");
 
     // Verify batch is cancelled
-    let state = manager.load_batch_state(batch_id).await.expect("Failed to load batch state");
+    let state = manager
+        .load_batch_state(batch_id)
+        .await
+        .expect("Failed to load batch state");
     assert_eq!(state.status, BatchStatus::Cancelled);
 
     // Cleanup
-    manager.delete_batch(batch_id).await.expect("Failed to delete batch");
+    manager
+        .delete_batch(batch_id)
+        .await
+        .expect("Failed to delete batch");
 }

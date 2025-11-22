@@ -17,7 +17,10 @@ pub enum ValidationRule {
     Uuid,
     Min(usize),
     Max(usize),
-    Between { min: usize, max: usize },
+    Between {
+        min: usize,
+        max: usize,
+    },
     StartsWith(String),
     EndsWith(String),
     Regex(String),
@@ -30,7 +33,10 @@ pub enum ValidationRule {
     Integer,
     Numeric,
     Digits(usize),
-    DigitsBetween { min: usize, max: usize },
+    DigitsBetween {
+        min: usize,
+        max: usize,
+    },
     Positive,
     Negative,
 
@@ -39,16 +45,35 @@ pub enum ValidationRule {
     DateFormat(String),
     Before(String),
     After(String),
-    BetweenDates { start: String, end: String },
+    BetweenDates {
+        start: String,
+        end: String,
+    },
 
     // Database Rules
-    Exists { table: String, column: Option<String> },
-    Unique { table: String, column: Option<String> },
-    UniqueIgnore { table: String, column: String, id: String },
+    Exists {
+        table: String,
+        column: Option<String>,
+    },
+    Unique {
+        table: String,
+        column: Option<String>,
+    },
+    UniqueIgnore {
+        table: String,
+        column: String,
+        id: String,
+    },
 
     // Conditional Rules
-    RequiredIf { field: String, value: String },
-    RequiredUnless { field: String, value: String },
+    RequiredIf {
+        field: String,
+        value: String,
+    },
+    RequiredUnless {
+        field: String,
+        value: String,
+    },
     RequiredWith(String),
 
     // Nested Validation
@@ -74,7 +99,7 @@ impl ValidationRule {
             Meta::List(list) => {
                 // Parse nested attributes like #[validate(required, email, max = 255)]
                 for nested in list.parse_args_with(
-                    syn::punctuated::Punctuated::<Meta, syn::Token![,]>::parse_terminated
+                    syn::punctuated::Punctuated::<Meta, syn::Token![,]>::parse_terminated,
                 )? {
                     rules.extend(Self::from_meta(&nested)?);
                 }
@@ -82,10 +107,7 @@ impl ValidationRule {
             Meta::NameValue(nv) => {
                 // Parse name-value pairs like #[validate(max = 255)]
                 if let Some(ident) = nv.path.get_ident() {
-                    let rule = Self::parse_name_value_rule(
-                        ident.to_string(),
-                        &nv.value
-                    )?;
+                    let rule = Self::parse_name_value_rule(ident.to_string(), &nv.value)?;
                     rules.push(rule);
                 }
             }
@@ -115,8 +137,8 @@ impl ValidationRule {
             "nullable" => Ok(Self::Nullable),
             _ => Err(syn::Error::new_spanned(
                 name.clone(),
-                format!("Unknown validation rule: {}", name)
-            ))
+                format!("Unknown validation rule: {}", name),
+            )),
         }
     }
 
@@ -173,8 +195,8 @@ impl ValidationRule {
             }
             _ => Err(syn::Error::new_spanned(
                 name.clone(),
-                format!("Unknown validation rule: {}", name)
-            ))
+                format!("Unknown validation rule: {}", name),
+            )),
         }
     }
 
@@ -188,7 +210,7 @@ impl ValidationRule {
                     Err(syn::Error::new_spanned(expr, "Expected integer literal"))
                 }
             }
-            _ => Err(syn::Error::new_spanned(expr, "Expected integer literal"))
+            _ => Err(syn::Error::new_spanned(expr, "Expected integer literal")),
         }
     }
 
@@ -202,7 +224,7 @@ impl ValidationRule {
                     Err(syn::Error::new_spanned(expr, "Expected string literal"))
                 }
             }
-            _ => Err(syn::Error::new_spanned(expr, "Expected string literal"))
+            _ => Err(syn::Error::new_spanned(expr, "Expected string literal")),
         }
     }
 
@@ -224,14 +246,14 @@ impl ValidationRule {
                 } else {
                     Err(syn::Error::new_spanned(
                         expr,
-                        "Expected [table, column] array"
+                        "Expected [table, column] array",
                     ))
                 }
             }
             _ => Err(syn::Error::new_spanned(
                 expr,
-                "Expected string or [table, column] array"
-            ))
+                "Expected string or [table, column] array",
+            )),
         }
     }
 
@@ -245,9 +267,15 @@ impl ValidationRule {
             Self::Ip => format!("The {} must be a valid IP address", field_name),
             Self::Uuid => format!("The {} must be a valid UUID", field_name),
             Self::Min(n) => format!("The {} must be at least {} characters", field_name, n),
-            Self::Max(n) => format!("The {} may not be greater than {} characters", field_name, n),
+            Self::Max(n) => format!(
+                "The {} may not be greater than {} characters",
+                field_name, n
+            ),
             Self::Between { min, max } => {
-                format!("The {} must be between {} and {} characters", field_name, min, max)
+                format!(
+                    "The {} must be between {} and {} characters",
+                    field_name, min, max
+                )
             }
             Self::StartsWith(prefix) => {
                 format!("The {} must start with {}", field_name, prefix)
@@ -266,13 +294,19 @@ impl ValidationRule {
             Self::Numeric => format!("The {} must be a number", field_name),
             Self::Digits(n) => format!("The {} must be {} digits", field_name, n),
             Self::DigitsBetween { min, max } => {
-                format!("The {} must be between {} and {} digits", field_name, min, max)
+                format!(
+                    "The {} must be between {} and {} digits",
+                    field_name, min, max
+                )
             }
             Self::Positive => format!("The {} must be positive", field_name),
             Self::Negative => format!("The {} must be negative", field_name),
             Self::Date => format!("The {} must be a valid date", field_name),
             Self::DateFormat(format) => {
-                format!("The {} must be a valid date in format {}", field_name, format)
+                format!(
+                    "The {} must be a valid date in format {}",
+                    field_name, format
+                )
             }
             Self::Before(date) => format!("The {} must be before {}", field_name, date),
             Self::After(date) => format!("The {} must be after {}", field_name, date),
@@ -281,29 +315,47 @@ impl ValidationRule {
             }
             Self::Exists { table, column } => {
                 if let Some(col) = column {
-                    format!("The selected {} does not exist in {}.{}", field_name, table, col)
+                    format!(
+                        "The selected {} does not exist in {}.{}",
+                        field_name, table, col
+                    )
                 } else {
                     format!("The selected {} does not exist in {}", field_name, table)
                 }
             }
             Self::Unique { table, column } => {
                 if let Some(col) = column {
-                    format!("The {} has already been taken in {}.{}", field_name, table, col)
+                    format!(
+                        "The {} has already been taken in {}.{}",
+                        field_name, table, col
+                    )
                 } else {
                     format!("The {} has already been taken in {}", field_name, table)
                 }
             }
             Self::UniqueIgnore { table, column, .. } => {
-                format!("The {} has already been taken in {}.{}", field_name, table, column)
+                format!(
+                    "The {} has already been taken in {}.{}",
+                    field_name, table, column
+                )
             }
             Self::RequiredIf { field, value } => {
-                format!("The {} field is required when {} is {}", field_name, field, value)
+                format!(
+                    "The {} field is required when {} is {}",
+                    field_name, field, value
+                )
             }
             Self::RequiredUnless { field, value } => {
-                format!("The {} field is required unless {} is {}", field_name, field, value)
+                format!(
+                    "The {} field is required unless {} is {}",
+                    field_name, field, value
+                )
             }
             Self::RequiredWith(field) => {
-                format!("The {} field is required when {} is present", field_name, field)
+                format!(
+                    "The {} field is required when {} is present",
+                    field_name, field
+                )
             }
             Self::Nested => format!("The {} failed nested validation", field_name),
             Self::Nullable => String::new(), // Not an error

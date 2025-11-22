@@ -11,8 +11,8 @@
 //! Run with: cargo run --example user_posts_api
 
 use async_graphql::{
-    dataloader::DataLoader, ComplexObject, Context, EmptySubscription, InputObject, Object,
-    Result, Schema, SimpleObject, ID,
+    dataloader::DataLoader, ComplexObject, Context, EmptySubscription, InputObject, Object, Result,
+    Schema, SimpleObject, ID,
 };
 use rf_graphql::{
     auth::{AuthGuard, AuthUser},
@@ -280,7 +280,11 @@ impl async_graphql::dataloader::Loader<ID> for UserLoader {
     type Value = User;
     type Error = std::sync::Arc<String>;
 
-    fn load(&self, keys: &[ID]) -> impl std::future::Future<Output = Result<HashMap<ID, Self::Value>, Self::Error>> + Send {
+    fn load(
+        &self,
+        keys: &[ID],
+    ) -> impl std::future::Future<Output = Result<HashMap<ID, Self::Value>, Self::Error>> + Send
+    {
         let keys = keys.to_vec();
         let db = self.db.clone();
         async move {
@@ -327,12 +331,7 @@ impl QueryRoot {
         let offset = pagination.offset() as usize;
         let limit = pagination.limit() as usize;
 
-        let paginated_users = all_users
-            .iter()
-            .skip(offset)
-            .take(limit)
-            .cloned()
-            .collect();
+        let paginated_users = all_users.iter().skip(offset).take(limit).cloned().collect();
 
         Ok(PaginatedResult::new(
             paginated_users,
@@ -405,12 +404,7 @@ impl MutationRoot {
 
     /// Update a user
     #[graphql(guard = "AuthGuard")]
-    async fn update_user(
-        &self,
-        ctx: &Context<'_>,
-        id: ID,
-        input: UpdateUserInput,
-    ) -> Result<User> {
+    async fn update_user(&self, ctx: &Context<'_>, id: ID, input: UpdateUserInput) -> Result<User> {
         let db = ctx.data::<Database>()?;
         db.update_user(id, input)
     }
@@ -472,10 +466,7 @@ async fn main() {
     let db = Database::new();
 
     // Create DataLoader
-    let user_loader = DataLoader::new(
-        UserLoader { db: db.clone() },
-        tokio::spawn,
-    );
+    let user_loader = DataLoader::new(UserLoader { db: db.clone() }, tokio::spawn);
 
     // Build schema
     let schema = Schema::build(QueryRoot, MutationRoot, EmptySubscription)
@@ -500,7 +491,10 @@ async fn main() {
     "#;
 
     let result = schema.execute(query).await;
-    println!("Result: {}\n", serde_json::to_string_pretty(&result).unwrap());
+    println!(
+        "Result: {}\n",
+        serde_json::to_string_pretty(&result).unwrap()
+    );
 
     println!("=== Example Query: Get User with Posts ===");
     let query = r#"
@@ -519,7 +513,10 @@ async fn main() {
     "#;
 
     let result = schema.execute(query).await;
-    println!("Result: {}\n", serde_json::to_string_pretty(&result).unwrap());
+    println!(
+        "Result: {}\n",
+        serde_json::to_string_pretty(&result).unwrap()
+    );
 
     println!("=== Example Query: Search Posts ===");
     let query = r#"
@@ -535,7 +532,10 @@ async fn main() {
     "#;
 
     let result = schema.execute(query).await;
-    println!("Result: {}\n", serde_json::to_string_pretty(&result).unwrap());
+    println!(
+        "Result: {}\n",
+        serde_json::to_string_pretty(&result).unwrap()
+    );
 
     println!("=== Example Mutation: Create User ===");
     let mutation = r#"
@@ -552,7 +552,10 @@ async fn main() {
     "#;
 
     let result = schema.execute(mutation).await;
-    println!("Result: {}\n", serde_json::to_string_pretty(&result).unwrap());
+    println!(
+        "Result: {}\n",
+        serde_json::to_string_pretty(&result).unwrap()
+    );
 
     println!("=== Example Query: Paginated Users ===");
     let query = r#"
@@ -572,7 +575,10 @@ async fn main() {
     "#;
 
     let result = schema.execute(query).await;
-    println!("Result: {}\n", serde_json::to_string_pretty(&result).unwrap());
+    println!(
+        "Result: {}\n",
+        serde_json::to_string_pretty(&result).unwrap()
+    );
 
     println!("✨ Example completed successfully!");
     println!("\n💡 To start a GraphQL server, use rf_graphql::graphql_router()");

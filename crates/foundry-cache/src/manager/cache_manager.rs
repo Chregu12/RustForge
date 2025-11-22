@@ -15,17 +15,23 @@ impl CacheManager {
     pub async fn new(config: CacheConfig) -> Result<Self, CacheError> {
         let store: Arc<dyn CacheStore> = match config.driver {
             CacheDriver::Redis => {
-                let redis_config = config.redis.as_ref()
+                let redis_config = config
+                    .redis
+                    .as_ref()
                     .ok_or_else(|| CacheError::Other("Redis config required".to_string()))?;
                 Arc::new(RedisStore::with_prefix(&redis_config.url, &config.prefix)?)
             }
             CacheDriver::File => {
-                let file_config = config.file.as_ref()
+                let file_config = config
+                    .file
+                    .as_ref()
                     .ok_or_else(|| CacheError::Other("File config required".to_string()))?;
                 Arc::new(FileStore::new(&file_config.path).await?)
             }
             CacheDriver::Memory => {
-                let memory_config = config.memory.as_ref()
+                let memory_config = config
+                    .memory
+                    .as_ref()
                     .ok_or_else(|| CacheError::Other("Memory config required".to_string()))?;
                 Arc::new(MemoryStore::with_config(
                     memory_config.max_capacity,
@@ -68,7 +74,12 @@ impl CacheManager {
     }
 
     /// Set a value in cache
-    pub async fn set<T>(&self, key: &str, value: &T, ttl: Option<Duration>) -> Result<(), CacheError>
+    pub async fn set<T>(
+        &self,
+        key: &str,
+        value: &T,
+        ttl: Option<Duration>,
+    ) -> Result<(), CacheError>
     where
         T: Serialize,
     {
@@ -77,7 +88,12 @@ impl CacheManager {
     }
 
     /// Set a string value in cache
-    pub async fn set_string(&self, key: &str, value: impl Into<String>, ttl: Option<Duration>) -> Result<(), CacheError> {
+    pub async fn set_string(
+        &self,
+        key: &str,
+        value: impl Into<String>,
+        ttl: Option<Duration>,
+    ) -> Result<(), CacheError> {
         let cache_value = CacheValue::from_string(value);
         self.store.set(key, cache_value, ttl).await
     }
@@ -106,7 +122,12 @@ impl CacheManager {
     }
 
     /// Get or set async
-    pub async fn remember_async<T, F, Fut>(&self, key: &str, ttl: Duration, f: F) -> Result<T, CacheError>
+    pub async fn remember_async<T, F, Fut>(
+        &self,
+        key: &str,
+        ttl: Duration,
+        f: F,
+    ) -> Result<T, CacheError>
     where
         T: Serialize + for<'de> Deserialize<'de>,
         F: FnOnce() -> Fut,
@@ -159,23 +180,21 @@ impl CacheManager {
         let values = self.store.get_many(keys).await?;
         values
             .into_iter()
-            .map(|opt| {
-                opt.map(|v| v.to_json())
-                    .transpose()
-            })
+            .map(|opt| opt.map(|v| v.to_json()).transpose())
             .collect()
     }
 
     /// Set many values at once
-    pub async fn set_many<T>(&self, items: Vec<(String, T, Option<Duration>)>) -> Result<(), CacheError>
+    pub async fn set_many<T>(
+        &self,
+        items: Vec<(String, T, Option<Duration>)>,
+    ) -> Result<(), CacheError>
     where
         T: Serialize,
     {
         let cache_items: Result<Vec<_>, _> = items
             .into_iter()
-            .map(|(key, value, ttl)| {
-                CacheValue::from_json(&value).map(|v| (key, v, ttl))
-            })
+            .map(|(key, value, ttl)| CacheValue::from_json(&value).map(|v| (key, v, ttl)))
             .collect();
 
         self.store.set_many(cache_items?).await
@@ -213,9 +232,7 @@ mod tests {
             prefix: "test:".to_string(),
             redis: None,
             file: None,
-            memory: Some(crate::manager::config::MemoryConfig {
-                max_capacity: 1000,
-            }),
+            memory: Some(crate::manager::config::MemoryConfig { max_capacity: 1000 }),
         };
 
         let manager = CacheManager::new(config).await.unwrap();
@@ -243,9 +260,7 @@ mod tests {
             prefix: "test:".to_string(),
             redis: None,
             file: None,
-            memory: Some(crate::manager::config::MemoryConfig {
-                max_capacity: 1000,
-            }),
+            memory: Some(crate::manager::config::MemoryConfig { max_capacity: 1000 }),
         };
 
         let manager = CacheManager::new(config).await.unwrap();
@@ -274,9 +289,7 @@ mod tests {
             prefix: "test:".to_string(),
             redis: None,
             file: None,
-            memory: Some(crate::manager::config::MemoryConfig {
-                max_capacity: 1000,
-            }),
+            memory: Some(crate::manager::config::MemoryConfig { max_capacity: 1000 }),
         };
 
         let manager = CacheManager::new(config).await.unwrap();

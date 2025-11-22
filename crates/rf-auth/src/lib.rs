@@ -95,7 +95,7 @@ pub use authorization::{
 pub use password_reset::{PasswordReset, ResetClaims, Resettable};
 pub use remember_me::{RememberClaims, RememberMe, RememberMeMiddleware};
 #[cfg(feature = "mail")]
-pub use verification::{EmailVerification, RequireVerified, VerificationClaims, Verifiable};
+pub use verification::{EmailVerification, RequireVerified, Verifiable, VerificationClaims};
 
 /// Prelude module for convenient imports
 pub mod prelude {
@@ -118,5 +118,7 @@ pub mod prelude {
     pub use crate::password_reset::{PasswordReset, ResetClaims, Resettable};
     pub use crate::remember_me::{RememberClaims, RememberMe, RememberMeMiddleware};
     #[cfg(feature = "mail")]
-    pub use crate::verification::{EmailVerification, RequireVerified, VerificationClaims, Verifiable};
+    pub use crate::verification::{
+        EmailVerification, RequireVerified, Verifiable, VerificationClaims,
+    };
 }

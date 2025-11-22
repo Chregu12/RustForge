@@ -38,7 +38,11 @@ impl Address {
 
                 return Ok(Self {
                     email: email.to_string(),
-                    name: if name.is_empty() { None } else { Some(name.to_string()) },
+                    name: if name.is_empty() {
+                        None
+                    } else {
+                        Some(name.to_string())
+                    },
                 });
             }
         }

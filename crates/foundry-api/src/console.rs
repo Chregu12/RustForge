@@ -15,7 +15,6 @@
 /// console.verbose("This is shown with -v");
 /// console.debug("This is shown with -vvv");
 /// ```
-
 use crate::VerbosityLevel;
 use colored::Colorize;
 use std::fmt;
@@ -120,11 +119,7 @@ impl Console {
     /// Output a formatted key-value pair
     pub fn item<S1: AsRef<str>, S2: AsRef<str>>(&self, key: S1, value: S2) {
         if !self.verbosity.is_quiet() {
-            println!(
-                "{}: {}",
-                key.as_ref().bold(),
-                value.as_ref()
-            );
+            println!("{}: {}", key.as_ref().bold(), value.as_ref());
         }
     }
 
@@ -172,12 +167,7 @@ impl Console {
 
     /// Format a progress message
     pub fn progress<S: AsRef<str>>(&self, current: usize, total: usize, message: S) -> String {
-        format!(
-            "[{}/{}] {}",
-            current,
-            total,
-            message.as_ref()
-        )
+        format!("[{}/{}] {}", current, total, message.as_ref())
     }
 
     /// Check if output is quiet

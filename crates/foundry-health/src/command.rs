@@ -3,8 +3,10 @@
 use crate::{HealthCheckConfig, HealthChecker, HealthReport};
 use anyhow::Result;
 use async_trait::async_trait;
-use foundry_plugins::{CommandContext, CommandResult, ResponseFormat, FoundryCommand, CommandError};
 use foundry_domain::CommandDescriptor;
+use foundry_plugins::{
+    CommandContext, CommandError, CommandResult, FoundryCommand, ResponseFormat,
+};
 
 /// Health check command (health:check or doctor)
 pub struct HealthCheckCommand;
@@ -12,13 +14,15 @@ pub struct HealthCheckCommand;
 #[async_trait]
 impl FoundryCommand for HealthCheckCommand {
     fn descriptor(&self) -> &CommandDescriptor {
-        static DESCRIPTOR: once_cell::sync::Lazy<CommandDescriptor> = once_cell::sync::Lazy::new(|| {
-            CommandDescriptor::builder("health:check", "health:check")
+        static DESCRIPTOR: once_cell::sync::Lazy<CommandDescriptor> = once_cell::sync::Lazy::new(
+            || {
+                CommandDescriptor::builder("health:check", "health:check")
                 .summary("Run comprehensive health checks on the application")
                 .description("Performs system diagnostics including CPU, memory, disk space, and connectivity checks")
                 .alias("doctor")
                 .build()
-        });
+            },
+        );
         &DESCRIPTOR
     }
 
@@ -39,10 +43,14 @@ impl FoundryCommand for HealthCheckCommand {
         let checker = HealthChecker::new(config);
 
         let results = if let Some(check_name) = specific_check {
-            vec![checker.check_one(check_name).await
+            vec![checker
+                .check_one(check_name)
+                .await
                 .map_err(|e| CommandError::Message(e.to_string()))?]
         } else {
-            checker.check_all().await
+            checker
+                .check_all()
+                .await
                 .map_err(|e| CommandError::Message(e.to_string()))?
         };
 
@@ -51,10 +59,8 @@ impl FoundryCommand for HealthCheckCommand {
         // Format output
         let output = match ctx.format {
             ResponseFormat::Human => report.format_table(),
-            ResponseFormat::Json => {
-                serde_json::to_string_pretty(&report)
-                    .map_err(|e| CommandError::Serialization(e.to_string()))?
-            }
+            ResponseFormat::Json => serde_json::to_string_pretty(&report)
+                .map_err(|e| CommandError::Serialization(e.to_string()))?,
         };
 
         if report.all_passed() {
@@ -74,12 +80,14 @@ pub struct DoctorCommand;
 #[async_trait]
 impl FoundryCommand for DoctorCommand {
     fn descriptor(&self) -> &CommandDescriptor {
-        static DESCRIPTOR: once_cell::sync::Lazy<CommandDescriptor> = once_cell::sync::Lazy::new(|| {
-            CommandDescriptor::builder("doctor", "doctor")
+        static DESCRIPTOR: once_cell::sync::Lazy<CommandDescriptor> = once_cell::sync::Lazy::new(
+            || {
+                CommandDescriptor::builder("doctor", "doctor")
                 .summary("Run comprehensive health checks (alias for health:check)")
                 .description("Performs system diagnostics including CPU, memory, disk space, and connectivity checks")
                 .build()
-        });
+            },
+        );
         &DESCRIPTOR
     }
 
@@ -97,7 +105,12 @@ mod tests {
     // Create mock ports for testing
     struct MockArtifactPort;
     impl foundry_plugins::ArtifactPort for MockArtifactPort {
-        fn write_file(&self, _path: &str, _contents: &str, _force: bool) -> Result<(), CommandError> {
+        fn write_file(
+            &self,
+            _path: &str,
+            _contents: &str,
+            _force: bool,
+        ) -> Result<(), CommandError> {
             Ok(())
         }
     }
@@ -105,10 +118,18 @@ mod tests {
     struct MockMigrationPort;
     #[async_trait]
     impl foundry_plugins::MigrationPort for MockMigrationPort {
-        async fn apply(&self, _config: &serde_json::Value, _dry_run: bool) -> Result<foundry_plugins::MigrationRun, CommandError> {
+        async fn apply(
+            &self,
+            _config: &serde_json::Value,
+            _dry_run: bool,
+        ) -> Result<foundry_plugins::MigrationRun, CommandError> {
             Ok(foundry_plugins::MigrationRun::default())
         }
-        async fn rollback(&self, _config: &serde_json::Value, _dry_run: bool) -> Result<foundry_plugins::MigrationRun, CommandError> {
+        async fn rollback(
+            &self,
+            _config: &serde_json::Value,
+            _dry_run: bool,
+        ) -> Result<foundry_plugins::MigrationRun, CommandError> {
             Ok(foundry_plugins::MigrationRun::default())
         }
     }
@@ -116,7 +137,11 @@ mod tests {
     struct MockSeedPort;
     #[async_trait]
     impl foundry_plugins::SeedPort for MockSeedPort {
-        async fn run(&self, _config: &serde_json::Value, _dry_run: bool) -> Result<foundry_plugins::SeedRun, CommandError> {
+        async fn run(
+            &self,
+            _config: &serde_json::Value,
+            _dry_run: bool,
+        ) -> Result<foundry_plugins::SeedRun, CommandError> {
             Ok(foundry_plugins::SeedRun::default())
         }
     }
@@ -124,7 +149,11 @@ mod tests {
     struct MockValidationPort;
     #[async_trait]
     impl foundry_plugins::ValidationPort for MockValidationPort {
-        async fn validate(&self, _payload: serde_json::Value, _rules: foundry_plugins::ValidationRules) -> Result<foundry_plugins::ValidationReport, CommandError> {
+        async fn validate(
+            &self,
+            _payload: serde_json::Value,
+            _rules: foundry_plugins::ValidationRules,
+        ) -> Result<foundry_plugins::ValidationReport, CommandError> {
             Ok(foundry_plugins::ValidationReport::valid())
         }
     }
@@ -132,8 +161,18 @@ mod tests {
     struct MockStoragePort;
     #[async_trait]
     impl foundry_plugins::StoragePort for MockStoragePort {
-        async fn put(&self, _disk: &str, _path: &str, _contents: Vec<u8>) -> Result<foundry_plugins::StoredFile, CommandError> {
-            Ok(foundry_plugins::StoredFile { disk: "local".to_string(), path: "test".to_string(), size: 0, url: None })
+        async fn put(
+            &self,
+            _disk: &str,
+            _path: &str,
+            _contents: Vec<u8>,
+        ) -> Result<foundry_plugins::StoredFile, CommandError> {
+            Ok(foundry_plugins::StoredFile {
+                disk: "local".to_string(),
+                path: "test".to_string(),
+                size: 0,
+                url: None,
+            })
         }
         async fn get(&self, _disk: &str, _path: &str) -> Result<Vec<u8>, CommandError> {
             Ok(vec![])
@@ -155,7 +194,12 @@ mod tests {
         async fn get(&self, _key: &str) -> Result<Option<serde_json::Value>, CommandError> {
             Ok(None)
         }
-        async fn put(&self, _key: &str, _value: serde_json::Value, _ttl: Option<std::time::Duration>) -> Result<(), CommandError> {
+        async fn put(
+            &self,
+            _key: &str,
+            _value: serde_json::Value,
+            _ttl: Option<std::time::Duration>,
+        ) -> Result<(), CommandError> {
             Ok(())
         }
         async fn forget(&self, _key: &str) -> Result<(), CommandError> {

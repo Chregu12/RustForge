@@ -1,6 +1,8 @@
 use crate::context::GraphQLContext;
 use crate::error::{database_error, not_found, validation_error};
-use crate::types::product::{Product, ProductEntity, ProductColumn, ProductActiveModel, ProductInput, UpdateProductInput};
+use crate::types::product::{
+    Product, ProductActiveModel, ProductColumn, ProductEntity, ProductInput, UpdateProductInput,
+};
 use async_graphql::{Context, Object, Result};
 use chrono::Utc;
 use sea_orm::{

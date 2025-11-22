@@ -63,10 +63,8 @@ impl QueueMetrics {
     fn update_processing_time(&mut self, new_time_ms: f64) {
         // Simple moving average
         let total_jobs = self.jobs_processed as f64;
-        self.average_processing_time_ms = ((self.average_processing_time_ms
-            * (total_jobs - 1.0))
-            + new_time_ms)
-            / total_jobs;
+        self.average_processing_time_ms =
+            ((self.average_processing_time_ms * (total_jobs - 1.0)) + new_time_ms) / total_jobs;
     }
 
     fn calculate_throughput(&mut self) {
@@ -157,7 +155,11 @@ pub enum JobHistoryStatus {
 
 impl JobHistoryEntry {
     /// Create a new job history entry
-    pub fn new(id: impl Into<String>, queue: impl Into<String>, job_name: impl Into<String>) -> Self {
+    pub fn new(
+        id: impl Into<String>,
+        queue: impl Into<String>,
+        job_name: impl Into<String>,
+    ) -> Self {
         Self {
             id: id.into(),
             queue: queue.into(),
@@ -174,10 +176,8 @@ impl JobHistoryEntry {
     pub fn complete(&mut self) {
         self.status = JobHistoryStatus::Completed;
         self.completed_at = Some(Utc::now());
-        self.duration_ms = Some(
-            (self.completed_at.unwrap() - self.started_at)
-                .num_milliseconds() as u64,
-        );
+        self.duration_ms =
+            Some((self.completed_at.unwrap() - self.started_at).num_milliseconds() as u64);
     }
 
     /// Mark job as failed
@@ -185,9 +185,7 @@ impl JobHistoryEntry {
         self.status = JobHistoryStatus::Failed;
         self.completed_at = Some(Utc::now());
         self.error = Some(error.into());
-        self.duration_ms = Some(
-            (self.completed_at.unwrap() - self.started_at)
-                .num_milliseconds() as u64,
-        );
+        self.duration_ms =
+            Some((self.completed_at.unwrap() - self.started_at).num_milliseconds() as u64);
     }
 }

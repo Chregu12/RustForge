@@ -97,9 +97,9 @@ impl PasswordReset {
     /// Returns `AuthError::TokenGeneration` if token generation fails
     pub fn generate_token(&self, user_id: i64, email: &str) -> AuthResult<String> {
         let now = Utc::now();
-        let exp = now + chrono::Duration::from_std(self.ttl).map_err(|e| {
-            AuthError::TokenGeneration(format!("Invalid TTL duration: {}", e))
-        })?;
+        let exp = now
+            + chrono::Duration::from_std(self.ttl)
+                .map_err(|e| AuthError::TokenGeneration(format!("Invalid TTL duration: {}", e)))?;
 
         let claims = ResetClaims {
             sub: user_id,
@@ -303,11 +303,7 @@ For security reasons, this link can only be used once.
                 .html(html)
                 .build()
                 .map_err(|e| AuthError::EmailSendFailed(e.to_string()))?,
-            _ => {
-                return Err(AuthError::EmailSendFailed(
-                    "Expected HTML body".to_string(),
-                ))
-            }
+            _ => return Err(AuthError::EmailSendFailed("Expected HTML body".to_string())),
         };
 
         mailer
@@ -461,8 +457,7 @@ mod tests {
     #[test]
     fn test_different_secrets() {
         let reset1 = PasswordReset::with_default_ttl(TEST_SECRET.to_string());
-        let reset2 =
-            PasswordReset::with_default_ttl("different-secret-key-32-chars!!".to_string());
+        let reset2 = PasswordReset::with_default_ttl("different-secret-key-32-chars!!".to_string());
 
         let token = reset1.generate_token(123, "test@example.com").unwrap();
 

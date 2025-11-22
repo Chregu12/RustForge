@@ -3,7 +3,7 @@
 //! This module provides a comprehensive fake data generation API similar to Laravel's Faker,
 //! built on top of the `fake` crate with additional convenience methods.
 
-use chrono::{DateTime, NaiveDate, Utc, Duration};
+use chrono::{DateTime, Duration, NaiveDate, Utc};
 use rand::Rng;
 
 /// Comprehensive fake data generator
@@ -49,7 +49,7 @@ impl Fake {
 
     /// Generate a name with title (e.g., "Dr. John Smith")
     pub fn name_with_title() -> String {
-        use fake::faker::name::en::{NameWithTitle};
+        use fake::faker::name::en::NameWithTitle;
         use fake::Fake as FakeTrait;
         NameWithTitle().fake()
     }
@@ -271,7 +271,8 @@ impl Fake {
     /// Generate a title
     pub fn title() -> String {
         let words = Self::words(Self::number(2, 5) as usize);
-        words.split_whitespace()
+        words
+            .split_whitespace()
             .map(|w| {
                 let mut c = w.chars();
                 match c.next() {
@@ -326,7 +327,8 @@ impl Fake {
     /// Generate a random float with specific decimal places
     pub fn float_with_precision(min: f64, max: f64, decimals: u32) -> f64 {
         let multiplier = 10_f64.powi(decimals as i32);
-        (Self::float(min * multiplier, max * multiplier) / multiplier * multiplier).round() / multiplier
+        (Self::float(min * multiplier, max * multiplier) / multiplier * multiplier).round()
+            / multiplier
     }
 
     /// Generate a random boolean
@@ -425,8 +427,12 @@ impl Fake {
 
     /// Generate a file extension
     pub fn file_extension() -> String {
-        let extensions = ["txt", "pdf", "jpg", "png", "doc", "xlsx", "csv", "json", "xml"];
-        Self::random_element(&extensions).unwrap_or(&"txt").to_string()
+        let extensions = [
+            "txt", "pdf", "jpg", "png", "doc", "xlsx", "csv", "json", "xml",
+        ];
+        Self::random_element(&extensions)
+            .unwrap_or(&"txt")
+            .to_string()
     }
 
     /// Generate a file path
@@ -605,7 +611,12 @@ mod tests {
         assert!(float >= 0.0 && float <= 1.0);
 
         let precise = Fake::float_with_precision(0.0, 10.0, 2);
-        let decimal_places = precise.to_string().split('.').nth(1).map(|s| s.len()).unwrap_or(0);
+        let decimal_places = precise
+            .to_string()
+            .split('.')
+            .nth(1)
+            .map(|s| s.len())
+            .unwrap_or(0);
         assert!(decimal_places <= 2);
 
         let _bool = Fake::boolean();

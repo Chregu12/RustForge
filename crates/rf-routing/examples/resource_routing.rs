@@ -31,7 +31,10 @@ fn main() {
     println!();
 
     // Resource with 'only' filter
-    let products = resource_only("products", vec![ControllerAction::Index, ControllerAction::Show]);
+    let products = resource_only(
+        "products",
+        vec![ControllerAction::Index, ControllerAction::Show],
+    );
     println!("Resource with 'only': products");
     println!("Actions: {:?}", products.actions());
     println!("Paths:");
@@ -67,7 +70,12 @@ fn main() {
     println!("Shallow Nested Resource: comments");
     println!("When nested under /posts/:post_id:");
     for (action, path) in shallow_comments.paths(Some("/posts/:post_id")) {
-        println!("  {} {} (shallow: {})", action.method(), path, shallow_comments.is_shallow());
+        println!(
+            "  {} {} (shallow: {})",
+            action.method(),
+            path,
+            shallow_comments.is_shallow()
+        );
     }
     println!();
 

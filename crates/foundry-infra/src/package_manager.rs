@@ -81,7 +81,11 @@ impl PackageManager {
     /// # }
     /// ```
     pub async fn install(&self, package_name: &str, version: Option<&str>) -> Result<()> {
-        info!("Installing package: {}@{}", package_name, version.unwrap_or("latest"));
+        info!(
+            "Installing package: {}@{}",
+            package_name,
+            version.unwrap_or("latest")
+        );
 
         let version_spec = version.unwrap_or("*");
 
@@ -97,7 +101,11 @@ impl PackageManager {
 
     /// Installiert ein Dev-Package
     pub async fn install_dev(&self, package_name: &str, version: Option<&str>) -> Result<()> {
-        info!("Installing dev package: {}@{}", package_name, version.unwrap_or("latest"));
+        info!(
+            "Installing dev package: {}@{}",
+            package_name,
+            version.unwrap_or("latest")
+        );
 
         let version_spec = version.unwrap_or("*");
 
@@ -152,7 +160,11 @@ impl PackageManager {
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
-            return Err(anyhow!("Failed to update package {}: {}", package_name, stderr));
+            return Err(anyhow!(
+                "Failed to update package {}: {}",
+                package_name,
+                stderr
+            ));
         }
 
         info!("Package {} updated successfully", package_name);
@@ -200,16 +212,19 @@ impl PackageManager {
             for pkg in packages {
                 if let Some(name) = pkg.get("name").and_then(|n| n.as_str()) {
                     if name == package_name {
-                        let version = pkg.get("version")
+                        let version = pkg
+                            .get("version")
                             .and_then(|v| v.as_str())
                             .unwrap_or("unknown")
                             .to_string();
 
-                        let description = pkg.get("description")
+                        let description = pkg
+                            .get("description")
                             .and_then(|d| d.as_str())
                             .map(|s| s.to_string());
 
-                        let license = pkg.get("license")
+                        let license = pkg
+                            .get("license")
                             .and_then(|l| l.as_str())
                             .map(|s| s.to_string());
 
@@ -251,23 +266,24 @@ impl PackageManager {
 
         if let Some(crates) = data.get("crates").and_then(|c| c.as_array()) {
             for krate in crates.iter().take(10) {
-                let name = krate.get("name")
+                let name = krate
+                    .get("name")
                     .and_then(|n| n.as_str())
                     .unwrap_or("")
                     .to_string();
 
-                let version = krate.get("max_version")
+                let version = krate
+                    .get("max_version")
                     .and_then(|v| v.as_str())
                     .unwrap_or("")
                     .to_string();
 
-                let description = krate.get("description")
+                let description = krate
+                    .get("description")
                     .and_then(|d| d.as_str())
                     .map(|s| s.to_string());
 
-                let downloads = krate.get("downloads")
-                    .and_then(|d| d.as_u64())
-                    .unwrap_or(0);
+                let downloads = krate.get("downloads").and_then(|d| d.as_u64()).unwrap_or(0);
 
                 results.push(SearchResult {
                     name,
@@ -317,17 +333,20 @@ impl PackageManager {
 
                 if let Some(packages) = data.get("dependencies").and_then(|d| d.as_array()) {
                     for pkg in packages {
-                        let name = pkg.get("name")
+                        let name = pkg
+                            .get("name")
                             .and_then(|n| n.as_str())
                             .unwrap_or("")
                             .to_string();
 
-                        let current = pkg.get("project")
+                        let current = pkg
+                            .get("project")
                             .and_then(|v| v.as_str())
                             .unwrap_or("")
                             .to_string();
 
-                        let latest = pkg.get("latest")
+                        let latest = pkg
+                            .get("latest")
                             .and_then(|v| v.as_str())
                             .unwrap_or("")
                             .to_string();

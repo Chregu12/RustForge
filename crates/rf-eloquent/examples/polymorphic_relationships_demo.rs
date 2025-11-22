@@ -7,8 +7,7 @@
 //! - MorphToMany: Post/Video → Tags (many-to-many polymorphic)
 
 use rf_eloquent::polymorphic_impl::{
-    morph_many::*, morph_one::*, morph_to::*, morph_to_many::*,
-    type_registry::GLOBAL_TYPE_REGISTRY,
+    morph_many::*, morph_one::*, morph_to::*, morph_to_many::*, type_registry::GLOBAL_TYPE_REGISTRY,
 };
 use std::any::Any;
 
@@ -153,7 +152,10 @@ fn example_morph_to() {
 
     println!("MorphTo Example:");
     println!("  Comment #{}", comment.id);
-    println!("  Belongs to: {} #{}", comment.commentable_type, comment.commentable_id);
+    println!(
+        "  Belongs to: {} #{}",
+        comment.commentable_type, comment.commentable_id
+    );
     println!("  Type Column: {}", morph_to.morph_type_column());
     println!("  ID Column: {}", morph_to.morph_id_column());
     println!();
@@ -283,7 +285,10 @@ async fn example_type_registry() {
     // This will use the registry to load the correct type
     // let parent = morph_to.get(&db, &comment.commentable_type, comment.commentable_id).await;
 
-    println!("  Comment belongs to: {} #{}", comment.commentable_type, comment.commentable_id);
+    println!(
+        "  Comment belongs to: {} #{}",
+        comment.commentable_type, comment.commentable_id
+    );
 }
 
 // ============================================================================

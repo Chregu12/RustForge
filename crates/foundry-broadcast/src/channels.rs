@@ -1,7 +1,7 @@
 //! Channel types
 
+use crate::{PresenceTracker, Result};
 use std::sync::{Arc, RwLock};
-use crate::{Result, PresenceTracker};
 
 #[derive(Clone)]
 pub struct Channel {
@@ -22,7 +22,10 @@ impl Channel {
     }
 
     pub fn unsubscribe(&self, subscriber_id: &str) {
-        self.subscribers.write().unwrap().retain(|id| id != subscriber_id);
+        self.subscribers
+            .write()
+            .unwrap()
+            .retain(|id| id != subscriber_id);
     }
 
     pub async fn send(&self, event: String, data: serde_json::Value) -> Result<()> {

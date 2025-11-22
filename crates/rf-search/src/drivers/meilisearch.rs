@@ -7,7 +7,7 @@ use crate::driver::{Result, SearchError};
 #[cfg(feature = "meilisearch")]
 use crate::driver::{ConfigurableDriver, SearchDriver};
 #[cfg(feature = "meilisearch")]
-use crate::searchable::{Searchable, SearchHit, SearchOptions, SearchResult};
+use crate::searchable::{SearchHit, SearchOptions, SearchResult, Searchable};
 #[cfg(feature = "meilisearch")]
 use async_trait::async_trait;
 #[cfg(feature = "meilisearch")]
@@ -38,8 +38,8 @@ impl MeilisearchDriver {
     /// let driver = MeilisearchDriver::new("http://localhost:7700", Some("masterKey"))?;
     /// ```
     pub fn new(url: &str, api_key: Option<&str>) -> Result<Self> {
-        let client = Client::new(url, api_key)
-            .map_err(|e| SearchError::ConnectionError(e.to_string()))?;
+        let client =
+            Client::new(url, api_key).map_err(|e| SearchError::ConnectionError(e.to_string()))?;
         Ok(Self { client })
     }
 
@@ -53,7 +53,8 @@ impl MeilisearchDriver {
         let index_name = T::index_name();
 
         // Create task to create the index
-        let _task = self.client
+        let _task = self
+            .client
             .create_index(index_name, Some("id"))
             .await
             .map_err(|e| SearchError::IndexError(e.to_string()))?;
@@ -111,10 +112,7 @@ impl SearchDriver for MeilisearchDriver {
         let index_name = T::index_name();
         let index = self.get_index(index_name);
 
-        let docs: Vec<T::Model> = documents
-            .into_iter()
-            .map(|d| d.to_searchable())
-            .collect();
+        let docs: Vec<T::Model> = documents.into_iter().map(|d| d.to_searchable()).collect();
 
         let _task = index
             .add_documents(&docs, Some("id"))
@@ -207,7 +205,8 @@ impl SearchDriver for MeilisearchDriver {
     }
 
     async fn health_check(&self) -> Result<()> {
-        let _health = self.client
+        let _health = self
+            .client
             .health()
             .await
             .map_err(|e| SearchError::ConnectionError(e.to_string()))?;

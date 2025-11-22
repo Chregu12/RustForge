@@ -7,8 +7,8 @@
 //! - Accessors & Mutators
 //! - Model Events
 
-use rf_eloquent::prelude::*;
 use async_trait::async_trait;
+use rf_eloquent::prelude::*;
 
 #[derive(Clone, Debug)]
 struct User {
@@ -36,9 +36,9 @@ impl HasAccessors for User {
                 "{} {}",
                 self.first_name, self.last_name
             ))),
-            "display_name" => Some(AttributeValue::String(
-                common_accessors::title_case(&self.first_name),
-            )),
+            "display_name" => Some(AttributeValue::String(common_accessors::title_case(
+                &self.first_name,
+            ))),
             _ => None,
         }
     }
@@ -119,7 +119,9 @@ impl ModelEvents for Post {
     async fn creating(&mut self) -> EventResult {
         // Validate before creating
         if self.title.is_empty() {
-            return Err(EventError::ValidationFailed("Title is required".to_string()));
+            return Err(EventError::ValidationFailed(
+                "Title is required".to_string(),
+            ));
         }
         println!("Creating post: {}", self.title);
         Ok(())
@@ -156,7 +158,10 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     println!("\n2. Mutators Example:");
     let mut user = user;
     user.set_attribute("password", AttributeValue::String("secret123".to_string()))?;
-    user.set_attribute("email", AttributeValue::String("JOHN@EXAMPLE.COM".to_string()))?;
+    user.set_attribute(
+        "email",
+        AttributeValue::String("JOHN@EXAMPLE.COM".to_string()),
+    )?;
     println!("   Email (lowercased): {}", user.email);
     println!("   Password hash: {}", &user.password_hash[..20]);
 
@@ -177,21 +182,37 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     // Example 4: Relationship Builders
     println!("\n4. Relationship Builders Example:");
     let has_many_rel = HasMany::<User, Post>::new("user_id");
-    println!("   User HasMany Posts via foreign key: {}", has_many_rel.foreign_key());
+    println!(
+        "   User HasMany Posts via foreign key: {}",
+        has_many_rel.foreign_key()
+    );
 
     let belongs_to_rel = BelongsTo::<Post, User>::new("user_id");
-    println!("   Post BelongsTo User via foreign key: {}", belongs_to_rel.foreign_key());
+    println!(
+        "   Post BelongsTo User via foreign key: {}",
+        belongs_to_rel.foreign_key()
+    );
 
     let belongs_to_many_rel = BelongsToMany::<Post, ()>::new("post_tag", "post_id", "tag_id");
-    println!("   Post BelongsToMany Tags via pivot table: {}", belongs_to_many_rel.pivot_table());
+    println!(
+        "   Post BelongsToMany Tags via pivot table: {}",
+        belongs_to_many_rel.pivot_table()
+    );
 
     // Example 5: Eager Loading Relations
     println!("\n5. Eager Loading Example:");
     let relation = EagerLoadRelation::from_path("posts.comments.author");
-    println!("   Eager load path: {} -> {} -> {}",
+    println!(
+        "   Eager load path: {} -> {} -> {}",
         relation.name,
-        relation.nested.first().map(|r| r.name.as_str()).unwrap_or(""),
-        relation.nested.first()
+        relation
+            .nested
+            .first()
+            .map(|r| r.name.as_str())
+            .unwrap_or(""),
+        relation
+            .nested
+            .first()
             .and_then(|r| r.nested.first())
             .map(|r| r.name.as_str())
             .unwrap_or("")
@@ -217,20 +238,28 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     let observer = EventObserver::new();
 
     // Register event listeners
-    observer.creating("User", |ctx| {
-        println!("   Event listener triggered: {} at {}", ctx.event.name(), ctx.timestamp);
-        Ok(())
-    }).await;
+    observer
+        .creating("User", |ctx| {
+            println!(
+                "   Event listener triggered: {} at {}",
+                ctx.event.name(),
+                ctx.timestamp
+            );
+            Ok(())
+        })
+        .await;
 
     // Fire an event
-    let context = EventContext::new(ModelEvent::Creating, "User")
-        .with_metadata("user_id", "123");
+    let context = EventContext::new(ModelEvent::Creating, "User").with_metadata("user_id", "123");
     observer.fire(context).await?;
 
     // Example 8: Attribute Bag (for storing virtual attributes)
     println!("\n8. Attribute Bag Example:");
     let mut bag = AttributeBag::new();
-    bag.set("computed_field", AttributeValue::String("computed value".to_string()));
+    bag.set(
+        "computed_field",
+        AttributeValue::String("computed value".to_string()),
+    );
     bag.set("score", AttributeValue::Integer(100));
 
     println!("   Bag has {} attributes", bag.len());

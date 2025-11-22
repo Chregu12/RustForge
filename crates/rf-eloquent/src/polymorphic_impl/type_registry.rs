@@ -20,7 +20,8 @@ pub type ResolverFn = Arc<
     dyn Fn(
             i64,
             Arc<DatabaseConnection>,
-        ) -> Pin<Box<dyn Future<Output = PolymorphicResult<Box<dyn Any + Send + Sync>>> + Send>>
+        )
+            -> Pin<Box<dyn Future<Output = PolymorphicResult<Box<dyn Any + Send + Sync>>> + Send>>
         + Send
         + Sync,
 >;
@@ -197,9 +198,7 @@ mod tests {
         // Register a test type
         registry
             .register("TestModel", |id, _db| {
-                Box::pin(async move {
-                    Ok(Box::new(id) as Box<dyn Any + Send + Sync>)
-                })
+                Box::pin(async move { Ok(Box::new(id) as Box<dyn Any + Send + Sync>) })
             })
             .await;
 

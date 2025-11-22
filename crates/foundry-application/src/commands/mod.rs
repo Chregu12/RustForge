@@ -19,10 +19,10 @@ mod schedule;
 mod seed;
 mod serve;
 mod test;
+pub mod tier3;
 mod tinker;
 mod websocket;
 mod websocket_stats;
-pub mod tier3;
 
 pub use about::AboutCommand;
 pub use auth::{
@@ -41,26 +41,28 @@ pub use event::EventListCommand;
 pub use key::{KeyGenerateCommand, KeyShowCommand};
 pub use list::ListCommand;
 // Note: DownCommand and UpCommand removed - use foundry_maintenance::{AppDownCommand, AppUpCommand} instead
+pub use graphql::MakeGraphQLTypeCommand;
 pub use optimize::OptimizeCommand;
 pub use queue::QueueWorkCommand;
 pub use queue_failed::QueueFailedCommand;
 pub use route::RouteListCommand;
 pub use scaffolding::{
-    InstallPackageCommand, MakeAuthCommand, MakeCommandCommand, MakeControllerCommand, MakeEventCommand, MakeJobCommand, MakeListenerCommand, MakeMiddlewareCommand, MakeMigrationCommand, MakeModelCommand, MakeRequestCommand,
+    InstallPackageCommand, MakeAuthCommand, MakeCommandCommand, MakeControllerCommand,
+    MakeEventCommand, MakeJobCommand, MakeListenerCommand, MakeMiddlewareCommand,
+    MakeMigrationCommand, MakeModelCommand, MakeRequestCommand,
 };
-pub use tier3::{
-    AdminPublishCommand, AdminResourceCommand, ExportCsvCommand, ExportExcelCommand,
-    ExportPdfCommand, HttpRequestCommand, MakeFormCommand,
-};
-pub use tier3::factory::{MakeFactoryCommand, MakeSeederCommand};
-pub use tinker::TinkerCommand;
 pub use schedule::{ScheduleListCommand, ScheduleRunCommand};
 pub use seed::SeedCommand;
 pub use serve::ServeCommand;
 pub use test::TestCommand;
+pub use tier3::factory::{MakeFactoryCommand, MakeSeederCommand};
+pub use tier3::{
+    AdminPublishCommand, AdminResourceCommand, ExportCsvCommand, ExportExcelCommand,
+    ExportPdfCommand, HttpRequestCommand, MakeFormCommand,
+};
+pub use tinker::TinkerCommand;
 pub use websocket::WebSocketCommand;
 pub use websocket_stats::WebSocketStatsCommand;
-pub use graphql::MakeGraphQLTypeCommand;
 
 use crate::{ApplicationError, CommandRegistry};
 use std::sync::Arc;

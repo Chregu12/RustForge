@@ -1,15 +1,15 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion, BenchmarkId, BatchSize};
+use criterion::{black_box, criterion_group, criterion_main, BatchSize, BenchmarkId, Criterion};
 use tokio::runtime::Runtime;
 
-//! # ORM Performance Benchmarks
-//!
-//! Comprehensive benchmarks for ORM operations:
-//! - Single record fetch
-//! - Bulk inserts (100, 1000, 10000 records)
-//! - Bulk updates
-//! - Relationship loading (N+1 vs eager loading)
-//! - Query builder performance
-//! - Collection operations
+// # ORM Performance Benchmarks
+//
+// Comprehensive benchmarks for ORM operations:
+// - Single record fetch
+// - Bulk inserts (100, 1000, 10000 records)
+// - Bulk updates
+// - Relationship loading (N+1 vs eager loading)
+// - Query builder performance
+// - Collection operations
 
 // Mock data structures for benchmarking
 #[derive(Clone, Debug)]
@@ -33,9 +33,8 @@ fn benchmark_single_fetch(c: &mut Criterion) {
     let runtime = Runtime::new().unwrap();
 
     c.bench_function("orm/single_fetch", |b| {
-        b.to_async(&runtime).iter(|| async {
-            black_box(fetch_single_user(1).await)
-        });
+        b.to_async(&runtime)
+            .iter(|| async { black_box(fetch_single_user(1).await) });
     });
 }
 
@@ -45,19 +44,13 @@ fn benchmark_bulk_inserts(c: &mut Criterion) {
     let runtime = Runtime::new().unwrap();
 
     for size in [100, 1000, 10000].iter() {
-        group.bench_with_input(
-            BenchmarkId::from_parameter(size),
-            size,
-            |b, &size| {
-                b.to_async(&runtime).iter_batched(
-                    || generate_users(size),
-                    |users| async move {
-                        black_box(bulk_insert_users(users).await)
-                    },
-                    BatchSize::LargeInput,
-                );
-            },
-        );
+        group.bench_with_input(BenchmarkId::from_parameter(size), size, |b, &size| {
+            b.to_async(&runtime).iter_batched(
+                || generate_users(size),
+                |users| async move { black_box(bulk_insert_users(users).await) },
+                BatchSize::LargeInput,
+            );
+        });
     }
 
     group.finish();
@@ -69,19 +62,13 @@ fn benchmark_bulk_updates(c: &mut Criterion) {
     let runtime = Runtime::new().unwrap();
 
     for size in [100, 1000, 10000].iter() {
-        group.bench_with_input(
-            BenchmarkId::from_parameter(size),
-            size,
-            |b, &size| {
-                b.to_async(&runtime).iter_batched(
-                    || generate_user_ids(size),
-                    |ids| async move {
-                        black_box(bulk_update_users(ids).await)
-                    },
-                    BatchSize::LargeInput,
-                );
-            },
-        );
+        group.bench_with_input(BenchmarkId::from_parameter(size), size, |b, &size| {
+            b.to_async(&runtime).iter_batched(
+                || generate_user_ids(size),
+                |ids| async move { black_box(bulk_update_users(ids).await) },
+                BatchSize::LargeInput,
+            );
+        });
     }
 
     group.finish();
@@ -129,30 +116,26 @@ fn benchmark_query_builder(c: &mut Criterion) {
 
     // Simple where clause
     group.bench_function("simple_where", |b| {
-        b.to_async(&runtime).iter(|| async {
-            black_box(query_users_simple().await)
-        });
+        b.to_async(&runtime)
+            .iter(|| async { black_box(query_users_simple().await) });
     });
 
     // Complex query with multiple conditions
     group.bench_function("complex_query", |b| {
-        b.to_async(&runtime).iter(|| async {
-            black_box(query_users_complex().await)
-        });
+        b.to_async(&runtime)
+            .iter(|| async { black_box(query_users_complex().await) });
     });
 
     // Join query
     group.bench_function("join_query", |b| {
-        b.to_async(&runtime).iter(|| async {
-            black_box(query_users_with_posts_join().await)
-        });
+        b.to_async(&runtime)
+            .iter(|| async { black_box(query_users_with_posts_join().await) });
     });
 
     // Aggregation query
     group.bench_function("aggregation", |b| {
-        b.to_async(&runtime).iter(|| async {
-            black_box(query_user_count().await)
-        });
+        b.to_async(&runtime)
+            .iter(|| async { black_box(query_user_count().await) });
     });
 
     group.finish();
@@ -166,14 +149,7 @@ fn benchmark_collection_operations(c: &mut Criterion) {
     group.bench_function("map", |b| {
         b.iter_batched(
             || generate_users(1000),
-            |users| {
-                black_box(
-                    users
-                        .into_iter()
-                        .map(|u| u.email)
-                        .collect::<Vec<_>>()
-                )
-            },
+            |users| black_box(users.into_iter().map(|u| u.email).collect::<Vec<_>>()),
             BatchSize::LargeInput,
         );
     });
@@ -187,7 +163,7 @@ fn benchmark_collection_operations(c: &mut Criterion) {
                     users
                         .into_iter()
                         .filter(|u| u.id % 2 == 0)
-                        .collect::<Vec<_>>()
+                        .collect::<Vec<_>>(),
                 )
             },
             BatchSize::LargeInput,
@@ -198,9 +174,7 @@ fn benchmark_collection_operations(c: &mut Criterion) {
     group.bench_function("group_by", |b| {
         b.iter_batched(
             || generate_users(1000),
-            |users| {
-                black_box(group_users_by_email_domain(users))
-            },
+            |users| black_box(group_users_by_email_domain(users)),
             BatchSize::LargeInput,
         );
     });
@@ -213,9 +187,8 @@ fn benchmark_transactions(c: &mut Criterion) {
     let runtime = Runtime::new().unwrap();
 
     c.bench_function("orm/transaction", |b| {
-        b.to_async(&runtime).iter(|| async {
-            black_box(execute_transaction().await)
-        });
+        b.to_async(&runtime)
+            .iter(|| async { black_box(execute_transaction().await) });
     });
 }
 
@@ -323,7 +296,12 @@ fn group_users_by_email_domain(users: Vec<User>) -> std::collections::HashMap<St
     let mut groups = std::collections::HashMap::new();
 
     for user in users {
-        let domain = user.email.split('@').nth(1).unwrap_or("unknown").to_string();
+        let domain = user
+            .email
+            .split('@')
+            .nth(1)
+            .unwrap_or("unknown")
+            .to_string();
         groups.entry(domain).or_insert_with(Vec::new).push(user);
     }
 

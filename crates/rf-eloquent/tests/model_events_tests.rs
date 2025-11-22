@@ -375,14 +375,8 @@ fn test_event_context_metadata() {
 
     assert_eq!(context.event, ModelEvent::Creating);
     assert_eq!(context.model_type, "User");
-    assert_eq!(
-        context.get_metadata("ip_address").unwrap(),
-        "192.168.1.1"
-    );
-    assert_eq!(
-        context.get_metadata("user_agent").unwrap(),
-        "Mozilla/5.0"
-    );
+    assert_eq!(context.get_metadata("ip_address").unwrap(), "192.168.1.1");
+    assert_eq!(context.get_metadata("user_agent").unwrap(), "Mozilla/5.0");
     assert!(context.get_metadata("nonexistent").is_none());
 }
 
@@ -446,17 +440,13 @@ async fn test_event_dispatcher_forget_clear() {
         0
     );
     assert_eq!(
-        dispatcher
-            .listener_count(ModelEvent::Created, "User")
-            .await,
+        dispatcher.listener_count(ModelEvent::Created, "User").await,
         1
     );
 
     dispatcher.clear().await;
     assert_eq!(
-        dispatcher
-            .listener_count(ModelEvent::Created, "User")
-            .await,
+        dispatcher.listener_count(ModelEvent::Created, "User").await,
         0
     );
 }

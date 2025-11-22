@@ -58,13 +58,11 @@
 //! ```
 
 use async_trait::async_trait;
-use std::sync::Arc;
 use chrono::{DateTime, Utc};
-use sea_orm::{
-    ConnectionTrait, DatabaseConnection, DbBackend, DbErr, Statement,
-};
+use sea_orm::{ConnectionTrait, DatabaseConnection, DbBackend, DbErr, Statement};
 use serde::{Deserialize, Serialize};
 use std::fmt;
+use std::sync::Arc;
 use thiserror::Error;
 
 use crate::schema_builder::Schema;
@@ -416,10 +414,8 @@ impl Migrator {
     /// Get the next batch number
     async fn get_next_batch(&self) -> MigrationResult<usize> {
         let backend = self.db.get_database_backend();
-        let query = Statement::from_string(
-            backend,
-            "SELECT MAX(batch) as max_batch FROM migrations",
-        );
+        let query =
+            Statement::from_string(backend, "SELECT MAX(batch) as max_batch FROM migrations");
 
         let result = self.db.query_one(query).await?;
 
@@ -494,19 +490,17 @@ impl Migrator {
 
             let schema_ctx = SchemaContext::new(self.db.clone()).await;
             match migration.up(&schema_ctx).await {
-                Ok(_) => {
-                    match self.record_migration(name, batch).await {
-                        Ok(_) => {
-                            result.add_success(name.to_string());
-                            tracing::info!("Migration '{}' executed successfully", name);
-                        }
-                        Err(e) => {
-                            let error = format!("Failed to record migration: {}", e);
-                            result.add_failure(name.to_string(), error.clone());
-                            tracing::error!("Failed to record migration '{}': {}", name, e);
-                        }
+                Ok(_) => match self.record_migration(name, batch).await {
+                    Ok(_) => {
+                        result.add_success(name.to_string());
+                        tracing::info!("Migration '{}' executed successfully", name);
                     }
-                }
+                    Err(e) => {
+                        let error = format!("Failed to record migration: {}", e);
+                        result.add_failure(name.to_string(), error.clone());
+                        tracing::error!("Failed to record migration '{}': {}", name, e);
+                    }
+                },
                 Err(e) => {
                     let error = e.to_string();
                     result.add_failure(name.to_string(), error.clone());
@@ -557,27 +551,29 @@ impl Migrator {
 
             let schema_ctx = SchemaContext::new(self.db.clone()).await;
             match migration.down(&schema_ctx).await {
-                Ok(_) => {
-                    match self.remove_migration(&record.migration).await {
-                        Ok(_) => {
-                            result.add_success(record.migration.clone());
-                            tracing::info!("Migration '{}' rolled back successfully", record.migration);
-                        }
-                        Err(e) => {
-                            let error = format!("Failed to remove migration record: {}", e);
-                            result.add_failure(record.migration.clone(), error.clone());
-                            tracing::error!(
-                                "Failed to remove migration record '{}': {}",
-                                record.migration,
-                                e
-                            );
-                        }
+                Ok(_) => match self.remove_migration(&record.migration).await {
+                    Ok(_) => {
+                        result.add_success(record.migration.clone());
+                        tracing::info!("Migration '{}' rolled back successfully", record.migration);
                     }
-                }
+                    Err(e) => {
+                        let error = format!("Failed to remove migration record: {}", e);
+                        result.add_failure(record.migration.clone(), error.clone());
+                        tracing::error!(
+                            "Failed to remove migration record '{}': {}",
+                            record.migration,
+                            e
+                        );
+                    }
+                },
                 Err(e) => {
                     let error = e.to_string();
                     result.add_failure(record.migration.clone(), error.clone());
-                    tracing::error!("Migration '{}' rollback failed: {}", record.migration, error);
+                    tracing::error!(
+                        "Migration '{}' rollback failed: {}",
+                        record.migration,
+                        error
+                    );
                     break; // Stop on first error
                 }
             }
@@ -620,18 +616,16 @@ impl Migrator {
 
             let schema_ctx = SchemaContext::new(self.db.clone()).await;
             match migration.down(&schema_ctx).await {
-                Ok(_) => {
-                    match self.remove_migration(&record.migration).await {
-                        Ok(_) => {
-                            result.add_success(record.migration.clone());
-                            tracing::info!("Migration '{}' rolled back successfully", record.migration);
-                        }
-                        Err(e) => {
-                            let error = format!("Failed to remove migration record: {}", e);
-                            result.add_failure(record.migration.clone(), error);
-                        }
+                Ok(_) => match self.remove_migration(&record.migration).await {
+                    Ok(_) => {
+                        result.add_success(record.migration.clone());
+                        tracing::info!("Migration '{}' rolled back successfully", record.migration);
                     }
-                }
+                    Err(e) => {
+                        let error = format!("Failed to remove migration record: {}", e);
+                        result.add_failure(record.migration.clone(), error);
+                    }
+                },
                 Err(e) => {
                     let error = e.to_string();
                     result.add_failure(record.migration.clone(), error);
@@ -764,18 +758,24 @@ mod tests {
         }
 
         async fn up(&self, schema: &SchemaContext) -> MigrationResult<()> {
-            schema.create("test_posts", |table| {
-                table.id();
-                table.string("title");
-                table.text("body");
-                table.boolean("published").default("false");
-                table.timestamps();
-            }).await.map_err(|e| MigrationError::SchemaError(e.to_string()))?;
+            schema
+                .create("test_posts", |table| {
+                    table.id();
+                    table.string("title");
+                    table.text("body");
+                    table.boolean("published").default("false");
+                    table.timestamps();
+                })
+                .await
+                .map_err(|e| MigrationError::SchemaError(e.to_string()))?;
             Ok(())
         }
 
         async fn down(&self, schema: &SchemaContext) -> MigrationResult<()> {
-            schema.drop("test_posts").await.map_err(|e| MigrationError::SchemaError(e.to_string()))?;
+            schema
+                .drop("test_posts")
+                .await
+                .map_err(|e| MigrationError::SchemaError(e.to_string()))?;
             Ok(())
         }
     }
@@ -810,10 +810,8 @@ mod tests {
         let db = setup_test_db().await;
         let mut migrator = Migrator::new(db);
 
-        let migrations: Vec<Box<dyn Migration>> = vec![
-            Box::new(TestMigration1),
-            Box::new(TestMigration2),
-        ];
+        let migrations: Vec<Box<dyn Migration>> =
+            vec![Box::new(TestMigration1), Box::new(TestMigration2)];
 
         migrator.add_migrations(migrations);
         assert_eq!(migrator.migrations.len(), 2);

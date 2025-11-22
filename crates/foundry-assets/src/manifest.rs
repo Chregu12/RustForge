@@ -115,8 +115,18 @@ mod tests {
     #[test]
     fn test_total_size() {
         let mut manifest = AssetManifest::new();
-        manifest.add_asset("file1".to_string(), "file1.v".to_string(), "h1".to_string(), 100);
-        manifest.add_asset("file2".to_string(), "file2.v".to_string(), "h2".to_string(), 200);
+        manifest.add_asset(
+            "file1".to_string(),
+            "file1.v".to_string(),
+            "h1".to_string(),
+            100,
+        );
+        manifest.add_asset(
+            "file2".to_string(),
+            "file2.v".to_string(),
+            "h2".to_string(),
+            200,
+        );
 
         assert_eq!(manifest.total_size(), 300);
     }

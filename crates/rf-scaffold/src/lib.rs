@@ -58,21 +58,21 @@
 //! }
 //! ```
 
-use std::path::{Path, PathBuf};
-use std::sync::Arc;
 use handlebars::Handlebars;
 use serde::Serialize;
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use thiserror::Error;
 use tokio::fs;
 use tokio::sync::RwLock;
 
-pub mod templates;
 pub mod generators;
 pub mod naming;
 pub mod project;
+pub mod templates;
 
-use templates::BuiltinTemplates;
 use naming::NamingConvention;
+use templates::BuiltinTemplates;
 
 /// Scaffold engine errors
 #[derive(Error, Debug)]
@@ -249,8 +249,14 @@ impl ScaffoldEngine {
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn generate_model(&self, name: &str, options: &ModelOptions<'_>) -> ScaffoldResult<PathBuf> {
-        generators::ModelGenerator::new(self).generate(name, options).await
+    pub async fn generate_model(
+        &self,
+        name: &str,
+        options: &ModelOptions<'_>,
+    ) -> ScaffoldResult<PathBuf> {
+        generators::ModelGenerator::new(self)
+            .generate(name, options)
+            .await
     }
 
     /// Generate a controller
@@ -267,7 +273,9 @@ impl ScaffoldEngine {
     /// # }
     /// ```
     pub async fn generate_controller(&self, name: &str, resource: bool) -> ScaffoldResult<PathBuf> {
-        generators::ControllerGenerator::new(self).generate(name, resource).await
+        generators::ControllerGenerator::new(self)
+            .generate(name, resource)
+            .await
     }
 
     /// Generate a migration
@@ -284,7 +292,9 @@ impl ScaffoldEngine {
     /// # }
     /// ```
     pub async fn generate_migration(&self, name: &str) -> ScaffoldResult<PathBuf> {
-        generators::MigrationGenerator::new(self).generate(name).await
+        generators::MigrationGenerator::new(self)
+            .generate(name)
+            .await
     }
 
     /// Generate a service
@@ -305,7 +315,11 @@ impl ScaffoldEngine {
     }
 
     /// Render a template with data
-    pub(crate) async fn render<T: Serialize>(&self, template_name: &str, data: &T) -> ScaffoldResult<String> {
+    pub(crate) async fn render<T: Serialize>(
+        &self,
+        template_name: &str,
+        data: &T,
+    ) -> ScaffoldResult<String> {
         let hb = self.handlebars.read().await;
 
         hb.render(template_name, data)
@@ -313,7 +327,12 @@ impl ScaffoldEngine {
     }
 
     /// Write content to file
-    pub(crate) async fn write_file(&self, path: &Path, content: &str, overwrite: bool) -> ScaffoldResult<()> {
+    pub(crate) async fn write_file(
+        &self,
+        path: &Path,
+        content: &str,
+        overwrite: bool,
+    ) -> ScaffoldResult<()> {
         if path.exists() && !overwrite {
             return Err(ScaffoldError::FileExists(path.to_path_buf()));
         }
@@ -341,8 +360,8 @@ impl ScaffoldEngine {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tempfile::tempdir;
     use std::collections::HashMap;
+    use tempfile::tempdir;
 
     #[tokio::test]
     async fn test_new_scaffold_engine() {
@@ -367,7 +386,8 @@ mod tests {
 
         // Don't use blocking call in async test
         let mut hb = scaffold.handlebars.write().await;
-        hb.register_template_string("test", "Hello {{name}}").unwrap();
+        hb.register_template_string("test", "Hello {{name}}")
+            .unwrap();
         drop(hb);
 
         let mut data = HashMap::new();
@@ -383,7 +403,10 @@ mod tests {
         let scaffold = ScaffoldEngine::new(dir.path()).unwrap();
 
         let file_path = dir.path().join("test.txt");
-        scaffold.write_file(&file_path, "test content", false).await.unwrap();
+        scaffold
+            .write_file(&file_path, "test content", false)
+            .await
+            .unwrap();
 
         let content = fs::read_to_string(&file_path).await.unwrap();
         assert_eq!(content, "test content");
@@ -397,7 +420,10 @@ mod tests {
         let file_path = dir.path().join("test.txt");
 
         // Write first time
-        scaffold.write_file(&file_path, "content 1", false).await.unwrap();
+        scaffold
+            .write_file(&file_path, "content 1", false)
+            .await
+            .unwrap();
 
         // Try to write again without overwrite
         let result = scaffold.write_file(&file_path, "content 2", false).await;
@@ -413,10 +439,16 @@ mod tests {
         let file_path = dir.path().join("test.txt");
 
         // Write first time
-        scaffold.write_file(&file_path, "content 1", false).await.unwrap();
+        scaffold
+            .write_file(&file_path, "content 1", false)
+            .await
+            .unwrap();
 
         // Overwrite
-        scaffold.write_file(&file_path, "content 2", true).await.unwrap();
+        scaffold
+            .write_file(&file_path, "content 2", true)
+            .await
+            .unwrap();
 
         let content = fs::read_to_string(&file_path).await.unwrap();
         assert_eq!(content, "content 2");

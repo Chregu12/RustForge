@@ -1,6 +1,4 @@
-use crate::commands::new::config::{
-    DatabaseConfig, Feature, ProjectConfig, TemplateType,
-};
+use crate::commands::new::config::{DatabaseConfig, Feature, ProjectConfig, TemplateType};
 use color_eyre::Result;
 use dialoguer::{theme::ColorfulTheme, Confirm, Input, MultiSelect, Select};
 use std::path::PathBuf;

@@ -34,7 +34,10 @@ impl LocalStorage {
     ///
     /// * `root` - Root directory for file storage
     /// * `public_url` - Base URL for public file access
-    pub async fn new(root: impl AsRef<Path>, public_url: impl Into<String>) -> Result<Self, StorageError> {
+    pub async fn new(
+        root: impl AsRef<Path>,
+        public_url: impl Into<String>,
+    ) -> Result<Self, StorageError> {
         let root = PathBuf::from(root.as_ref());
 
         // Create root directory if it doesn't exist
@@ -54,16 +57,16 @@ impl LocalStorage {
 
         // Security: Check for path traversal patterns
         if normalized.contains("..") {
-            return Err(StorageError::InvalidPath(
-                "Path traversal detected".into(),
-            ));
+            return Err(StorageError::InvalidPath("Path traversal detected".into()));
         }
 
         let full_path = self.root.join(normalized);
 
         // Double check: Ensure path starts with root
         // Use canonicalize only for the root to avoid issues with non-existent files
-        let canonical_root = self.root.canonicalize()
+        let canonical_root = self
+            .root
+            .canonicalize()
             .unwrap_or_else(|_| self.root.clone());
 
         // Check if full_path would be under root when canonicalized

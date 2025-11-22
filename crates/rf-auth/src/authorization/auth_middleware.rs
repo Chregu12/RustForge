@@ -220,7 +220,9 @@ where
                     };
 
                     let authorized = if let Some(policy_arc_any) = policy_opt {
-                        if let Some(policy_arc) = policy_arc_any.downcast_ref::<Arc<dyn crate::authorization::policies::Policy<U, R>>>() {
+                        if let Some(policy_arc) = policy_arc_any
+                            .downcast_ref::<Arc<dyn crate::authorization::policies::Policy<U, R>>>()
+                        {
                             // Check before hook
                             if let Some(result) = policy_arc.before(&user, &resource).await {
                                 result
@@ -231,7 +233,9 @@ where
                                     "update" => policy_arc.update(&user, &resource).await,
                                     "delete" => policy_arc.delete(&user, &resource).await,
                                     "restore" => policy_arc.restore(&user, &resource).await,
-                                    "force_delete" => policy_arc.force_delete(&user, &resource).await,
+                                    "force_delete" => {
+                                        policy_arc.force_delete(&user, &resource).await
+                                    }
                                     _ => false,
                                 }
                             }
@@ -304,11 +308,10 @@ where
         if gate.allows(&user, &gate_name).await {
             Ok(next.run(req).await)
         } else {
-            Err(AuthorizationError::Forbidden(format!(
-                "Gate '{}' denied access",
-                gate_name
-            ))
-            .into_response())
+            Err(
+                AuthorizationError::Forbidden(format!("Gate '{}' denied access", gate_name))
+                    .into_response(),
+            )
         }
     } else {
         Err(AuthorizationError::UserNotFound.into_response())
@@ -346,7 +349,9 @@ where
             };
 
             let authorized = if let Some(policy_arc_any) = policy_opt {
-                if let Some(policy_arc) = policy_arc_any.downcast_ref::<Arc<dyn crate::authorization::policies::Policy<U, R>>>() {
+                if let Some(policy_arc) = policy_arc_any
+                    .downcast_ref::<Arc<dyn crate::authorization::policies::Policy<U, R>>>()
+                {
                     // Check before hook
                     if let Some(result) = policy_arc.before(&user, &resource).await {
                         result
@@ -419,10 +424,7 @@ mod tests {
             role: "admin".to_string(),
         };
 
-        let mut req = Request::builder()
-            .uri("/")
-            .body(Body::empty())
-            .unwrap();
+        let mut req = Request::builder().uri("/").body(Body::empty()).unwrap();
         req.extensions_mut().insert(admin);
         req.extensions_mut().insert(gate);
 
@@ -446,10 +448,7 @@ mod tests {
             role: "user".to_string(),
         };
 
-        let mut req = Request::builder()
-            .uri("/")
-            .body(Body::empty())
-            .unwrap();
+        let mut req = Request::builder().uri("/").body(Body::empty()).unwrap();
         req.extensions_mut().insert(user);
         req.extensions_mut().insert(gate);
 
@@ -463,10 +462,7 @@ mod tests {
             .route("/", get(handler))
             .layer(AuthorizeGateLayer::<TestUser>::new("admin"));
 
-        let req = Request::builder()
-            .uri("/")
-            .body(Body::empty())
-            .unwrap();
+        let req = Request::builder().uri("/").body(Body::empty()).unwrap();
 
         let response = app.oneshot(req).await.unwrap();
         assert_eq!(response.status(), StatusCode::UNAUTHORIZED);

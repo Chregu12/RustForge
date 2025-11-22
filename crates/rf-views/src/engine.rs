@@ -7,7 +7,7 @@ use crate::{
 };
 use serde::Serialize;
 use std::sync::Arc;
-use tera::{Tera, Function as TeraFunction, Filter as TeraFilter};
+use tera::{Filter as TeraFilter, Function as TeraFunction, Tera};
 
 /// The main view engine for rendering templates
 #[derive(Clone)]
@@ -33,9 +33,8 @@ impl ViewEngine {
     /// Create a new view engine with a custom configuration
     pub fn with_config(config: ViewConfig) -> ViewResult<Self> {
         let pattern = config.glob_pattern();
-        let mut tera = Tera::new(&pattern).map_err(|e| {
-            ViewError::RenderError(format!("Failed to initialize Tera: {}", e))
-        })?;
+        let mut tera = Tera::new(&pattern)
+            .map_err(|e| ViewError::RenderError(format!("Failed to initialize Tera: {}", e)))?;
 
         // Configure Tera
         tera.autoescape_on(vec![".html", ".tera"]);
@@ -100,8 +99,8 @@ impl ViewEngine {
 
     /// Render a template with serializable data
     pub fn render_with_data<T: Serialize>(&self, template: &str, data: T) -> ViewResult<String> {
-        let context = Context::from_value(data)
-            .map_err(|e| ViewError::SerializationError(e.to_string()))?;
+        let context =
+            Context::from_value(data).map_err(|e| ViewError::SerializationError(e.to_string()))?;
         self.render(template, &context)
     }
 
@@ -116,7 +115,9 @@ impl ViewEngine {
         F: TeraFilter + 'static,
     {
         Arc::get_mut(&mut self.tera)
-            .ok_or_else(|| ViewError::FilterError("Cannot modify filters on cloned engine".to_string()))?
+            .ok_or_else(|| {
+                ViewError::FilterError("Cannot modify filters on cloned engine".to_string())
+            })?
             .register_filter(name, filter);
         Ok(())
     }
@@ -127,7 +128,9 @@ impl ViewEngine {
         F: TeraFunction + 'static,
     {
         Arc::get_mut(&mut self.tera)
-            .ok_or_else(|| ViewError::FunctionError("Cannot modify functions on cloned engine".to_string()))?
+            .ok_or_else(|| {
+                ViewError::FunctionError("Cannot modify functions on cloned engine".to_string())
+            })?
             .register_function(name, function);
         Ok(())
     }
@@ -167,7 +170,8 @@ impl ViewEngine {
         let field_str = field.into();
         let error_str = error.into();
 
-        self.error_function.set_error(field_str.clone(), error_str.clone());
+        self.error_function
+            .set_error(field_str.clone(), error_str.clone());
 
         let mut errors = std::collections::HashMap::new();
         errors.insert(field_str.clone(), vec![error_str]);
@@ -185,8 +189,10 @@ impl ViewEngine {
     /// Clear validation errors
     pub fn clear_errors(&self) {
         self.error_function.clear_errors();
-        self.errors_function.set_errors(std::collections::HashMap::new());
-        self.has_error_function.set_errors(std::collections::HashMap::new());
+        self.errors_function
+            .set_errors(std::collections::HashMap::new());
+        self.has_error_function
+            .set_errors(std::collections::HashMap::new());
     }
 
     /// Set a flash message
@@ -213,7 +219,9 @@ impl ViewEngine {
     /// Check if a template exists
     pub fn has_template(&self, template: &str) -> bool {
         let template_name = self.normalize_template_name(template);
-        self.tera.get_template_names().any(|name| name == template_name)
+        self.tera
+            .get_template_names()
+            .any(|name| name == template_name)
     }
 
     /// Get the underlying Tera instance
@@ -224,9 +232,8 @@ impl ViewEngine {
     /// Reload templates (useful in development)
     pub fn reload(&mut self) -> ViewResult<()> {
         let pattern = self.config.glob_pattern();
-        let tera = Tera::new(&pattern).map_err(|e| {
-            ViewError::RenderError(format!("Failed to reload templates: {}", e))
-        })?;
+        let tera = Tera::new(&pattern)
+            .map_err(|e| ViewError::RenderError(format!("Failed to reload templates: {}", e)))?;
 
         self.tera = Arc::new(tera);
         Ok(())
@@ -236,8 +243,8 @@ impl ViewEngine {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tempfile::TempDir;
     use std::fs;
+    use tempfile::TempDir;
 
     fn create_test_engine() -> (ViewEngine, TempDir) {
         let temp_dir = TempDir::new().unwrap();
@@ -252,7 +259,11 @@ mod tests {
         let layouts_dir = views_path.join("layouts");
         fs::create_dir_all(&layouts_dir).unwrap();
         let layout_path = layouts_dir.join("app.tera");
-        fs::write(&layout_path, "<html>{% block content %}{% endblock %}</html>").unwrap();
+        fs::write(
+            &layout_path,
+            "<html>{% block content %}{% endblock %}</html>",
+        )
+        .unwrap();
 
         let engine = ViewEngine::new(views_path.to_str().unwrap()).unwrap();
         (engine, temp_dir)
@@ -315,7 +326,10 @@ mod tests {
         let (engine, _temp_dir) = create_test_engine();
 
         assert_eq!(engine.normalize_template_name("test"), "test.tera");
-        assert_eq!(engine.normalize_template_name("layouts.app"), "layouts/app.tera");
+        assert_eq!(
+            engine.normalize_template_name("layouts.app"),
+            "layouts/app.tera"
+        );
         // If already has extension, it's still added (test.tera -> test/tera.tera) because of dot replacement
         // This is expected behavior - users should use either dots OR extensions, not both
     }

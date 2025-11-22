@@ -1,7 +1,7 @@
-use std::sync::Arc;
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 
-use crate::backends::{QueueBackend, MemoryBackend, RedisBackend};
+use crate::backends::{MemoryBackend, QueueBackend, RedisBackend};
 use crate::error::{QueueError, QueueResult};
 use crate::job::Job;
 
@@ -26,7 +26,8 @@ impl QueueConfig {
         let driver = std::env::var("QUEUE_DRIVER").unwrap_or_else(|_| "memory".to_string());
         let redis_url = std::env::var("REDIS_URL").ok();
         let prefix = std::env::var("QUEUE_PREFIX").unwrap_or_else(|_| "queue:".to_string());
-        let default_queue = std::env::var("QUEUE_DEFAULT").unwrap_or_else(|_| "default".to_string());
+        let default_queue =
+            std::env::var("QUEUE_DEFAULT").unwrap_or_else(|_| "default".to_string());
         let timeout = std::env::var("QUEUE_TIMEOUT")
             .ok()
             .and_then(|s| s.parse().ok())
@@ -86,10 +87,9 @@ impl QueueManager {
     pub fn from_config(config: QueueConfig) -> QueueResult<Self> {
         let backend: Arc<dyn QueueBackend> = match config.driver.as_str() {
             "redis" => {
-                let url = config
-                    .redis_url
-                    .as_ref()
-                    .ok_or_else(|| QueueError::Config("Redis URL required for redis driver".to_string()))?;
+                let url = config.redis_url.as_ref().ok_or_else(|| {
+                    QueueError::Config("Redis URL required for redis driver".to_string())
+                })?;
                 Arc::new(RedisBackend::with_prefix(url, &config.prefix)?)
             }
             "memory" => Arc::new(MemoryBackend::new()),
@@ -206,11 +206,7 @@ mod tests {
     async fn test_dispatch_many() {
         let manager = QueueManager::from_config(QueueConfig::memory()).unwrap();
 
-        let jobs = vec![
-            Job::new("job1"),
-            Job::new("job2"),
-            Job::new("job3"),
-        ];
+        let jobs = vec![Job::new("job1"), Job::new("job2"), Job::new("job3")];
 
         let ids = manager.dispatch_many(jobs).await.unwrap();
         assert_eq!(ids.len(), 3);

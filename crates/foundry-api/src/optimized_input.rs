@@ -1,3 +1,4 @@
+use rustc_hash::FxHashMap;
 /// Memory-Optimized Input Handling using SmallVec
 ///
 /// This module provides a zero-allocation alternative for common command inputs.
@@ -36,10 +37,8 @@
 ///     println!("Force mode enabled");
 /// }
 /// ```
-
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
-use rustc_hash::FxHashMap;
 
 /// Optimized input parser using SmallVec for stack allocation
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -183,7 +182,9 @@ impl OptimizedInputParser {
     /// Get a single option value (optimized lookup with FxHashMap)
     #[inline]
     pub fn option(&self, name: &str) -> Option<&str> {
-        self.options.get(name).and_then(|values| values.first().map(|s| s.as_str()))
+        self.options
+            .get(name)
+            .and_then(|values| values.first().map(|s| s.as_str()))
     }
 
     /// Get all values for an option (supports arrays)
@@ -298,10 +299,7 @@ mod tests {
 
     #[test]
     fn test_stack_allocation_for_small_inputs() {
-        let args = vec![
-            "migrate:run".to_string(),
-            "--force".to_string(),
-        ];
+        let args = vec!["migrate:run".to_string(), "--force".to_string()];
         let parser = OptimizedInputParser::from_args(&args);
 
         assert!(parser.is_stack_allocated());

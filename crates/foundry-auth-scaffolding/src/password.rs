@@ -18,35 +18,45 @@ impl PasswordResetManager {
 
     /// Store a password reset token
     pub fn store(&self, reset: PasswordReset) {
-        let mut resets = self.resets.write()
+        let mut resets = self
+            .resets
+            .write()
             .expect("Password reset lock poisoned - unrecoverable state");
         resets.insert(reset.token.clone(), reset);
     }
 
     /// Find reset by token
     pub fn find(&self, token: &str) -> Option<PasswordReset> {
-        let resets = self.resets.read()
+        let resets = self
+            .resets
+            .read()
             .expect("Password reset lock poisoned - unrecoverable state");
         resets.get(token).cloned()
     }
 
     /// Delete reset token
     pub fn delete(&self, token: &str) {
-        let mut resets = self.resets.write()
+        let mut resets = self
+            .resets
+            .write()
             .expect("Password reset lock poisoned - unrecoverable state");
         resets.remove(token);
     }
 
     /// Delete all reset tokens for an email
     pub fn delete_for_email(&self, email: &str) {
-        let mut resets = self.resets.write()
+        let mut resets = self
+            .resets
+            .write()
             .expect("Password reset lock poisoned - unrecoverable state");
         resets.retain(|_, reset| reset.email != email);
     }
 
     /// Clean up expired tokens
     pub fn cleanup_expired(&self) {
-        let mut resets = self.resets.write()
+        let mut resets = self
+            .resets
+            .write()
             .expect("Password reset lock poisoned - unrecoverable state");
         resets.retain(|_, reset| !reset.is_expired());
     }

@@ -89,40 +89,96 @@ pub trait Colorize {
     fn style(&self, style: Style) -> String;
 
     // Foreground colors
-    fn black(&self) -> String { self.color(Color::Black) }
-    fn red(&self) -> String { self.color(Color::Red) }
-    fn green(&self) -> String { self.color(Color::Green) }
-    fn yellow(&self) -> String { self.color(Color::Yellow) }
-    fn blue(&self) -> String { self.color(Color::Blue) }
-    fn magenta(&self) -> String { self.color(Color::Magenta) }
-    fn cyan(&self) -> String { self.color(Color::Cyan) }
-    fn white(&self) -> String { self.color(Color::White) }
+    fn black(&self) -> String {
+        self.color(Color::Black)
+    }
+    fn red(&self) -> String {
+        self.color(Color::Red)
+    }
+    fn green(&self) -> String {
+        self.color(Color::Green)
+    }
+    fn yellow(&self) -> String {
+        self.color(Color::Yellow)
+    }
+    fn blue(&self) -> String {
+        self.color(Color::Blue)
+    }
+    fn magenta(&self) -> String {
+        self.color(Color::Magenta)
+    }
+    fn cyan(&self) -> String {
+        self.color(Color::Cyan)
+    }
+    fn white(&self) -> String {
+        self.color(Color::White)
+    }
 
     // Bright foreground colors
-    fn bright_black(&self) -> String { self.color(Color::BrightBlack) }
-    fn bright_red(&self) -> String { self.color(Color::BrightRed) }
-    fn bright_green(&self) -> String { self.color(Color::BrightGreen) }
-    fn bright_yellow(&self) -> String { self.color(Color::BrightYellow) }
-    fn bright_blue(&self) -> String { self.color(Color::BrightBlue) }
-    fn bright_magenta(&self) -> String { self.color(Color::BrightMagenta) }
-    fn bright_cyan(&self) -> String { self.color(Color::BrightCyan) }
-    fn bright_white(&self) -> String { self.color(Color::BrightWhite) }
+    fn bright_black(&self) -> String {
+        self.color(Color::BrightBlack)
+    }
+    fn bright_red(&self) -> String {
+        self.color(Color::BrightRed)
+    }
+    fn bright_green(&self) -> String {
+        self.color(Color::BrightGreen)
+    }
+    fn bright_yellow(&self) -> String {
+        self.color(Color::BrightYellow)
+    }
+    fn bright_blue(&self) -> String {
+        self.color(Color::BrightBlue)
+    }
+    fn bright_magenta(&self) -> String {
+        self.color(Color::BrightMagenta)
+    }
+    fn bright_cyan(&self) -> String {
+        self.color(Color::BrightCyan)
+    }
+    fn bright_white(&self) -> String {
+        self.color(Color::BrightWhite)
+    }
 
     // Background colors
-    fn on_black(&self) -> String { self.bg_color(Color::Black) }
-    fn on_red(&self) -> String { self.bg_color(Color::Red) }
-    fn on_green(&self) -> String { self.bg_color(Color::Green) }
-    fn on_yellow(&self) -> String { self.bg_color(Color::Yellow) }
-    fn on_blue(&self) -> String { self.bg_color(Color::Blue) }
-    fn on_magenta(&self) -> String { self.bg_color(Color::Magenta) }
-    fn on_cyan(&self) -> String { self.bg_color(Color::Cyan) }
-    fn on_white(&self) -> String { self.bg_color(Color::White) }
+    fn on_black(&self) -> String {
+        self.bg_color(Color::Black)
+    }
+    fn on_red(&self) -> String {
+        self.bg_color(Color::Red)
+    }
+    fn on_green(&self) -> String {
+        self.bg_color(Color::Green)
+    }
+    fn on_yellow(&self) -> String {
+        self.bg_color(Color::Yellow)
+    }
+    fn on_blue(&self) -> String {
+        self.bg_color(Color::Blue)
+    }
+    fn on_magenta(&self) -> String {
+        self.bg_color(Color::Magenta)
+    }
+    fn on_cyan(&self) -> String {
+        self.bg_color(Color::Cyan)
+    }
+    fn on_white(&self) -> String {
+        self.bg_color(Color::White)
+    }
 
     // Styles
-    fn bold(&self) -> String { self.style(Style::Bold) }
-    fn dim(&self) -> String { self.style(Style::Dim) }
-    fn italic(&self) -> String { self.style(Style::Italic) }
-    fn underline(&self) -> String { self.style(Style::Underline) }
+    fn bold(&self) -> String {
+        self.style(Style::Bold)
+    }
+    fn dim(&self) -> String {
+        self.style(Style::Dim)
+    }
+    fn italic(&self) -> String {
+        self.style(Style::Italic)
+    }
+    fn underline(&self) -> String {
+        self.style(Style::Underline)
+    }
 }
 
 impl<T: AsRef<str>> Colorize for T {

@@ -1,11 +1,11 @@
-//! Validation Demo - Comprehensive examples of rf-validation
-//!
-//! This demo showcases:
-//! - ValidatedJson extractor for automatic validation
-//! - 30+ validation rules (email, length, range, regex, etc.)
-//! - Field-level error responses
-//! - Custom validation functions
-//! - Nested validation
+// Validation Demo - Comprehensive examples of rf-validation
+//
+// This demo showcases:
+// - ValidatedJson extractor for automatic validation
+// - 30+ validation rules (email, length, range, regex, etc.)
+// - Field-level error responses
+// - Custom validation functions
+// - Nested validation
 
 use axum::{
     extract::Json,
@@ -41,9 +41,7 @@ struct CreateUser {
     age: u8,
 }
 
-async fn create_user(
-    ValidatedJson(user): ValidatedJson<CreateUser>,
-) -> impl IntoResponse {
+async fn create_user(ValidatedJson(user): ValidatedJson<CreateUser>) -> impl IntoResponse {
     // If we get here, validation passed!
     (
         StatusCode::CREATED,
@@ -72,9 +70,7 @@ struct CreateWebsite {
     blog: Option<String>,
 }
 
-async fn create_website(
-    ValidatedJson(website): ValidatedJson<CreateWebsite>,
-) -> impl IntoResponse {
+async fn create_website(ValidatedJson(website): ValidatedJson<CreateWebsite>) -> impl IntoResponse {
     Json(serde_json::json!({
         "message": "Website created",
         "homepage": website.homepage,
@@ -104,9 +100,7 @@ lazy_static::lazy_static! {
         regex::Regex::new(r"^[A-Z]{3}-\d{4}$").unwrap();
 }
 
-async fn create_product(
-    ValidatedJson(product): ValidatedJson<CreateProduct>,
-) -> impl IntoResponse {
+async fn create_product(ValidatedJson(product): ValidatedJson<CreateProduct>) -> impl IntoResponse {
     Json(serde_json::json!({
         "message": "Product created",
         "product": {
@@ -128,9 +122,7 @@ struct SearchQuery {
     query: String,
 }
 
-async fn search(
-    ValidatedJson(search): ValidatedJson<SearchQuery>,
-) -> impl IntoResponse {
+async fn search(ValidatedJson(search): ValidatedJson<SearchQuery>) -> impl IntoResponse {
     Json(serde_json::json!({
         "message": "Search completed",
         "query": search.query,
@@ -144,12 +136,16 @@ async fn search(
 fn validate_username(username: &str) -> Result<(), validator::ValidationError> {
     // Username must start with a letter
     if !username.chars().next().unwrap_or('0').is_alphabetic() {
-        return Err(validator::ValidationError::new("username_must_start_with_letter"));
+        return Err(validator::ValidationError::new(
+            "username_must_start_with_letter",
+        ));
     }
 
     // Username can only contain alphanumeric and underscores
     if !username.chars().all(|c| c.is_alphanumeric() || c == '_') {
-        return Err(validator::ValidationError::new("username_invalid_characters"));
+        return Err(validator::ValidationError::new(
+            "username_invalid_characters",
+        ));
     }
 
     Ok(())
@@ -165,9 +161,7 @@ struct RegisterUser {
     email: String,
 }
 
-async fn register_user(
-    ValidatedJson(user): ValidatedJson<RegisterUser>,
-) -> impl IntoResponse {
+async fn register_user(ValidatedJson(user): ValidatedJson<RegisterUser>) -> impl IntoResponse {
     Json(serde_json::json!({
         "message": "Registration successful",
         "username": user.username,
@@ -211,9 +205,7 @@ struct CreateOrder {
     billing_address: Option<Address>,
 }
 
-async fn create_order(
-    ValidatedJson(order): ValidatedJson<CreateOrder>,
-) -> impl IntoResponse {
+async fn create_order(ValidatedJson(order): ValidatedJson<CreateOrder>) -> impl IntoResponse {
     Json(serde_json::json!({
         "message": "Order created",
         "items_count": order.items.len(),
@@ -241,9 +233,7 @@ struct CreateBlogPost {
     tags: Vec<String>,
 }
 
-async fn create_blog_post(
-    ValidatedJson(post): ValidatedJson<CreateBlogPost>,
-) -> impl IntoResponse {
+async fn create_blog_post(ValidatedJson(post): ValidatedJson<CreateBlogPost>) -> impl IntoResponse {
     Json(serde_json::json!({
         "message": "Blog post created",
         "title": post.title,
@@ -270,9 +260,7 @@ struct UpdateProfile {
     bio: Option<String>,
 }
 
-async fn update_profile(
-    ValidatedJson(profile): ValidatedJson<UpdateProfile>,
-) -> impl IntoResponse {
+async fn update_profile(ValidatedJson(profile): ValidatedJson<UpdateProfile>) -> impl IntoResponse {
     Json(serde_json::json!({
         "message": "Profile updated",
         "updates": {
@@ -344,10 +332,14 @@ async fn main() {
     tracing::info!("Example curl commands:");
     tracing::info!("");
     tracing::info!("  # Valid user creation:");
-    tracing::info!(r#"  curl -X POST http://localhost:3000/users -H "Content-Type: application/json" -d '{{"email":"user@example.com","password":"secret123","name":"John Doe","age":25}}'"#);
+    tracing::info!(
+        r#"  curl -X POST http://localhost:3000/users -H "Content-Type: application/json" -d '{{"email":"user@example.com","password":"secret123","name":"John Doe","age":25}}'"#
+    );
     tracing::info!("");
     tracing::info!("  # Invalid email (triggers validation error):");
-    tracing::info!(r#"  curl -X POST http://localhost:3000/users -H "Content-Type: application/json" -d '{{"email":"not-an-email","password":"secret123","name":"John Doe","age":25}}'"#);
+    tracing::info!(
+        r#"  curl -X POST http://localhost:3000/users -H "Content-Type: application/json" -d '{{"email":"not-an-email","password":"secret123","name":"John Doe","age":25}}'"#
+    );
     tracing::info!("");
 
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();

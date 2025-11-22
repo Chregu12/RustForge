@@ -24,21 +24,21 @@
 //! # }
 //! ```
 
-pub mod notification;
 pub mod channels;
-pub mod notifiable;
 pub mod manager;
+pub mod notifiable;
+pub mod notification;
 
-pub use notification::{Notification, NotificationData, NotificationError};
 pub use channels::{Channel, ChannelResult, DatabaseChannel, SlackChannel};
-pub use notifiable::Notifiable;
 pub use manager::NotificationManager;
+pub use notifiable::Notifiable;
+pub use notification::{Notification, NotificationData, NotificationError};
 
 pub mod prelude {
-    pub use crate::notification::{Notification, NotificationData, SimpleNotification};
     pub use crate::channels::Channel;
-    pub use crate::notifiable::Notifiable;
     pub use crate::manager::NotificationManager;
+    pub use crate::notifiable::Notifiable;
+    pub use crate::notification::{Notification, NotificationData, SimpleNotification};
     pub use crate::NotificationError;
 }
 

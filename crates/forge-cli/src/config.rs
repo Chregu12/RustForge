@@ -68,8 +68,8 @@ impl ForgeConfig {
         let content = fs::read_to_string(path)
             .context(format!("Failed to read config file: {}", path.display()))?;
 
-        let config: Self = toml::from_str(&content)
-            .context("Failed to parse .forge.toml configuration")?;
+        let config: Self =
+            toml::from_str(&content).context("Failed to parse .forge.toml configuration")?;
 
         Ok(config)
     }
@@ -81,11 +81,12 @@ impl ForgeConfig {
 
     /// Save configuration to a specific path
     pub fn save_to_path<P: AsRef<Path>>(&self, path: P) -> Result<()> {
-        let content = toml::to_string_pretty(self)
-            .context("Failed to serialize configuration")?;
+        let content = toml::to_string_pretty(self).context("Failed to serialize configuration")?;
 
-        fs::write(path.as_ref(), content)
-            .context(format!("Failed to write config file: {}", path.as_ref().display()))?;
+        fs::write(path.as_ref(), content).context(format!(
+            "Failed to write config file: {}",
+            path.as_ref().display()
+        ))?;
 
         Ok(())
     }
@@ -120,7 +121,10 @@ impl ForgeConfig {
         let mut defaults = HashMap::new();
         defaults.insert("make:model.migration".to_string(), DefaultValue::Bool(true));
         defaults.insert("make:model.factory".to_string(), DefaultValue::Bool(true));
-        defaults.insert("make:model.timestamps".to_string(), DefaultValue::Bool(true));
+        defaults.insert(
+            "make:model.timestamps".to_string(),
+            DefaultValue::Bool(true),
+        );
         defaults.insert("serve.port".to_string(), DefaultValue::Number(8000));
 
         Self {
@@ -148,9 +152,15 @@ pub fn display_config(config: &ForgeConfig) {
 
     // CLI settings
     println!("{}", "[cli]".yellow().bold());
-    println!("  interactive = {}", format!("{}", config.cli.interactive).green());
+    println!(
+        "  interactive = {}",
+        format!("{}", config.cli.interactive).green()
+    );
     println!("  color = {}", format!("{}", config.cli.color).green());
-    println!("  progress = {}", format!("{}", config.cli.progress).green());
+    println!(
+        "  progress = {}",
+        format!("{}", config.cli.progress).green()
+    );
     println!("  verbose = {}", format!("{}", config.cli.verbose).green());
     println!();
 
@@ -158,7 +168,11 @@ pub fn display_config(config: &ForgeConfig) {
     if !config.aliases.is_empty() {
         println!("{}", "[aliases]".yellow().bold());
         for (alias, command) in &config.aliases {
-            println!("  {} = {}", alias.cyan(), format!("\"{}\"", command).green());
+            println!(
+                "  {} = {}",
+                alias.cyan(),
+                format!("\"{}\"", command).green()
+            );
         }
         println!();
     }

@@ -239,9 +239,8 @@ pub struct UuidRule;
 
 impl UuidRule {
     fn uuid_regex() -> Regex {
-        Regex::new(
-            r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
-        ).unwrap()
+        Regex::new(r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
+            .unwrap()
     }
 }
 
@@ -771,7 +770,10 @@ mod tests {
             .await
             .is_ok());
         assert!(rule
-            .validate(&json!("2001:0db8:85a3:0000:0000:8a2e:0370:7334"), &HashMap::new())
+            .validate(
+                &json!("2001:0db8:85a3:0000:0000:8a2e:0370:7334"),
+                &HashMap::new()
+            )
             .await
             .is_ok());
         assert!(rule
@@ -785,7 +787,10 @@ mod tests {
         let rule = UuidRule;
 
         assert!(rule
-            .validate(&json!("550e8400-e29b-41d4-a716-446655440000"), &HashMap::new())
+            .validate(
+                &json!("550e8400-e29b-41d4-a716-446655440000"),
+                &HashMap::new()
+            )
             .await
             .is_ok());
         assert!(rule
@@ -802,10 +807,7 @@ mod tests {
             .validate(&json!("hello"), &HashMap::new())
             .await
             .is_ok());
-        assert!(rule
-            .validate(&json!("hi"), &HashMap::new())
-            .await
-            .is_err());
+        assert!(rule.validate(&json!("hi"), &HashMap::new()).await.is_err());
     }
 
     #[tokio::test]
@@ -826,10 +828,7 @@ mod tests {
     async fn test_between_length_rule() {
         let rule = BetweenLengthRule::new(3, 8);
 
-        assert!(rule
-            .validate(&json!("test"), &HashMap::new())
-            .await
-            .is_ok());
+        assert!(rule.validate(&json!("test"), &HashMap::new()).await.is_ok());
         assert!(rule.validate(&json!("hi"), &HashMap::new()).await.is_err());
         assert!(rule
             .validate(&json!("waytoolong"), &HashMap::new())

@@ -9,15 +9,15 @@
 //! - Integration with authentication
 //! - CLI commands for viewing audit logs
 
-pub mod models;
-pub mod traits;
 pub mod logger;
+pub mod models;
 pub mod query;
+pub mod traits;
 
-pub use models::{AuditLog, AuditAction};
-pub use traits::{Auditable, AuditContext};
 pub use logger::AuditLogger;
+pub use models::{AuditAction, AuditLog};
 pub use query::AuditQuery;
+pub use traits::{AuditContext, Auditable};
 
 use thiserror::Error;
 

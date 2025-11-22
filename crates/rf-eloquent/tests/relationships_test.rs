@@ -4,9 +4,7 @@
 //! not just empty collections.
 
 use rf_eloquent::prelude::*;
-use sea_orm::{
-    entity::prelude::*, Database, DbBackend, DbErr, Schema, Set,
-};
+use sea_orm::{entity::prelude::*, Database, DbBackend, DbErr, Schema, Set};
 
 // ============================================================================
 // Test Entities - Users
@@ -37,10 +35,10 @@ impl ActiveModelBehavior for ActiveModel {}
 
 // Create user module
 pub mod user {
-    pub use super::Entity;
-    pub use super::Model;
     pub use super::ActiveModel;
     pub use super::Column;
+    pub use super::Entity;
+    pub use super::Model;
     pub use super::Relation;
 }
 
@@ -212,11 +210,7 @@ async fn test_has_many_loads_related_models() {
     post2.insert(&db).await.unwrap();
 
     // Load relationship using SeaORM's built-in find_related
-    let posts = user
-        .find_related(post::Entity)
-        .all(&db)
-        .await
-        .unwrap();
+    let posts = user.find_related(post::Entity).all(&db).await.unwrap();
 
     // Verify posts were loaded - THIS IS THE KEY TEST!
     assert_eq!(posts.len(), 2, "Should load 2 posts for the user");
@@ -251,11 +245,9 @@ async fn test_has_many_using_query_helper() {
 
     // Test the has_many query helper function
     use rf_eloquent::has_many;
-    let posts = has_many::<post::Entity, post::Model, _>(
-        &db,
-        user.id,
-        post::Column::UserId
-    ).await.unwrap();
+    let posts = has_many::<post::Entity, post::Model, _>(&db, user.id, post::Column::UserId)
+        .await
+        .unwrap();
 
     // THIS IS THE CRITICAL TEST - posts should NOT be empty!
     assert_eq!(posts.len(), 3, "Should load 3 posts for the user");
@@ -280,14 +272,14 @@ async fn test_has_many_returns_empty_for_user_without_posts() {
     let user = user.insert(&db).await.unwrap();
 
     // Load relationship
-    let posts = user
-        .find_related(post::Entity)
-        .all(&db)
-        .await
-        .unwrap();
+    let posts = user.find_related(post::Entity).all(&db).await.unwrap();
 
     // Verify empty result
-    assert_eq!(posts.len(), 0, "Should return empty vector for user without posts");
+    assert_eq!(
+        posts.len(),
+        0,
+        "Should return empty vector for user without posts"
+    );
 }
 
 // ============================================================================
@@ -316,11 +308,7 @@ async fn test_belongs_to_loads_parent_model() {
     let post = post.insert(&db).await.unwrap();
 
     // Load relationship using SeaORM's built-in find_related
-    let author = post
-        .find_related(user::Entity)
-        .one(&db)
-        .await
-        .unwrap();
+    let author = post.find_related(user::Entity).one(&db).await.unwrap();
 
     // Verify author was loaded
     assert!(author.is_some(), "Should load the author");
@@ -353,11 +341,10 @@ async fn test_belongs_to_using_query_helper() {
 
     // Test the belongs_to query helper function
     use rf_eloquent::belongs_to;
-    let loaded_user = belongs_to::<user::Entity, user::Model, _>(
-        &db,
-        post.user_id,
-        user::Column::Id
-    ).await.unwrap();
+    let loaded_user =
+        belongs_to::<user::Entity, user::Model, _>(&db, post.user_id, user::Column::Id)
+            .await
+            .unwrap();
 
     // THIS IS THE CRITICAL TEST - should NOT be None!
     assert!(loaded_user.is_some(), "Should load the user");
@@ -396,11 +383,16 @@ async fn test_belongs_to_returns_none_for_missing_parent() {
     let author = belongs_to::<user::Entity, user::Model, _>(
         &db,
         999, // Non-existent user ID
-        user::Column::Id
-    ).await.unwrap();
+        user::Column::Id,
+    )
+    .await
+    .unwrap();
 
     // Verify None returned
-    assert!(author.is_none(), "Should return None for non-existent parent");
+    assert!(
+        author.is_none(),
+        "Should return None for non-existent parent"
+    );
 }
 
 // ============================================================================
@@ -508,19 +500,28 @@ async fn test_belongs_to_many_manual_implementation() {
         user_id: Set(user.id),
         role_id: Set(role1.id),
         ..Default::default()
-    }.insert(&db).await.unwrap();
+    }
+    .insert(&db)
+    .await
+    .unwrap();
 
     user_role::ActiveModel {
         user_id: Set(user.id),
         role_id: Set(role2.id),
         ..Default::default()
-    }.insert(&db).await.unwrap();
+    }
+    .insert(&db)
+    .await
+    .unwrap();
 
     user_role::ActiveModel {
         user_id: Set(user.id),
         role_id: Set(role3.id),
         ..Default::default()
-    }.insert(&db).await.unwrap();
+    }
+    .insert(&db)
+    .await
+    .unwrap();
 
     // Manual implementation - Step 1: Get role IDs from pivot
     let role_ids: Vec<i32> = user_role::Entity::find()
@@ -620,19 +621,11 @@ async fn test_multiple_users_with_posts() {
     }
 
     // Verify user 1 has 3 posts
-    let user1_posts = user1
-        .find_related(post::Entity)
-        .all(&db)
-        .await
-        .unwrap();
+    let user1_posts = user1.find_related(post::Entity).all(&db).await.unwrap();
     assert_eq!(user1_posts.len(), 3);
 
     // Verify user 2 has 2 posts
-    let user2_posts = user2
-        .find_related(post::Entity)
-        .all(&db)
-        .await
-        .unwrap();
+    let user2_posts = user2.find_related(post::Entity).all(&db).await.unwrap();
     assert_eq!(user2_posts.len(), 2);
 }
 
@@ -681,5 +674,8 @@ async fn test_eager_loading_concept() {
         let user_posts = user.find_related(post::Entity).all(&db).await.unwrap();
         post_count += user_posts.len();
     }
-    assert_eq!(post_count, 50, "Should get all posts when loading individually");
+    assert_eq!(
+        post_count, 50,
+        "Should get all posts when loading individually"
+    );
 }

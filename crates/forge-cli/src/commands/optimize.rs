@@ -36,14 +36,33 @@ pub async fn run() -> Result<()> {
     println!();
     println!("{} Application optimized successfully!", "✓".green().bold());
     println!();
-    println!("  {} All caches have been built for production use", "ℹ".blue());
-    println!("  {} Clear caches with: {}", "ℹ".blue(), "forge optimize:clear".yellow());
+    println!(
+        "  {} All caches have been built for production use",
+        "ℹ".blue()
+    );
+    println!(
+        "  {} Clear caches with: {}",
+        "ℹ".blue(),
+        "forge optimize:clear".yellow()
+    );
     println!();
     println!("{}", "Performance Tips:".cyan().bold());
-    println!("  • Run {} before deploying to production", "forge optimize".yellow());
-    println!("  • Use {} on production servers for better performance", "--release".yellow());
-    println!("  • Enable {} caching for frequently accessed data", "Redis".yellow());
-    println!("  • Use {} for CPU-intensive background tasks", "queue workers".yellow());
+    println!(
+        "  • Run {} before deploying to production",
+        "forge optimize".yellow()
+    );
+    println!(
+        "  • Use {} on production servers for better performance",
+        "--release".yellow()
+    );
+    println!(
+        "  • Enable {} caching for frequently accessed data",
+        "Redis".yellow()
+    );
+    println!(
+        "  • Use {} for CPU-intensive background tasks",
+        "queue workers".yellow()
+    );
 
     Ok(())
 }

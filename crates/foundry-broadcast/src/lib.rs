@@ -4,13 +4,13 @@
 
 pub mod broadcaster;
 pub mod channels;
-pub mod presence;
 pub mod events;
+pub mod presence;
 
-pub use broadcaster::{Broadcaster, BroadcastMessage};
-pub use channels::{Channel, PrivateChannel, PresenceChannel};
-pub use presence::PresenceTracker;
+pub use broadcaster::{BroadcastMessage, Broadcaster};
+pub use channels::{Channel, PresenceChannel, PrivateChannel};
 pub use events::BroadcastEvent;
+pub use presence::PresenceTracker;
 
 #[derive(Debug, thiserror::Error)]
 pub enum BroadcastError {

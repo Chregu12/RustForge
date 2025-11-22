@@ -204,7 +204,9 @@ async fn test_password_reset_url_generation() {
     let token = url.split("token=").nth(1).expect("Token not found in URL");
 
     // Verify the token works
-    let claims = reset.verify_token(token).expect("Token verification failed");
+    let claims = reset
+        .verify_token(token)
+        .expect("Token verification failed");
     assert_eq!(claims.sub, 123);
     assert_eq!(claims.email, "test@example.com");
 }
@@ -289,13 +291,17 @@ async fn test_password_reset_verify_token() {
 fn test_remember_me_token_generation() {
     let remember = RememberMe::with_default_ttl(TEST_SECRET.to_string());
 
-    let token = remember.generate_token(123).expect("Token generation failed");
+    let token = remember
+        .generate_token(123)
+        .expect("Token generation failed");
 
     assert!(!token.is_empty());
     assert!(token.contains('.'));
 
     // Verify token
-    let user_id = remember.verify_token(&token).expect("Token verification failed");
+    let user_id = remember
+        .verify_token(&token)
+        .expect("Token verification failed");
     assert_eq!(user_id, 123);
 }
 
@@ -328,7 +334,9 @@ fn test_remember_me_delete_cookie() {
 fn test_remember_me_token_rotation() {
     let remember = RememberMe::with_default_ttl(TEST_SECRET.to_string());
 
-    let old_token = remember.generate_token(123).expect("Token generation failed");
+    let old_token = remember
+        .generate_token(123)
+        .expect("Token generation failed");
 
     // Rotate token
     let new_token = remember
@@ -352,7 +360,9 @@ fn test_remember_me_token_rotation() {
 fn test_remember_me_expired_token() {
     let remember = RememberMe::new(TEST_SECRET.to_string(), Duration::from_secs(1));
 
-    let token = remember.generate_token(123).expect("Token generation failed");
+    let token = remember
+        .generate_token(123)
+        .expect("Token generation failed");
 
     // Wait for token to expire
     std::thread::sleep(Duration::from_secs(2));
@@ -373,7 +383,9 @@ fn test_tokens_with_different_secrets() {
     let verification1 = EmailVerification::with_default_ttl(secret1.clone());
     let verification2 = EmailVerification::with_default_ttl(secret2.clone());
 
-    let token1 = verification1.generate_token(123, "test@example.com").unwrap();
+    let token1 = verification1
+        .generate_token(123, "test@example.com")
+        .unwrap();
     assert!(verification2.verify_token(&token1).is_err());
 
     // Password Reset
@@ -462,7 +474,9 @@ async fn test_complete_password_reset_flow() {
         .expect("Password reset failed");
 
     // 4. Verify new password works
-    assert!(hasher.verify("new_secure_password", &user.password).unwrap());
+    assert!(hasher
+        .verify("new_secure_password", &user.password)
+        .unwrap());
     assert!(!hasher.verify("forgotten_password", &user.password).unwrap());
 }
 
@@ -495,8 +509,6 @@ fn test_complete_remember_me_flow() {
     assert_eq!(authenticated_user_id, user_id);
 
     // 5. Rotate token for next visit
-    let new_token = remember
-        .rotate_token(token)
-        .expect("Token rotation failed");
+    let new_token = remember.rotate_token(token).expect("Token rotation failed");
     assert_ne!(token, new_token);
 }

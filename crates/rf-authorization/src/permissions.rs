@@ -279,8 +279,7 @@ mod tests {
 
     #[test]
     fn test_permission_creation() {
-        let permission = Permission::new(1, "posts.create")
-            .with_description("Create posts");
+        let permission = Permission::new(1, "posts.create").with_description("Create posts");
 
         assert_eq!(permission.id, 1);
         assert_eq!(permission.name, "posts.create");
@@ -289,8 +288,7 @@ mod tests {
 
     #[test]
     fn test_role_creation() {
-        let role = Role::new(1, "admin")
-            .with_description("Administrator");
+        let role = Role::new(1, "admin").with_description("Administrator");
 
         assert_eq!(role.id, 1);
         assert_eq!(role.name, "admin");
@@ -310,11 +308,10 @@ mod tests {
 
     #[test]
     fn test_role_has_any_permission() {
-        let role = Role::new(1, "editor")
-            .with_permissions(vec![
-                Permission::new(1, "posts.create"),
-                Permission::new(2, "posts.edit"),
-            ]);
+        let role = Role::new(1, "editor").with_permissions(vec![
+            Permission::new(1, "posts.create"),
+            Permission::new(2, "posts.edit"),
+        ]);
 
         assert!(role.has_any_permission(&["posts.create", "posts.delete"]));
         assert!(!role.has_any_permission(&["posts.delete", "users.manage"]));
@@ -322,11 +319,10 @@ mod tests {
 
     #[test]
     fn test_role_has_all_permissions() {
-        let role = Role::new(1, "editor")
-            .with_permissions(vec![
-                Permission::new(1, "posts.create"),
-                Permission::new(2, "posts.edit"),
-            ]);
+        let role = Role::new(1, "editor").with_permissions(vec![
+            Permission::new(1, "posts.create"),
+            Permission::new(2, "posts.edit"),
+        ]);
 
         assert!(role.has_all_permissions(&["posts.create", "posts.edit"]));
         assert!(!role.has_all_permissions(&["posts.create", "posts.delete"]));
@@ -334,17 +330,15 @@ mod tests {
 
     #[test]
     fn test_user_permissions_from_roles() {
-        let admin_role = Role::new(1, "admin")
-            .with_permissions(vec![
-                Permission::new(1, "posts.create"),
-                Permission::new(2, "posts.delete"),
-            ]);
+        let admin_role = Role::new(1, "admin").with_permissions(vec![
+            Permission::new(1, "posts.create"),
+            Permission::new(2, "posts.delete"),
+        ]);
 
-        let editor_role = Role::new(2, "editor")
-            .with_permissions(vec![
-                Permission::new(1, "posts.create"),
-                Permission::new(3, "posts.edit"),
-            ]);
+        let editor_role = Role::new(2, "editor").with_permissions(vec![
+            Permission::new(1, "posts.create"),
+            Permission::new(3, "posts.edit"),
+        ]);
 
         let user_permissions = UserPermissions::from_roles(vec![admin_role, editor_role]);
 
@@ -356,11 +350,10 @@ mod tests {
 
     #[test]
     fn test_user_permissions_has_any() {
-        let role = Role::new(1, "editor")
-            .with_permissions(vec![
-                Permission::new(1, "posts.create"),
-                Permission::new(2, "posts.edit"),
-            ]);
+        let role = Role::new(1, "editor").with_permissions(vec![
+            Permission::new(1, "posts.create"),
+            Permission::new(2, "posts.edit"),
+        ]);
 
         let user_permissions = UserPermissions::from_roles(vec![role]);
 
@@ -370,11 +363,10 @@ mod tests {
 
     #[test]
     fn test_user_permissions_has_all() {
-        let role = Role::new(1, "editor")
-            .with_permissions(vec![
-                Permission::new(1, "posts.create"),
-                Permission::new(2, "posts.edit"),
-            ]);
+        let role = Role::new(1, "editor").with_permissions(vec![
+            Permission::new(1, "posts.create"),
+            Permission::new(2, "posts.edit"),
+        ]);
 
         let user_permissions = UserPermissions::from_roles(vec![role]);
 
@@ -384,8 +376,8 @@ mod tests {
 
     #[test]
     fn test_user_permissions_has_role() {
-        let admin_role = Role::new(1, "admin")
-            .with_permissions(vec![Permission::new(1, "posts.create")]);
+        let admin_role =
+            Role::new(1, "admin").with_permissions(vec![Permission::new(1, "posts.create")]);
 
         let user_permissions = UserPermissions::from_roles(vec![admin_role]);
 
@@ -397,8 +389,8 @@ mod tests {
     fn test_user_permissions_add_role() {
         let mut user_permissions = UserPermissions::new();
 
-        let role = Role::new(1, "editor")
-            .with_permissions(vec![Permission::new(1, "posts.create")]);
+        let role =
+            Role::new(1, "editor").with_permissions(vec![Permission::new(1, "posts.create")]);
 
         user_permissions.add_role(role);
 
@@ -408,11 +400,10 @@ mod tests {
 
     #[test]
     fn test_user_permissions_get_all() {
-        let role = Role::new(1, "editor")
-            .with_permissions(vec![
-                Permission::new(1, "posts.create"),
-                Permission::new(2, "posts.edit"),
-            ]);
+        let role = Role::new(1, "editor").with_permissions(vec![
+            Permission::new(1, "posts.create"),
+            Permission::new(2, "posts.edit"),
+        ]);
 
         let user_permissions = UserPermissions::from_roles(vec![role]);
         let all = user_permissions.get_all_permissions();
@@ -425,11 +416,11 @@ mod tests {
     #[test]
     fn test_user_permissions_deduplicates() {
         // Both roles have the same permission
-        let admin_role = Role::new(1, "admin")
-            .with_permissions(vec![Permission::new(1, "posts.create")]);
+        let admin_role =
+            Role::new(1, "admin").with_permissions(vec![Permission::new(1, "posts.create")]);
 
-        let editor_role = Role::new(2, "editor")
-            .with_permissions(vec![Permission::new(1, "posts.create")]);
+        let editor_role =
+            Role::new(2, "editor").with_permissions(vec![Permission::new(1, "posts.create")]);
 
         let user_permissions = UserPermissions::from_roles(vec![admin_role, editor_role]);
 
@@ -450,11 +441,10 @@ mod tests {
             }
         }
 
-        let role = Role::new(1, "editor")
-            .with_permissions(vec![
-                Permission::new(1, "posts.create"),
-                Permission::new(2, "posts.edit"),
-            ]);
+        let role = Role::new(1, "editor").with_permissions(vec![
+            Permission::new(1, "posts.create"),
+            Permission::new(2, "posts.edit"),
+        ]);
 
         let user = TestUser {
             permissions: UserPermissions::from_roles(vec![role]),

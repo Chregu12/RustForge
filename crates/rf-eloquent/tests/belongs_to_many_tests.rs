@@ -9,9 +9,7 @@
 //! 6. Empty relationships are handled correctly
 
 use rf_eloquent::prelude::*;
-use sea_orm::{
-    entity::prelude::*, Database, DbBackend, DbErr, Schema, Set,
-};
+use sea_orm::{entity::prelude::*, Database, DbBackend, DbErr, Schema, Set};
 
 // ============================================================================
 // Test Entities - Users
@@ -32,10 +30,10 @@ pub enum UserRelation {}
 impl ActiveModelBehavior for UserActiveModel {}
 
 pub mod user {
-    pub use super::UserEntity as Entity;
-    pub use super::UserModel as Model;
     pub use super::UserActiveModel as ActiveModel;
     pub use super::UserColumn as Column;
+    pub use super::UserEntity as Entity;
+    pub use super::UserModel as Model;
     pub use super::UserRelation as Relation;
 }
 
@@ -58,10 +56,10 @@ pub enum RoleRelation {}
 impl ActiveModelBehavior for RoleActiveModel {}
 
 pub mod role {
-    pub use super::RoleEntity as Entity;
-    pub use super::RoleModel as Model;
     pub use super::RoleActiveModel as ActiveModel;
     pub use super::RoleColumn as Column;
+    pub use super::RoleEntity as Entity;
+    pub use super::RoleModel as Model;
     pub use super::RoleRelation as Relation;
 }
 
@@ -84,10 +82,10 @@ pub enum UserRoleRelation {}
 impl ActiveModelBehavior for UserRoleActiveModel {}
 
 pub mod user_role {
-    pub use super::UserRoleEntity as Entity;
-    pub use super::UserRoleModel as Model;
     pub use super::UserRoleActiveModel as ActiveModel;
     pub use super::UserRoleColumn as Column;
+    pub use super::UserRoleEntity as Entity;
+    pub use super::UserRoleModel as Model;
     pub use super::UserRoleRelation as Relation;
 }
 
@@ -109,10 +107,10 @@ pub enum TagRelation {}
 impl ActiveModelBehavior for TagActiveModel {}
 
 pub mod tag {
-    pub use super::TagEntity as Entity;
-    pub use super::TagModel as Model;
     pub use super::TagActiveModel as ActiveModel;
     pub use super::TagColumn as Column;
+    pub use super::TagEntity as Entity;
+    pub use super::TagModel as Model;
     pub use super::TagRelation as Relation;
 }
 
@@ -135,10 +133,10 @@ pub enum PostRelation {}
 impl ActiveModelBehavior for PostActiveModel {}
 
 pub mod post {
-    pub use super::PostEntity as Entity;
-    pub use super::PostModel as Model;
     pub use super::PostActiveModel as ActiveModel;
     pub use super::PostColumn as Column;
+    pub use super::PostEntity as Entity;
+    pub use super::PostModel as Model;
     pub use super::PostRelation as Relation;
 }
 
@@ -161,10 +159,10 @@ pub enum PostTagRelation {}
 impl ActiveModelBehavior for PostTagActiveModel {}
 
 pub mod post_tag {
-    pub use super::PostTagEntity as Entity;
-    pub use super::PostTagModel as Model;
     pub use super::PostTagActiveModel as ActiveModel;
     pub use super::PostTagColumn as Column;
+    pub use super::PostTagEntity as Entity;
+    pub use super::PostTagModel as Model;
     pub use super::PostTagRelation as Relation;
 }
 
@@ -242,13 +240,19 @@ async fn test_belongs_to_many_basic() {
         user_id: Set(user.id),
         role_id: Set(admin_role.id),
         ..Default::default()
-    }.insert(&db).await.unwrap();
+    }
+    .insert(&db)
+    .await
+    .unwrap();
 
     user_role::ActiveModel {
         user_id: Set(user.id),
         role_id: Set(editor_role.id),
         ..Default::default()
-    }.insert(&db).await.unwrap();
+    }
+    .insert(&db)
+    .await
+    .unwrap();
 
     // Test belongs_to_many query
     let roles = belongs_to_many::<role::Entity, user_role::Entity, role::Model, _>(
@@ -257,7 +261,9 @@ async fn test_belongs_to_many_basic() {
         user_role::Column::UserId,
         user_role::Column::RoleId,
         role::Column::Id,
-    ).await.unwrap();
+    )
+    .await
+    .unwrap();
 
     // CRITICAL TEST: Should NOT be empty!
     assert_eq!(roles.len(), 2, "User should have 2 roles");
@@ -290,9 +296,15 @@ async fn test_belongs_to_many_empty() {
         user_role::Column::UserId,
         user_role::Column::RoleId,
         role::Column::Id,
-    ).await.unwrap();
+    )
+    .await
+    .unwrap();
 
-    assert_eq!(roles.len(), 0, "User without roles should return empty vector");
+    assert_eq!(
+        roles.len(),
+        0,
+        "User without roles should return empty vector"
+    );
 }
 
 // ============================================================================
@@ -329,7 +341,10 @@ async fn test_belongs_to_many_multiple() {
             user_id: Set(user.id),
             role_id: Set(r.id),
             ..Default::default()
-        }.insert(&db).await.unwrap();
+        }
+        .insert(&db)
+        .await
+        .unwrap();
     }
 
     // Query roles
@@ -339,7 +354,9 @@ async fn test_belongs_to_many_multiple() {
         user_role::Column::UserId,
         user_role::Column::RoleId,
         role::Column::Id,
-    ).await.unwrap();
+    )
+    .await
+    .unwrap();
 
     assert_eq!(roles.len(), 5, "User should have 5 roles");
 
@@ -380,7 +397,9 @@ async fn test_attach_relationship() {
         user_role::Column::UserId,
         user_role::Column::RoleId,
         role::Column::Id,
-    ).await.unwrap();
+    )
+    .await
+    .unwrap();
     assert_eq!(roles_before.len(), 0, "User should have no roles initially");
 
     // Attach the role using attach() function
@@ -390,7 +409,9 @@ async fn test_attach_relationship() {
         role.id,
         user_role::Column::UserId,
         user_role::Column::RoleId,
-    ).await.unwrap();
+    )
+    .await
+    .unwrap();
 
     // Verify role was attached
     let roles_after = belongs_to_many::<role::Entity, user_role::Entity, role::Model, _>(
@@ -399,7 +420,9 @@ async fn test_attach_relationship() {
         user_role::Column::UserId,
         user_role::Column::RoleId,
         role::Column::Id,
-    ).await.unwrap();
+    )
+    .await
+    .unwrap();
 
     assert_eq!(roles_after.len(), 1, "User should have 1 role after attach");
     assert_eq!(roles_after[0].name, "Developer");
@@ -451,7 +474,9 @@ async fn test_detach_specific_relationship() {
             *role_id,
             user_role::Column::UserId,
             user_role::Column::RoleId,
-        ).await.unwrap();
+        )
+        .await
+        .unwrap();
     }
 
     // Verify 3 roles
@@ -461,7 +486,9 @@ async fn test_detach_specific_relationship() {
         user_role::Column::UserId,
         user_role::Column::RoleId,
         role::Column::Id,
-    ).await.unwrap();
+    )
+    .await
+    .unwrap();
     assert_eq!(roles.len(), 3, "User should have 3 roles");
 
     // Detach role2
@@ -471,7 +498,9 @@ async fn test_detach_specific_relationship() {
         Some(role2.id),
         user_role::Column::UserId,
         user_role::Column::RoleId,
-    ).await.unwrap();
+    )
+    .await
+    .unwrap();
 
     // Verify only 2 roles remain
     let roles_after = belongs_to_many::<role::Entity, user_role::Entity, role::Model, _>(
@@ -480,14 +509,23 @@ async fn test_detach_specific_relationship() {
         user_role::Column::UserId,
         user_role::Column::RoleId,
         role::Column::Id,
-    ).await.unwrap();
+    )
+    .await
+    .unwrap();
 
-    assert_eq!(roles_after.len(), 2, "User should have 2 roles after detach");
+    assert_eq!(
+        roles_after.len(),
+        2,
+        "User should have 2 roles after detach"
+    );
 
     let remaining_names: Vec<&str> = roles_after.iter().map(|r| r.name.as_str()).collect();
     assert!(remaining_names.contains(&"Role1"));
     assert!(remaining_names.contains(&"Role3"));
-    assert!(!remaining_names.contains(&"Role2"), "Role2 should be detached");
+    assert!(
+        !remaining_names.contains(&"Role2"),
+        "Role2 should be detached"
+    );
 }
 
 // ============================================================================
@@ -521,7 +559,9 @@ async fn test_detach_all_relationships() {
             role.id,
             user_role::Column::UserId,
             user_role::Column::RoleId,
-        ).await.unwrap();
+        )
+        .await
+        .unwrap();
     }
 
     // Verify 3 roles
@@ -531,7 +571,9 @@ async fn test_detach_all_relationships() {
         user_role::Column::UserId,
         user_role::Column::RoleId,
         role::Column::Id,
-    ).await.unwrap();
+    )
+    .await
+    .unwrap();
     assert_eq!(roles_before.len(), 3);
 
     // Detach all (pass None as role_id)
@@ -541,7 +583,9 @@ async fn test_detach_all_relationships() {
         None,
         user_role::Column::UserId,
         user_role::Column::RoleId,
-    ).await.unwrap();
+    )
+    .await
+    .unwrap();
 
     // Verify no roles remain
     let roles_after = belongs_to_many::<role::Entity, user_role::Entity, role::Model, _>(
@@ -550,9 +594,15 @@ async fn test_detach_all_relationships() {
         user_role::Column::UserId,
         user_role::Column::RoleId,
         role::Column::Id,
-    ).await.unwrap();
+    )
+    .await
+    .unwrap();
 
-    assert_eq!(roles_after.len(), 0, "User should have no roles after detach all");
+    assert_eq!(
+        roles_after.len(),
+        0,
+        "User should have no roles after detach all"
+    );
 }
 
 // ============================================================================
@@ -591,7 +641,9 @@ async fn test_sync_relationships() {
             *role_id,
             user_role::Column::UserId,
             user_role::Column::RoleId,
-        ).await.unwrap();
+        )
+        .await
+        .unwrap();
     }
 
     // Verify 3 roles
@@ -601,7 +653,9 @@ async fn test_sync_relationships() {
         user_role::Column::UserId,
         user_role::Column::RoleId,
         role::Column::Id,
-    ).await.unwrap();
+    )
+    .await
+    .unwrap();
     assert_eq!(roles_before.len(), 3);
 
     // Sync to last 2 roles (should remove first 3, add last 2)
@@ -611,7 +665,9 @@ async fn test_sync_relationships() {
         vec![role_ids[3], role_ids[4]],
         user_role::Column::UserId,
         user_role::Column::RoleId,
-    ).await.unwrap();
+    )
+    .await
+    .unwrap();
 
     // Verify exactly 2 roles (the last 2)
     let roles_after = belongs_to_many::<role::Entity, user_role::Entity, role::Model, _>(
@@ -620,9 +676,15 @@ async fn test_sync_relationships() {
         user_role::Column::UserId,
         user_role::Column::RoleId,
         role::Column::Id,
-    ).await.unwrap();
+    )
+    .await
+    .unwrap();
 
-    assert_eq!(roles_after.len(), 2, "User should have exactly 2 roles after sync");
+    assert_eq!(
+        roles_after.len(),
+        2,
+        "User should have exactly 2 roles after sync"
+    );
 
     let synced_names: Vec<&str> = roles_after.iter().map(|r| r.name.as_str()).collect();
     assert!(synced_names.contains(&"Role4"));
@@ -660,7 +722,9 @@ async fn test_sync_to_empty() {
             role.id,
             user_role::Column::UserId,
             user_role::Column::RoleId,
-        ).await.unwrap();
+        )
+        .await
+        .unwrap();
     }
 
     // Verify 2 roles
@@ -670,7 +734,9 @@ async fn test_sync_to_empty() {
         user_role::Column::UserId,
         user_role::Column::RoleId,
         role::Column::Id,
-    ).await.unwrap();
+    )
+    .await
+    .unwrap();
     assert_eq!(roles_before.len(), 2);
 
     // Sync to empty array
@@ -680,7 +746,9 @@ async fn test_sync_to_empty() {
         vec![],
         user_role::Column::UserId,
         user_role::Column::RoleId,
-    ).await.unwrap();
+    )
+    .await
+    .unwrap();
 
     // Verify no roles
     let roles_after = belongs_to_many::<role::Entity, user_role::Entity, role::Model, _>(
@@ -689,9 +757,15 @@ async fn test_sync_to_empty() {
         user_role::Column::UserId,
         user_role::Column::RoleId,
         role::Column::Id,
-    ).await.unwrap();
+    )
+    .await
+    .unwrap();
 
-    assert_eq!(roles_after.len(), 0, "Sync to empty array should remove all roles");
+    assert_eq!(
+        roles_after.len(),
+        0,
+        "Sync to empty array should remove all roles"
+    );
 }
 
 // ============================================================================
@@ -725,7 +799,9 @@ async fn test_multiple_users_same_roles() {
             admin_role.id,
             user_role::Column::UserId,
             user_role::Column::RoleId,
-        ).await.unwrap();
+        )
+        .await
+        .unwrap();
     }
 
     // Load all users
@@ -740,7 +816,9 @@ async fn test_multiple_users_same_roles() {
             user_role::Column::UserId,
             user_role::Column::RoleId,
             role::Column::Id,
-        ).await.unwrap();
+        )
+        .await
+        .unwrap();
 
         assert_eq!(roles.len(), 1, "Each user should have 1 role");
         assert_eq!(roles[0].name, "Admin");
@@ -782,7 +860,9 @@ async fn test_post_tag_belongs_to_many() {
             tag.id,
             post_tag::Column::PostId,
             post_tag::Column::TagId,
-        ).await.unwrap();
+        )
+        .await
+        .unwrap();
     }
 
     // Load tags for post
@@ -792,13 +872,19 @@ async fn test_post_tag_belongs_to_many() {
         post_tag::Column::PostId,
         post_tag::Column::TagId,
         tag::Column::Id,
-    ).await.unwrap();
+    )
+    .await
+    .unwrap();
 
     assert_eq!(tags.len(), 3, "Post should have 3 tags");
 
     let loaded_tag_names: Vec<&str> = tags.iter().map(|t| t.name.as_str()).collect();
     for name in &tag_names {
-        assert!(loaded_tag_names.contains(name), "Should include tag {}", name);
+        assert!(
+            loaded_tag_names.contains(name),
+            "Should include tag {}",
+            name
+        );
     }
 }
 
@@ -834,7 +920,9 @@ async fn test_n_plus_1_prevention_concept() {
                 role.id,
                 user_role::Column::UserId,
                 user_role::Column::RoleId,
-            ).await.unwrap();
+            )
+            .await
+            .unwrap();
         }
     }
 
@@ -854,7 +942,9 @@ async fn test_n_plus_1_prevention_concept() {
             user_role::Column::UserId,
             user_role::Column::RoleId,
             role::Column::Id,
-        ).await.unwrap();
+        )
+        .await
+        .unwrap();
 
         total_roles += roles.len();
         assert_eq!(roles.len(), 3, "Each user should have 3 roles");
@@ -897,7 +987,9 @@ async fn test_bidirectional_many_to_many() {
         role.id,
         user_role::Column::UserId,
         user_role::Column::RoleId,
-    ).await.unwrap();
+    )
+    .await
+    .unwrap();
 
     // Forward: User -> Roles
     let user_roles = belongs_to_many::<role::Entity, user_role::Entity, role::Model, _>(
@@ -906,7 +998,9 @@ async fn test_bidirectional_many_to_many() {
         user_role::Column::UserId,
         user_role::Column::RoleId,
         role::Column::Id,
-    ).await.unwrap();
+    )
+    .await
+    .unwrap();
 
     assert_eq!(user_roles.len(), 1);
     assert_eq!(user_roles[0].name, "Scientist");
@@ -916,10 +1010,12 @@ async fn test_bidirectional_many_to_many() {
     let role_users = belongs_to_many::<user::Entity, user_role::Entity, user::Model, _>(
         &db,
         role.id,
-        user_role::Column::RoleId,  // foreign pivot key (role_id)
-        user_role::Column::UserId,  // related pivot key (user_id)
+        user_role::Column::RoleId, // foreign pivot key (role_id)
+        user_role::Column::UserId, // related pivot key (user_id)
         user::Column::Id,
-    ).await.unwrap();
+    )
+    .await
+    .unwrap();
 
     assert_eq!(role_users.len(), 1);
     assert_eq!(role_users[0].name, "Grace Hopper");

@@ -40,7 +40,11 @@ impl Channel for DatabaseChannel {
         "database"
     }
 
-    async fn send(&self, notification: &dyn Notification, _recipient: &dyn std::any::Any) -> ChannelResult {
+    async fn send(
+        &self,
+        notification: &dyn Notification,
+        _recipient: &dyn std::any::Any,
+    ) -> ChannelResult {
         let db_notif = notification.to_database();
         let mut storage = self.storage.lock().await;
         storage.push(db_notif);

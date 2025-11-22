@@ -3,12 +3,12 @@
 //! These tests verify that ExistsRule and UniqueRule with ValidatableEntity
 //! perform actual database queries and correctly validate data.
 
+use async_trait::async_trait;
 use rf_validation::rules::database::{ExistsRule, UniqueRule, ValidatableEntity};
 use rf_validation::validator::Rule;
-use async_trait::async_trait;
 use sea_orm::{
-    entity::prelude::*, Database, DatabaseBackend, DatabaseConnection,
-    Schema, Set, DbErr, Statement,
+    entity::prelude::*, Database, DatabaseBackend, DatabaseConnection, DbErr, Schema, Set,
+    Statement,
 };
 use serde_json::Value;
 use std::collections::HashMap;
@@ -36,10 +36,10 @@ impl ActiveModelBehavior for ActiveModel {}
 
 // Create user module
 pub mod user {
-    pub use super::Entity;
-    pub use super::Model;
     pub use super::ActiveModel;
     pub use super::Column;
+    pub use super::Entity;
+    pub use super::Model;
 }
 
 // ============================================================================
@@ -78,36 +78,33 @@ impl ValidatableEntity for user::Entity {
         // Match on column name to query the right column
         let count = match column {
             "id" => {
-                let id = value.as_i64().ok_or_else(|| {
-                    DbErr::Custom("Invalid value type for id".to_string())
-                })?;
-                Entity::find()
-                    .filter(Column::Id.eq(id))
-                    .count(db)
-                    .await?
+                let id = value
+                    .as_i64()
+                    .ok_or_else(|| DbErr::Custom("Invalid value type for id".to_string()))?;
+                Entity::find().filter(Column::Id.eq(id)).count(db).await?
             }
             "name" => {
-                let name = value.as_str().ok_or_else(|| {
-                    DbErr::Custom("Invalid value type for name".to_string())
-                })?;
+                let name = value
+                    .as_str()
+                    .ok_or_else(|| DbErr::Custom("Invalid value type for name".to_string()))?;
                 Entity::find()
                     .filter(Column::Name.eq(name))
                     .count(db)
                     .await?
             }
             "email" => {
-                let email = value.as_str().ok_or_else(|| {
-                    DbErr::Custom("Invalid value type for email".to_string())
-                })?;
+                let email = value
+                    .as_str()
+                    .ok_or_else(|| DbErr::Custom("Invalid value type for email".to_string()))?;
                 Entity::find()
                     .filter(Column::Email.eq(email))
                     .count(db)
                     .await?
             }
             "username" => {
-                let username = value.as_str().ok_or_else(|| {
-                    DbErr::Custom("Invalid value type for username".to_string())
-                })?;
+                let username = value
+                    .as_str()
+                    .ok_or_else(|| DbErr::Custom("Invalid value type for username".to_string()))?;
                 Entity::find()
                     .filter(Column::Username.eq(username))
                     .count(db)
@@ -128,9 +125,9 @@ impl ValidatableEntity for user::Entity {
         // Match on column name to query the right column
         let count = match column {
             "email" => {
-                let email = value.as_str().ok_or_else(|| {
-                    DbErr::Custom("Invalid value type for email".to_string())
-                })?;
+                let email = value
+                    .as_str()
+                    .ok_or_else(|| DbErr::Custom("Invalid value type for email".to_string()))?;
                 let mut query = Entity::find().filter(Column::Email.eq(email));
 
                 if let Some(id) = ignore_id {
@@ -140,9 +137,9 @@ impl ValidatableEntity for user::Entity {
                 query.count(db).await?
             }
             "username" => {
-                let username = value.as_str().ok_or_else(|| {
-                    DbErr::Custom("Invalid value type for username".to_string())
-                })?;
+                let username = value
+                    .as_str()
+                    .ok_or_else(|| DbErr::Custom("Invalid value type for username".to_string()))?;
                 let mut query = Entity::find().filter(Column::Username.eq(username));
 
                 if let Some(id) = ignore_id {
@@ -152,9 +149,9 @@ impl ValidatableEntity for user::Entity {
                 query.count(db).await?
             }
             "role_id" => {
-                let role_id = value.as_i64().ok_or_else(|| {
-                    DbErr::Custom("Invalid value type for role_id".to_string())
-                })?;
+                let role_id = value
+                    .as_i64()
+                    .ok_or_else(|| DbErr::Custom("Invalid value type for role_id".to_string()))?;
                 let mut query = Entity::find().filter(Column::RoleId.eq(role_id));
 
                 if let Some(id) = ignore_id {
@@ -184,18 +181,15 @@ impl ValidatableEntity for role::Entity {
     ) -> Result<bool, DbErr> {
         let count = match column {
             "id" => {
-                let id = value.as_i64().ok_or_else(|| {
-                    DbErr::Custom("Invalid value type for id".to_string())
-                })?;
-                Entity::find()
-                    .filter(Column::Id.eq(id))
-                    .count(db)
-                    .await?
+                let id = value
+                    .as_i64()
+                    .ok_or_else(|| DbErr::Custom("Invalid value type for id".to_string()))?;
+                Entity::find().filter(Column::Id.eq(id)).count(db).await?
             }
             "name" => {
-                let name = value.as_str().ok_or_else(|| {
-                    DbErr::Custom("Invalid value type for name".to_string())
-                })?;
+                let name = value
+                    .as_str()
+                    .ok_or_else(|| DbErr::Custom("Invalid value type for name".to_string()))?;
                 Entity::find()
                     .filter(Column::Name.eq(name))
                     .count(db)
@@ -215,9 +209,9 @@ impl ValidatableEntity for role::Entity {
     ) -> Result<bool, DbErr> {
         let count = match column {
             "name" => {
-                let name = value.as_str().ok_or_else(|| {
-                    DbErr::Custom("Invalid value type for name".to_string())
-                })?;
+                let name = value
+                    .as_str()
+                    .ok_or_else(|| DbErr::Custom("Invalid value type for name".to_string()))?;
                 let mut query = Entity::find().filter(Column::Name.eq(name));
 
                 if let Some(id) = ignore_id {
@@ -290,7 +284,9 @@ async fn setup_test_db() -> Result<DatabaseConnection, DbErr> {
 
 #[tokio::test]
 async fn test_exists_rule_passes_for_existing_id() {
-    let db = setup_test_db().await.expect("Failed to setup test database");
+    let db = setup_test_db()
+        .await
+        .expect("Failed to setup test database");
     let db = Arc::new(db);
 
     let rule = ExistsRule::<user::Entity>::new(db, "id");
@@ -304,7 +300,9 @@ async fn test_exists_rule_passes_for_existing_id() {
 
 #[tokio::test]
 async fn test_exists_rule_fails_for_non_existing_id() {
-    let db = setup_test_db().await.expect("Failed to setup test database");
+    let db = setup_test_db()
+        .await
+        .expect("Failed to setup test database");
     let db = Arc::new(db);
 
     let rule = ExistsRule::<user::Entity>::new(db, "id");
@@ -322,7 +320,9 @@ async fn test_exists_rule_fails_for_non_existing_id() {
 
 #[tokio::test]
 async fn test_exists_rule_with_string_column() {
-    let db = setup_test_db().await.expect("Failed to setup test database");
+    let db = setup_test_db()
+        .await
+        .expect("Failed to setup test database");
     let db = Arc::new(db);
 
     let rule = ExistsRule::<user::Entity>::new(db.clone(), "email");
@@ -344,7 +344,9 @@ async fn test_exists_rule_with_string_column() {
 
 #[tokio::test]
 async fn test_exists_rule_with_null_value() {
-    let db = setup_test_db().await.expect("Failed to setup test database");
+    let db = setup_test_db()
+        .await
+        .expect("Failed to setup test database");
     let db = Arc::new(db);
 
     let rule = ExistsRule::<user::Entity>::new(db, "id");
@@ -358,7 +360,9 @@ async fn test_exists_rule_with_null_value() {
 
 #[tokio::test]
 async fn test_exists_rule_for_foreign_key_validation() {
-    let db = setup_test_db().await.expect("Failed to setup test database");
+    let db = setup_test_db()
+        .await
+        .expect("Failed to setup test database");
     let db = Arc::new(db);
 
     // Valid foreign key (role_id)
@@ -387,7 +391,9 @@ async fn test_exists_rule_for_foreign_key_validation() {
 
 #[tokio::test]
 async fn test_exists_rule_error_message_includes_table_and_column() {
-    let db = setup_test_db().await.expect("Failed to setup test database");
+    let db = setup_test_db()
+        .await
+        .expect("Failed to setup test database");
     let db = Arc::new(db);
 
     let rule = ExistsRule::<user::Entity>::new(db, "id");
@@ -408,7 +414,9 @@ async fn test_exists_rule_error_message_includes_table_and_column() {
 
 #[tokio::test]
 async fn test_unique_rule_fails_for_existing_email() {
-    let db = setup_test_db().await.expect("Failed to setup test database");
+    let db = setup_test_db()
+        .await
+        .expect("Failed to setup test database");
     let db = Arc::new(db);
 
     let rule = UniqueRule::<user::Entity>::new(db, "email");
@@ -426,7 +434,9 @@ async fn test_unique_rule_fails_for_existing_email() {
 
 #[tokio::test]
 async fn test_unique_rule_passes_for_new_email() {
-    let db = setup_test_db().await.expect("Failed to setup test database");
+    let db = setup_test_db()
+        .await
+        .expect("Failed to setup test database");
     let db = Arc::new(db);
 
     let rule = UniqueRule::<user::Entity>::new(db, "email");
@@ -440,7 +450,9 @@ async fn test_unique_rule_passes_for_new_email() {
 
 #[tokio::test]
 async fn test_unique_rule_with_except_excludes_current_record() {
-    let db = setup_test_db().await.expect("Failed to setup test database");
+    let db = setup_test_db()
+        .await
+        .expect("Failed to setup test database");
     let db = Arc::new(db);
 
     // Test updating user ID 1's email to the same value (should pass)
@@ -469,7 +481,9 @@ async fn test_unique_rule_with_except_excludes_current_record() {
 
 #[tokio::test]
 async fn test_unique_rule_with_null_value() {
-    let db = setup_test_db().await.expect("Failed to setup test database");
+    let db = setup_test_db()
+        .await
+        .expect("Failed to setup test database");
     let db = Arc::new(db);
 
     let rule = UniqueRule::<user::Entity>::new(db, "email");
@@ -483,7 +497,9 @@ async fn test_unique_rule_with_null_value() {
 
 #[tokio::test]
 async fn test_unique_rule_with_numeric_value() {
-    let db = setup_test_db().await.expect("Failed to setup test database");
+    let db = setup_test_db()
+        .await
+        .expect("Failed to setup test database");
     let db = Arc::new(db);
 
     // Test with existing role_id
@@ -502,7 +518,9 @@ async fn test_unique_rule_with_numeric_value() {
 
 #[tokio::test]
 async fn test_unique_rule_multiple_excepts() {
-    let db = setup_test_db().await.expect("Failed to setup test database");
+    let db = setup_test_db()
+        .await
+        .expect("Failed to setup test database");
     let db = Arc::new(db);
 
     // User ID 1 can keep their username
@@ -512,10 +530,7 @@ async fn test_unique_rule_multiple_excepts() {
 
     let result = rule.validate(&value, &data).await;
 
-    assert!(
-        result.is_ok(),
-        "Should work with except() parameter"
-    );
+    assert!(result.is_ok(), "Should work with except() parameter");
 }
 
 // ============================================================================
@@ -524,7 +539,9 @@ async fn test_unique_rule_multiple_excepts() {
 
 #[tokio::test]
 async fn test_user_registration_validation_workflow() {
-    let db = setup_test_db().await.expect("Failed to setup test database");
+    let db = setup_test_db()
+        .await
+        .expect("Failed to setup test database");
     let db = Arc::new(db);
 
     // Scenario: User tries to register with existing email
@@ -569,7 +586,9 @@ async fn test_user_registration_validation_workflow() {
 
 #[tokio::test]
 async fn test_user_update_validation_workflow() {
-    let db = setup_test_db().await.expect("Failed to setup test database");
+    let db = setup_test_db()
+        .await
+        .expect("Failed to setup test database");
     let db = Arc::new(db);
 
     // Scenario: User ID 1 updates their profile
@@ -582,10 +601,7 @@ async fn test_user_update_validation_workflow() {
     let result = email_rule
         .validate(&Value::String("john@example.com".to_string()), &data)
         .await;
-    assert!(
-        result.is_ok(),
-        "Should allow user to keep their own email"
-    );
+    assert!(result.is_ok(), "Should allow user to keep their own email");
 
     // Should not allow using another user's email
     let result2 = email_rule
@@ -606,7 +622,9 @@ async fn test_user_update_validation_workflow() {
 
 #[tokio::test]
 async fn test_rule_name_methods() {
-    let db = setup_test_db().await.expect("Failed to setup test database");
+    let db = setup_test_db()
+        .await
+        .expect("Failed to setup test database");
     let db = Arc::new(db);
 
     let unique_rule = UniqueRule::<user::Entity>::new(db.clone(), "email");
@@ -618,7 +636,9 @@ async fn test_rule_name_methods() {
 
 #[tokio::test]
 async fn test_error_messages_formatting() {
-    let db = setup_test_db().await.expect("Failed to setup test database");
+    let db = setup_test_db()
+        .await
+        .expect("Failed to setup test database");
     let db = Arc::new(db);
 
     // Test unique rule error message
@@ -645,7 +665,9 @@ async fn test_error_messages_formatting() {
 
 #[tokio::test]
 async fn test_concurrent_validation() {
-    let db = setup_test_db().await.expect("Failed to setup test database");
+    let db = setup_test_db()
+        .await
+        .expect("Failed to setup test database");
     let db = Arc::new(db);
 
     // Test that multiple validations can run concurrently

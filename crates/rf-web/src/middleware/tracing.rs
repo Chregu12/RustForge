@@ -50,10 +50,7 @@ mod tests {
             .route("/test", get(|| async { "OK" }))
             .layer(tracing_layer());
 
-        let request = Request::builder()
-            .uri("/test")
-            .body(Body::empty())
-            .unwrap();
+        let request = Request::builder().uri("/test").body(Body::empty()).unwrap();
 
         let response = app.oneshot(request).await.unwrap();
 

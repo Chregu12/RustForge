@@ -74,7 +74,10 @@ async fn test_add_foreign_key_basic() {
         .await;
 
     // SQLite should return an error about unsupported operation
-    assert!(result.is_err(), "SQLite should not support adding foreign keys to existing tables");
+    assert!(
+        result.is_err(),
+        "SQLite should not support adding foreign keys to existing tables"
+    );
 }
 
 #[tokio::test]

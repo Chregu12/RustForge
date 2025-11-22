@@ -1,7 +1,7 @@
 //! Resource transformation traits and implementations
 
 use async_trait::async_trait;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 /// Context for resource transformation

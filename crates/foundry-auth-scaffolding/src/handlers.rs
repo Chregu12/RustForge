@@ -76,8 +76,14 @@ pub fn auth_routes() -> Router<Arc<AuthState>> {
         .route("/login", get(show_login).post(login))
         .route("/register", get(show_register).post(register))
         .route("/logout", post(logout))
-        .route("/password/forgot", get(show_forgot_password).post(forgot_password))
-        .route("/password/reset", get(show_reset_password).post(reset_password))
+        .route(
+            "/password/forgot",
+            get(show_forgot_password).post(forgot_password),
+        )
+        .route(
+            "/password/reset",
+            get(show_reset_password).post(reset_password),
+        )
         .route("/email/verify/:token", get(verify_email))
 }
 
@@ -163,10 +169,13 @@ async fn forgot_password(
 
 /// Show reset password page
 async fn show_reset_password() -> Html<String> {
-    Html(ResetPasswordTemplate {
-        token: "".to_string(),
-        email: "".to_string(),
-    }.render())
+    Html(
+        ResetPasswordTemplate {
+            token: "".to_string(),
+            email: "".to_string(),
+        }
+        .render(),
+    )
 }
 
 /// Handle password reset submission

@@ -7,8 +7,8 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::{broadcast, RwLock};
-use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::accept_async;
+use tokio_tungstenite::tungstenite::Message;
 
 /// Channel registry that manages WebSocket broadcast channels
 #[derive(Clone)]
@@ -136,11 +136,7 @@ impl WebSocketServer {
     }
 
     /// Handle a WebSocket connection
-    async fn handle_connection(
-        &self,
-        stream: TcpStream,
-        addr: SocketAddr,
-    ) -> BroadcastResult<()> {
+    async fn handle_connection(&self, stream: TcpStream, addr: SocketAddr) -> BroadcastResult<()> {
         tracing::info!(addr = %addr, "New WebSocket connection");
 
         let ws_stream = accept_async(stream)
@@ -167,8 +163,9 @@ impl WebSocketServer {
         while let Some(msg) = ws_receiver.next().await {
             match msg {
                 Ok(Message::Text(text)) => {
-                    if let Err(e) =
-                        self.handle_message(&text, &tx, &mut subscriptions, addr).await
+                    if let Err(e) = self
+                        .handle_message(&text, &tx, &mut subscriptions, addr)
+                        .await
                     {
                         tracing::error!(error = %e, "Failed to handle message");
                         let error_msg = ServerMessage::Error {

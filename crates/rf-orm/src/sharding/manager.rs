@@ -160,7 +160,8 @@ impl ShardManager {
                     .get(&shard_name)
                     .cloned()
                     .ok_or_else(|| ShardError::ShardNotFound(shard_name))
-            }.await;
+            }
+            .await;
 
             if result.is_err() {
                 rf_metrics::SHARD_QUERY_ERRORS.inc();

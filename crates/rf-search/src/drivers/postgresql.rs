@@ -7,13 +7,13 @@ use crate::driver::{Result, SearchError};
 #[cfg(feature = "postgres")]
 use crate::driver::SearchDriver;
 #[cfg(feature = "postgres")]
-use crate::searchable::{Searchable, SearchHit, SearchOptions, SearchResult};
+use crate::searchable::{SearchHit, SearchOptions, SearchResult, Searchable};
 #[cfg(feature = "postgres")]
 use async_trait::async_trait;
 #[cfg(feature = "postgres")]
-use sqlx::{postgres::PgRow, PgPool, Row};
-#[cfg(feature = "postgres")]
 use serde::de::DeserializeOwned;
+#[cfg(feature = "postgres")]
+use sqlx::{postgres::PgRow, PgPool, Row};
 #[cfg(feature = "postgres")]
 use std::time::Instant;
 
@@ -51,11 +51,7 @@ impl PostgresSearchDriver {
     /// ```ignore
     /// driver.create_fts_index("posts", vec!["title", "content"]).await?;
     /// ```
-    pub async fn create_fts_index(
-        &self,
-        table: &str,
-        columns: Vec<&str>,
-    ) -> Result<()> {
+    pub async fn create_fts_index(&self, table: &str, columns: Vec<&str>) -> Result<()> {
         let column_list = columns.join(" || ' ' || ");
         let index_name = format!("{}_fts_idx", table);
 
@@ -372,7 +368,9 @@ mod tests {
             .await
             .unwrap();
 
-        let result = driver.create_fts_index("test_docs_pg", vec!["title", "content"]).await;
+        let result = driver
+            .create_fts_index("test_docs_pg", vec!["title", "content"])
+            .await;
         assert!(result.is_ok());
 
         // Cleanup

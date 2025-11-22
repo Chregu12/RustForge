@@ -1,12 +1,12 @@
-//! Database Demo - Complete CRUD Example with rf-orm
-//!
-//! Demonstrates:
-//! - Database connection and setup
-//! - Entity definition with SeaORM
-//! - CRUD operations (Create, Read, Update, Delete)
-//! - Query filtering and ordering
-//! - Soft delete functionality
-//! - Transaction support
+// Database Demo - Complete CRUD Example with rf-orm
+//
+// Demonstrates:
+// - Database connection and setup
+// - Entity definition with SeaORM
+// - CRUD operations (Create, Read, Update, Delete)
+// - Query filtering and ordering
+// - Soft delete functionality
+// - Transaction support
 
 mod entities;
 
@@ -54,7 +54,11 @@ async fn main() -> anyhow::Result<()> {
     info!("   Created user: {} (id: {})", bob.display(), bob.id);
 
     let charlie = create_user(db.connection(), "charlie@example.com", "Charlie Brown").await?;
-    info!("   Created user: {} (id: {})\n", charlie.display(), charlie.id);
+    info!(
+        "   Created user: {} (id: {})\n",
+        charlie.display(),
+        charlie.id
+    );
 
     // Step 4: Query all users
     info!("🔍 Step 4: Querying all users...");
@@ -98,7 +102,11 @@ async fn main() -> anyhow::Result<()> {
     let mut bob_active: user::ActiveModel = bob.clone().into();
     bob_active.soft_delete();
     let bob = bob_active.update(db.connection()).await?;
-    info!("   Soft deleted: {} (deleted_at: {:?})\n", bob.display(), bob.deleted_at);
+    info!(
+        "   Soft deleted: {} (deleted_at: {:?})\n",
+        bob.display(),
+        bob.deleted_at
+    );
 
     // Step 9: Query excluding soft-deleted
     info!("🔍 Step 9: Querying active users (excluding soft-deleted)...");
@@ -120,7 +128,11 @@ async fn main() -> anyhow::Result<()> {
         .await?;
     info!("   Found {} soft-deleted user(s):", deleted_users.len());
     for user in &deleted_users {
-        info!("   - {} (deleted_at: {:?})", user.display(), user.deleted_at);
+        info!(
+            "   - {} (deleted_at: {:?})",
+            user.display(),
+            user.deleted_at
+        );
     }
     info!("");
 
@@ -129,7 +141,11 @@ async fn main() -> anyhow::Result<()> {
     let mut bob_active: user::ActiveModel = bob.into();
     bob_active.restore();
     let bob = bob_active.update(db.connection()).await?;
-    info!("   Restored: {} (deleted_at: {:?})\n", bob.display(), bob.deleted_at);
+    info!(
+        "   Restored: {} (deleted_at: {:?})\n",
+        bob.display(),
+        bob.deleted_at
+    );
 
     // Step 12: Order by created_at
     info!("🔍 Step 12: Querying users ordered by creation date...");
@@ -150,9 +166,7 @@ async fn main() -> anyhow::Result<()> {
 
     // Step 14: Hard delete
     info!("🗑️  Step 14: Hard deleting user (Charlie)...");
-    let result = User::delete_by_id(charlie.id)
-        .exec(db.connection())
-        .await?;
+    let result = User::delete_by_id(charlie.id).exec(db.connection()).await?;
     info!("   Deleted {} row(s)\n", result.rows_affected);
 
     // Step 15: Final count

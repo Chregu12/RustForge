@@ -5,8 +5,7 @@
 
 use rf_eloquent::prelude::*;
 use sea_orm::{
-    Database, DatabaseConnection, DbErr, EntityTrait, Set,
-    DbBackend, Schema, entity::prelude::*,
+    entity::prelude::*, Database, DatabaseConnection, DbBackend, DbErr, EntityTrait, Schema, Set,
 };
 use serde::{Deserialize, Serialize};
 
@@ -139,7 +138,11 @@ async fn setup_test_db() -> Result<DatabaseConnection, DbErr> {
 }
 
 /// Create test data with users, posts, and comments
-async fn seed_test_data(db: &DatabaseConnection, user_count: usize, posts_per_user: usize) -> Result<(), DbErr> {
+async fn seed_test_data(
+    db: &DatabaseConnection,
+    user_count: usize,
+    posts_per_user: usize,
+) -> Result<(), DbErr> {
     for user_num in 1..=user_count {
         // Create user
         let user = user::ActiveModel {
@@ -228,9 +231,16 @@ async fn test_basic_eager_loading_functionality() -> Result<(), Box<dyn std::err
         .await?;
 
     // Verify we got posts for all users
-    assert!(posts.len() >= 6, "Should have at least 6 posts (3 users * 2 posts each)");
+    assert!(
+        posts.len() >= 6,
+        "Should have at least 6 posts (3 users * 2 posts each)"
+    );
 
-    println!("✅ Loaded {} posts for {} users in a single query", posts.len(), user_ids.len());
+    println!(
+        "✅ Loaded {} posts for {} users in a single query",
+        posts.len(),
+        user_ids.len()
+    );
 
     Ok(())
 }
@@ -250,7 +260,10 @@ async fn test_eager_loading_prevents_n_plus_1() -> Result<(), Box<dyn std::error
     println!("SCENARIO 1: WITHOUT Eager Loading (N+1 queries)");
 
     let users = user::Entity::find().all(&db).await?;
-    println!("Query 1: SELECT * FROM users - Loaded {} users", users.len());
+    println!(
+        "Query 1: SELECT * FROM users - Loaded {} users",
+        users.len()
+    );
 
     let mut total_queries_without_eager = 1; // 1 for loading users
     let mut total_posts = 0;
@@ -266,9 +279,16 @@ async fn test_eager_loading_prevents_n_plus_1() -> Result<(), Box<dyn std::error
         total_posts += posts.len();
     }
 
-    println!("  → Total queries: {} (1 + {} for each user)", total_queries_without_eager, users.len());
+    println!(
+        "  → Total queries: {} (1 + {} for each user)",
+        total_queries_without_eager,
+        users.len()
+    );
     println!("  → Total posts loaded: {}", total_posts);
-    println!("  ❌ This is inefficient! We made {} queries when we could have made 2!\n", total_queries_without_eager);
+    println!(
+        "  ❌ This is inefficient! We made {} queries when we could have made 2!\n",
+        total_queries_without_eager
+    );
 
     // ========================================================================
     // SCENARIO 2: WITH Eager Loading (Optimal)
@@ -279,7 +299,10 @@ async fn test_eager_loading_prevents_n_plus_1() -> Result<(), Box<dyn std::error
 
     // Query 1: Load all users
     let users = user::Entity::find().all(&db).await?;
-    println!("Query 1: SELECT * FROM users - Loaded {} users", users.len());
+    println!(
+        "Query 1: SELECT * FROM users - Loaded {} users",
+        users.len()
+    );
 
     // Query 2: Load ALL posts in ONE query using IN clause
     let user_ids: Vec<i32> = users.iter().map(|u| u.id).collect();
@@ -287,7 +310,10 @@ async fn test_eager_loading_prevents_n_plus_1() -> Result<(), Box<dyn std::error
         .load_has_many::<post::Entity, post::Model, i32>(&user_ids, post::Column::UserId)
         .await?;
 
-    println!("Query 2: SELECT * FROM posts WHERE user_id IN (1,2,3,...) - Loaded {} posts", all_posts.len());
+    println!(
+        "Query 2: SELECT * FROM posts WHERE user_id IN (1,2,3,...) - Loaded {} posts",
+        all_posts.len()
+    );
 
     let total_queries_with_eager = 2;
     println!("  → Total queries: {}", total_queries_with_eager);
@@ -298,13 +324,29 @@ async fn test_eager_loading_prevents_n_plus_1() -> Result<(), Box<dyn std::error
     // Performance Comparison
     // ========================================================================
     println!("=== PERFORMANCE COMPARISON ===");
-    println!("WITHOUT eager loading: {} queries", total_queries_without_eager);
-    println!("WITH eager loading:    {} queries", total_queries_with_eager);
-    println!("Improvement:           {}x fewer queries!", total_queries_without_eager / total_queries_with_eager);
-    println!("Saved:                 {} queries\n", total_queries_without_eager - total_queries_with_eager);
+    println!(
+        "WITHOUT eager loading: {} queries",
+        total_queries_without_eager
+    );
+    println!(
+        "WITH eager loading:    {} queries",
+        total_queries_with_eager
+    );
+    println!(
+        "Improvement:           {}x fewer queries!",
+        total_queries_without_eager / total_queries_with_eager
+    );
+    println!(
+        "Saved:                 {} queries\n",
+        total_queries_without_eager - total_queries_with_eager
+    );
 
     // Verify we got all the data
-    assert_eq!(all_posts.len(), total_posts, "Should load same number of posts with eager loading");
+    assert_eq!(
+        all_posts.len(),
+        total_posts,
+        "Should load same number of posts with eager loading"
+    );
 
     // Verify the reduction in queries
     assert!(
@@ -376,9 +418,17 @@ async fn test_grouping_models_by_foreign_key() -> Result<(), Box<dyn std::error:
     // Verify grouping
     for user_id in user_ids {
         let user_posts = grouped.get(&user_id);
-        assert!(user_posts.is_some(), "Should have posts for user {}", user_id);
+        assert!(
+            user_posts.is_some(),
+            "Should have posts for user {}",
+            user_id
+        );
         let user_posts = user_posts.unwrap();
-        assert!(user_posts.len() >= 2, "User {} should have at least 2 posts", user_id);
+        assert!(
+            user_posts.len() >= 2,
+            "User {} should have at least 2 posts",
+            user_id
+        );
         println!("User {} has {} posts", user_id, user_posts.len());
     }
 
@@ -399,7 +449,8 @@ async fn test_belongs_to_relationship() -> Result<(), Box<dyn std::error::Error>
     println!("Loaded {} posts", posts.len());
 
     // Extract unique user IDs from posts
-    let user_ids: Vec<i32> = posts.iter()
+    let user_ids: Vec<i32> = posts
+        .iter()
         .map(|p| p.user_id)
         .collect::<std::collections::HashSet<_>>()
         .into_iter()
@@ -410,7 +461,11 @@ async fn test_belongs_to_relationship() -> Result<(), Box<dyn std::error::Error>
         .load_belongs_to::<user::Entity, user::Model, i32>(&user_ids, user::Column::Id)
         .await?;
 
-    println!("Loaded {} users for {} posts using belongs-to relationship", users.len(), posts.len());
+    println!(
+        "Loaded {} users for {} posts using belongs-to relationship",
+        users.len(),
+        posts.len()
+    );
     assert!(users.len() >= 2, "Should have loaded at least 2 users");
 
     println!("✅ Belongs-to relationship works correctly");
@@ -430,7 +485,11 @@ async fn test_empty_parent_list() -> Result<(), Box<dyn std::error::Error>> {
         .load_has_many::<post::Entity, post::Model, i32>(&empty_ids, post::Column::UserId)
         .await?;
 
-    assert_eq!(posts.len(), 0, "Should return empty vec for empty parent list");
+    assert_eq!(
+        posts.len(),
+        0,
+        "Should return empty vec for empty parent list"
+    );
 
     println!("✅ Correctly handles empty parent list");
 
@@ -486,7 +545,11 @@ async fn test_benchmark_n_plus_1_vs_eager_loading() -> Result<(), Box<dyn std::e
     }
 
     let n_plus_1_duration = start.elapsed();
-    println!("  N+1 Pattern: {:?} ({} queries)", n_plus_1_duration, 1 + users.len());
+    println!(
+        "  N+1 Pattern: {:?} ({} queries)",
+        n_plus_1_duration,
+        1 + users.len()
+    );
 
     // Benchmark Eager Loading approach
     println!("\nRunning eager loading pattern...");
@@ -507,7 +570,8 @@ async fn test_benchmark_n_plus_1_vs_eager_loading() -> Result<(), Box<dyn std::e
     println!("Eager Loading:  {:?}", eager_loading_duration);
 
     if n_plus_1_duration > eager_loading_duration {
-        let speedup = n_plus_1_duration.as_micros() as f64 / eager_loading_duration.as_micros() as f64;
+        let speedup =
+            n_plus_1_duration.as_micros() as f64 / eager_loading_duration.as_micros() as f64;
         println!("Speedup:        {:.2}x faster with eager loading!", speedup);
     }
 

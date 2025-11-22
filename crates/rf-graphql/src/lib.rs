@@ -67,11 +67,11 @@
 //! # }
 //! ```
 
-pub use async_graphql::{
-    self, Context, EmptyMutation, EmptySubscription, Error, ErrorExtensions,
-    InputObject, Object, Result, Schema, SimpleObject, Subscription, ID,
-};
 pub use async_graphql::dataloader::DataLoader;
+pub use async_graphql::{
+    self, Context, EmptyMutation, EmptySubscription, Error, ErrorExtensions, InputObject, Object,
+    Result, Schema, SimpleObject, Subscription, ID,
+};
 pub use async_graphql_axum::{GraphQLRequest, GraphQLResponse, GraphQLSubscription};
 
 use axum::{
@@ -196,18 +196,18 @@ pub mod relationships;
 pub mod schema;
 
 // Re-export commonly used items
-pub use auth::{AuthGuard, AuthUser, RoleGuard, get_auth_user};
+pub use auth::{get_auth_user, AuthGuard, AuthUser, RoleGuard};
 pub use dataloader::BatchLoader;
 pub use errors::{
-    ErrorCode, GraphQLResult, ResultExt, error_with_code, forbidden_error, not_found_error,
-    unauthorized_error, validation_error,
+    error_with_code, forbidden_error, not_found_error, unauthorized_error, validation_error,
+    ErrorCode, GraphQLResult, ResultExt,
 };
 pub use pagination::{
-    Connection, CursorPaginationInput, Edge, OffsetPaginationInput, PageInfo, PaginatedResult,
-    decode_cursor, encode_cursor,
+    decode_cursor, encode_cursor, Connection, CursorPaginationInput, Edge, OffsetPaginationInput,
+    PageInfo, PaginatedResult,
 };
 pub use relationships::{BelongsTo, BelongsToMany, HasMany, HasOne, HasRelationships};
-pub use schema::{GraphQLSchema, SchemaBuilder, build_schema};
+pub use schema::{build_schema, GraphQLSchema, SchemaBuilder};
 
 #[cfg(test)]
 mod tests {
@@ -383,9 +383,11 @@ mod tests {
         "#;
 
         let result = schema
-            .execute(Request::new(query).variables(Variables::from_json(serde_json::json!({
-                "id": "42"
-            }))))
+            .execute(
+                Request::new(query).variables(Variables::from_json(serde_json::json!({
+                    "id": "42"
+                }))),
+            )
             .await;
 
         assert!(result.errors.is_empty());

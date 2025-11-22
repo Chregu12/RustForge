@@ -37,24 +37,24 @@
 //! ```
 
 pub mod backends;
-pub mod worker;
+pub mod error;
 pub mod job;
 pub mod manager;
-pub mod error;
+pub mod worker;
 
 pub use backends::{MemoryBackend, RedisBackend};
-pub use worker::Worker;
-pub use job::{Job, JobStatus, JobResult};
-pub use manager::{QueueManager, QueueConfig};
 pub use error::{QueueError, QueueResult};
+pub use job::{Job, JobResult, JobStatus};
+pub use manager::{QueueConfig, QueueManager};
+pub use worker::Worker;
 
 /// Prelude module for convenient imports
 pub mod prelude {
     pub use crate::backends::{MemoryBackend, RedisBackend};
-    pub use crate::worker::Worker;
-    pub use crate::job::{Job, JobStatus, JobResult};
-    pub use crate::manager::{QueueManager, QueueConfig};
     pub use crate::error::{QueueError, QueueResult};
+    pub use crate::job::{Job, JobResult, JobStatus};
+    pub use crate::manager::{QueueConfig, QueueManager};
+    pub use crate::worker::Worker;
 }
 
 #[cfg(test)]

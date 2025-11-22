@@ -214,7 +214,10 @@ mod tests {
 
     #[test]
     fn test_channel_type_detection() {
-        assert_eq!(ChannelType::from_name("public-channel"), ChannelType::Public);
+        assert_eq!(
+            ChannelType::from_name("public-channel"),
+            ChannelType::Public
+        );
         assert_eq!(
             ChannelType::from_name("private-user.123"),
             ChannelType::Private

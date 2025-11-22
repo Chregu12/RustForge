@@ -53,8 +53,7 @@ pub async fn jwt_auth_middleware(
         .map_err(|_| AuthResponse::Unauthorized)?;
 
     // Create AuthUser from claims
-    let auth_user = AuthUser::from_claims(claims)
-        .map_err(|_| AuthResponse::Unauthorized)?;
+    let auth_user = AuthUser::from_claims(claims).map_err(|_| AuthResponse::Unauthorized)?;
 
     // Add user to request extensions
     request.extensions_mut().insert(auth_user);
@@ -113,8 +112,12 @@ pub enum AuthResponse {
 impl IntoResponse for AuthResponse {
     fn into_response(self) -> Response {
         let (status, message) = match self {
-            AuthResponse::MissingToken => (StatusCode::UNAUTHORIZED, "Missing authentication token"),
-            AuthResponse::InvalidToken => (StatusCode::UNAUTHORIZED, "Invalid authentication token"),
+            AuthResponse::MissingToken => {
+                (StatusCode::UNAUTHORIZED, "Missing authentication token")
+            }
+            AuthResponse::InvalidToken => {
+                (StatusCode::UNAUTHORIZED, "Invalid authentication token")
+            }
             AuthResponse::Unauthorized => (StatusCode::UNAUTHORIZED, "Unauthorized"),
         };
 
@@ -277,9 +280,7 @@ mod tests {
 
     #[test]
     fn test_extract_token_missing_header() {
-        let request = Request::builder()
-            .body(Body::empty())
-            .unwrap();
+        let request = Request::builder().body(Body::empty()).unwrap();
 
         let result = extract_token_from_header(&request);
         assert!(matches!(result, Err(AuthResponse::MissingToken)));

@@ -62,10 +62,12 @@ where
     /// Decrypt a value
     pub fn decrypt(encrypted: &str, encryptor: &Encryptor) -> Result<Self> {
         let decrypted = encryptor.decrypt(encrypted)?;
-        let value = decrypted.parse::<T>()
-            .map_err(|e| crate::EncryptionError::DecryptionFailed(
-                format!("Failed to parse decrypted value: {}", e)
-            ))?;
+        let value = decrypted.parse::<T>().map_err(|e| {
+            crate::EncryptionError::DecryptionFailed(format!(
+                "Failed to parse decrypted value: {}",
+                e
+            ))
+        })?;
 
         Ok(Self {
             value,
@@ -119,9 +121,7 @@ mod tests {
 
     #[test]
     fn test_encrypt_decrypt() {
-        let encryptor = Encryptor::new()
-            .key(Encryptor::generate_key())
-            .build();
+        let encryptor = Encryptor::new().key(Encryptor::generate_key()).build();
 
         let mut encrypted = Encrypted::new("secret".to_string());
         let encrypted_str = encrypted.encrypt(&encryptor).unwrap();
@@ -132,9 +132,7 @@ mod tests {
 
     #[test]
     fn test_encrypted_numbers() {
-        let encryptor = Encryptor::new()
-            .key(Encryptor::generate_key())
-            .build();
+        let encryptor = Encryptor::new().key(Encryptor::generate_key()).build();
 
         let mut encrypted = Encrypted::new(42);
         let encrypted_str = encrypted.encrypt(&encryptor).unwrap();

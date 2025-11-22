@@ -15,7 +15,10 @@ fn main() {
         .index(
             Document::new("1")
                 .field("title", "Rust Web Framework")
-                .field("content", "Building high-performance web applications with Rust")
+                .field(
+                    "content",
+                    "Building high-performance web applications with Rust",
+                )
                 .meta("category", "tutorial")
                 .unwrap(),
         )

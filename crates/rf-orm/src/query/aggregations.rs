@@ -28,7 +28,7 @@
 //! }
 //! ```
 
-use sea_orm::{DatabaseConnection, DbErr, EntityTrait, Statement, ConnectionTrait};
+use sea_orm::{ConnectionTrait, DatabaseConnection, DbErr, EntityTrait, Statement};
 use std::collections::HashMap;
 
 /// Result type for aggregation operations
@@ -310,41 +310,25 @@ impl AggregationBuilder {
     }
 
     /// Add a SUM aggregate
-    pub fn add_sum(
-        mut self,
-        relation: impl Into<String>,
-        column: impl Into<String>,
-    ) -> Self {
+    pub fn add_sum(mut self, relation: impl Into<String>, column: impl Into<String>) -> Self {
         self.aggregates.push(Aggregate::sum(relation, column));
         self
     }
 
     /// Add an AVG aggregate
-    pub fn add_avg(
-        mut self,
-        relation: impl Into<String>,
-        column: impl Into<String>,
-    ) -> Self {
+    pub fn add_avg(mut self, relation: impl Into<String>, column: impl Into<String>) -> Self {
         self.aggregates.push(Aggregate::avg(relation, column));
         self
     }
 
     /// Add a MIN aggregate
-    pub fn add_min(
-        mut self,
-        relation: impl Into<String>,
-        column: impl Into<String>,
-    ) -> Self {
+    pub fn add_min(mut self, relation: impl Into<String>, column: impl Into<String>) -> Self {
         self.aggregates.push(Aggregate::min(relation, column));
         self
     }
 
     /// Add a MAX aggregate
-    pub fn add_max(
-        mut self,
-        relation: impl Into<String>,
-        column: impl Into<String>,
-    ) -> Self {
+    pub fn add_max(mut self, relation: impl Into<String>, column: impl Into<String>) -> Self {
         self.aggregates.push(Aggregate::max(relation, column));
         self
     }
@@ -385,28 +369,16 @@ impl AggregationBuilder {
             let relation_table = &aggregate.relation;
             let foreign_key = format!("{}_id", parent_table.trim_end_matches('s'));
 
-            let aggregate_sql = aggregate.build_sql(
-                parent_table,
-                parent_key,
-                relation_table,
-                &foreign_key,
-            );
+            let aggregate_sql =
+                aggregate.build_sql(parent_table, parent_key, relation_table, &foreign_key);
 
             select_parts.push(aggregate_sql);
         }
 
-        let sql = format!(
-            "SELECT {} FROM {}",
-            select_parts.join(", "),
-            parent_table
-        );
+        let sql = format!("SELECT {} FROM {}", select_parts.join(", "), parent_table);
 
         // Execute the query
-        let stmt = Statement::from_sql_and_values(
-            self.db.get_database_backend(),
-            &sql,
-            vec![],
-        );
+        let stmt = Statement::from_sql_and_values(self.db.get_database_backend(), &sql, vec![]);
 
         let results = self.db.query_all(stmt).await?;
 
@@ -626,10 +598,7 @@ mod tests {
 
         let sum = Aggregate::sum("posts", "views");
         assert_eq!(sum.relation, "posts");
-        assert_eq!(
-            sum.aggregate_type,
-            AggregateType::Sum("views".to_string())
-        );
+        assert_eq!(sum.aggregate_type, AggregateType::Sum("views".to_string()));
     }
 
     #[test]

@@ -5,7 +5,8 @@ use crate::entities::{notification, prelude::*};
 use crate::{Notifiable, Notification, NotificationError, NotificationResult};
 use async_trait::async_trait;
 use sea_orm::{
-    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, PaginatorTrait, QueryFilter, QueryOrder, Set,
+    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, PaginatorTrait, QueryFilter,
+    QueryOrder, Set,
 };
 use uuid::Uuid;
 
@@ -58,7 +59,9 @@ impl DatabaseChannel {
             .ok_or_else(|| NotificationError::SendError("Notification not found".to_string()))?;
 
         let mut notification: notification::ActiveModel = notification.into();
-        notification.read_at = Set(Some(sea_orm::prelude::DateTimeUtc::from(chrono::Utc::now())));
+        notification.read_at = Set(Some(
+            sea_orm::prelude::DateTimeUtc::from(chrono::Utc::now()),
+        ));
 
         Ok(notification.update(&self.db).await?)
     }
@@ -69,7 +72,9 @@ impl DatabaseChannel {
 
         for notification in notifications {
             let mut notification: notification::ActiveModel = notification.into();
-            notification.read_at = Set(Some(sea_orm::prelude::DateTimeUtc::from(chrono::Utc::now())));
+            notification.read_at = Set(Some(sea_orm::prelude::DateTimeUtc::from(
+                chrono::Utc::now(),
+            )));
             notification.update(&self.db).await?;
         }
 
@@ -118,9 +123,9 @@ impl NotificationChannel for DatabaseChannel {
         })?;
 
         // Get notifiable ID
-        let notifiable_id = notifiable.route_notification_for_database().ok_or_else(|| {
-            NotificationError::RoutingError("No user ID found".to_string())
-        })?;
+        let notifiable_id = notifiable
+            .route_notification_for_database()
+            .ok_or_else(|| NotificationError::RoutingError("No user ID found".to_string()))?;
 
         // Create active model
         let active_model = notification::ActiveModel {

@@ -146,11 +146,7 @@ impl Panel {
 
             output.push(format!(
                 "{}{}{}{}{}",
-                chars.vertical,
-                padding_left,
-                line,
-                padding_right,
-                chars.vertical
+                chars.vertical, padding_left, line, padding_right, chars.vertical
             ));
         }
 

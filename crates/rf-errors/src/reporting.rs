@@ -370,8 +370,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_multi_reporter() {
-        let reporter = MultiReporter::new()
-            .add_reporter(Box::new(LoggingReporter::new()));
+        let reporter = MultiReporter::new().add_reporter(Box::new(LoggingReporter::new()));
 
         let db_err = DatabaseError::connection("localhost", "db", "user");
         let err = RustForgeError::Database(db_err);

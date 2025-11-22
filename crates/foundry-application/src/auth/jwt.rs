@@ -254,12 +254,13 @@ impl JwtService {
             validation.set_audience(&[audience]);
         }
 
-        let token_data = decode::<Claims>(token, &self.decoding_key, &validation)
-            .map_err(|e| match e.kind() {
+        let token_data = decode::<Claims>(token, &self.decoding_key, &validation).map_err(|e| {
+            match e.kind() {
                 jsonwebtoken::errors::ErrorKind::ExpiredSignature => AuthError::SessionExpired,
                 jsonwebtoken::errors::ErrorKind::InvalidToken => AuthError::InvalidCredentials,
                 _ => AuthError::Internal(format!("Token validation failed: {}", e)),
-            })?;
+            }
+        })?;
 
         Ok(token_data.claims)
     }
@@ -290,11 +291,7 @@ impl JwtService {
     pub fn refresh_access_token(&self, refresh_token: &str) -> Result<String, AuthError> {
         let claims = self.validate_refresh_token(refresh_token)?;
 
-        self.generate_access_token(
-            claims.user_id()?,
-            claims.email.clone(),
-            claims.name.clone(),
-        )
+        self.generate_access_token(claims.user_id()?, claims.email.clone(), claims.name.clone())
     }
 
     /// Get the access token TTL in seconds

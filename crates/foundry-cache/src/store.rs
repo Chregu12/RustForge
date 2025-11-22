@@ -9,7 +9,12 @@ pub trait CacheStore: Send + Sync {
     async fn get(&self, key: &str) -> Result<Option<CacheValue>, CacheError>;
 
     /// Set a value in the cache with optional TTL
-    async fn set(&self, key: &str, value: CacheValue, ttl: Option<Duration>) -> Result<(), CacheError>;
+    async fn set(
+        &self,
+        key: &str,
+        value: CacheValue,
+        ttl: Option<Duration>,
+    ) -> Result<(), CacheError>;
 
     /// Delete a value from the cache
     async fn delete(&self, key: &str) -> Result<bool, CacheError>;
@@ -30,7 +35,10 @@ pub trait CacheStore: Send + Sync {
     }
 
     /// Set multiple values at once
-    async fn set_many(&self, items: Vec<(String, CacheValue, Option<Duration>)>) -> Result<(), CacheError> {
+    async fn set_many(
+        &self,
+        items: Vec<(String, CacheValue, Option<Duration>)>,
+    ) -> Result<(), CacheError> {
         for (key, value, ttl) in items {
             self.set(&key, value, ttl).await?;
         }
@@ -95,14 +103,13 @@ impl CacheValue {
     }
 
     pub fn from_json<T: Serialize>(value: &T) -> Result<Self, CacheError> {
-        let data = serde_json::to_vec(value)
-            .map_err(|e| CacheError::Serialization(e.to_string()))?;
+        let data =
+            serde_json::to_vec(value).map_err(|e| CacheError::Serialization(e.to_string()))?;
         Ok(Self::new(data))
     }
 
     pub fn to_json<T: for<'de> Deserialize<'de>>(&self) -> Result<T, CacheError> {
-        serde_json::from_slice(&self.data)
-            .map_err(|e| CacheError::Deserialization(e.to_string()))
+        serde_json::from_slice(&self.data).map_err(|e| CacheError::Deserialization(e.to_string()))
     }
 
     pub fn from_string(value: impl Into<String>) -> Self {
@@ -110,8 +117,7 @@ impl CacheValue {
     }
 
     pub fn to_string(&self) -> Result<String, CacheError> {
-        String::from_utf8(self.data.clone())
-            .map_err(|e| CacheError::Deserialization(e.to_string()))
+        String::from_utf8(self.data.clone()).map_err(|e| CacheError::Deserialization(e.to_string()))
     }
 }
 

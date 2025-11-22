@@ -7,10 +7,7 @@
 //! Get all posts for a country through its users
 
 use rf_eloquent::has_many_through;
-use sea_orm::{
-    entity::prelude::*, Database, DatabaseBackend, DbErr,
-    Schema, Set,
-};
+use sea_orm::{entity::prelude::*, Database, DatabaseBackend, DbErr, Schema, Set};
 
 // ============================================================================
 // Entity Definitions
@@ -85,9 +82,21 @@ async fn main() -> Result<(), DbErr> {
     // Create schema
     let schema = Schema::new(DatabaseBackend::Sqlite);
 
-    db.execute(db.get_database_backend().build(&schema.create_table_from_entity(country::Entity))).await?;
-    db.execute(db.get_database_backend().build(&schema.create_table_from_entity(user::Entity))).await?;
-    db.execute(db.get_database_backend().build(&schema.create_table_from_entity(post::Entity))).await?;
+    db.execute(
+        db.get_database_backend()
+            .build(&schema.create_table_from_entity(country::Entity)),
+    )
+    .await?;
+    db.execute(
+        db.get_database_backend()
+            .build(&schema.create_table_from_entity(user::Entity)),
+    )
+    .await?;
+    db.execute(
+        db.get_database_backend()
+            .build(&schema.create_table_from_entity(post::Entity)),
+    )
+    .await?;
 
     println!("Database schema created successfully!\n");
 
@@ -207,7 +216,10 @@ async fn main() -> Result<(), DbErr> {
 
     // Verify results
     println!("=== Verification ===");
-    println!("Total posts in database: {}", usa_posts.len() + canada_posts.len());
+    println!(
+        "Total posts in database: {}",
+        usa_posts.len() + canada_posts.len()
+    );
     println!("USA posts: {}", usa_posts.len());
     println!("Canada posts: {}", canada_posts.len());
     println!();

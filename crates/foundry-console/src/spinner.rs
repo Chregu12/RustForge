@@ -1,5 +1,8 @@
 use std::io::{self, Write};
-use std::sync::{Arc, atomic::{AtomicBool, Ordering}};
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+};
 use std::thread;
 use std::time::Duration;
 
@@ -20,20 +23,8 @@ impl SpinnerStyle {
             SpinnerStyle::Arc => &["◜", "◠", "◝", "◞", "◡", "◟"],
             SpinnerStyle::Circle => &["◐", "◓", "◑", "◒"],
             SpinnerStyle::BouncingBar => &[
-                "[    ]",
-                "[=   ]",
-                "[==  ]",
-                "[=== ]",
-                "[ ===]",
-                "[  ==]",
-                "[   =]",
-                "[    ]",
-                "[   =]",
-                "[  ==]",
-                "[ ===]",
-                "[=== ]",
-                "[==  ]",
-                "[=   ]",
+                "[    ]", "[=   ]", "[==  ]", "[=== ]", "[ ===]", "[  ==]", "[   =]", "[    ]",
+                "[   =]", "[  ==]", "[ ===]", "[=== ]", "[==  ]", "[=   ]",
             ],
         }
     }

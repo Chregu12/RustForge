@@ -19,7 +19,9 @@ impl SmtpTransport {
         Ok(Self { config, transport })
     }
 
-    fn build_transport(config: &SmtpConfig) -> Result<AsyncSmtpTransport<Tokio1Executor>, TransportError> {
+    fn build_transport(
+        config: &SmtpConfig,
+    ) -> Result<AsyncSmtpTransport<Tokio1Executor>, TransportError> {
         // Create builder based on TLS setting
         let builder = if config.use_tls {
             AsyncSmtpTransport::<Tokio1Executor>::relay(&config.host)
@@ -55,26 +57,32 @@ impl SmtpTransport {
         let mut builder = LettreMessage::builder().from(from);
 
         for addr in message.envelope.to.iter() {
-            let mailbox: Mailbox = addr
-                .to_string()
-                .parse()
-                .map_err(|e: lettre::address::AddressError| TransportError::InvalidRecipient(e.to_string()))?;
+            let mailbox: Mailbox =
+                addr.to_string()
+                    .parse()
+                    .map_err(|e: lettre::address::AddressError| {
+                        TransportError::InvalidRecipient(e.to_string())
+                    })?;
             builder = builder.to(mailbox);
         }
 
         for addr in message.envelope.cc.iter() {
-            let mailbox: Mailbox = addr
-                .to_string()
-                .parse()
-                .map_err(|e: lettre::address::AddressError| TransportError::InvalidRecipient(e.to_string()))?;
+            let mailbox: Mailbox =
+                addr.to_string()
+                    .parse()
+                    .map_err(|e: lettre::address::AddressError| {
+                        TransportError::InvalidRecipient(e.to_string())
+                    })?;
             builder = builder.cc(mailbox);
         }
 
         for addr in message.envelope.bcc.iter() {
-            let mailbox: Mailbox = addr
-                .to_string()
-                .parse()
-                .map_err(|e: lettre::address::AddressError| TransportError::InvalidRecipient(e.to_string()))?;
+            let mailbox: Mailbox =
+                addr.to_string()
+                    .parse()
+                    .map_err(|e: lettre::address::AddressError| {
+                        TransportError::InvalidRecipient(e.to_string())
+                    })?;
             builder = builder.bcc(mailbox);
         }
 
@@ -97,31 +105,32 @@ impl SmtpTransport {
         // }
 
         // Build multipart message
-        let mut multipart = if let (Some(text), Some(html)) = (&message.content.text, &message.content.html) {
-            // Both text and HTML
-            MultiPart::alternative_plain_html(text.clone(), html.clone())
-        } else if let Some(text) = &message.content.text {
-            // Text only
-            MultiPart::alternative().singlepart(
-                SinglePart::builder()
-                    .header(header::ContentType::TEXT_PLAIN)
-                    .body(text.clone()),
-            )
-        } else if let Some(html) = &message.content.html {
-            // HTML only
-            MultiPart::alternative().singlepart(
-                SinglePart::builder()
-                    .header(header::ContentType::TEXT_HTML)
-                    .body(html.clone()),
-            )
-        } else {
-            // No content - create an empty alternative multipart with a plain text part
-            MultiPart::alternative().singlepart(
-                SinglePart::builder()
-                    .header(header::ContentType::TEXT_PLAIN)
-                    .body(String::new()),
-            )
-        };
+        let mut multipart =
+            if let (Some(text), Some(html)) = (&message.content.text, &message.content.html) {
+                // Both text and HTML
+                MultiPart::alternative_plain_html(text.clone(), html.clone())
+            } else if let Some(text) = &message.content.text {
+                // Text only
+                MultiPart::alternative().singlepart(
+                    SinglePart::builder()
+                        .header(header::ContentType::TEXT_PLAIN)
+                        .body(text.clone()),
+                )
+            } else if let Some(html) = &message.content.html {
+                // HTML only
+                MultiPart::alternative().singlepart(
+                    SinglePart::builder()
+                        .header(header::ContentType::TEXT_HTML)
+                        .body(html.clone()),
+                )
+            } else {
+                // No content - create an empty alternative multipart with a plain text part
+                MultiPart::alternative().singlepart(
+                    SinglePart::builder()
+                        .header(header::ContentType::TEXT_PLAIN)
+                        .body(String::new()),
+                )
+            };
 
         // Add attachments
         for attachment in &message.attachments {
@@ -130,8 +139,10 @@ impl SmtpTransport {
                 .parse()
                 .unwrap_or(mime::APPLICATION_OCTET_STREAM);
 
-            let mut part_builder = SinglePart::builder()
-                .header(header::ContentType::parse(content_type.as_ref()).unwrap_or(header::ContentType::TEXT_PLAIN));
+            let mut part_builder = SinglePart::builder().header(
+                header::ContentType::parse(content_type.as_ref())
+                    .unwrap_or(header::ContentType::TEXT_PLAIN),
+            );
 
             // Handle inline vs attachment
             if attachment.inline {
@@ -148,7 +159,8 @@ impl SmtpTransport {
                 }
                 part_builder = part_builder.header(header::ContentDisposition::inline());
             } else {
-                part_builder = part_builder.header(header::ContentDisposition::attachment(&attachment.filename));
+                part_builder = part_builder
+                    .header(header::ContentDisposition::attachment(&attachment.filename));
             }
 
             let part = part_builder.body(attachment.data.clone());

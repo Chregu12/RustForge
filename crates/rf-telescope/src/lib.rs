@@ -40,16 +40,12 @@ pub use dashboard::Dashboard;
 pub use middleware::telescope_layer;
 pub use storage::{Entry, EntryType, Storage};
 pub use watchers::{
-    cache::CacheWatcher,
-    exception::ExceptionWatcher,
-    job::JobWatcher,
-    mail::MailWatcher,
-    query::QueryWatcher,
-    request::RequestWatcher,
+    cache::CacheWatcher, exception::ExceptionWatcher, job::JobWatcher, mail::MailWatcher,
+    query::QueryWatcher, request::RequestWatcher,
 };
 
-use std::sync::Arc;
 use anyhow::Result;
+use std::sync::Arc;
 
 /// Main Telescope instance for application monitoring
 #[derive(Clone)]

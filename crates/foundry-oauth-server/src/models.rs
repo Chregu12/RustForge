@@ -25,7 +25,10 @@ impl Client {
             name,
             secret: Some(Self::generate_secret()),
             redirect_uris,
-            grants: vec!["authorization_code".to_string(), "refresh_token".to_string()],
+            grants: vec![
+                "authorization_code".to_string(),
+                "refresh_token".to_string(),
+            ],
             scopes: vec!["*".to_string()],
             revoked: false,
             created_at: Utc::now(),
@@ -39,7 +42,10 @@ impl Client {
             name,
             secret: None, // Public client (PKCE required)
             redirect_uris,
-            grants: vec!["authorization_code".to_string(), "refresh_token".to_string()],
+            grants: vec![
+                "authorization_code".to_string(),
+                "refresh_token".to_string(),
+            ],
             scopes: vec!["*".to_string()],
             revoked: false,
             created_at: Utc::now(),
@@ -48,8 +54,8 @@ impl Client {
     }
 
     fn generate_secret() -> String {
+        use base64::{engine::general_purpose::STANDARD, Engine as _};
         use rand::Rng;
-        use base64::{Engine as _, engine::general_purpose::STANDARD};
         let random_bytes: Vec<u8> = rand::thread_rng()
             .sample_iter(rand::distributions::Standard)
             .take(40)
@@ -140,8 +146,8 @@ impl PersonalAccessToken {
     }
 
     fn generate_token() -> String {
+        use base64::{engine::general_purpose::STANDARD, Engine as _};
         use rand::Rng;
-        use base64::{Engine as _, engine::general_purpose::STANDARD};
         let random_bytes: Vec<u8> = rand::thread_rng()
             .sample_iter(rand::distributions::Standard)
             .take(64)

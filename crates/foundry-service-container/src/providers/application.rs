@@ -1,7 +1,7 @@
-use async_trait::async_trait;
 use crate::container::Container;
 use crate::error::Result;
 use crate::provider::ServiceProvider;
+use async_trait::async_trait;
 
 /// Application service provider for core application services
 pub struct ApplicationServiceProvider;
@@ -49,8 +49,10 @@ impl ServiceProvider for ApplicationServiceProvider {
         // Register application URL
         container
             .singleton("app.url", || {
-                Ok(std::env::var("APP_URL")
-                    .unwrap_or_else(|_| "http://localhost:3000".to_string()))
+                Ok(
+                    std::env::var("APP_URL")
+                        .unwrap_or_else(|_| "http://localhost:3000".to_string()),
+                )
             })
             .await?;
 

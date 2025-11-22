@@ -1,7 +1,7 @@
 //! Audit traits for models
 
-use async_trait::async_trait;
 use crate::{AuditAction, AuditLog, Result};
+use async_trait::async_trait;
 
 /// Context for audit logging
 #[derive(Debug, Clone, Default)]
@@ -50,16 +50,8 @@ pub trait Auditable: serde::Serialize {
     fn auditable_id(&self) -> String;
 
     /// Create audit log for this model
-    fn create_audit_log(
-        &self,
-        action: AuditAction,
-        context: &AuditContext,
-    ) -> Result<AuditLog> {
-        let mut log = AuditLog::new(
-            action,
-            Self::auditable_type(),
-            self.auditable_id(),
-        );
+    fn create_audit_log(&self, action: AuditAction, context: &AuditContext) -> Result<AuditLog> {
+        let mut log = AuditLog::new(action, Self::auditable_type(), self.auditable_id());
 
         if let Some(user_id) = context.user_id {
             log = log.with_user(user_id);
@@ -84,11 +76,7 @@ pub trait Auditable: serde::Serialize {
     }
 
     /// Create audit log with old values (for updates)
-    fn create_update_audit_log(
-        &self,
-        old: &Self,
-        context: &AuditContext,
-    ) -> Result<AuditLog> {
+    fn create_update_audit_log(&self, old: &Self, context: &AuditContext) -> Result<AuditLog> {
         let old_values = serde_json::to_value(old)?;
         let new_values = serde_json::to_value(self)?;
 
@@ -135,12 +123,7 @@ pub trait AuditableExt: Auditable {
     }
 
     /// Log update
-    async fn audit_update<C>(
-        &self,
-        db: &C,
-        old: &Self,
-        context: &AuditContext,
-    ) -> Result<()>
+    async fn audit_update<C>(&self, db: &C, old: &Self, context: &AuditContext) -> Result<()>
     where
         C: sea_orm::ConnectionTrait + Send + Sync,
     {

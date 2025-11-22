@@ -84,9 +84,9 @@ impl EmailVerification {
     /// Returns `AuthError::TokenGeneration` if token generation fails
     pub fn generate_token(&self, user_id: i64, email: &str) -> AuthResult<String> {
         let now = Utc::now();
-        let exp = now + chrono::Duration::from_std(self.ttl).map_err(|e| {
-            AuthError::TokenGeneration(format!("Invalid TTL duration: {}", e))
-        })?;
+        let exp = now
+            + chrono::Duration::from_std(self.ttl)
+                .map_err(|e| AuthError::TokenGeneration(format!("Invalid TTL duration: {}", e)))?;
 
         let claims = VerificationClaims {
             sub: user_id,
@@ -301,11 +301,7 @@ If you did not create an account, please ignore this email.
                 .html(html)
                 .build()
                 .map_err(|e| AuthError::EmailSendFailed(e.to_string()))?,
-            _ => {
-                return Err(AuthError::EmailSendFailed(
-                    "Expected HTML body".to_string(),
-                ))
-            }
+            _ => return Err(AuthError::EmailSendFailed("Expected HTML body".to_string())),
         };
 
         mailer
@@ -415,8 +411,7 @@ mod tests {
 
     #[test]
     fn test_expired_token() {
-        let verification =
-            EmailVerification::new(TEST_SECRET.to_string(), Duration::from_secs(1));
+        let verification = EmailVerification::new(TEST_SECRET.to_string(), Duration::from_secs(1));
 
         let token = verification
             .generate_token(123, "test@example.com")
@@ -522,7 +517,9 @@ mod tests {
 
         assert!(!user.is_verified());
 
-        let token = verification.generate_token(123, "test@example.com").unwrap();
+        let token = verification
+            .generate_token(123, "test@example.com")
+            .unwrap();
         user.verify_email(&token, &verification).await.unwrap();
 
         assert!(user.is_verified());

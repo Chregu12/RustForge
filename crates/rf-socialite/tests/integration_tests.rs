@@ -202,32 +202,28 @@ mod account_linking_tests {
     #[test]
     fn test_social_account_expiration() {
         let past = Utc::now() - chrono::Duration::hours(1);
-        let account = SocialAccount::new(1, "github", "123", "token")
-            .with_expires_at(past);
+        let account = SocialAccount::new(1, "github", "123", "token").with_expires_at(past);
         assert!(account.is_expired());
     }
 
     #[test]
     fn test_social_account_not_expired() {
         let future = Utc::now() + chrono::Duration::hours(1);
-        let account = SocialAccount::new(1, "github", "123", "token")
-            .with_expires_at(future);
+        let account = SocialAccount::new(1, "github", "123", "token").with_expires_at(future);
         assert!(!account.is_expired());
     }
 
     #[test]
     fn test_social_account_needs_refresh() {
         let soon = Utc::now() + chrono::Duration::minutes(3);
-        let account = SocialAccount::new(1, "google", "123", "token")
-            .with_expires_at(soon);
+        let account = SocialAccount::new(1, "google", "123", "token").with_expires_at(soon);
         assert!(account.needs_refresh());
     }
 
     #[test]
     fn test_social_account_no_refresh_needed() {
         let later = Utc::now() + chrono::Duration::hours(1);
-        let account = SocialAccount::new(1, "google", "123", "token")
-            .with_expires_at(later);
+        let account = SocialAccount::new(1, "google", "123", "token").with_expires_at(later);
         assert!(!account.needs_refresh());
     }
 
@@ -268,17 +264,32 @@ mod provider_tests {
 
     #[test]
     fn test_github_provider() {
-        assert_eq!(GitHubProvider::authorize_url(), "https://github.com/login/oauth/authorize");
-        assert_eq!(GitHubProvider::token_url(), "https://github.com/login/oauth/access_token");
+        assert_eq!(
+            GitHubProvider::authorize_url(),
+            "https://github.com/login/oauth/authorize"
+        );
+        assert_eq!(
+            GitHubProvider::token_url(),
+            "https://github.com/login/oauth/access_token"
+        );
         assert_eq!(GitHubProvider::user_url(), "https://api.github.com/user");
         assert!(!GitHubProvider::default_scopes().is_empty());
     }
 
     #[test]
     fn test_google_provider() {
-        assert_eq!(GoogleProvider::authorize_url(), "https://accounts.google.com/o/oauth2/v2/auth");
-        assert_eq!(GoogleProvider::token_url(), "https://oauth2.googleapis.com/token");
-        assert_eq!(GoogleProvider::user_url(), "https://www.googleapis.com/oauth2/v2/userinfo");
+        assert_eq!(
+            GoogleProvider::authorize_url(),
+            "https://accounts.google.com/o/oauth2/v2/auth"
+        );
+        assert_eq!(
+            GoogleProvider::token_url(),
+            "https://oauth2.googleapis.com/token"
+        );
+        assert_eq!(
+            GoogleProvider::user_url(),
+            "https://www.googleapis.com/oauth2/v2/userinfo"
+        );
         assert!(GoogleProvider::default_scopes().len() >= 2);
     }
 
@@ -451,8 +462,7 @@ mod manager_tests {
 
     #[test]
     fn test_manager_driver_with_config() {
-        let config = SocialiteConfig::new()
-            .with_google(ProviderConfig::new("id", "secret", "uri"));
+        let config = SocialiteConfig::new().with_google(ProviderConfig::new("id", "secret", "uri"));
         let manager = SocialiteManager::new(config);
 
         let result = manager.driver("google");
@@ -498,8 +508,11 @@ mod routes_tests {
 
     #[test]
     fn test_redirect_to_provider() {
-        let config = SocialiteConfig::new()
-            .with_github(ProviderConfig::new("id", "secret", "http://localhost/callback"));
+        let config = SocialiteConfig::new().with_github(ProviderConfig::new(
+            "id",
+            "secret",
+            "http://localhost/callback",
+        ));
         let manager = SocialiteManager::new(config);
 
         let result = redirect_to_provider(&manager, "github", false);
@@ -512,8 +525,11 @@ mod routes_tests {
 
     #[test]
     fn test_redirect_with_pkce() {
-        let config = SocialiteConfig::new()
-            .with_github(ProviderConfig::new("id", "secret", "http://localhost/callback"));
+        let config = SocialiteConfig::new().with_github(ProviderConfig::new(
+            "id",
+            "secret",
+            "http://localhost/callback",
+        ));
         let manager = SocialiteManager::new(config);
 
         let result = redirect_to_provider(&manager, "github", true);

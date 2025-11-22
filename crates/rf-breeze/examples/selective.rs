@@ -38,16 +38,24 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("\n✨ All components installed successfully!");
 
     // Verify installation
-    let views_exist = project_path.join("resources/views/auth/login.blade.html").exists();
+    let views_exist = project_path
+        .join("resources/views/auth/login.blade.html")
+        .exists();
     let controllers_exist = project_path.join("src/controllers/auth/login.rs").exists();
     let routes_exist = project_path.join("src/routes/auth.rs").exists();
     let middleware_exist = project_path.join("src/middleware/auth.rs").exists();
 
     println!("\n📊 Verification:");
     println!("   Views: {}", if views_exist { "✅" } else { "❌" });
-    println!("   Controllers: {}", if controllers_exist { "✅" } else { "❌" });
+    println!(
+        "   Controllers: {}",
+        if controllers_exist { "✅" } else { "❌" }
+    );
     println!("   Routes: {}", if routes_exist { "✅" } else { "❌" });
-    println!("   Middleware: {}", if middleware_exist { "✅" } else { "❌" });
+    println!(
+        "   Middleware: {}",
+        if middleware_exist { "✅" } else { "❌" }
+    );
 
     if views_exist && controllers_exist && routes_exist && middleware_exist {
         println!("\n🎉 All components verified!");

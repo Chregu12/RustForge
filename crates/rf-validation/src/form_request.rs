@@ -41,12 +41,8 @@ impl IntoResponse for FormRequestError {
             FormRequestError::Unauthorized => {
                 (StatusCode::FORBIDDEN, "Unauthorized").into_response()
             }
-            FormRequestError::InvalidBody(msg) => {
-                (StatusCode::BAD_REQUEST, msg).into_response()
-            }
-            FormRequestError::MissingData(msg) => {
-                (StatusCode::BAD_REQUEST, msg).into_response()
-            }
+            FormRequestError::InvalidBody(msg) => (StatusCode::BAD_REQUEST, msg).into_response(),
+            FormRequestError::MissingData(msg) => (StatusCode::BAD_REQUEST, msg).into_response(),
         }
     }
 }
@@ -136,10 +132,7 @@ where
 {
     type Rejection = FormRequestError;
 
-    async fn from_request(
-        req: Request,
-        _state: &S,
-    ) -> Result<Self, Self::Rejection> {
+    async fn from_request(req: Request, _state: &S) -> Result<Self, Self::Rejection> {
         // Extract JSON body
         let bytes = axum::body::to_bytes(req.into_body(), usize::MAX)
             .await
@@ -237,10 +230,7 @@ mod tests {
 
         fn rules(&self) -> ValidationRules {
             let mut rules = HashMap::new();
-            rules.insert(
-                "email",
-                vec![Box::new(RequiredRule) as Box<dyn Rule>],
-            );
+            rules.insert("email", vec![Box::new(RequiredRule) as Box<dyn Rule>]);
             rules
         }
 

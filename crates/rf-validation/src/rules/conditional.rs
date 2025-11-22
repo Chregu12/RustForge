@@ -76,8 +76,7 @@ impl Rule for RequiredIfRule {
             if Self::is_empty(value) {
                 Err(format!(
                     "This field is required when {} is {}",
-                    self.other_field,
-                    self.other_value
+                    self.other_field, self.other_value
                 ))
             } else {
                 Ok(())
@@ -363,10 +362,7 @@ impl Rule for SameRule {
         if value == other_value {
             Ok(())
         } else {
-            Err(format!(
-                "This field must match {}",
-                self.other_field
-            ))
+            Err(format!("This field must match {}", self.other_field))
         }
     }
 

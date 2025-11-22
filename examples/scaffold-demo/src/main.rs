@@ -1,8 +1,8 @@
-//! rf-scaffold demonstration
-//!
-//! This example demonstrates the code generation capabilities of rf-scaffold.
+// rf-scaffold demonstration
+//
+// This example demonstrates the code generation capabilities of rf-scaffold.
 
-use rf_scaffold::{ScaffoldEngine, ModelOptions};
+use rf_scaffold::{ModelOptions, ScaffoldEngine};
 use std::path::PathBuf;
 
 #[tokio::main]
@@ -17,21 +17,28 @@ async fn main() -> anyhow::Result<()> {
 
     // 1. Generate a Model
     println!("1. Generating User model with fields...");
-    let user_model = scaffold.generate_model("User", &ModelOptions {
-        fields: vec![
-            ("name", "String"),
-            ("email", "String"),
-            ("age", "i32"),
-            ("active", "bool"),
-        ],
-        with_migration: true,
-        with_factory: false,
-    }).await?;
+    let user_model = scaffold
+        .generate_model(
+            "User",
+            &ModelOptions {
+                fields: vec![
+                    ("name", "String"),
+                    ("email", "String"),
+                    ("age", "i32"),
+                    ("active", "bool"),
+                ],
+                with_migration: true,
+                with_factory: false,
+            },
+        )
+        .await?;
     println!("   ✓ Generated: {}", user_model.display());
 
     // 2. Generate a Controller
     println!("\n2. Generating UserController...");
-    let controller = scaffold.generate_controller("UserController", false).await?;
+    let controller = scaffold
+        .generate_controller("UserController", false)
+        .await?;
     println!("   ✓ Generated: {}", controller.display());
 
     // 3. Generate a Resource Controller
@@ -51,9 +58,10 @@ async fn main() -> anyhow::Result<()> {
 
     // 6. Register and use custom template
     println!("\n6. Demonstrating custom templates...");
-    scaffold.register_template(
-        "custom-struct",
-        r#"// Custom generated struct
+    scaffold
+        .register_template(
+            "custom-struct",
+            r#"// Custom generated struct
 pub struct {{name}} {
     pub id: u64,
     pub data: String,
@@ -64,19 +72,32 @@ impl {{name}} {
         Self { id: 0, data }
     }
 }
-"#
-    ).await?;
+"#,
+        )
+        .await?;
     println!("   ✓ Registered custom template");
 
     // 7. Demonstrate naming conventions
     println!("\n7. Naming convention utilities:");
     let naming = scaffold.naming();
-    println!("   PascalCase: user_controller -> {}", naming.to_pascal_case("user_controller"));
-    println!("   snake_case: UserController -> {}", naming.to_snake_case("UserController"));
-    println!("   kebab-case: UserService -> {}", naming.to_kebab_case("UserService"));
+    println!(
+        "   PascalCase: user_controller -> {}",
+        naming.to_pascal_case("user_controller")
+    );
+    println!(
+        "   snake_case: UserController -> {}",
+        naming.to_snake_case("UserController")
+    );
+    println!(
+        "   kebab-case: UserService -> {}",
+        naming.to_kebab_case("UserService")
+    );
     println!("   Pluralize: user -> {}", naming.pluralize("user"));
     println!("   Singularize: users -> {}", naming.singularize("users"));
-    println!("   Extract base: UserController -> {}", naming.extract_base("UserController"));
+    println!(
+        "   Extract base: UserController -> {}",
+        naming.extract_base("UserController")
+    );
 
     println!("\n=== Demo Complete ===");
     println!("Generated files are in: {}", demo_dir.display());

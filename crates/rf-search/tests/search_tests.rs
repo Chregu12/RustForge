@@ -77,7 +77,10 @@ fn test_search_options_builder() {
     assert_eq!(options.limit, 50);
     assert_eq!(options.offset, 10);
     assert_eq!(options.filters.len(), 2);
-    assert_eq!(options.filters.get("status"), Some(&"published".to_string()));
+    assert_eq!(
+        options.filters.get("status"),
+        Some(&"published".to_string())
+    );
     assert_eq!(options.highlight_fields.len(), 2);
     assert!(options.sort.is_some());
 
@@ -316,10 +319,7 @@ fn test_in_memory_document_metadata() {
 
     assert_eq!(results.len(), 1);
     assert!(results[0].metadata.contains_key("author"));
-    assert_eq!(
-        results[0].metadata["author"],
-        serde_json::json!("John Doe")
-    );
+    assert_eq!(results[0].metadata["author"], serde_json::json!("John Doe"));
 }
 
 // Test 13: Test in-memory search engine - empty search
@@ -364,10 +364,7 @@ fn test_in_memory_multi_field_search() {
 // Test 15: Test Query builder
 #[test]
 fn test_query_builder() {
-    let query = Query::new("rust framework")
-        .fuzzy(0.8)
-        .limit(20)
-        .offset(5);
+    let query = Query::new("rust framework").fuzzy(0.8).limit(20).offset(5);
 
     // Note: These fields are private, so we test by using them
     // In a real implementation, you might want to make them pub(crate) for testing

@@ -14,7 +14,7 @@ pub struct Model {
     pub tokenable_type: String,
     pub tokenable_id: i64,
     pub name: String,
-    pub token: String, // SHA256 hash
+    pub token: String,   // SHA256 hash
     pub abilities: Json, // JSON array of abilities
     pub last_used_at: Option<DateTime<Utc>>,
     pub expires_at: Option<DateTime<Utc>>,

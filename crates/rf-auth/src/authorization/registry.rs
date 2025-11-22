@@ -427,7 +427,10 @@ mod tests {
             published: true,
         };
 
-        assert!(registry.authorize(&user, "update", &other_post).await.is_err());
+        assert!(registry
+            .authorize(&user, "update", &other_post)
+            .await
+            .is_err());
     }
 
     #[tokio::test]

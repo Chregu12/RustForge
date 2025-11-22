@@ -6,11 +6,7 @@
 //! - Middleware stacks
 //! - Pipeline building
 
-use axum::{
-    extract::Request,
-    middleware::Next,
-    response::Response,
-};
+use axum::{extract::Request, middleware::Next, response::Response};
 use futures::future::BoxFuture;
 use parking_lot::RwLock;
 use std::collections::HashMap;

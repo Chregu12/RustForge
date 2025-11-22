@@ -82,7 +82,7 @@ impl Encryptor {
     fn encrypt_aes256gcm(&self, data: &[u8]) -> Result<String> {
         if self.key.len() != 32 {
             return Err(EncryptionError::InvalidKey(
-                "AES-256 requires a 32-byte key".to_string()
+                "AES-256 requires a 32-byte key".to_string(),
             ));
         }
 
@@ -95,7 +95,8 @@ impl Encryptor {
         let nonce = Nonce::from(nonce_bytes);
 
         // Encrypt
-        let ciphertext = cipher.encrypt(&nonce, data)
+        let ciphertext = cipher
+            .encrypt(&nonce, data)
             .map_err(|e| EncryptionError::EncryptionFailed(e.to_string()))?;
 
         // Combine nonce + ciphertext
@@ -108,7 +109,7 @@ impl Encryptor {
     fn decrypt_aes256gcm(&self, encrypted: &str) -> Result<Vec<u8>> {
         if self.key.len() != 32 {
             return Err(EncryptionError::InvalidKey(
-                "AES-256 requires a 32-byte key".to_string()
+                "AES-256 requires a 32-byte key".to_string(),
             ));
         }
 
@@ -129,7 +130,8 @@ impl Encryptor {
         let nonce = Nonce::from(nonce_array);
 
         // Decrypt
-        cipher.decrypt(&nonce, ciphertext)
+        cipher
+            .decrypt(&nonce, ciphertext)
             .map_err(|e| EncryptionError::DecryptionFailed(e.to_string()))
     }
 }
@@ -158,7 +160,8 @@ impl EncryptorBuilder {
             base64::decode(&key_str[7..]).ok()
         } else {
             // Assume it's already raw bytes or hex
-            base64::decode(key_str).ok()
+            base64::decode(key_str)
+                .ok()
                 .or_else(|| Some(key_str.as_bytes().to_vec()))
         };
 
@@ -210,8 +213,8 @@ impl Clone for EncryptorBuilder {
 
 mod base64 {
     pub use base64::engine::general_purpose::STANDARD;
-    pub use base64::Engine;
     pub use base64::DecodeError;
+    pub use base64::Engine;
 
     pub fn encode(data: &[u8]) -> String {
         STANDARD.encode(data)
@@ -236,9 +239,7 @@ mod tests {
     #[test]
     fn test_encrypt_decrypt() {
         let key = Encryptor::generate_key();
-        let encryptor = Encryptor::new()
-            .key(&key)
-            .build();
+        let encryptor = Encryptor::new().key(&key).build();
 
         let plaintext = "Hello, World!";
         let encrypted = encryptor.encrypt(plaintext).unwrap();
@@ -251,9 +252,7 @@ mod tests {
     #[test]
     fn test_encrypt_different_each_time() {
         let key = Encryptor::generate_key();
-        let encryptor = Encryptor::new()
-            .key(&key)
-            .build();
+        let encryptor = Encryptor::new().key(&key).build();
 
         let plaintext = "Test";
         let encrypted1 = encryptor.encrypt(plaintext).unwrap();
@@ -270,9 +269,7 @@ mod tests {
     #[test]
     fn test_decrypt_invalid() {
         let key = Encryptor::generate_key();
-        let encryptor = Encryptor::new()
-            .key(&key)
-            .build();
+        let encryptor = Encryptor::new().key(&key).build();
 
         let result = encryptor.decrypt("invalid-data");
         assert!(result.is_err());

@@ -19,35 +19,45 @@ impl SessionManager {
 
     /// Store a session
     pub fn store(&self, session: Session) {
-        let mut sessions = self.sessions.write()
+        let mut sessions = self
+            .sessions
+            .write()
             .expect("Session lock poisoned - unrecoverable state");
         sessions.insert(session.token.clone(), session);
     }
 
     /// Find session by token
     pub fn find(&self, token: &str) -> Option<Session> {
-        let sessions = self.sessions.read()
+        let sessions = self
+            .sessions
+            .read()
             .expect("Session lock poisoned - unrecoverable state");
         sessions.get(token).cloned()
     }
 
     /// Delete session
     pub fn delete(&self, token: &str) {
-        let mut sessions = self.sessions.write()
+        let mut sessions = self
+            .sessions
+            .write()
             .expect("Session lock poisoned - unrecoverable state");
         sessions.remove(token);
     }
 
     /// Delete all sessions for a user
     pub fn delete_for_user(&self, user_id: Uuid) {
-        let mut sessions = self.sessions.write()
+        let mut sessions = self
+            .sessions
+            .write()
             .expect("Session lock poisoned - unrecoverable state");
         sessions.retain(|_, session| session.user_id != user_id);
     }
 
     /// Clean up expired sessions
     pub fn cleanup_expired(&self) {
-        let mut sessions = self.sessions.write()
+        let mut sessions = self
+            .sessions
+            .write()
             .expect("Session lock poisoned - unrecoverable state");
         sessions.retain(|_, session| !session.is_expired());
     }

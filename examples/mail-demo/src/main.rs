@@ -1,11 +1,11 @@
-//! Email system demonstration
-//!
-//! This example demonstrates the rf-mail crate functionality:
-//! - Basic email sending
-//! - Mailable usage
-//! - Template rendering
-//! - Attachments
-//! - Different backends
+// Email system demonstration
+//
+// This example demonstrates the rf-mail crate functionality:
+// - Basic email sending
+// - Mailable usage
+// - Template rendering
+// - Attachments
+// - Different backends
 
 use rf_mail::*;
 use tracing::{info, Level};
@@ -46,7 +46,10 @@ async fn demo_basic_email(mailer: &MemoryMailer) -> Result<(), Box<dyn std::erro
 
     let message = MessageBuilder::new()
         .from(Address::with_name("sender@example.com", "Sender Name"))
-        .to(Address::with_name("recipient@example.com", "Recipient Name"))
+        .to(Address::with_name(
+            "recipient@example.com",
+            "Recipient Name",
+        ))
         .subject("Hello from rf-mail!")
         .html("<h1>Hello!</h1><p>This is a test email.</p>")
         .text("Hello!\n\nThis is a test email.")
@@ -125,10 +128,7 @@ async fn demo_attachments(mailer: &MemoryMailer) -> Result<(), Box<dyn std::erro
 
     info!("✓ Email with attachment sent");
     info!("  Attachments: {}", message.attachments.len());
-    info!(
-        "  Attachment size: {} bytes\n",
-        message.attachment_size()
-    );
+    info!("  Attachment size: {} bytes\n", message.attachment_size());
 
     Ok(())
 }
@@ -188,7 +188,8 @@ async fn demo_multipart(mailer: &MemoryMailer) -> Result<(), Box<dyn std::error:
         .from(Address::with_name("newsletter@example.com", "Newsletter"))
         .to(Address::new("subscriber@example.com"))
         .subject("Weekly Newsletter")
-        .html(r#"
+        .html(
+            r#"
             <html>
                 <body>
                     <h1>This Week's Highlights</h1>
@@ -198,13 +199,16 @@ async fn demo_multipart(mailer: &MemoryMailer) -> Result<(), Box<dyn std::error:
                     </ul>
                 </body>
             </html>
-        "#)
-        .text(r#"
+        "#,
+        )
+        .text(
+            r#"
 This Week's Highlights
 
 - Feature 1: New dashboard released
 - Feature 2: Performance improvements
-        "#)
+        "#,
+        )
         .build()?;
 
     mailer.send(&message).await?;

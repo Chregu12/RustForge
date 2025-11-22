@@ -3,14 +3,14 @@
 //! This crate provides an intuitive interface for interactive command-line prompts,
 //! similar to Laravel Artisan's interactive features.
 
-mod prompts;
 mod error;
+mod prompts;
 
-pub use prompts::{
-    ask, ask_with_default, choice, confirm, password, multi_select, autocomplete,
-    PromptOptions, SelectOption,
-};
 pub use error::{PromptError, PromptResult};
+pub use prompts::{
+    ask, ask_with_default, autocomplete, choice, confirm, multi_select, password, PromptOptions,
+    SelectOption,
+};
 
 #[cfg(test)]
 mod tests {

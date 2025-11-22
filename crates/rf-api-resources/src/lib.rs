@@ -38,19 +38,21 @@
 //! let collection = Collection::new(users);
 //! ```
 
-pub mod resource;
 pub mod collection;
 pub mod conditional;
-pub mod resource_builder;
 pub mod nested;
+pub mod resource;
+pub mod resource_builder;
 
-pub use resource::{Resource, WrappedResource, ResourceWithMeta, ConditionalAttribute};
 pub use collection::{
-    ResourceCollection, Collection, PaginatedCollection, PaginationMeta, PaginationLinks,
+    Collection, PaginatedCollection, PaginationLinks, PaginationMeta, ResourceCollection,
 };
-pub use conditional::{Conditional, MergeWhen, LoadRelations, WithRelation};
+pub use conditional::{Conditional, LoadRelations, MergeWhen, WithRelation};
+pub use nested::{
+    parse_with_param, LoadError, LoadsRelations, NestedResource, ResourceTransformer,
+};
+pub use resource::{ConditionalAttribute, Resource, ResourceWithMeta, WrappedResource};
 pub use resource_builder::ResourceBuilder;
-pub use nested::{NestedResource, ResourceTransformer, LoadsRelations, LoadError, parse_with_param};
 
 #[cfg(test)]
 mod tests {
@@ -105,14 +107,12 @@ mod tests {
 
     #[test]
     fn test_integration_paginated_collection() {
-        let users = vec![
-            UserResource {
-                id: 1,
-                name: "John".to_string(),
-                email: "john@example.com".to_string(),
-                admin_field: None,
-            },
-        ];
+        let users = vec![UserResource {
+            id: 1,
+            name: "John".to_string(),
+            email: "john@example.com".to_string(),
+            admin_field: None,
+        }];
 
         let meta = PaginationMeta::new(1, 10, 25);
         let collection = PaginatedCollection::new(users, meta);

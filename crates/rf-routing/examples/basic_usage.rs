@@ -1,6 +1,6 @@
 //! Basic usage example for rf-routing
 
-use rf_routing::{NamedRoute, RouteRegistry, SignedUrlBuilder, route_params};
+use rf_routing::{route_params, NamedRoute, RouteRegistry, SignedUrlBuilder};
 
 fn main() {
     println!("=== rf-routing Example ===\n");
@@ -13,7 +13,10 @@ fn main() {
     registry.register(NamedRoute::new("users.index", "/users"));
     registry.register(NamedRoute::new("users.show", "/users/{id}"));
     registry.register(NamedRoute::new("posts.show", "/posts/{id}"));
-    registry.register(NamedRoute::new("posts.comments", "/posts/{post_id}/comments/{id}"));
+    registry.register(NamedRoute::new(
+        "posts.comments",
+        "/posts/{post_id}/comments/{id}",
+    ));
 
     // Generate URLs
     println!("Generated URLs:");

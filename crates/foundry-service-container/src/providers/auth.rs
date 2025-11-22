@@ -1,7 +1,7 @@
-use async_trait::async_trait;
 use crate::container::Container;
 use crate::error::Result;
 use crate::provider::ServiceProvider;
+use async_trait::async_trait;
 
 /// Auth service provider for authentication and authorization services
 pub struct AuthServiceProvider;
@@ -25,9 +25,8 @@ impl ServiceProvider for AuthServiceProvider {
         // Register JWT secret
         container
             .singleton("auth.jwt_secret", || {
-                Ok(std::env::var("JWT_SECRET").unwrap_or_else(|_| {
-                    std::env::var("APP_KEY").unwrap_or_default()
-                }))
+                Ok(std::env::var("JWT_SECRET")
+                    .unwrap_or_else(|_| std::env::var("APP_KEY").unwrap_or_default()))
             })
             .await?;
 

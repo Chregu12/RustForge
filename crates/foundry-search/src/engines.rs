@@ -1,7 +1,7 @@
 //! Search engine implementations
 
-use async_trait::async_trait;
 use crate::{Result, SearchEngine, SearchQuery, SearchResult, Searchable};
+use async_trait::async_trait;
 
 pub struct DatabaseSearch {
     // Database connection

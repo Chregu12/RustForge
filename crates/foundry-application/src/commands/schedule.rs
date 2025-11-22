@@ -118,9 +118,10 @@ impl FoundryCommand for ScheduleListCommand {
     }
 
     async fn execute(&self, ctx: CommandContext) -> Result<CommandResult, CommandError> {
-        let use_json = ctx.args.iter().any(|arg| {
-            arg == "--format=json" || arg == "--json"
-        });
+        let use_json = ctx
+            .args
+            .iter()
+            .any(|arg| arg == "--format=json" || arg == "--json");
 
         let tasks = Self::get_scheduled_tasks();
         let total = tasks.len();
@@ -299,9 +300,12 @@ mod tests {
             seeds: std::sync::Arc::new(foundry_infra::SeaOrmSeedService::default()),
             validation: std::sync::Arc::new(foundry_infra::SimpleValidationService::default()),
             storage: std::sync::Arc::new(foundry_infra::FileStorageAdapter::new(
-                std::sync::Arc::new(foundry_storage::manager::StorageManager::new(
-                    foundry_storage::config::StorageConfig::from_env()
-                ).unwrap())
+                std::sync::Arc::new(
+                    foundry_storage::manager::StorageManager::new(
+                        foundry_storage::config::StorageConfig::from_env(),
+                    )
+                    .unwrap(),
+                ),
             )),
             cache: std::sync::Arc::new(foundry_infra::InMemoryCacheStore::default()),
             queue: std::sync::Arc::new(foundry_infra::InMemoryQueue::default()),

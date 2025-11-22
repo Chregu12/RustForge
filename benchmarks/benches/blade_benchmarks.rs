@@ -1,13 +1,13 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion, BenchmarkId};
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use std::collections::HashMap;
 
-//! # Blade Template Performance Benchmarks
-//!
-//! Benchmarks for template operations:
-//! - Template compilation
-//! - Template rendering
-//! - Complex templates with loops and conditions
-//! - Template caching effectiveness
+// # Blade Template Performance Benchmarks
+//
+// Benchmarks for template operations:
+// - Template compilation
+// - Template rendering
+// - Complex templates with loops and conditions
+// - Template caching effectiveness
 
 fn compile_simple_template(template: &str) -> String {
     // Simulate template compilation
@@ -34,15 +34,13 @@ fn render_complex_template(count: usize) -> String {
 
 fn benchmark_compilation(c: &mut Criterion) {
     c.bench_function("blade/compile/simple", |b| {
-        b.iter(|| {
-            black_box(compile_simple_template("Hello {{ name }}!"))
-        });
+        b.iter(|| black_box(compile_simple_template("Hello {{ name }}!")));
     });
 
     c.bench_function("blade/compile/complex", |b| {
         b.iter(|| {
             black_box(compile_simple_template(
-                "<div>{{ title }}</div><p>{{ content }}</p><footer>{{ footer }}</footer>"
+                "<div>{{ title }}</div><p>{{ content }}</p><footer>{{ footer }}</footer>",
             ))
         });
     });
@@ -55,9 +53,7 @@ fn benchmark_rendering(c: &mut Criterion) {
         let mut data = HashMap::new();
         data.insert("name".to_string(), "World".to_string());
 
-        b.iter(|| {
-            black_box(render_simple_template("Hello {{ name }}!", &data))
-        });
+        b.iter(|| black_box(render_simple_template("Hello {{ name }}!", &data)));
     });
 
     for count in [10, 100, 1000].iter() {

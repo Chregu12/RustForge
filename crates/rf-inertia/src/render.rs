@@ -206,9 +206,8 @@ mod tests {
 
     #[test]
     fn test_lazy_props() {
-        let inertia = Inertia::render("Dashboard/Index").with_lazy("stats", || {
-            json!({"active_users": 100})
-        });
+        let inertia =
+            Inertia::render("Dashboard/Index").with_lazy("stats", || json!({"active_users": 100}));
 
         assert_eq!(inertia.lazy_props.len(), 1);
         assert_eq!(inertia.lazy_props[0].key(), "stats");

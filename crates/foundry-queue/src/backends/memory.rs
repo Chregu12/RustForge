@@ -1,7 +1,7 @@
 use async_trait::async_trait;
+use rustc_hash::FxHashMap;
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
-use rustc_hash::FxHashMap;
 
 use crate::backends::QueueBackend;
 use crate::error::QueueResult;
@@ -22,7 +22,10 @@ impl MemoryBackend {
     }
 
     fn insert_job(&self, job: &Job) {
-        self.jobs.lock().unwrap().insert(job.id.clone(), job.clone());
+        self.jobs
+            .lock()
+            .unwrap()
+            .insert(job.id.clone(), job.clone());
     }
 }
 
@@ -66,13 +69,7 @@ impl QueueBackend for MemoryBackend {
     }
 
     async fn size(&self) -> QueueResult<usize> {
-        Ok(self
-            .queues
-            .lock()
-            .unwrap()
-            .values()
-            .map(|q| q.len())
-            .sum())
+        Ok(self.queues.lock().unwrap().values().map(|q| q.len()).sum())
     }
 
     async fn size_of(&self, queue: &str) -> QueueResult<usize> {

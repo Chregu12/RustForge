@@ -373,10 +373,7 @@ async fn test_s3_nested_paths() {
 
     // Put file in deeply nested path
     let path = "test-nested/level1/level2/level3/deep-file.txt";
-    storage
-        .put(path, b"Deep content".to_vec())
-        .await
-        .unwrap();
+    storage.put(path, b"Deep content".to_vec()).await.unwrap();
 
     // Verify it exists
     assert!(storage.exists(path).await.unwrap());
@@ -396,10 +393,7 @@ async fn test_s3_empty_file() {
     let storage = create_test_storage().await;
 
     // Put empty file
-    storage
-        .put("test-empty/empty.txt", vec![])
-        .await
-        .unwrap();
+    storage.put("test-empty/empty.txt", vec![]).await.unwrap();
 
     // Get it
     let content = storage.get("test-empty/empty.txt").await.unwrap();
@@ -421,10 +415,7 @@ async fn test_s3_special_characters_in_path() {
 
     // Put file with special characters in path
     let path = "test-special/file-with-dashes_and_underscores (and parens).txt";
-    storage
-        .put(path, b"Special path".to_vec())
-        .await
-        .unwrap();
+    storage.put(path, b"Special path".to_vec()).await.unwrap();
 
     // Verify it exists
     assert!(storage.exists(path).await.unwrap());
@@ -477,7 +468,10 @@ async fn test_s3_concurrent_operations() {
         let handle = tokio::spawn(async move {
             let path = format!("test-concurrent/file-{}.txt", i);
             let content = format!("Content {}", i);
-            storage.put(&path, content.as_bytes().to_vec()).await.unwrap();
+            storage
+                .put(&path, content.as_bytes().to_vec())
+                .await
+                .unwrap();
 
             let retrieved = storage.get(&path).await.unwrap();
             assert_eq!(retrieved, content.as_bytes());

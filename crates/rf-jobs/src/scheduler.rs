@@ -78,7 +78,12 @@ impl Scheduler {
     ///     CacheCleanupJob
     /// })?;
     /// ```
-    pub fn schedule<F, J>(&mut self, cron_expr: &str, name: &str, job_factory: F) -> Result<(), SchedulerError>
+    pub fn schedule<F, J>(
+        &mut self,
+        cron_expr: &str,
+        name: &str,
+        job_factory: F,
+    ) -> Result<(), SchedulerError>
     where
         F: Fn() -> J + Send + Sync + 'static,
         J: Job + 'static,
@@ -108,13 +113,12 @@ impl Scheduler {
     /// The scheduler runs in the background and dispatches jobs according to their schedules.
     pub async fn start(&mut self) -> Result<(), SchedulerError> {
         if self.handle.is_some() {
-            return Err(SchedulerError::InvalidCron("Scheduler already running".into()));
+            return Err(SchedulerError::InvalidCron(
+                "Scheduler already running".into(),
+            ));
         }
 
-        tracing::info!(
-            schedules = self.schedules.len(),
-            "Starting job scheduler"
-        );
+        tracing::info!(schedules = self.schedules.len(), "Starting job scheduler");
 
         let schedules = self.schedules.clone_schedules();
         let queue_manager = Arc::clone(&self.queue_manager);
@@ -249,15 +253,13 @@ mod tests {
     }
 
     #[tokio::test]
-async fn test_scheduler_creation() {
-    if !redis_available().await {
-        eprintln!("⏭️  Skipping test_scheduler_creation: Redis not available");
-        eprintln!("   Start services with: ./scripts/test-env-up.sh");
-        return;
-    }
-        let manager = QueueManager::new("redis://localhost:6379")
-            .await
-            .unwrap();
+    async fn test_scheduler_creation() {
+        if !redis_available().await {
+            eprintln!("⏭️  Skipping test_scheduler_creation: Redis not available");
+            eprintln!("   Start services with: ./scripts/test-env-up.sh");
+            return;
+        }
+        let manager = QueueManager::new("redis://localhost:6379").await.unwrap();
 
         let mut scheduler = Scheduler::new(manager);
 

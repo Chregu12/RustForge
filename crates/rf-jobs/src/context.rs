@@ -121,13 +121,7 @@ mod tests {
     #[test]
     fn test_job_context_creation() {
         let job_id = Uuid::new_v4();
-        let ctx = JobContext::new(
-            job_id,
-            "default".to_string(),
-            1,
-            3,
-            Utc::now(),
-        );
+        let ctx = JobContext::new(job_id, "default".to_string(), 1, 3, Utc::now());
 
         assert_eq!(ctx.job_id(), job_id);
         assert_eq!(ctx.queue(), "default");
@@ -138,13 +132,7 @@ mod tests {
 
     #[test]
     fn test_final_attempt() {
-        let ctx = JobContext::new(
-            Uuid::new_v4(),
-            "default".to_string(),
-            3,
-            3,
-            Utc::now(),
-        );
+        let ctx = JobContext::new(Uuid::new_v4(), "default".to_string(), 3, 3, Utc::now());
 
         assert!(ctx.is_final_attempt());
     }

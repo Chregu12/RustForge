@@ -38,15 +38,7 @@ use axum::{
 };
 use sea_orm::{DatabaseConnection, EntityTrait, PrimaryKeyTrait};
 use serde::de::DeserializeOwned;
-use std::{
-    any::Any,
-    collections::HashMap,
-    fmt,
-    future::Future,
-    pin::Pin,
-    str::FromStr,
-    sync::Arc,
-};
+use std::{any::Any, collections::HashMap, fmt, future::Future, pin::Pin, str::FromStr, sync::Arc};
 use thiserror::Error;
 
 /// Error types for model binding
@@ -68,19 +60,22 @@ pub enum ModelBindingError {
 impl IntoResponse for ModelBindingError {
     fn into_response(self) -> Response {
         let (status, message) = match self {
-            ModelBindingError::NotFound { model, key } => {
-                (StatusCode::NOT_FOUND, format!("{} not found: {}", model, key))
-            }
+            ModelBindingError::NotFound { model, key } => (
+                StatusCode::NOT_FOUND,
+                format!("{} not found: {}", model, key),
+            ),
             ModelBindingError::MissingParameter { parameter } => (
                 StatusCode::BAD_REQUEST,
                 format!("Missing route parameter: {}", parameter),
             ),
-            ModelBindingError::InvalidFormat { message } => {
-                (StatusCode::BAD_REQUEST, format!("Invalid format: {}", message))
-            }
-            ModelBindingError::DatabaseError(err) => {
-                (StatusCode::INTERNAL_SERVER_ERROR, format!("Database error: {}", err))
-            }
+            ModelBindingError::InvalidFormat { message } => (
+                StatusCode::BAD_REQUEST,
+                format!("Invalid format: {}", message),
+            ),
+            ModelBindingError::DatabaseError(err) => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Database error: {}", err),
+            ),
         };
 
         (status, message).into_response()
@@ -134,9 +129,11 @@ where
         // Extract database connection
         let db = DatabaseConnection::from_request_parts(parts, state)
             .await
-            .map_err(|_| ModelBindingError::DatabaseError(sea_orm::DbErr::Custom(
-                "Could not extract database connection".to_string(),
-            )))?;
+            .map_err(|_| {
+                ModelBindingError::DatabaseError(sea_orm::DbErr::Custom(
+                    "Could not extract database connection".to_string(),
+                ))
+            })?;
 
         // Extract path parameters
         let path_params = Path::<HashMap<String, String>>::from_request_parts(parts, state)
@@ -146,11 +143,11 @@ where
             })?;
 
         // Get the key from path parameters
-        let key_str = path_params
-            .get(T::route_key_name())
-            .ok_or_else(|| ModelBindingError::MissingParameter {
+        let key_str = path_params.get(T::route_key_name()).ok_or_else(|| {
+            ModelBindingError::MissingParameter {
                 parameter: T::route_key_name().to_string(),
-            })?;
+            }
+        })?;
 
         // Parse the key
         let key = T::Key::from_str(key_str).map_err(|_| ModelBindingError::InvalidFormat {
@@ -158,12 +155,13 @@ where
         })?;
 
         // Find the model
-        let model = T::find_by_route_key(key, &db)
-            .await?
-            .ok_or_else(|| ModelBindingError::NotFound {
-                model: T::model_name().to_string(),
-                key: key_str.to_string(),
-            })?;
+        let model =
+            T::find_by_route_key(key, &db)
+                .await?
+                .ok_or_else(|| ModelBindingError::NotFound {
+                    model: T::model_name().to_string(),
+                    key: key_str.to_string(),
+                })?;
 
         Ok(ModelBinding(model))
     }
@@ -209,9 +207,7 @@ impl ModelBindingRegistry {
         F: Fn(String, Arc<DatabaseConnection>) -> Fut + Send + Sync + 'static,
         Fut: Future<Output = Option<T>> + Send + 'static,
     {
-        let resolver: ResolverFn<T> = Arc::new(move |value, db| {
-            Box::pin(resolver(value, db))
-        });
+        let resolver: ResolverFn<T> = Arc::new(move |value, db| Box::pin(resolver(value, db)));
         self.bindings.insert(name.to_string(), Box::new(resolver));
     }
 

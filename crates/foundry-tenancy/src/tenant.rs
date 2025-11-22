@@ -89,8 +89,7 @@ mod tests {
 
     #[test]
     fn test_tenant_with_domain() {
-        let tenant = Tenant::new("acme", "Acme Corp")
-            .with_domain("acme.example.com");
+        let tenant = Tenant::new("acme", "Acme Corp").with_domain("acme.example.com");
 
         assert_eq!(tenant.domain, Some("acme.example.com".to_string()));
     }

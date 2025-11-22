@@ -3,7 +3,7 @@
 //! Provides automatic metrics collection for search driver operations.
 
 use crate::driver::{Result, SearchDriver};
-use crate::searchable::{Searchable, SearchOptions, SearchResult};
+use crate::searchable::{SearchOptions, SearchResult, Searchable};
 use async_trait::async_trait;
 use std::sync::Arc;
 
@@ -133,9 +133,6 @@ mod tests {
 
         // These operations should record metrics
         wrapped.index(&doc).await.unwrap();
-        let _result = wrapped
-            .search::<TestDoc>("Test", None)
-            .await
-            .unwrap();
+        let _result = wrapped.search::<TestDoc>("Test", None).await.unwrap();
     }
 }

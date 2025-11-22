@@ -85,7 +85,9 @@ impl std::error::Error for JobError {}
 /// Simple function-based job
 pub struct FunctionJob<F>
 where
-    F: Fn(JobContext) -> std::pin::Pin<Box<dyn std::future::Future<Output = JobResult> + Send>> + Send + Sync,
+    F: Fn(JobContext) -> std::pin::Pin<Box<dyn std::future::Future<Output = JobResult> + Send>>
+        + Send
+        + Sync,
 {
     name: String,
     schedule: String,
@@ -94,7 +96,9 @@ where
 
 impl<F> FunctionJob<F>
 where
-    F: Fn(JobContext) -> std::pin::Pin<Box<dyn std::future::Future<Output = JobResult> + Send>> + Send + Sync,
+    F: Fn(JobContext) -> std::pin::Pin<Box<dyn std::future::Future<Output = JobResult> + Send>>
+        + Send
+        + Sync,
 {
     pub fn new(name: impl Into<String>, schedule: impl Into<String>, func: F) -> Self {
         Self {
@@ -108,7 +112,9 @@ where
 #[async_trait]
 impl<F> ScheduledJob for FunctionJob<F>
 where
-    F: Fn(JobContext) -> std::pin::Pin<Box<dyn std::future::Future<Output = JobResult> + Send>> + Send + Sync,
+    F: Fn(JobContext) -> std::pin::Pin<Box<dyn std::future::Future<Output = JobResult> + Send>>
+        + Send
+        + Sync,
 {
     fn name(&self) -> &str {
         &self.name

@@ -79,9 +79,7 @@ impl Queue for MemoryQueue {
 
     async fn retry(&self, metadata: JobMetadata) -> QueueResult<()> {
         if !metadata.can_retry() {
-            return Err(QueueError::JobFailed(
-                "Max retries exceeded".to_string(),
-            ));
+            return Err(QueueError::JobFailed("Max retries exceeded".to_string()));
         }
 
         self.push(metadata).await?;

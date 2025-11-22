@@ -58,13 +58,11 @@
 ///     Ok(())
 /// }
 /// ```
-
 use rkyv::{
-    Archive, Deserialize, Serialize,
     check_archived_root,
-    ser::{Serializer, serializers::AllocSerializer},
+    ser::{serializers::AllocSerializer, Serializer},
     validation::validators::DefaultValidator,
-    CheckBytes, AlignedVec, Infallible,
+    AlignedVec, Archive, CheckBytes, Deserialize, Infallible, Serialize,
 };
 use thiserror::Error;
 
@@ -137,7 +135,8 @@ impl ZeroCopyCache {
     {
         let mut serializer = AllocSerializer::<256>::default();
 
-        serializer.serialize_value(data)
+        serializer
+            .serialize_value(data)
             .map_err(|e| ZeroCopyError::Serialization(e.to_string()))?;
 
         Ok(serializer.into_serializer().into_inner())
@@ -154,8 +153,7 @@ impl ZeroCopyCache {
         T::Archived: 'a + CheckBytes<DefaultValidator<'a>>,
     {
         // In rkyv 0.7, use check_archived_root for validation
-        check_archived_root::<T>(bytes)
-            .map_err(|_| ZeroCopyError::Validation)
+        check_archived_root::<T>(bytes).map_err(|_| ZeroCopyError::Validation)
     }
 
     /// Deserialize to owned type (when you need to modify data)

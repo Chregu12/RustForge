@@ -203,9 +203,10 @@ impl FoundryCommand for EventListCommand {
 
     async fn execute(&self, ctx: CommandContext) -> Result<CommandResult, CommandError> {
         // Check for --format flag
-        let use_json = ctx.args.iter().any(|arg| {
-            arg == "--format=json" || arg == "--json"
-        });
+        let use_json = ctx
+            .args
+            .iter()
+            .any(|arg| arg == "--format=json" || arg == "--json");
 
         let events_path = Self::get_events_path();
         let listeners_path = Self::get_listeners_path();
@@ -257,9 +258,12 @@ mod tests {
             seeds: std::sync::Arc::new(foundry_infra::SeaOrmSeedService::default()),
             validation: std::sync::Arc::new(foundry_infra::SimpleValidationService::default()),
             storage: std::sync::Arc::new(foundry_infra::FileStorageAdapter::new(
-                std::sync::Arc::new(foundry_storage::manager::StorageManager::new(
-                    foundry_storage::config::StorageConfig::from_env()
-                ).unwrap())
+                std::sync::Arc::new(
+                    foundry_storage::manager::StorageManager::new(
+                        foundry_storage::config::StorageConfig::from_env(),
+                    )
+                    .unwrap(),
+                ),
             )),
             cache: std::sync::Arc::new(foundry_infra::InMemoryCacheStore::default()),
             queue: std::sync::Arc::new(foundry_infra::InMemoryQueue::default()),
@@ -292,14 +296,26 @@ mod tests {
 
     #[test]
     fn test_snake_to_pascal() {
-        assert_eq!(EventListCommand::snake_to_pascal("order_placed_event"), "OrderPlacedEvent");
-        assert_eq!(EventListCommand::snake_to_pascal("send_order_email_listener"), "SendOrderEmailListener");
+        assert_eq!(
+            EventListCommand::snake_to_pascal("order_placed_event"),
+            "OrderPlacedEvent"
+        );
+        assert_eq!(
+            EventListCommand::snake_to_pascal("send_order_email_listener"),
+            "SendOrderEmailListener"
+        );
     }
 
     #[test]
     fn test_pascal_to_snake() {
-        assert_eq!(EventListCommand::pascal_to_snake("OrderPlacedEvent"), "order_placed_event");
-        assert_eq!(EventListCommand::pascal_to_snake("SendOrderEmailListener"), "send_order_email_listener");
+        assert_eq!(
+            EventListCommand::pascal_to_snake("OrderPlacedEvent"),
+            "order_placed_event"
+        );
+        assert_eq!(
+            EventListCommand::pascal_to_snake("SendOrderEmailListener"),
+            "send_order_email_listener"
+        );
     }
 
     #[tokio::test]

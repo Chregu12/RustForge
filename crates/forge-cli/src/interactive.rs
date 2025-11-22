@@ -4,8 +4,8 @@
 //! code scaffolding, with smart defaults and validation.
 
 use anyhow::Result;
-use dialoguer::{theme::ColorfulTheme, Confirm, Input, Select, MultiSelect};
 use console::style;
+use dialoguer::{theme::ColorfulTheme, Confirm, Input, MultiSelect, Select};
 
 /// Configuration for creating a new model
 #[derive(Debug, Clone)]
@@ -288,11 +288,9 @@ pub fn prompt_migration_config() -> Result<MigrationConfig> {
         MigrationType::Drop => {
             format!("drop_{}_table", table_name.as_ref().unwrap())
         }
-        MigrationType::Custom => {
-            Input::with_theme(&theme)
-                .with_prompt("Migration name")
-                .interact_text()?
-        }
+        MigrationType::Custom => Input::with_theme(&theme)
+            .with_prompt("Migration name")
+            .interact_text()?,
     };
 
     Ok(MigrationConfig {
@@ -325,7 +323,11 @@ pub fn prompt_text(prompt: &str, default: Option<&str>) -> Result<String> {
 }
 
 /// Prompt for selecting from a list of options
-pub fn prompt_select<T: std::fmt::Display>(prompt: &str, items: &[T], default: usize) -> Result<usize> {
+pub fn prompt_select<T: std::fmt::Display>(
+    prompt: &str,
+    items: &[T],
+    default: usize,
+) -> Result<usize> {
     let theme = ColorfulTheme::default();
     Select::with_theme(&theme)
         .with_prompt(prompt)
@@ -336,7 +338,11 @@ pub fn prompt_select<T: std::fmt::Display>(prompt: &str, items: &[T], default: u
 }
 
 /// Prompt for multiple selections
-pub fn prompt_multiselect<T: std::fmt::Display>(prompt: &str, items: &[T], defaults: &[bool]) -> Result<Vec<usize>> {
+pub fn prompt_multiselect<T: std::fmt::Display>(
+    prompt: &str,
+    items: &[T],
+    defaults: &[bool],
+) -> Result<Vec<usize>> {
     let theme = ColorfulTheme::default();
     let mut multi = MultiSelect::with_theme(&theme)
         .with_prompt(prompt)
@@ -357,7 +363,10 @@ mod tests {
     fn test_controller_type_display() {
         assert_eq!(ControllerType::Resource.to_string(), "Resource (CRUD)");
         assert_eq!(ControllerType::Api.to_string(), "API (JSON)");
-        assert_eq!(ControllerType::Invokable.to_string(), "Invokable (Single action)");
+        assert_eq!(
+            ControllerType::Invokable.to_string(),
+            "Invokable (Single action)"
+        );
         assert_eq!(ControllerType::Plain.to_string(), "Plain");
     }
 

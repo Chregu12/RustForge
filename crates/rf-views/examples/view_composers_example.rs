@@ -33,11 +33,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     registry.composer_fn("admin.*", |view_name, context| {
         context.insert("section", "admin");
-        context.insert("admin_menu", json!([
-            {"label": "Dashboard", "url": "/admin"},
-            {"label": "Users", "url": "/admin/users"},
-            {"label": "Settings", "url": "/admin/settings"}
-        ]));
+        context.insert(
+            "admin_menu",
+            json!([
+                {"label": "Dashboard", "url": "/admin"},
+                {"label": "Users", "url": "/admin/users"},
+                {"label": "Settings", "url": "/admin/settings"}
+            ]),
+        );
         println!("   ✓ Admin composer applied to: {}", view_name);
         Ok(())
     })?;
@@ -63,7 +66,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("     - app_name: {:?}", posts_context.get("app_name"));
     println!("     - section: {:?}", posts_context.get("section"));
     println!("     - categories: {:?}", posts_context.get("categories"));
-    println!("     - initial_data: {:?}", posts_context.get("initial_data"));
+    println!(
+        "     - initial_data: {:?}",
+        posts_context.get("initial_data")
+    );
 
     // Test admin.users view
     println!("\n   Composing 'admin.users' view:");
@@ -97,7 +103,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     composers::global().compose("profile.edit", &mut profile_context)?;
 
     println!("   Global composer applied:");
-    println!("     - user_section: {:?}", profile_context.get("user_section"));
+    println!(
+        "     - user_section: {:?}",
+        profile_context.get("user_section")
+    );
 
     // 6. Composer statistics
     println!("\n6️⃣  Composer statistics:");
@@ -129,8 +138,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     registry.compose("user.dashboard", &mut user_context)?;
 
     println!("   User data added to context:");
-    println!("     - current_user_id: {:?}", user_context.get("current_user_id"));
-    println!("     - is_authenticated: {:?}", user_context.get("is_authenticated"));
+    println!(
+        "     - current_user_id: {:?}",
+        user_context.get("current_user_id")
+    );
+    println!(
+        "     - is_authenticated: {:?}",
+        user_context.get("is_authenticated")
+    );
 
     println!("\n✅ All view composer examples completed successfully!");
 

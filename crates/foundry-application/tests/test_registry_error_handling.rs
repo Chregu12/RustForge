@@ -3,10 +3,10 @@
 //! These tests ensure that the registry properly handles error cases
 //! without panicking, particularly around poisoned mutex scenarios.
 
+use async_trait::async_trait;
 use foundry_application::{ApplicationError, CommandRegistry};
 use foundry_domain::CommandDescriptor;
 use foundry_plugins::{CommandContext, CommandError, CommandResult, FoundryCommand};
-use async_trait::async_trait;
 use std::sync::Arc;
 
 /// Mock command for testing

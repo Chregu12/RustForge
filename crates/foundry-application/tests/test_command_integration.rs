@@ -78,8 +78,7 @@ async fn test_command_with_filter() {
     let data = cmd_result.data.unwrap();
 
     assert_eq!(
-        data["filter"],
-        "test_command",
+        data["filter"], "test_command",
         "Filter should be recorded in data"
     );
 }

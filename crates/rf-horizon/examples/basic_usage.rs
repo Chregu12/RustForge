@@ -1,9 +1,9 @@
 //! Basic usage example for rf-horizon
 
+use anyhow::Result;
+use async_trait::async_trait;
 use rf_horizon::{Batch, Chain, FailedJobHandler, Horizon, QueueMetrics};
 use std::sync::Arc;
-use async_trait::async_trait;
-use anyhow::Result;
 
 // Example job implementations
 struct SendEmailJob {
@@ -14,7 +14,10 @@ struct SendEmailJob {
 #[async_trait]
 impl rf_horizon::batching::Job for SendEmailJob {
     async fn handle(&self) -> Result<()> {
-        println!("Sending email to {} with subject: {}", self.to, self.subject);
+        println!(
+            "Sending email to {} with subject: {}",
+            self.to, self.subject
+        );
         tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
         Ok(())
     }
@@ -109,7 +112,9 @@ async fn main() -> Result<()> {
     println!("  Final status: {:?}\n", final_status.status);
 
     // Record batch in Horizon
-    horizon.record_batch(handle.id().to_string(), final_status).await;
+    horizon
+        .record_batch(handle.id().to_string(), final_status)
+        .await;
 
     println!("2. Job Chaining Example");
     println!("-----------------------");
@@ -128,21 +133,24 @@ async fn main() -> Result<()> {
     println!("  Executing {} jobs in sequence...", chain.len());
     let chain_handle = chain.dispatch().await?;
     chain_handle.wait().await;
-    println!("  ✓ Chain completed: {}/{} jobs\n", chain_handle.completed().await, chain_handle.total());
+    println!(
+        "  ✓ Chain completed: {}/{} jobs\n",
+        chain_handle.completed().await,
+        chain_handle.total()
+    );
 
     println!("3. Failed Job Handling Example");
     println!("------------------------------");
 
     // Create failed job handler
-    let failed_handler = FailedJobHandler::new()
-        .with_max_retries(3);
+    let failed_handler = FailedJobHandler::new().with_max_retries(3);
 
     // Simulate a failed job
     let failed_job = rf_horizon::FailedJob::new(
         "emails",
         "SendEmailJob",
         r#"{"to": "failed@example.com"}"#,
-        "SMTP connection timeout"
+        "SMTP connection timeout",
     );
 
     failed_handler.record(failed_job.clone()).await;
@@ -170,7 +178,10 @@ async fn main() -> Result<()> {
     println!("  Queue: {}", metrics.queue_name);
     println!("  Jobs Processed: {}", metrics.jobs_processed);
     println!("  Jobs Pending: {}", metrics.jobs_pending);
-    println!("  Avg Processing Time: {:.2}ms", metrics.average_processing_time_ms);
+    println!(
+        "  Avg Processing Time: {:.2}ms",
+        metrics.average_processing_time_ms
+    );
     println!("  Success Rate: {:.1}%", metrics.success_rate() * 100.0);
 
     horizon.update_metrics("emails".to_string(), metrics).await;

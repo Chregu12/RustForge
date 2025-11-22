@@ -96,11 +96,21 @@ mod tests {{
     }}
 }}
 "#,
-            model_name, model_name, model_name, model_name, model_name, model_name, model_name,
-            model_name, model_name, model_name, model_name
+            model_name,
+            model_name,
+            model_name,
+            model_name,
+            model_name,
+            model_name,
+            model_name,
+            model_name,
+            model_name,
+            model_name,
+            model_name
         );
 
-        ctx.artifacts.write_file(&factory_path, &content, ctx.options.force)?;
+        ctx.artifacts
+            .write_file(&factory_path, &content, ctx.options.force)?;
 
         Ok(CommandResult::success(format!(
             "Factory created: {}",
@@ -190,11 +200,17 @@ mod tests {{
     }}
 }}
 "#,
-            seeder_name, seeder_name, seeder_name, seeder_name, seeder_name,
-            seeder_name.to_lowercase(), seeder_name
+            seeder_name,
+            seeder_name,
+            seeder_name,
+            seeder_name,
+            seeder_name,
+            seeder_name.to_lowercase(),
+            seeder_name
         );
 
-        ctx.artifacts.write_file(&seeder_path, &content, ctx.options.force)?;
+        ctx.artifacts
+            .write_file(&seeder_path, &content, ctx.options.force)?;
 
         Ok(CommandResult::success(format!(
             "Seeder created: {}",

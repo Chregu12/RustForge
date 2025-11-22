@@ -8,5 +8,5 @@
 pub mod aggregations;
 pub mod subquery;
 
-pub use aggregations::{AggregateType, WithAggregates, AggregationBuilder};
+pub use aggregations::{AggregateType, AggregationBuilder, WithAggregates};
 pub use subquery::{Subquery, SubqueryBuilder};

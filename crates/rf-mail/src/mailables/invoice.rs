@@ -1,6 +1,6 @@
 //! Invoice email with attachment
 
-use crate::{Address, Mailable, MailBuilder};
+use crate::{Address, MailBuilder, Mailable};
 use serde::Serialize;
 use std::path::PathBuf;
 
@@ -76,18 +76,30 @@ Accounts Receivable
         );
 
         let builder = MailBuilder::new()
-            .from(Address::with_name("billing@example.com", "Billing Department"))
+            .from(Address::with_name(
+                "billing@example.com",
+                "Billing Department",
+            ))
             .to(Address::new(&self.to))
-            .subject(format!("Invoice {} - ${:.2}", self.invoice_number, self.amount))
+            .subject(format!(
+                "Invoice {} - ${:.2}",
+                self.invoice_number, self.amount
+            ))
             .markdown(markdown.clone());
 
         // Attach PDF if path is provided and file exists
         if self.pdf_path.exists() {
             builder.attach(&self.pdf_path).unwrap_or_else(|_| {
                 MailBuilder::new()
-                    .from(Address::with_name("billing@example.com", "Billing Department"))
+                    .from(Address::with_name(
+                        "billing@example.com",
+                        "Billing Department",
+                    ))
                     .to(Address::new(&self.to))
-                    .subject(format!("Invoice {} - ${:.2}", self.invoice_number, self.amount))
+                    .subject(format!(
+                        "Invoice {} - ${:.2}",
+                        self.invoice_number, self.amount
+                    ))
                     .markdown(markdown)
             })
         } else {

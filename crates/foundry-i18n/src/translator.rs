@@ -1,7 +1,7 @@
 //! Translation engine
 
-use std::collections::HashMap;
 use crate::Locale;
+use std::collections::HashMap;
 
 pub struct Translator {
     translations: HashMap<String, HashMap<String, String>>,

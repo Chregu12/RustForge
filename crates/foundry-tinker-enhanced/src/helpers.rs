@@ -28,8 +28,11 @@ impl TinkerHelpers {
 
     /// Get environment variable with optional default
     pub fn env(&self, key: &str, default: Option<&str>) -> Result<String> {
-        env::var(key)
-            .or_else(|_| default.map(String::from).ok_or_else(|| anyhow!("Variable not found")))
+        env::var(key).or_else(|_| {
+            default
+                .map(String::from)
+                .ok_or_else(|| anyhow!("Variable not found"))
+        })
     }
 
     /// Get configuration value with optional default

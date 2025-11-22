@@ -7,7 +7,7 @@ use std::fs;
 use std::path::Path;
 
 use super::ensure_forge_project;
-use crate::{interactive, progress, errors};
+use crate::{errors, interactive, progress};
 
 pub async fn model(name: &str, with_migration: bool) -> Result<()> {
     ensure_forge_project()?;
@@ -50,7 +50,10 @@ pub async fn model(name: &str, with_migration: bool) -> Result<()> {
 pub async fn controller(name: &str, api: bool) -> Result<()> {
     ensure_forge_project()?;
 
-    println!("{}", format!("Generating controller: {}", name).green().bold());
+    println!(
+        "{}",
+        format!("Generating controller: {}", name).green().bold()
+    );
 
     let controller_name = if name.ends_with("Controller") {
         name.to_string()
@@ -88,7 +91,10 @@ pub async fn controller(name: &str, api: bool) -> Result<()> {
 pub async fn migration(name: &str) -> Result<()> {
     ensure_forge_project()?;
 
-    println!("{}", format!("Generating migration: {}", name).green().bold());
+    println!(
+        "{}",
+        format!("Generating migration: {}", name).green().bold()
+    );
 
     // Generate timestamp
     let timestamp = chrono::Utc::now().format("%Y%m%d%H%M%S");
@@ -378,14 +384,12 @@ pub async fn factory(name: &str, model_name: Option<&str>) -> Result<()> {
         format!("{}Factory", name.to_pascal_case())
     };
 
-    let model = model_name
-        .map(|m| m.to_pascal_case())
-        .unwrap_or_else(|| {
-            factory_name
-                .strip_suffix("Factory")
-                .unwrap_or(&factory_name)
-                .to_string()
-        });
+    let model = model_name.map(|m| m.to_pascal_case()).unwrap_or_else(|| {
+        factory_name
+            .strip_suffix("Factory")
+            .unwrap_or(&factory_name)
+            .to_string()
+    });
 
     let factory_path = format!("tests/factories/{}.rs", factory_name.to_snake_case());
 
@@ -461,18 +465,13 @@ pub async fn seed(class: Option<&str>, force: bool) -> Result<()> {
         // Check if production environment
         if let Ok(env) = std::env::var("APP_ENV") {
             if env == "production" {
-                anyhow::bail!(
-                    "Cannot seed production database without --force flag"
-                );
+                anyhow::bail!("Cannot seed production database without --force flag");
             }
         }
     }
 
     if let Some(seeder_class) = class {
-        println!(
-            "{}",
-            format!("Seeding: {}", seeder_class).green().bold()
-        );
+        println!("{}", format!("Seeding: {}", seeder_class).green().bold());
         // TODO: Load and run specific seeder
         println!("  {} Running {}...", "→".blue(), seeder_class);
         println!("  {} Completed!", "✓".green());
@@ -705,14 +704,12 @@ pub async fn policy(name: &str, model_name: Option<&str>) -> Result<()> {
         format!("{}Policy", name.to_pascal_case())
     };
 
-    let model = model_name
-        .map(|m| m.to_pascal_case())
-        .unwrap_or_else(|| {
-            policy_name
-                .strip_suffix("Policy")
-                .unwrap_or(&policy_name)
-                .to_string()
-        });
+    let model = model_name.map(|m| m.to_pascal_case()).unwrap_or_else(|| {
+        policy_name
+            .strip_suffix("Policy")
+            .unwrap_or(&policy_name)
+            .to_string()
+    });
 
     let policy_path = format!("src/policies/{}.rs", policy_name.to_snake_case());
 
@@ -765,7 +762,10 @@ pub async fn event(name: &str) -> Result<()> {
 pub async fn listener(name: &str, event_name: Option<&str>) -> Result<()> {
     ensure_forge_project()?;
 
-    println!("{}", format!("Generating listener: {}", name).green().bold());
+    println!(
+        "{}",
+        format!("Generating listener: {}", name).green().bold()
+    );
 
     let listener_name = name.to_pascal_case();
     let event = event_name.map(|e| e.to_pascal_case());
@@ -821,7 +821,10 @@ pub async fn job(name: &str, queue_name: Option<&str>) -> Result<()> {
 pub async fn mail(name: &str) -> Result<()> {
     ensure_forge_project()?;
 
-    println!("{}", format!("Generating mailable: {}", name).green().bold());
+    println!(
+        "{}",
+        format!("Generating mailable: {}", name).green().bold()
+    );
 
     let mail_name = name.to_pascal_case();
     let mail_path = format!("src/mail/{}.rs", mail_name.to_snake_case());
@@ -848,7 +851,10 @@ pub async fn mail(name: &str) -> Result<()> {
 pub async fn notification(name: &str) -> Result<()> {
     ensure_forge_project()?;
 
-    println!("{}", format!("Generating notification: {}", name).green().bold());
+    println!(
+        "{}",
+        format!("Generating notification: {}", name).green().bold()
+    );
 
     let notification_name = name.to_pascal_case();
     let notification_path = format!("src/notifications/{}.rs", notification_name.to_snake_case());
@@ -875,7 +881,10 @@ pub async fn notification(name: &str) -> Result<()> {
 pub async fn resource(name: &str, with_collection: bool) -> Result<()> {
     ensure_forge_project()?;
 
-    println!("{}", format!("Generating resource: {}", name).green().bold());
+    println!(
+        "{}",
+        format!("Generating resource: {}", name).green().bold()
+    );
 
     let resource_name = if name.ends_with("Resource") {
         name.to_string()
@@ -897,9 +906,15 @@ pub async fn resource(name: &str, with_collection: bool) -> Result<()> {
     println!("  {} Created: {}", "✓".green(), resource_path);
 
     if with_collection {
-        let collection_name = format!("{}Collection", resource_name.strip_suffix("Resource").unwrap_or(&resource_name));
+        let collection_name = format!(
+            "{}Collection",
+            resource_name
+                .strip_suffix("Resource")
+                .unwrap_or(&resource_name)
+        );
         let collection_path = format!("src/resources/{}.rs", collection_name.to_snake_case());
-        let collection_content = generate_resource_collection_content(&collection_name, &resource_name)?;
+        let collection_content =
+            generate_resource_collection_content(&collection_name, &resource_name)?;
         fs::write(&collection_path, collection_content)?;
         println!("  {} Created: {}", "✓".green(), collection_path);
     }
@@ -950,7 +965,10 @@ pub async fn test(name: &str, unit: bool) -> Result<()> {
 pub async fn middleware(name: &str) -> Result<()> {
     ensure_forge_project()?;
 
-    println!("{}", format!("Generating middleware: {}", name).green().bold());
+    println!(
+        "{}",
+        format!("Generating middleware: {}", name).green().bold()
+    );
 
     let middleware_name = if name.ends_with("Middleware") {
         name.to_string()
@@ -1383,7 +1401,10 @@ impl {{resource_name}} {
     Ok(handlebars.render("resource", &data)?)
 }
 
-fn generate_resource_collection_content(collection_name: &str, resource_name: &str) -> Result<String> {
+fn generate_resource_collection_content(
+    collection_name: &str,
+    resource_name: &str,
+) -> Result<String> {
     let template = r#"use serde::{Deserialize, Serialize};
 use super::{{resource_name}};
 
@@ -1668,7 +1689,8 @@ pub async fn model_interactive() -> Result<()> {
     let mut gen_progress = progress::GenerationProgress::new();
 
     // Generate model
-    let model_task = gen_progress.add_task(&format!("app/models/{}.rs", config.name.to_snake_case()));
+    let model_task =
+        gen_progress.add_task(&format!("app/models/{}.rs", config.name.to_snake_case()));
     let model_name = config.name.to_pascal_case();
     let table_name = config.name.to_snake_case().to_plural();
     let model_path = format!("src/models/{}.rs", config.name.to_snake_case());
@@ -1694,16 +1716,28 @@ pub async fn model_interactive() -> Result<()> {
 
     // Generate factory if requested
     if config.create_factory {
-        let factory_task = gen_progress.add_task(&format!("tests/factories/{}_factory.rs", config.name.to_snake_case()));
+        let factory_task = gen_progress.add_task(&format!(
+            "tests/factories/{}_factory.rs",
+            config.name.to_snake_case()
+        ));
         factory(&config.name, None).await?;
-        gen_progress.complete_task(factory_task, &format!("tests/factories/{}_factory.rs", config.name.to_snake_case()));
+        gen_progress.complete_task(
+            factory_task,
+            &format!("tests/factories/{}_factory.rs", config.name.to_snake_case()),
+        );
     }
 
     // Generate seeder if requested
     if config.create_seeder {
-        let seeder_task = gen_progress.add_task(&format!("database/seeders/{}_seeder.rs", config.name.to_snake_case()));
+        let seeder_task = gen_progress.add_task(&format!(
+            "database/seeders/{}_seeder.rs",
+            config.name.to_snake_case()
+        ));
         seeder(&config.name).await?;
-        gen_progress.complete_task(seeder_task, &format!("database/seeders/{}_seeder.rs", config.name.to_snake_case()));
+        gen_progress.complete_task(
+            seeder_task,
+            &format!("database/seeders/{}_seeder.rs", config.name.to_snake_case()),
+        );
     }
 
     interactive::print_next_steps(&[
@@ -1735,7 +1769,10 @@ pub async fn controller_interactive() -> Result<()> {
         format!("{}Controller", config.name.to_pascal_case())
     };
 
-    let controller_task = gen_progress.add_task(&format!("app/controllers/{}.rs", controller_name.to_snake_case()));
+    let controller_task = gen_progress.add_task(&format!(
+        "app/controllers/{}.rs",
+        controller_name.to_snake_case()
+    ));
     let controller_path = format!("src/controllers/{}.rs", controller_name.to_snake_case());
 
     if Path::new(&controller_path).exists() {
@@ -1760,7 +1797,10 @@ pub async fn controller_interactive() -> Result<()> {
     println!();
 
     // Display generated methods based on controller type
-    if matches!(config.controller_type, interactive::ControllerType::Resource | interactive::ControllerType::Api) {
+    if matches!(
+        config.controller_type,
+        interactive::ControllerType::Resource | interactive::ControllerType::Api
+    ) {
         interactive::print_info("Generated methods:");
         println!("  • {}    - GET    /resource", "index()".cyan());
         println!("  • {}   - GET    /resource/create", "create()".cyan());

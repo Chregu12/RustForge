@@ -72,9 +72,7 @@
 //! ```
 
 use async_trait::async_trait;
-use sea_orm::{
-    ConnectionTrait, DatabaseConnection, DbErr, EntityTrait, Statement,
-};
+use sea_orm::{ConnectionTrait, DatabaseConnection, DbErr, EntityTrait, Statement};
 
 /// Result type for MorphToMany operations
 pub type MorphToManyResult<T> = Result<T, DbErr>;
@@ -679,7 +677,11 @@ where
 
         // Add ORDER BY
         if let Some((column, direction)) = &self.order_by {
-            sql.push_str(&format!(" ORDER BY {} {}", column, direction.to_uppercase()));
+            sql.push_str(&format!(
+                " ORDER BY {} {}",
+                column,
+                direction.to_uppercase()
+            ));
         }
 
         // Add LIMIT

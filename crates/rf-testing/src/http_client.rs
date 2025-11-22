@@ -113,7 +113,8 @@ impl<'a> RequestBuilder<'a> {
         let json = serde_json::to_vec(body)
             .map_err(|e| TestError::Other(format!("Failed to serialize JSON: {}", e)))?;
         self.body = Some(json.into());
-        self.headers.insert("Content-Type".to_string(), "application/json".to_string());
+        self.headers
+            .insert("Content-Type".to_string(), "application/json".to_string());
         Ok(self)
     }
 
@@ -122,7 +123,10 @@ impl<'a> RequestBuilder<'a> {
         let form = serde_urlencoded::to_string(body)
             .map_err(|e| TestError::Other(format!("Failed to serialize form: {}", e)))?;
         self.body = Some(form.into_bytes().into());
-        self.headers.insert("Content-Type".to_string(), "application/x-www-form-urlencoded".to_string());
+        self.headers.insert(
+            "Content-Type".to_string(),
+            "application/x-www-form-urlencoded".to_string(),
+        );
         Ok(self)
     }
 
@@ -134,9 +138,7 @@ impl<'a> RequestBuilder<'a> {
 
     /// Send the request and get a response
     pub async fn send(self) -> TestResult<TestResponseBuilder> {
-        let mut request = Request::builder()
-            .method(self.method)
-            .uri(&self.uri);
+        let mut request = Request::builder().method(self.method).uri(&self.uri);
 
         for (key, value) in &self.headers {
             request = request.header(key, value);
@@ -147,7 +149,10 @@ impl<'a> RequestBuilder<'a> {
             .body(Body::from(body))
             .map_err(|e| TestError::Other(format!("Failed to build request: {}", e)))?;
 
-        let response = self.client.router.clone()
+        let response = self
+            .client
+            .router
+            .clone()
             .oneshot(request)
             .await
             .map_err(|e| TestError::Other(format!("Request failed: {}", e)))?;
@@ -177,7 +182,8 @@ impl TestResponseBuilder {
 
     /// Get a header value
     pub fn header(&self, name: &str) -> Option<&str> {
-        self.response.headers()
+        self.response
+            .headers()
             .get(name)
             .and_then(|v| v.to_str().ok())
     }
@@ -187,7 +193,7 @@ impl TestResponseBuilder {
         if self.body.is_none() {
             let body = axum::body::to_bytes(
                 std::mem::replace(&mut self.response.body_mut(), Body::empty()),
-                usize::MAX
+                usize::MAX,
             )
             .await
             .map_err(|e| TestError::Other(format!("Failed to read body: {}", e)))?;
@@ -273,7 +279,9 @@ impl TestResponseBuilder {
             actual,
             Some(expected),
             "Expected header '{}' to be '{}', got '{:?}'",
-            name, expected, actual
+            name,
+            expected,
+            actual
         );
         self
     }
@@ -302,7 +310,8 @@ impl TestResponseBuilder {
     pub async fn assert_json(mut self, expected: Value) -> Self {
         let actual: Value = self.body_json().await.expect("Failed to parse JSON");
         assert_eq!(
-            actual, expected,
+            actual,
+            expected,
             "JSON mismatch:\nExpected: {}\nActual: {}",
             serde_json::to_string_pretty(&expected).unwrap(),
             serde_json::to_string_pretty(&actual).unwrap()
@@ -313,8 +322,7 @@ impl TestResponseBuilder {
     /// Assert JSON path exists and has the expected value
     pub async fn assert_json_path(mut self, path: &str, expected: Value) -> Self {
         let body: Value = self.body_json().await.expect("Failed to parse JSON");
-        let results = jsonpath_lib::select(&body, path)
-            .expect("Invalid JSON path");
+        let results = jsonpath_lib::select(&body, path).expect("Invalid JSON path");
         let actual = results
             .first()
             .expect(&format!("Path '{}' not found", path));
@@ -336,7 +344,8 @@ impl TestResponseBuilder {
             let mut current = &body;
 
             for part in parts {
-                current = current.get(part)
+                current = current
+                    .get(part)
                     .expect(&format!("JSON path '{}' not found at '{}'", path, part));
             }
         }
@@ -350,7 +359,8 @@ impl TestResponseBuilder {
         assert!(
             body.contains(needle),
             "Expected body to contain '{}', but it didn't.\nBody: {}",
-            needle, body
+            needle,
+            body
         );
         self
     }
@@ -361,7 +371,8 @@ impl TestResponseBuilder {
         assert!(
             !body.contains(needle),
             "Expected body to not contain '{}', but it did.\nBody: {}",
-            needle, body
+            needle,
+            body
         );
         self
     }
@@ -386,7 +397,8 @@ mod jsonpath_lib {
         let mut current = value;
 
         for part in parts {
-            current = current.get(part)
+            current = current
+                .get(part)
                 .ok_or_else(|| format!("Path segment '{}' not found", part))?;
         }
 
@@ -409,11 +421,7 @@ mod tests {
         let app = Router::new().route("/test", get(handler));
         let client = TestClient::new(app);
 
-        let response = client.get("/test")
-            .send()
-            .await
-            .unwrap()
-            .assert_ok();
+        let response = client.get("/test").send().await.unwrap().assert_ok();
 
         let body: Value = response.body_json().await.unwrap();
         assert_eq!(body, json!({"message": "hello"}));
@@ -430,7 +438,8 @@ mod tests {
         let app = Router::new().route("/echo", post(handler));
         let client = TestClient::new(app);
 
-        client.post("/echo")
+        client
+            .post("/echo")
             .json(&json!({"name": "John"}))
             .unwrap()
             .send()
@@ -448,10 +457,10 @@ mod tests {
         }
 
         let app = Router::new().route("/test", get(handler));
-        let client = TestClient::new(app)
-            .with_header("X-Custom", "value");
+        let client = TestClient::new(app).with_header("X-Custom", "value");
 
-        client.get("/test")
+        client
+            .get("/test")
             .send()
             .await
             .unwrap()
@@ -468,11 +477,7 @@ mod tests {
         let app = Router::new().route("/404", get(not_found));
         let client = TestClient::new(app);
 
-        client.get("/404")
-            .send()
-            .await
-            .unwrap()
-            .assert_not_found();
+        client.get("/404").send().await.unwrap().assert_not_found();
     }
 
     #[tokio::test]
@@ -490,7 +495,8 @@ mod tests {
         let app = Router::new().route("/user", get(handler));
         let client = TestClient::new(app);
 
-        client.get("/user")
+        client
+            .get("/user")
             .send()
             .await
             .unwrap()

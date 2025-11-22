@@ -2,15 +2,17 @@
 //!
 //! This module generates the actual validation code from parsed struct information.
 
+use crate::parser::{FieldInfo, StructInfo};
+use crate::rules::ValidationRule;
 use proc_macro2::TokenStream;
 use quote::quote;
-use crate::parser::{StructInfo, FieldInfo};
-use crate::rules::ValidationRule;
 
 /// Generate the Validate trait implementation
 pub fn generate_validate_impl(struct_info: &StructInfo) -> TokenStream {
     let struct_name = &struct_info.name;
-    let field_validations = struct_info.fields.iter()
+    let field_validations = struct_info
+        .fields
+        .iter()
         .map(generate_field_validation)
         .collect::<Vec<_>>();
 
@@ -40,7 +42,9 @@ fn generate_field_validation(field: &FieldInfo) -> TokenStream {
     // Handle optional fields
     if field.is_optional && !field.is_required() {
         // For optional fields that are not required, only validate if Some
-        let validations = field.rules.iter()
+        let validations = field
+            .rules
+            .iter()
             .filter(|r| !matches!(r, ValidationRule::Nullable))
             .map(|rule| generate_rule_validation(field, rule))
             .collect::<Vec<_>>();
@@ -67,7 +71,9 @@ fn generate_field_validation(field: &FieldInfo) -> TokenStream {
             }
         };
 
-        let other_validations = field.rules.iter()
+        let other_validations = field
+            .rules
+            .iter()
             .filter(|r| !matches!(r, ValidationRule::Required | ValidationRule::Nullable))
             .map(|rule| generate_rule_validation(field, rule))
             .collect::<Vec<_>>();
@@ -84,7 +90,9 @@ fn generate_field_validation(field: &FieldInfo) -> TokenStream {
     }
 
     // Non-optional fields
-    let validations = field.rules.iter()
+    let validations = field
+        .rules
+        .iter()
         .filter(|r| !matches!(r, ValidationRule::Nullable))
         .map(|rule| generate_rule_validation(field, rule))
         .collect::<Vec<_>>();
@@ -99,7 +107,9 @@ fn generate_rule_validation(field: &FieldInfo, rule: &ValidationRule) -> TokenSt
     let field_name = &field.name;
     let field_name_str = field_name.to_string();
     let error_code = rule.error_code();
-    let error_message = field.custom_message.as_ref()
+    let error_message = field
+        .custom_message
+        .as_ref()
         .map(|m| m.clone())
         .unwrap_or_else(|| rule.error_message(&field_name_str));
 
@@ -479,7 +489,10 @@ fn generate_rule_validation(field: &FieldInfo, rule: &ValidationRule) -> TokenSt
 
         // Conditional rules - note: These require access to the full struct
         // For now, generate code that requires the field name to be present in context
-        ValidationRule::RequiredIf { field: other_field, value } => {
+        ValidationRule::RequiredIf {
+            field: other_field,
+            value,
+        } => {
             quote! {
                 // Check if the other field has the specified value
                 // Note: This requires reflection or macro-time field access
@@ -494,7 +507,10 @@ fn generate_rule_validation(field: &FieldInfo, rule: &ValidationRule) -> TokenSt
             }
         }
 
-        ValidationRule::RequiredUnless { field: other_field, value } => {
+        ValidationRule::RequiredUnless {
+            field: other_field,
+            value,
+        } => {
             quote! {
                 #[allow(unused_variables)]
                 let _required_unless_field = #other_field;

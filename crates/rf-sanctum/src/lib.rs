@@ -49,29 +49,29 @@
 //! }
 //! ```
 
-pub mod token;
-pub mod tokenable;
-pub mod auth;
 pub mod abilities;
+pub mod auth;
 pub mod errors;
+pub mod middleware;
 pub mod models;
 pub mod repository;
-pub mod middleware;
 pub mod spa;
+pub mod token;
+pub mod tokenable;
 
-pub use token::{PersonalAccessToken, NewToken};
-pub use tokenable::Tokenable;
-pub use auth::{SanctumAuth, LoadFromToken};
 pub use abilities::{Ability, AbilityChecker};
+pub use auth::{LoadFromToken, SanctumAuth};
 pub use errors::SanctumError;
 pub use models::Model as PersonalAccessTokenModel;
 pub use repository::TokenRepository;
+pub use token::{NewToken, PersonalAccessToken};
+pub use tokenable::Tokenable;
 
 /// Prelude module for convenient imports
 pub mod prelude {
     pub use crate::{
         Ability, AbilityChecker, LoadFromToken, NewToken, PersonalAccessToken,
-        PersonalAccessTokenModel, SanctumAuth, SanctumError, Tokenable, TokenRepository,
+        PersonalAccessTokenModel, SanctumAuth, SanctumError, TokenRepository, Tokenable,
     };
 }
 

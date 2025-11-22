@@ -1,6 +1,6 @@
-use async_trait::async_trait;
-use crate::job::Job;
 use crate::error::QueueResult;
+use crate::job::Job;
+use async_trait::async_trait;
 
 pub mod memory;
 pub mod redis;

@@ -233,50 +233,32 @@ struct Order {
 #[async_trait]
 impl ModelEvents for Order {
     async fn creating(&mut self) -> EventResult {
-        self.lifecycle
-            .lock()
-            .await
-            .push("creating".to_string());
+        self.lifecycle.lock().await.push("creating".to_string());
         Ok(())
     }
 
     async fn created(&self) -> EventResult {
-        self.lifecycle
-            .lock()
-            .await
-            .push("created".to_string());
+        self.lifecycle.lock().await.push("created".to_string());
         Ok(())
     }
 
     async fn updating(&mut self) -> EventResult {
-        self.lifecycle
-            .lock()
-            .await
-            .push("updating".to_string());
+        self.lifecycle.lock().await.push("updating".to_string());
         Ok(())
     }
 
     async fn updated(&self) -> EventResult {
-        self.lifecycle
-            .lock()
-            .await
-            .push("updated".to_string());
+        self.lifecycle.lock().await.push("updated".to_string());
         Ok(())
     }
 
     async fn deleting(&mut self) -> EventResult {
-        self.lifecycle
-            .lock()
-            .await
-            .push("deleting".to_string());
+        self.lifecycle.lock().await.push("deleting".to_string());
         Ok(())
     }
 
     async fn deleted(&self) -> EventResult {
-        self.lifecycle
-            .lock()
-            .await
-            .push("deleted".to_string());
+        self.lifecycle.lock().await.push("deleted".to_string());
         Ok(())
     }
 }

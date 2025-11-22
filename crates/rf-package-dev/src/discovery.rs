@@ -1,9 +1,9 @@
 //! Package auto-discovery
 
 use crate::{Package, PackageError, PackageResult};
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
-use regex::Regex;
 
 /// Discovery configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -24,13 +24,8 @@ pub struct DiscoveryConfig {
 impl Default for DiscoveryConfig {
     fn default() -> Self {
         Self {
-            search_paths: vec![
-                PathBuf::from("packages"),
-                PathBuf::from("vendor"),
-            ],
-            patterns: vec![
-                r"^[a-z0-9-]+$".to_string(),
-            ],
+            search_paths: vec![PathBuf::from("packages"), PathBuf::from("vendor")],
+            patterns: vec![r"^[a-z0-9-]+$".to_string()],
             recursive: true,
             max_depth: 3,
         }
@@ -72,34 +67,39 @@ impl Discovery {
     }
 
     /// Discover packages in a specific path
-    fn discover_in_path<'a>(&'a self, path: &'a Path, depth: usize) -> std::pin::Pin<Box<dyn std::future::Future<Output = PackageResult<Vec<Package>>> + 'a>> {
+    fn discover_in_path<'a>(
+        &'a self,
+        path: &'a Path,
+        depth: usize,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = PackageResult<Vec<Package>>> + 'a>>
+    {
         Box::pin(async move {
-        if depth > self.config.max_depth {
-            return Ok(Vec::new());
-        }
+            if depth > self.config.max_depth {
+                return Ok(Vec::new());
+            }
 
-        let mut packages = Vec::new();
+            let mut packages = Vec::new();
 
-        // Check if this directory contains a package manifest
-        if let Some(package) = self.load_package(path).await? {
-            packages.push(package);
-        }
+            // Check if this directory contains a package manifest
+            if let Some(package) = self.load_package(path).await? {
+                packages.push(package);
+            }
 
-        // Search subdirectories if recursive
-        if self.config.recursive {
-            let entries = std::fs::read_dir(path)?;
-            for entry in entries {
-                let entry = entry?;
-                let path = entry.path();
+            // Search subdirectories if recursive
+            if self.config.recursive {
+                let entries = std::fs::read_dir(path)?;
+                for entry in entries {
+                    let entry = entry?;
+                    let path = entry.path();
 
-                if path.is_dir() {
-                    let discovered = self.discover_in_path(&path, depth + 1).await?;
-                    packages.extend(discovered);
+                    if path.is_dir() {
+                        let discovered = self.discover_in_path(&path, depth + 1).await?;
+                        packages.extend(discovered);
+                    }
                 }
             }
-        }
 
-        Ok(packages)
+            Ok(packages)
         })
     }
 

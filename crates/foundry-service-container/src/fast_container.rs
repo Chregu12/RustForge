@@ -42,7 +42,6 @@
 ///     Ok(())
 /// }
 /// ```
-
 use rustc_hash::FxHashMap;
 use std::any::Any;
 use std::sync::Arc;
@@ -138,9 +137,8 @@ impl FastContainer {
     ) -> Result<()> {
         let key = key.into();
         let arc_instance = Arc::new(instance);
-        let wrapped_factory: Factory = Arc::new(move || {
-            Ok(arc_instance.clone() as Arc<dyn Any + Send + Sync>)
-        });
+        let wrapped_factory: Factory =
+            Arc::new(move || Ok(arc_instance.clone() as Arc<dyn Any + Send + Sync>));
 
         let binding = Binding::singleton(wrapped_factory);
         let mut bindings = self.bindings.write().await;
@@ -201,10 +199,7 @@ impl FastContainer {
     /// Get all services with a specific tag
     pub async fn tagged(&self, tag: impl AsRef<str>) -> Result<Vec<String>> {
         let tags = self.tags.read().await;
-        Ok(tags
-            .get(tag.as_ref())
-            .cloned()
-            .unwrap_or_default())
+        Ok(tags.get(tag.as_ref()).cloned().unwrap_or_default())
     }
 
     /// Create an alias for a service
@@ -276,9 +271,11 @@ mod tests {
         let container = FastContainer::new();
 
         container
-            .bind("test", || Ok(TestService {
-                value: "test".to_string(),
-            }))
+            .bind("test", || {
+                Ok(TestService {
+                    value: "test".to_string(),
+                })
+            })
             .await
             .unwrap();
 
@@ -291,9 +288,11 @@ mod tests {
         let container = FastContainer::new();
 
         container
-            .singleton("counter", || Ok(TestService {
-                value: "singleton".to_string(),
-            }))
+            .singleton("counter", || {
+                Ok(TestService {
+                    value: "singleton".to_string(),
+                })
+            })
             .await
             .unwrap();
 
@@ -308,9 +307,11 @@ mod tests {
         let container = FastContainer::new();
 
         container
-            .bind("service1", || Ok(TestService {
-                value: "test".to_string(),
-            }))
+            .bind("service1", || {
+                Ok(TestService {
+                    value: "test".to_string(),
+                })
+            })
             .await
             .unwrap();
 

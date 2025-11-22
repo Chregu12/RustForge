@@ -303,7 +303,10 @@ fn test_multiple_policies() {
 
     let user = User::new_regular(1);
     let post = Post::new(1, 1, true);
-    let comment = Comment { id: 1, author_id: 1 };
+    let comment = Comment {
+        id: 1,
+        author_id: 1,
+    };
 
     assert!(registry.can(&user, "update", Some(&post)));
     assert!(registry.can(&user, "delete", Some(&comment)));

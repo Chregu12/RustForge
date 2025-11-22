@@ -25,11 +25,10 @@
 ///     assert!(std::ptr::eq(cfg, cfg2));
 /// }
 /// ```
-
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
 use std::collections::HashMap;
+use std::sync::Arc;
 
 /// Application configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -73,11 +72,9 @@ impl AppConfig {
                 .parse()
                 .unwrap_or(false),
             database_url: std::env::var("DATABASE_URL")?,
-            cache_driver: std::env::var("CACHE_DRIVER")
-                .unwrap_or_else(|_| "redis".to_string()),
+            cache_driver: std::env::var("CACHE_DRIVER").unwrap_or_else(|_| "redis".to_string()),
             redis_url: std::env::var("REDIS_URL").ok(),
-            mail_driver: std::env::var("MAIL_DRIVER")
-                .unwrap_or_else(|_| "smtp".to_string()),
+            mail_driver: std::env::var("MAIL_DRIVER").unwrap_or_else(|_| "smtp".to_string()),
             custom: HashMap::new(),
         };
 
@@ -105,13 +102,10 @@ impl AppConfig {
 /// This is loaded once on first access and cached forever.
 /// Startup cost is deferred until first use.
 static CONFIG: Lazy<Arc<AppConfig>> = Lazy::new(|| {
-    Arc::new(
-        AppConfig::load()
-            .unwrap_or_else(|e| {
-                eprintln!("Warning: Failed to load config: {}. Using defaults.", e);
-                AppConfig::default()
-            })
-    )
+    Arc::new(AppConfig::load().unwrap_or_else(|e| {
+        eprintln!("Warning: Failed to load config: {}. Using defaults.", e);
+        AppConfig::default()
+    }))
 });
 
 /// Get the global configuration instance

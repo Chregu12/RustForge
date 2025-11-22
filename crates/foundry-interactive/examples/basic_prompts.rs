@@ -1,4 +1,6 @@
-use foundry_interactive::{ask, ask_with_default, choice, confirm, password, multi_select, SelectOption};
+use foundry_interactive::{
+    ask, ask_with_default, choice, confirm, multi_select, password, SelectOption,
+};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("=== Foundry Interactive Prompts Examples ===\n");

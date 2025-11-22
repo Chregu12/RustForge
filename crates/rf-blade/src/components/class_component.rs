@@ -106,10 +106,13 @@ impl BaseComponent {
         }
 
         // Add attributes
-        data.insert("attributes".to_string(), serde_json::json!({
-            "class": attributes.get("class").unwrap_or(&String::new()),
-            "all": attributes.to_html(),
-        }));
+        data.insert(
+            "attributes".to_string(),
+            serde_json::json!({
+                "class": attributes.get("class").unwrap_or(&String::new()),
+                "all": attributes.to_html(),
+            }),
+        );
 
         // Add slots
         let default_slot = slots.get("default").cloned().unwrap_or_default();
@@ -125,8 +128,8 @@ impl BaseComponent {
         data.insert("slots".to_string(), serde_json::json!(slots_map));
 
         // Parse and compile template
-        let ast = Parser::parse(&self.template)
-            .map_err(|e| ComponentError::ParseError(e.to_string()))?;
+        let ast =
+            Parser::parse(&self.template).map_err(|e| ComponentError::ParseError(e.to_string()))?;
 
         let mut context = RenderContext::new(Value::Object(data));
         let compiler = Compiler::new();
@@ -158,10 +161,7 @@ mod tests {
 
     #[test]
     fn test_base_component() {
-        let component = BaseComponent::new(
-            "alert",
-            r#"<div class="alert">{{ $slot }}</div>"#,
-        );
+        let component = BaseComponent::new("alert", r#"<div class="alert">{{ $slot }}</div>"#);
 
         assert_eq!(component.name(), "alert");
     }

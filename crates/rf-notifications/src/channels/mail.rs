@@ -30,18 +30,17 @@ impl NotificationChannel for MailChannel {
         notifiable: &dyn Notifiable,
     ) -> NotificationResult<()> {
         // Get mail message from notification
-        let mail_message = notification
-            .to_mail()
-            .await
-            .ok_or_else(|| NotificationError::ChannelError("No mail message provided".to_string()))?;
+        let mail_message = notification.to_mail().await.ok_or_else(|| {
+            NotificationError::ChannelError("No mail message provided".to_string())
+        })?;
 
         // Get recipient email
         let to_email = if !mail_message.to.is_empty() {
             mail_message.to[0].clone()
         } else {
-            notifiable
-                .route_notification_for_mail()
-                .ok_or_else(|| NotificationError::RoutingError("No email address found".to_string()))?
+            notifiable.route_notification_for_mail().ok_or_else(|| {
+                NotificationError::RoutingError("No email address found".to_string())
+            })?
         };
 
         // Build rf-mail message

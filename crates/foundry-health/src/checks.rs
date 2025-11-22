@@ -57,13 +57,19 @@ impl HealthCheck for DiskSpaceCheck {
         let total_gb = total_mb / 1024;
 
         if available_gb < 1 {
-            CheckResult::fail("disk", format!("Low disk space: {} GB available", available_gb))
+            CheckResult::fail(
+                "disk",
+                format!("Low disk space: {} GB available", available_gb),
+            )
         } else {
-            CheckResult::pass("disk", format!("{} GB / {} GB available", available_gb, total_gb))
-                .with_details(serde_json::json!({
-                    "available_gb": available_gb,
-                    "total_gb": total_gb,
-                }))
+            CheckResult::pass(
+                "disk",
+                format!("{} GB / {} GB available", available_gb, total_gb),
+            )
+            .with_details(serde_json::json!({
+                "available_gb": available_gb,
+                "total_gb": total_gb,
+            }))
         }
     }
 }
@@ -80,13 +86,19 @@ impl HealthCheck for MemoryCheck {
         let total_mb = sys.total_memory() / 1024 / 1024;
 
         if available_mb < 256 {
-            CheckResult::warn("memory", format!("Low memory: {} MB available", available_mb))
+            CheckResult::warn(
+                "memory",
+                format!("Low memory: {} MB available", available_mb),
+            )
         } else {
-            CheckResult::pass("memory", format!("{} MB / {} MB available", available_mb, total_mb))
-                .with_details(serde_json::json!({
-                    "available_mb": available_mb,
-                    "total_mb": total_mb,
-                }))
+            CheckResult::pass(
+                "memory",
+                format!("{} MB / {} MB available", available_mb, total_mb),
+            )
+            .with_details(serde_json::json!({
+                "available_mb": available_mb,
+                "total_mb": total_mb,
+            }))
         }
     }
 }
@@ -122,11 +134,8 @@ impl HealthCheck for EnvCheck {
                 format!("All {} environment variables set", self.required_vars.len()),
             )
         } else {
-            CheckResult::fail(
-                "env",
-                format!("Missing variables: {}", missing.join(", ")),
-            )
-            .with_details(serde_json::json!({"missing": missing}))
+            CheckResult::fail("env", format!("Missing variables: {}", missing.join(", ")))
+                .with_details(serde_json::json!({"missing": missing}))
         }
     }
 }

@@ -11,10 +11,7 @@ use axum::{
     Json, Router,
 };
 use serde::{Deserialize, Serialize};
-use std::{
-    collections::HashMap,
-    sync::Arc,
-};
+use std::{collections::HashMap, sync::Arc};
 use thiserror::Error;
 
 /// Admin errors
@@ -224,12 +221,21 @@ impl AdminPanel {
             .route("/", get(index_handler))
             .route("/resources", get(resources_handler))
             .route("/resources/:resource", get(resource_list_handler))
-            .route("/resources/:resource/create", get(resource_create_form_handler))
+            .route(
+                "/resources/:resource/create",
+                get(resource_create_form_handler),
+            )
             .route("/resources/:resource", post(resource_create_handler))
             .route("/resources/:resource/:id", get(resource_show_handler))
-            .route("/resources/:resource/:id/edit", get(resource_edit_form_handler))
+            .route(
+                "/resources/:resource/:id/edit",
+                get(resource_edit_form_handler),
+            )
             .route("/resources/:resource/:id", post(resource_update_handler))
-            .route("/resources/:resource/:id/delete", post(resource_delete_handler))
+            .route(
+                "/resources/:resource/:id/delete",
+                post(resource_delete_handler),
+            )
             .with_state(state)
     }
 }
@@ -456,7 +462,11 @@ mod tests {
             }))
         }
 
-        async fn update(&self, id: &str, data: serde_json::Value) -> AdminResult<serde_json::Value> {
+        async fn update(
+            &self,
+            id: &str,
+            data: serde_json::Value,
+        ) -> AdminResult<serde_json::Value> {
             Ok(serde_json::json!({
                 "id": id.parse::<i64>().unwrap(),
                 "name": data["name"],

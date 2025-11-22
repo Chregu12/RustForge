@@ -114,15 +114,16 @@ struct VersionedRouterState {
     config: VersionConfig,
 }
 
-async fn versioned_handler(
-    version: Result<ApiVersion, VersionError>,
-    req: Request,
-) -> Response {
+async fn versioned_handler(version: Result<ApiVersion, VersionError>, req: Request) -> Response {
     match version {
         Ok(v) => {
             // Route to appropriate version handler
             // This is simplified - in practice you'd look up the router
-            (StatusCode::OK, format!("Routing to version {}", v.version())).into_response()
+            (
+                StatusCode::OK,
+                format!("Routing to version {}", v.version()),
+            )
+                .into_response()
         }
         Err(e) => e.into_response(),
     }

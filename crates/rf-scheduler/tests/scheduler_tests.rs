@@ -148,9 +148,18 @@ async fn test_monthly_schedule() {
 async fn test_every_minutes_schedule() {
     let scheduler = Scheduler::new();
 
-    assert!(scheduler.every_minutes(5, TestTask::new("every_5_min")).await.is_ok());
-    assert!(scheduler.every_minutes(10, TestTask::new("every_10_min")).await.is_ok());
-    assert!(scheduler.every_minutes(30, TestTask::new("every_30_min")).await.is_ok());
+    assert!(scheduler
+        .every_minutes(5, TestTask::new("every_5_min"))
+        .await
+        .is_ok());
+    assert!(scheduler
+        .every_minutes(10, TestTask::new("every_10_min"))
+        .await
+        .is_ok());
+    assert!(scheduler
+        .every_minutes(30, TestTask::new("every_30_min"))
+        .await
+        .is_ok());
 
     assert_eq!(scheduler.task_count().await, 3);
 }
@@ -160,8 +169,14 @@ async fn test_every_minutes_schedule() {
 async fn test_every_hours_schedule() {
     let scheduler = Scheduler::new();
 
-    assert!(scheduler.every_hours(2, TestTask::new("every_2_hours")).await.is_ok());
-    assert!(scheduler.every_hours(6, TestTask::new("every_6_hours")).await.is_ok());
+    assert!(scheduler
+        .every_hours(2, TestTask::new("every_2_hours"))
+        .await
+        .is_ok());
+    assert!(scheduler
+        .every_hours(6, TestTask::new("every_6_hours"))
+        .await
+        .is_ok());
 
     assert_eq!(scheduler.task_count().await, 2);
 }
@@ -352,9 +367,7 @@ async fn test_failing_task() {
 // Test 33: TaskBuilder with name
 #[test]
 fn test_task_builder_with_name() {
-    let builder = TaskBuilder::new()
-        .name("backup_task")
-        .daily();
+    let builder = TaskBuilder::new().name("backup_task").daily();
 
     // Name is stored internally (private field)
     // Just verify the builder can be created with a name
@@ -425,7 +438,10 @@ async fn test_mixed_schedules() {
     assert!(scheduler.daily(TestTask::new("daily")).await.is_ok());
     assert!(scheduler.weekly(TestTask::new("weekly")).await.is_ok());
     assert!(scheduler.monthly(TestTask::new("monthly")).await.is_ok());
-    assert!(scheduler.every_minutes(5, TestTask::new("every_5")).await.is_ok());
+    assert!(scheduler
+        .every_minutes(5, TestTask::new("every_5"))
+        .await
+        .is_ok());
 
     assert_eq!(scheduler.task_count().await, 5);
 }

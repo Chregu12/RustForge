@@ -1,7 +1,9 @@
 //! Comprehensive tests for database sharding
 
 use rf_orm::sharding::manager::{ShardManager, ShardStrategy};
-use rf_orm::sharding::strategies::{GeographicStrategy, HashStrategy, RangeStrategy, TenantStrategy};
+use rf_orm::sharding::strategies::{
+    GeographicStrategy, HashStrategy, RangeStrategy, TenantStrategy,
+};
 use sea_orm::{Database, DatabaseConnection};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -245,7 +247,11 @@ async fn test_shard_manager_execute_on_specific_shards() {
     ]));
     let mut manager = ShardManager::new(strategy);
 
-    let dbs: Vec<_> = setup_multiple_dbs(3).await.into_iter().map(Arc::new).collect();
+    let dbs: Vec<_> = setup_multiple_dbs(3)
+        .await
+        .into_iter()
+        .map(Arc::new)
+        .collect();
 
     manager.add_shard("shard1".to_string(), Arc::clone(&dbs[0]));
     manager.add_shard("shard2".to_string(), Arc::clone(&dbs[1]));
@@ -253,14 +259,9 @@ async fn test_shard_manager_execute_on_specific_shards() {
 
     // Execute only on specific shards
     let results: Vec<i32> = manager
-        .execute_on_shards(
-            vec!["shard1".to_string(), "shard3".to_string()],
-            |_db| {
-                Box::pin(async move {
-                    Ok(42)
-                })
-            },
-        )
+        .execute_on_shards(vec!["shard1".to_string(), "shard3".to_string()], |_db| {
+            Box::pin(async move { Ok(42) })
+        })
         .await
         .unwrap();
 
@@ -277,7 +278,11 @@ async fn test_performance_with_multiple_shards() {
     ]));
     let mut manager = ShardManager::new(strategy);
 
-    let dbs: Vec<_> = setup_multiple_dbs(4).await.into_iter().map(Arc::new).collect();
+    let dbs: Vec<_> = setup_multiple_dbs(4)
+        .await
+        .into_iter()
+        .map(Arc::new)
+        .collect();
 
     for (i, db) in dbs.iter().enumerate() {
         manager.add_shard(format!("shard{}", i + 1), Arc::clone(db));
@@ -304,18 +309,9 @@ async fn test_geographic_strategy() {
 
     let strategy = GeographicStrategy::new(map);
 
-    assert_eq!(
-        strategy.get_shard("US").await.unwrap(),
-        "shard_us_east"
-    );
-    assert_eq!(
-        strategy.get_shard("EU").await.unwrap(),
-        "shard_eu_west"
-    );
-    assert_eq!(
-        strategy.get_shard("APAC").await.unwrap(),
-        "shard_asia"
-    );
+    assert_eq!(strategy.get_shard("US").await.unwrap(), "shard_us_east");
+    assert_eq!(strategy.get_shard("EU").await.unwrap(), "shard_eu_west");
+    assert_eq!(strategy.get_shard("APAC").await.unwrap(), "shard_asia");
 }
 
 #[tokio::test]
@@ -376,9 +372,7 @@ async fn test_shard_manager_execute_with_key() {
     manager.add_shard("shard1".to_string(), Arc::new(db));
 
     let result: i32 = manager
-        .execute_with_key("user_123", |_db| {
-            Box::pin(async move { Ok(100) })
-        })
+        .execute_with_key("user_123", |_db| Box::pin(async move { Ok(100) }))
         .await
         .unwrap();
 
@@ -400,10 +394,7 @@ async fn test_tenant_strategy_add_remove() {
     let mut strategy = TenantStrategy::new(HashMap::new());
 
     strategy.add_tenant("tenant_x".to_string(), "shard_x".to_string());
-    assert_eq!(
-        strategy.get_shard("tenant_x").await.unwrap(),
-        "shard_x"
-    );
+    assert_eq!(strategy.get_shard("tenant_x").await.unwrap(), "shard_x");
 
     strategy.remove_tenant("tenant_x");
     assert!(strategy.get_shard("tenant_x").await.is_err());
@@ -441,6 +432,10 @@ async fn test_hash_distribution() {
     // Each shard should have approximately 1/3 of the keys
     // Allow for some variance (between 250 and 450 per shard)
     for (_shard, count) in shard_counts.iter() {
-        assert!(*count > 250 && *count < 450, "Uneven distribution: {}", count);
+        assert!(
+            *count > 250 && *count < 450,
+            "Uneven distribution: {}",
+            count
+        );
     }
 }

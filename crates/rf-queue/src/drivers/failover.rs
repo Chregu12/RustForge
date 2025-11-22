@@ -107,17 +107,10 @@ impl Queue for FailoverQueue {
         let job_id_clone = job_id.to_string();
 
         // Try to complete on both to ensure cleanup
-        let primary_result = timeout(
-            self.timeout_duration,
-            self.primary.complete(job_id),
-        )
-        .await;
+        let primary_result = timeout(self.timeout_duration, self.primary.complete(job_id)).await;
 
-        let fallback_result = timeout(
-            self.timeout_duration,
-            self.fallback.complete(&job_id_clone),
-        )
-        .await;
+        let fallback_result =
+            timeout(self.timeout_duration, self.fallback.complete(&job_id_clone)).await;
 
         // If at least one succeeds, consider it successful
         if let Ok(Ok(())) = primary_result {

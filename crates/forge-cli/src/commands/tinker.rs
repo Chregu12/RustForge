@@ -13,7 +13,10 @@ pub async fn run() -> Result<()> {
     ensure_forge_project()?;
 
     println!("{}", "RustForge Tinker".cyan().bold());
-    println!("{}", format!("Version {}", env!("CARGO_PKG_VERSION")).bright_black());
+    println!(
+        "{}",
+        format!("Version {}", env!("CARGO_PKG_VERSION")).bright_black()
+    );
     println!();
     println!("  {} Type 'help' for assistance", "ℹ".blue());
     println!("  {} Type 'exit' or press Ctrl+D to quit", "ℹ".blue());
@@ -106,15 +109,24 @@ pub async fn run() -> Result<()> {
                 println!("{} Evaluating: {}", "→".cyan(), input.yellow());
                 println!("{} REPL evaluation not yet implemented", "ℹ".blue());
                 println!();
-                println!("  {} This is a placeholder. In a full implementation, this would:", "ℹ".blue());
+                println!(
+                    "  {} This is a placeholder. In a full implementation, this would:",
+                    "ℹ".blue()
+                );
                 println!("    - Parse and compile your Rust code");
                 println!("    - Execute it in the application context");
                 println!("    - Display the result");
                 println!();
                 println!("  {} Example usage (when fully implemented):", "ℹ".blue());
-                println!("    >>> {}", "let user = User::find(1).await?".bright_black());
+                println!(
+                    "    >>> {}",
+                    "let user = User::find(1).await?".bright_black()
+                );
                 println!("    >>> {}", "user.name".bright_black());
-                println!("    >>> {}", r#"Post::where("published", true).count().await?"#.bright_black());
+                println!(
+                    "    >>> {}",
+                    r#"Post::where("published", true).count().await?"#.bright_black()
+                );
             }
         }
     }
@@ -157,7 +169,15 @@ fn print_models() {
     }
 
     println!();
-    println!("  {} Use: {}", "ℹ".blue(), "Model::find(id).await?".bright_black());
-    println!("  {} Use: {}", "ℹ".blue(), r#"Model::where("field", value).first().await?"#.bright_black());
+    println!(
+        "  {} Use: {}",
+        "ℹ".blue(),
+        "Model::find(id).await?".bright_black()
+    );
+    println!(
+        "  {} Use: {}",
+        "ℹ".blue(),
+        r#"Model::where("field", value).first().await?"#.bright_black()
+    );
     println!();
 }

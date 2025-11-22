@@ -317,7 +317,10 @@ mod tests {
         let mut session = create_test_session();
 
         session.put("name", "John Doe");
-        assert_eq!(session.get_as::<String>("name"), Some("John Doe".to_string()));
+        assert_eq!(
+            session.get_as::<String>("name"),
+            Some("John Doe".to_string())
+        );
     }
 
     #[test]

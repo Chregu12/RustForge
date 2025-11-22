@@ -66,7 +66,8 @@ impl Route {
 
     /// Add middleware to the route
     pub fn middleware(mut self, middleware: Vec<&str>) -> Self {
-        self.middleware.extend(middleware.iter().map(|s| s.to_string()));
+        self.middleware
+            .extend(middleware.iter().map(|s| s.to_string()));
         self
     }
 
@@ -212,8 +213,8 @@ mod tests {
 
     #[test]
     fn test_route_with_middleware() {
-        let route = Route::new("/users", vec![HttpMethod::Get])
-            .middleware(vec!["auth", "throttle"]);
+        let route =
+            Route::new("/users", vec![HttpMethod::Get]).middleware(vec!["auth", "throttle"]);
 
         assert_eq!(route.middleware.len(), 2);
         assert!(route.has_middleware("auth"));
@@ -237,7 +238,10 @@ mod tests {
             .with_metadata("description", "List all users")
             .with_metadata("version", "1.0");
 
-        assert_eq!(route.metadata("description"), Some(&"List all users".to_string()));
+        assert_eq!(
+            route.metadata("description"),
+            Some(&"List all users".to_string())
+        );
         assert_eq!(route.metadata("version"), Some(&"1.0".to_string()));
     }
 

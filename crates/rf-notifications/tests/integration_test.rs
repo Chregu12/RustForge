@@ -88,7 +88,10 @@ async fn test_mail_channel_integration() {
 
     let mailer = Arc::new(MemoryMailer::new());
     let mut notifier = Notifier::new();
-    notifier.register_channel(Channel::Mail, Arc::new(MailChannel::new(mailer.clone(), "noreply@example.com")));
+    notifier.register_channel(
+        Channel::Mail,
+        Arc::new(MailChannel::new(mailer.clone(), "noreply@example.com")),
+    );
 
     let user = TestUser {
         id: 1,
@@ -320,9 +323,15 @@ async fn test_notifiable_trait() {
         phone: "+1234567890".to_string(),
     };
 
-    assert_eq!(user.route_notification_for_mail(), Some("user@example.com".to_string()));
+    assert_eq!(
+        user.route_notification_for_mail(),
+        Some("user@example.com".to_string())
+    );
     assert_eq!(user.route_notification_for_database(), Some(1));
-    assert_eq!(user.route_notification_for_sms(), Some("+1234567890".to_string()));
+    assert_eq!(
+        user.route_notification_for_sms(),
+        Some("+1234567890".to_string())
+    );
 }
 
 #[tokio::test]
@@ -381,7 +390,10 @@ async fn test_multi_channel_notification() {
         .into_connection();
 
     let mut notifier = Notifier::new();
-    notifier.register_channel(Channel::Mail, Arc::new(MailChannel::new(mailer.clone(), "noreply@example.com")));
+    notifier.register_channel(
+        Channel::Mail,
+        Arc::new(MailChannel::new(mailer.clone(), "noreply@example.com")),
+    );
     notifier.register_channel(Channel::Database, Arc::new(DatabaseChannel::new(db)));
 
     let user = TestUser {

@@ -1,9 +1,9 @@
 //! Authentication and authorization CLI commands
 
 use async_trait::async_trait;
-use dialoguer::{Input, Password, theme::ColorfulTheme};
+use dialoguer::{theme::ColorfulTheme, Input, Password};
 use foundry_domain::{CommandDescriptor, CommandKind};
-use foundry_plugins::{FoundryCommand, CommandContext, CommandError, CommandResult, CommandStatus};
+use foundry_plugins::{CommandContext, CommandError, CommandResult, CommandStatus, FoundryCommand};
 use serde_json::json;
 
 /// Create a new user
@@ -112,9 +112,15 @@ impl FoundryCommand for ListUsersCommand {
 
     async fn execute(&self, _ctx: CommandContext) -> Result<CommandResult, CommandError> {
         println!("📋 User List\n");
-        println!("{:<5} {:<30} {:<25} {:<10}", "ID", "Name", "Email", "Active");
+        println!(
+            "{:<5} {:<30} {:<25} {:<10}",
+            "ID", "Name", "Email", "Active"
+        );
         println!("{:-<70}", "");
-        println!("{:<5} {:<30} {:<25} {:<10}", "1", "Admin User", "admin@example.com", "Yes");
+        println!(
+            "{:<5} {:<30} {:<25} {:<10}",
+            "1", "Admin User", "admin@example.com", "Yes"
+        );
         println!("\n💡 Note: Actual database integration pending");
 
         Ok(CommandResult {
@@ -167,7 +173,10 @@ impl FoundryCommand for AssignRoleCommand {
             .interact_text()
             .map_err(|e| CommandError::Message(e.to_string()))?;
 
-        println!("\n✅ Role '{}' would be assigned to user '{}'", role_slug, user_email);
+        println!(
+            "\n✅ Role '{}' would be assigned to user '{}'",
+            role_slug, user_email
+        );
         println!("💡 Note: Actual database integration pending");
 
         Ok(CommandResult {
@@ -186,10 +195,11 @@ pub struct CheckPermissionsCommand {
 
 impl CheckPermissionsCommand {
     pub fn new() -> Self {
-        let descriptor = CommandDescriptor::builder("auth:check-permissions", "auth:check-permissions")
-            .summary("Check permissions for a user")
-            .category(CommandKind::Utility)
-            .build();
+        let descriptor =
+            CommandDescriptor::builder("auth:check-permissions", "auth:check-permissions")
+                .summary("Check permissions for a user")
+                .category(CommandKind::Utility)
+                .build();
 
         Self { descriptor }
     }
@@ -392,11 +402,13 @@ impl FoundryCommand for GenerateTokenCommand {
             .interact_text()
             .map_err(|e| CommandError::Message(e.to_string()))?;
 
-        let user_id_num: i64 = user_id.parse()
+        let user_id_num: i64 = user_id
+            .parse()
             .map_err(|_| CommandError::Message("Invalid user ID".to_string()))?;
 
         let jwt_service = JwtService::new(JwtConfig::default());
-        let token_pair = jwt_service.generate_token_pair(user_id_num, email.clone(), name.clone())
+        let token_pair = jwt_service
+            .generate_token_pair(user_id_num, email.clone(), name.clone())
             .map_err(|e| CommandError::Message(e.to_string()))?;
 
         println!("\n✅ Token Pair Generated:\n");

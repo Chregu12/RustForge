@@ -101,44 +101,20 @@ fn setup_middleware_stack() -> MiddlewareStack {
     println!("  ✓ Global middleware: cors, logging, compression");
 
     // Create middleware groups
-    stack.add_group(
-        "web",
-        vec![
-            "session".to_string(),
-            "csrf".to_string(),
-        ],
-    );
+    stack.add_group("web", vec!["session".to_string(), "csrf".to_string()]);
     println!("  ✓ Group 'web': session, csrf");
 
-    stack.add_group(
-        "api",
-        vec![
-            "auth".to_string(),
-            "throttle".to_string(),
-        ],
-    );
+    stack.add_group("api", vec!["auth".to_string(), "throttle".to_string()]);
     println!("  ✓ Group 'api': auth, throttle");
 
-    stack.add_group(
-        "admin",
-        vec![
-            "auth".to_string(),
-            "session".to_string(),
-        ],
-    );
+    stack.add_group("admin", vec!["auth".to_string(), "session".to_string()]);
     println!("  ✓ Group 'admin': auth, session");
 
     // Add route-specific middleware
-    stack.add_route_middleware(
-        "users.create",
-        vec!["validate".to_string()],
-    );
+    stack.add_route_middleware("users.create", vec!["validate".to_string()]);
     println!("  ✓ Route 'users.create': validate");
 
-    stack.add_route_middleware(
-        "posts.store",
-        vec!["validate".to_string()],
-    );
+    stack.add_route_middleware("posts.store", vec!["validate".to_string()]);
     println!("  ✓ Route 'posts.store': validate\n");
 
     stack
@@ -212,10 +188,7 @@ fn demonstrate_builder() {
     let stack = MiddlewareStackBuilder::new()
         .global("cors")
         .global("logging")
-        .group(
-            "api",
-            vec!["auth".to_string(), "throttle".to_string()],
-        )
+        .group("api", vec!["auth".to_string(), "throttle".to_string()])
         .route("users.create", vec!["validate".to_string()])
         .build();
 

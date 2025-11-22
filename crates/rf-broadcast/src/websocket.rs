@@ -118,9 +118,7 @@ async fn handle_socket(socket: WebSocket, state: WsState) {
                         WsMessage::Unsubscribe { channel } => {
                             let ch = Channel::public(channel.clone());
 
-                            let _ = broadcaster
-                                .unsubscribe(&ch, &connection_id_clone2)
-                                .await;
+                            let _ = broadcaster.unsubscribe(&ch, &connection_id_clone2).await;
 
                             // Remove from tracked subscriptions
                             subscribed_channels_clone.lock().await.retain(|c| c != &ch);

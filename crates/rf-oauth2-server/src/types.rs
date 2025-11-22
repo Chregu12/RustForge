@@ -27,7 +27,7 @@ impl Default for OAuth2Config {
     fn default() -> Self {
         Self {
             issuer: "https://auth.example.com".to_string(),
-            access_token_ttl: 3600,      // 1 hour
+            access_token_ttl: 3600,       // 1 hour
             refresh_token_ttl: 86400 * 7, // 7 days
         }
     }
