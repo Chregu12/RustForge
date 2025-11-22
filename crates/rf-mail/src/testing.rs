@@ -204,8 +204,8 @@ impl Default for MailFake {
 
 #[async_trait]
 impl Mailer for MailFake {
-    async fn send(&self, message: &Message) -> Result<(), MailError> {
-        self.sent.lock().push(message.clone());
+    async fn send(&self, mail: Mail) -> Result<(), MailError> {
+        self.sent.lock().push(mail.clone());
         Ok(())
     }
 }
@@ -229,8 +229,8 @@ impl FakeMailer {
 
 #[async_trait]
 impl Mailer for FakeMailer {
-    async fn send(&self, message: &Message) -> Result<(), MailError> {
-        self.fake.send(message).await
+    async fn send(&self, mail: Mail) -> Result<(), MailError> {
+        self.fake.send(mail).await
     }
 }
 
@@ -251,7 +251,7 @@ mod tests {
             .build()
             .unwrap();
 
-        fake.send(&message).await.unwrap();
+        fake.send(&mail).await.unwrap();
 
         assert_eq!(fake.sent_messages().len(), 1);
         fake.assert_sent_count(1);
@@ -270,7 +270,7 @@ mod tests {
             .build()
             .unwrap();
 
-        fake.send(&message).await.unwrap();
+        fake.send(&mail).await.unwrap();
 
         fake.assert_sent(|msg| msg.subject.contains("Welcome"));
         fake.assert_not_sent(|msg| msg.subject.contains("Password"));
@@ -288,7 +288,7 @@ mod tests {
             .build()
             .unwrap();
 
-        fake.send(&message).await.unwrap();
+        fake.send(&mail).await.unwrap();
 
         let sent = fake.sent_to("user@example.com");
         assert_eq!(sent.len(), 1);

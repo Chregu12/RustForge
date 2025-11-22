@@ -23,7 +23,7 @@ use std::sync::{Arc, Mutex};
 ///     .text("Hello")
 ///     .build()?;
 ///
-/// mailer.send(&message).await?;
+/// mailer.send(&mail).await?;
 ///
 /// assert!(mailer.was_sent_to("recipient@example.com"));
 /// assert_eq!(mailer.sent_count(), 1);
@@ -90,12 +90,12 @@ impl Default for MemoryMailer {
 
 #[async_trait]
 impl Mailer for MemoryMailer {
-    async fn send(&self, message: &Message) -> Result<(), MailError> {
-        self.sent.lock().unwrap().push(message.clone());
+    async fn send(&self, mail: Mail) -> Result<(), MailError> {
+        self.sent.lock().unwrap().push(mail.clone());
 
         tracing::info!(
-            to = ?message.to,
-            subject = %message.subject,
+            to = ?mail.to,
+            subject = %mail.subject,
             "Email stored in memory"
         );
 
@@ -120,7 +120,7 @@ mod tests {
             .build()
             .unwrap();
 
-        mailer.send(&message).await.unwrap();
+        mailer.send(&mail).await.unwrap();
 
         assert_eq!(mailer.sent_count(), 1);
         assert!(mailer.was_sent_to("user@example.com"));
@@ -142,7 +142,7 @@ mod tests {
             .build()
             .unwrap();
 
-        mailer.send(&message).await.unwrap();
+        mailer.send(&mail).await.unwrap();
         assert_eq!(mailer.sent_count(), 1);
 
         mailer.clear();

@@ -29,15 +29,15 @@ impl SendmailMailer {
 
         let from: Mailbox = format!(
             "{} <{}>",
-            message.from.name.as_deref().unwrap_or(""),
-            message.from.email
+            mail.from.name.as_deref().unwrap_or(""),
+            mail.from.email
         )
         .parse()?;
 
         let mut builder = LettreMessage::builder().from(from);
 
         // Add recipients
-        for addr in &message.to {
+        for addr in &mail.to {
             let mailbox: Mailbox = if let Some(name) = &addr.name {
                 format!("{} <{}>", name, addr.email).parse()?
             } else {
@@ -47,28 +47,28 @@ impl SendmailMailer {
         }
 
         // Add CC
-        for addr in &message.cc {
+        for addr in &mail.cc {
             let mailbox: Mailbox = addr.email.parse()?;
             builder = builder.cc(mailbox);
         }
 
         // Add BCC
-        for addr in &message.bcc {
+        for addr in &mail.bcc {
             let mailbox: Mailbox = addr.email.parse()?;
             builder = builder.bcc(mailbox);
         }
 
         // Add Reply-To
-        if let Some(reply_to) = &message.reply_to {
+        if let Some(reply_to) = &mail.reply_to {
             let mailbox: Mailbox = reply_to.email.parse()?;
             builder = builder.reply_to(mailbox);
         }
 
         // Subject
-        builder = builder.subject(&message.subject);
+        builder = builder.subject(&mail.subject);
 
         // Build body
-        let lettre_msg = match (&message.html, &message.text) {
+        let lettre_msg = match (&mail.html, &mail.text) {
             (Some(html), Some(text)) => {
                 // Multipart message
                 builder.multipart(
@@ -120,8 +120,8 @@ impl Default for SendmailMailer {
 
 #[async_trait]
 impl Mailer for SendmailMailer {
-    async fn send(&self, message: &Message) -> Result<(), MailError> {
-        let lettre_msg = Self::convert_message(message)?;
+    async fn send(&self, mail: Mail) -> Result<(), MailError> {
+        let lettre_msg = Self::convert_message(mail)?;
 
         // Sendmail transport doesn't support async, so we use blocking send
         let envelope = lettre_msg.envelope();
@@ -133,7 +133,7 @@ impl Mailer for SendmailMailer {
 
         tracing::info!(
             "Email sent via sendmail: {} -> {}",
-            message.from.email,
+            mail.from.email,
             message
                 .to
                 .iter()
@@ -161,7 +161,7 @@ mod tests {
             .build()
             .unwrap();
 
-        let lettre_msg = SendmailMailer::convert_message(&message);
+        let lettre_msg = SendmailMailer::convert_message(&mail);
         assert!(lettre_msg.is_ok());
     }
 }

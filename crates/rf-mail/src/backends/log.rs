@@ -28,15 +28,15 @@ impl LogMailer {
         output.push_str(&format!(
             "================================================================================\n"
         ));
-        output.push_str(&format!("Message ID: {}\n", message.id));
+        output.push_str(&format!("Message ID: {}\n", mail.id));
         output.push_str(&format!(
             "From: {} <{}>\n",
-            message.from.name.as_deref().unwrap_or(""),
-            message.from.email
+            mail.from.name.as_deref().unwrap_or(""),
+            mail.from.email
         ));
 
         output.push_str("To: ");
-        for (i, addr) in message.to.iter().enumerate() {
+        for (i, addr) in mail.to.iter().enumerate() {
             if i > 0 {
                 output.push_str(", ");
             }
@@ -48,9 +48,9 @@ impl LogMailer {
         }
         output.push('\n');
 
-        if !message.cc.is_empty() {
+        if !mail.cc.is_empty() {
             output.push_str("CC: ");
-            for (i, addr) in message.cc.iter().enumerate() {
+            for (i, addr) in mail.cc.iter().enumerate() {
                 if i > 0 {
                     output.push_str(", ");
                 }
@@ -59,9 +59,9 @@ impl LogMailer {
             output.push('\n');
         }
 
-        if !message.bcc.is_empty() {
+        if !mail.bcc.is_empty() {
             output.push_str("BCC: ");
-            for (i, addr) in message.bcc.iter().enumerate() {
+            for (i, addr) in mail.bcc.iter().enumerate() {
                 if i > 0 {
                     output.push_str(", ");
                 }
@@ -70,16 +70,16 @@ impl LogMailer {
             output.push('\n');
         }
 
-        if let Some(reply_to) = &message.reply_to {
+        if let Some(reply_to) = &mail.reply_to {
             output.push_str(&format!("Reply-To: {}\n", reply_to.email));
         }
 
-        output.push_str(&format!("Subject: {}\n", message.subject));
+        output.push_str(&format!("Subject: {}\n", mail.subject));
         output.push_str(&format!("Timestamp: {}\n", chrono::Utc::now().to_rfc3339()));
 
-        if !message.attachments.is_empty() {
-            output.push_str(&format!("Attachments: {}\n", message.attachments.len()));
-            for attachment in &message.attachments {
+        if !mail.attachments.is_empty() {
+            output.push_str(&format!("Attachments: {}\n", mail.attachments.len()));
+            for attachment in &mail.attachments {
                 output.push_str(&format!(
                     "  - {} ({} bytes)\n",
                     attachment.filename,
@@ -89,13 +89,13 @@ impl LogMailer {
         }
 
         output.push_str("\n--- TEXT BODY ---\n");
-        if let Some(text) = &message.text {
+        if let Some(text) = &mail.text {
             output.push_str(text);
         } else {
             output.push_str("(no text body)");
         }
         output.push_str("\n\n--- HTML BODY ---\n");
-        if let Some(html) = &message.html {
+        if let Some(html) = &mail.html {
             output.push_str(html);
         } else {
             output.push_str("(no html body)");
@@ -108,8 +108,8 @@ impl LogMailer {
 
 #[async_trait]
 impl Mailer for LogMailer {
-    async fn send(&self, message: &Message) -> Result<(), MailError> {
-        let formatted = Self::format_message(message);
+    async fn send(&self, mail: Mail) -> Result<(), MailError> {
+        let formatted = Self::format_message(mail);
 
         let mut file = OpenOptions::new()
             .create(true)
@@ -123,7 +123,7 @@ impl Mailer for LogMailer {
         tracing::info!(
             "Email logged to {:?}: {} -> {}",
             self.log_path,
-            message.from.email,
+            mail.from.email,
             message
                 .to
                 .iter()
@@ -157,7 +157,7 @@ mod tests {
             .build()
             .unwrap();
 
-        mailer.send(&message).await.unwrap();
+        mailer.send(&mail).await.unwrap();
 
         // Read the log file
         let contents = tokio::fs::read_to_string(log_path).await.unwrap();

@@ -68,7 +68,7 @@ pub trait Mailable: Send + Sync {
                     .build()?,
             };
 
-            mailer.send(&message).await
+            mailer.send(message.into()).await
         }
     }
 
@@ -129,7 +129,7 @@ pub trait MailableAsync: Send + Sync {
                 .build()?,
         };
 
-        mailer.send(&message).await
+        mailer.send(message.into()).await
     }
 
     /// Queue the email for background sending

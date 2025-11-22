@@ -1,6 +1,6 @@
 //! Core Mail type with body variants
 
-use crate::{Address, Attachment};
+use crate::{Address, Attachment, Message};
 use serde::{Deserialize, Serialize};
 
 /// A complete mail representation with typed body
@@ -139,6 +139,30 @@ impl Mail {
 impl Default for Mail {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+/// Convert Message to Mail
+impl From<Message> for Mail {
+    fn from(message: Message) -> Self {
+        let body = match (message.html, message.text) {
+            (Some(html), Some(text)) => MailBody::Both { html, text },
+            (Some(html), None) => MailBody::Html(html),
+            (None, Some(text)) => MailBody::Text(text),
+            (None, None) => MailBody::Text(String::new()),
+        };
+
+        Self {
+            id: message.id,
+            to: message.to,
+            cc: message.cc,
+            bcc: message.bcc,
+            from: message.from,
+            reply_to: message.reply_to,
+            subject: message.subject,
+            body,
+            attachments: message.attachments,
+        }
     }
 }
 
