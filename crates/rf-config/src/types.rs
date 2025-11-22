@@ -33,10 +33,10 @@ impl AppConfig {
         }
 
         // In production, ensure secrets are not default values
-        if std::env::var("APP_ENV").unwrap_or_default() == "production" {
-            if self.auth.jwt_secret == "dev-secret-change-in-production" {
-                return Err("auth.jwt_secret must be changed in production".to_string());
-            }
+        if std::env::var("APP_ENV").unwrap_or_default() == "production"
+            && self.auth.jwt_secret == "dev-secret-change-in-production"
+        {
+            return Err("auth.jwt_secret must be changed in production".to_string());
         }
 
         Ok(())
