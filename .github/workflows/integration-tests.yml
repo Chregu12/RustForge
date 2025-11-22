@@ -60,12 +60,11 @@ jobs:
           - 9000:9000
           - 9001:9001
         options: >-
-          --health-cmd "mc ready local || curl -f http://localhost:9000/minio/health/live"
+          --health-cmd "curl -f http://localhost:9000/minio/health/live || exit 1"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-          --entrypoint sh
-        cmd: -c "mkdir -p /data && minio server /data --console-address ':9001'"
+        # MinIO server starts automatically with the image
 
     steps:
     - name: Checkout code
