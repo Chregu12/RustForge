@@ -45,7 +45,7 @@ redis = { version = "0.24", features = ["aio", "tokio-comp", "connection-manager
 deadpool-redis = "0.14"
 
 # Mail
-lettre = { version = "0.11", features = ["tokio1-rustls-tls", "smtp-transport", "builder"] }
+lettre = { version = "0.11", default-features = false, features = ["tokio1-rustls-tls", "smtp-transport", "builder"] }
 
 # Storage (S3)
 aws-sdk-s3 = "1.13"

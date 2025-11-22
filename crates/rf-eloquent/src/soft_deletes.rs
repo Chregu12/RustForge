@@ -284,6 +284,7 @@ macro_rules! impl_soft_delete_entity {
 mod tests {
     use super::*;
     use sea_orm::{entity::prelude::*, ActiveValue, Set};
+    use chrono::DateTime as ChronoDateTime;
 
     // Test entity for soft deletes
     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
@@ -293,7 +294,7 @@ mod tests {
         pub id: i64,
         pub name: String,
         pub email: String,
-        pub deleted_at: Option<DateTime<Utc>>,
+        pub deleted_at: Option<ChronoDateTime<Utc>>,
     }
 
     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
@@ -317,7 +318,7 @@ mod tests {
             )
         }
 
-        fn deleted_at(&self) -> Option<DateTime<Utc>> {
+        fn deleted_at(&self) -> Option<ChronoDateTime<Utc>> {
             match &self.deleted_at {
                 ActiveValue::Set(dt) | ActiveValue::Unchanged(dt) => *dt,
                 _ => None,

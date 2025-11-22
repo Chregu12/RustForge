@@ -206,6 +206,9 @@ pub mod scopes;
 pub mod polymorphic_impl;
 pub mod soft_deletes;
 
+// Phase 19: Automatic eager loading detection
+pub mod auto_eager_load;
+
 // Polymorphic relationships submodule
 pub use polymorphic_impl as polymorphic;
 
@@ -302,6 +305,11 @@ pub mod prelude {
 
     // Polymorphic relationships
     pub use super::polymorphic_relationships::*;
+
+    // Automatic eager loading detection
+    pub use super::auto_eager_load::{
+        QueryTracker, NPlusOnePattern, QueryStats, QueryLog,
+    };
 
     // SeaORM re-exports
     pub use sea_orm::{

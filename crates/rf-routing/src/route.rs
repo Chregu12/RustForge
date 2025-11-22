@@ -111,7 +111,9 @@ impl Route {
 
     /// Get all middleware including from groups
     pub fn all_middleware(&self, stack: &crate::middleware_stack::MiddlewareStack) -> Vec<String> {
-        stack.resolve(self.name.as_deref().unwrap_or(""), &self.groups)
+        let mut middleware = stack.resolve(self.name.as_deref().unwrap_or(""), &self.groups);
+        middleware.extend(self.middleware.clone());
+        middleware
     }
 }
 

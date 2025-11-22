@@ -86,8 +86,11 @@ impl BladeCompiler {
             let item = &caps[2];
             let content = &caps[3];
 
-            // Placeholder for loop content
-            format!("<!-- foreach {} as {} -->{}", items, item, content)
+            // Generate loop code with proper iteration
+            format!(
+                "{{{{ for {} in &{} }}}}\n{}\n{{{{ endfor }}}}",
+                item, items, content
+            )
         }).to_string();
 
         // Compile @auth directives

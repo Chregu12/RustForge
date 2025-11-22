@@ -828,6 +828,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "aws-sdk-sqs"
+version = "1.89.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d20475f442a6b4ebf4dc3c8383fcb6c98346fbdac815b643790e1b765054dcfb"
+dependencies = [
+ "aws-credential-types",
+ "aws-runtime",
+ "aws-smithy-async",
+ "aws-smithy-http",
+ "aws-smithy-json",
+ "aws-smithy-runtime",
+ "aws-smithy-runtime-api",
+ "aws-smithy-types",
+ "aws-types",
+ "bytes",
+ "fastrand 2.3.0",
+ "http 0.2.12",
+ "regex-lite",
+ "tracing",
+]
+
+[[package]]
 name = "aws-sdk-sso"
 version = "1.89.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2864,6 +2886,18 @@ name = "endian-type"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c34f04666d835ff5d62e058c3995147c06f42fe86ff053337632bca83e42702d"
+
+[[package]]
+name = "enum_dispatch"
+version = "0.3.13"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "aa18ce2bc66555b3218614519ac839ddb759a7d6720732f979ef8d13be147ecd"
+dependencies = [
+ "once_cell",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.108",
+]
 
 [[package]]
 name = "equator"
@@ -5648,6 +5682,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "memcache"
+version = "0.17.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0396084c5d5e2ef2c480a51933b56e9673898f14657212eebbffcbcc12c7153a"
+dependencies = [
+ "byteorder",
+ "enum_dispatch",
+ "openssl",
+ "r2d2",
+ "rand 0.8.5",
+ "url",
+]
+
+[[package]]
 name = "memchr"
 version = "2.7.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7323,6 +7371,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "69cdb34c158ceb288df11e18b4bd39de994f6657d83847bdffdbd7f346754b0f"
 
 [[package]]
+name = "r2d2"
+version = "0.8.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "51de85fb3fb6524929c8a2eb85e6b6d363de4e8c48f9e2c2eac4944abc181c93"
+dependencies = [
+ "log",
+ "parking_lot",
+ "scheduled-thread-pool",
+]
+
+[[package]]
 name = "radium"
 version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7892,10 +7951,16 @@ name = "rf-cache"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "chrono",
  "deadpool-redis 0.14.0",
+ "md5",
+ "memcache",
+ "rand 0.8.5",
  "redis 0.24.0",
+ "sea-orm 1.1.19",
  "serde",
  "serde_json",
+ "tempfile",
  "thiserror 1.0.69",
  "tokio",
 ]
@@ -8396,9 +8461,12 @@ name = "rf-queue"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "aws-config",
+ "aws-sdk-sqs",
  "chrono",
  "deadpool-redis 0.14.0",
  "redis 0.24.0",
+ "sea-orm 1.1.19",
  "serde",
  "serde_json",
  "thiserror 1.0.69",
@@ -9219,6 +9287,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "891d81b926048e76efe18581bf793546b4c0eaf8448d72be8de2bbee5fd166e1"
 dependencies = [
  "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "scheduled-thread-pool"
+version = "0.2.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3cbc66816425a074528352f5789333ecff06ca41b36b0b0efdfbb29edc391a19"
+dependencies = [
+ "parking_lot",
 ]
 
 [[package]]

@@ -96,6 +96,8 @@ mod worker;
 #[cfg(feature = "redis-backend")]
 mod redis;
 
+pub mod drivers;
+
 pub use config::{QueueConfig, QueueConfigBuilder};
 pub use error::{QueueError, QueueResult};
 pub use job::{Job, JobMetadata};
@@ -105,3 +107,12 @@ pub use worker::Worker;
 
 #[cfg(feature = "redis-backend")]
 pub use redis::RedisQueue;
+
+// Re-export drivers
+#[cfg(feature = "database")]
+pub use drivers::database::DatabaseQueue;
+
+#[cfg(feature = "sqs")]
+pub use drivers::sqs::SqsQueue;
+
+pub use drivers::failover::FailoverQueue;

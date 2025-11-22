@@ -144,13 +144,25 @@ pub trait HealthChecker: Send + Sync {
 /// Database health checker
 pub struct DatabaseHealthChecker {
     name: String,
+    check_fn: Option<Arc<dyn Fn() -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<(), String>> + Send>> + Send + Sync>>,
 }
 
 impl DatabaseHealthChecker {
     pub fn new(name: impl Into<String>) -> Self {
         Self {
             name: name.into(),
+            check_fn: None,
         }
+    }
+
+    /// Add a custom check function (e.g., run a simple SELECT 1 query)
+    pub fn with_check<F, Fut>(mut self, check_fn: F) -> Self
+    where
+        F: Fn() -> Fut + Send + Sync + 'static,
+        Fut: std::future::Future<Output = Result<(), String>> + Send + 'static,
+    {
+        self.check_fn = Some(Arc::new(move || Box::pin(check_fn())));
+        self
     }
 }
 
@@ -159,13 +171,25 @@ impl HealthChecker for DatabaseHealthChecker {
     async fn check(&self) -> HealthCheck {
         let start = Instant::now();
 
-        // TODO: Implement actual database check
-        // For now, simulate a check
-        tokio::time::sleep(Duration::from_millis(10)).await;
+        let result = if let Some(check_fn) = &self.check_fn {
+            // Execute the custom check function
+            match check_fn().await {
+                Ok(_) => Ok(()),
+                Err(e) => Err(e),
+            }
+        } else {
+            // Default: just verify the checker is configured
+            Ok(())
+        };
 
         let duration = start.elapsed();
-        HealthCheck::healthy(&self.name, duration)
-            .with_metadata("type", serde_json::json!("database"))
+
+        match result {
+            Ok(_) => HealthCheck::healthy(&self.name, duration)
+                .with_metadata("type", serde_json::json!("database")),
+            Err(error) => HealthCheck::unhealthy(&self.name, error, duration)
+                .with_metadata("type", serde_json::json!("database")),
+        }
     }
 
     fn name(&self) -> &str {
@@ -176,13 +200,25 @@ impl HealthChecker for DatabaseHealthChecker {
 /// Redis/Cache health checker
 pub struct CacheHealthChecker {
     name: String,
+    check_fn: Option<Arc<dyn Fn() -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<(), String>> + Send>> + Send + Sync>>,
 }
 
 impl CacheHealthChecker {
     pub fn new(name: impl Into<String>) -> Self {
         Self {
             name: name.into(),
+            check_fn: None,
         }
+    }
+
+    /// Add a custom check function (e.g., PING Redis or test cache get/set)
+    pub fn with_check<F, Fut>(mut self, check_fn: F) -> Self
+    where
+        F: Fn() -> Fut + Send + Sync + 'static,
+        Fut: std::future::Future<Output = Result<(), String>> + Send + 'static,
+    {
+        self.check_fn = Some(Arc::new(move || Box::pin(check_fn())));
+        self
     }
 }
 
@@ -191,12 +227,23 @@ impl HealthChecker for CacheHealthChecker {
     async fn check(&self) -> HealthCheck {
         let start = Instant::now();
 
-        // TODO: Implement actual cache check
-        tokio::time::sleep(Duration::from_millis(5)).await;
+        let result = if let Some(check_fn) = &self.check_fn {
+            match check_fn().await {
+                Ok(_) => Ok(()),
+                Err(e) => Err(e),
+            }
+        } else {
+            Ok(())
+        };
 
         let duration = start.elapsed();
-        HealthCheck::healthy(&self.name, duration)
-            .with_metadata("type", serde_json::json!("cache"))
+
+        match result {
+            Ok(_) => HealthCheck::healthy(&self.name, duration)
+                .with_metadata("type", serde_json::json!("cache")),
+            Err(error) => HealthCheck::unhealthy(&self.name, error, duration)
+                .with_metadata("type", serde_json::json!("cache")),
+        }
     }
 
     fn name(&self) -> &str {
@@ -207,13 +254,25 @@ impl HealthChecker for CacheHealthChecker {
 /// Queue health checker
 pub struct QueueHealthChecker {
     name: String,
+    check_fn: Option<Arc<dyn Fn() -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<(), String>> + Send>> + Send + Sync>>,
 }
 
 impl QueueHealthChecker {
     pub fn new(name: impl Into<String>) -> Self {
         Self {
             name: name.into(),
+            check_fn: None,
         }
+    }
+
+    /// Add a custom check function (e.g., check queue connection and job count)
+    pub fn with_check<F, Fut>(mut self, check_fn: F) -> Self
+    where
+        F: Fn() -> Fut + Send + Sync + 'static,
+        Fut: std::future::Future<Output = Result<(), String>> + Send + 'static,
+    {
+        self.check_fn = Some(Arc::new(move || Box::pin(check_fn())));
+        self
     }
 }
 
@@ -222,12 +281,23 @@ impl HealthChecker for QueueHealthChecker {
     async fn check(&self) -> HealthCheck {
         let start = Instant::now();
 
-        // TODO: Implement actual queue check
-        tokio::time::sleep(Duration::from_millis(5)).await;
+        let result = if let Some(check_fn) = &self.check_fn {
+            match check_fn().await {
+                Ok(_) => Ok(()),
+                Err(e) => Err(e),
+            }
+        } else {
+            Ok(())
+        };
 
         let duration = start.elapsed();
-        HealthCheck::healthy(&self.name, duration)
-            .with_metadata("type", serde_json::json!("queue"))
+
+        match result {
+            Ok(_) => HealthCheck::healthy(&self.name, duration)
+                .with_metadata("type", serde_json::json!("queue")),
+            Err(error) => HealthCheck::unhealthy(&self.name, error, duration)
+                .with_metadata("type", serde_json::json!("queue")),
+        }
     }
 
     fn name(&self) -> &str {

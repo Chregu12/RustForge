@@ -234,8 +234,17 @@ impl Compiler {
             }
 
             AstNode::Error { field } => {
-                // Placeholder for validation errors
-                Ok(format!(r#"<span class="error" data-field="{}"></span>"#, field))
+                // Render validation error messages for the specified field
+                Ok(format!(
+                    r#"{{{{ if let Some(errors) = $errors.get("{}") }}}}
+    <div class="validation-error text-red-600 text-sm mt-1">
+        {{{{ for error in errors }}}}
+            <div>{{{{ error }}}}</div>
+        {{{{ endfor }}}}
+    </div>
+{{{{ endif }}}}"#,
+                    field
+                ))
             }
 
             AstNode::Custom { name, args } => {

@@ -27,6 +27,9 @@ pub enum PolymorphicError {
 
     #[error("Morphable model not found")]
     MorphableNotFound,
+
+    #[error("Not implemented: {0}")]
+    NotImplemented(String),
 }
 
 pub type PolymorphicResult<T> = Result<T, PolymorphicError>;
@@ -107,6 +110,7 @@ mod tests {
     #[test]
     fn test_morph_column_names() {
         struct TestRelation;
+        #[async_trait]
         impl PolymorphicRelation for TestRelation {
             fn relation_name(&self) -> &str {
                 "commentable"

@@ -42,45 +42,112 @@ impl OAuthProvider for GoogleProvider {
         )
     }
 
-    async fn exchange_code(&self, _code: &str) -> Result<OAuthTokens> {
-        // TODO: Implement actual HTTP request to:
-        // POST https://oauth2.googleapis.com/token
-        // with code, client_id, client_secret, redirect_uri, grant_type=authorization_code
+    async fn exchange_code(&self, code: &str) -> Result<OAuthTokens> {
+        let client = reqwest::Client::new();
 
-        // Stub implementation
+        let params = [
+            ("code", code),
+            ("client_id", &self.client_id),
+            ("client_secret", &self.client_secret),
+            ("redirect_uri", &self.redirect_uri),
+            ("grant_type", "authorization_code"),
+        ];
+
+        let response = client
+            .post("https://oauth2.googleapis.com/token")
+            .form(&params)
+            .send()
+            .await
+            .map_err(|e| crate::OAuthError::RequestFailed(e.to_string()))?;
+
+        #[derive(serde::Deserialize)]
+        struct GoogleTokenResponse {
+            access_token: String,
+            refresh_token: Option<String>,
+            expires_in: Option<u64>,
+            token_type: String,
+        }
+
+        let token_response: GoogleTokenResponse = response
+            .json()
+            .await
+            .map_err(|e| crate::OAuthError::InvalidResponse(e.to_string()))?;
+
         Ok(OAuthTokens {
-            access_token: "google_access_token".to_string(),
-            refresh_token: Some("google_refresh_token".to_string()),
-            expires_in: Some(3600),
-            token_type: "Bearer".to_string(),
+            access_token: token_response.access_token,
+            refresh_token: token_response.refresh_token,
+            expires_in: token_response.expires_in,
+            token_type: token_response.token_type,
         })
     }
 
-    async fn get_user(&self, _token: &str) -> Result<OAuthUser> {
-        // TODO: Implement actual HTTP request to:
-        // GET https://www.googleapis.com/oauth2/v2/userinfo
-        // with Authorization: Bearer {token}
+    async fn get_user(&self, token: &str) -> Result<OAuthUser> {
+        let client = reqwest::Client::new();
 
-        // Stub implementation
+        let response = client
+            .get("https://www.googleapis.com/oauth2/v2/userinfo")
+            .header("Authorization", format!("Bearer {}", token))
+            .send()
+            .await
+            .map_err(|e| crate::OAuthError::RequestFailed(e.to_string()))?;
+
+        #[derive(serde::Deserialize)]
+        struct GoogleUserInfo {
+            id: String,
+            email: Option<String>,
+            name: Option<String>,
+            picture: Option<String>,
+        }
+
+        let user_info: GoogleUserInfo = response
+            .json()
+            .await
+            .map_err(|e| crate::OAuthError::InvalidResponse(e.to_string()))?;
+
         Ok(OAuthUser {
             provider: "google".to_string(),
-            provider_id: "google_user_id".to_string(),
-            email: Some("user@gmail.com".to_string()),
-            name: Some("Google User".to_string()),
-            avatar: None,
+            provider_id: user_info.id,
+            email: user_info.email,
+            name: user_info.name,
+            avatar: user_info.picture,
         })
     }
 
-    async fn refresh_token(&self, _refresh_token: &str) -> Result<OAuthTokens> {
-        // TODO: Implement actual HTTP request to:
-        // POST https://oauth2.googleapis.com/token
-        // with refresh_token, client_id, client_secret, grant_type=refresh_token
+    async fn refresh_token(&self, refresh_token: &str) -> Result<OAuthTokens> {
+        let client = reqwest::Client::new();
+
+        let params = [
+            ("refresh_token", refresh_token),
+            ("client_id", &self.client_id),
+            ("client_secret", &self.client_secret),
+            ("grant_type", "refresh_token"),
+        ];
+
+        let response = client
+            .post("https://oauth2.googleapis.com/token")
+            .form(&params)
+            .send()
+            .await
+            .map_err(|e| crate::OAuthError::RequestFailed(e.to_string()))?;
+
+        #[derive(serde::Deserialize)]
+        struct GoogleTokenResponse {
+            access_token: String,
+            refresh_token: Option<String>,
+            expires_in: Option<u64>,
+            token_type: String,
+        }
+
+        let token_response: GoogleTokenResponse = response
+            .json()
+            .await
+            .map_err(|e| crate::OAuthError::InvalidResponse(e.to_string()))?;
 
         Ok(OAuthTokens {
-            access_token: "new_google_access_token".to_string(),
-            refresh_token: Some("google_refresh_token".to_string()),
-            expires_in: Some(3600),
-            token_type: "Bearer".to_string(),
+            access_token: token_response.access_token,
+            refresh_token: token_response.refresh_token.or(Some(refresh_token.to_string())),
+            expires_in: token_response.expires_in,
+            token_type: token_response.token_type,
         })
     }
 }
@@ -119,30 +186,100 @@ impl OAuthProvider for GithubProvider {
         )
     }
 
-    async fn exchange_code(&self, _code: &str) -> Result<OAuthTokens> {
-        // TODO: Implement actual HTTP request to:
-        // POST https://github.com/login/oauth/access_token
-        // with code, client_id, client_secret
+    async fn exchange_code(&self, code: &str) -> Result<OAuthTokens> {
+        let client = reqwest::Client::new();
+
+        let params = [
+            ("code", code),
+            ("client_id", &self.client_id),
+            ("client_secret", &self.client_secret),
+        ];
+
+        let response = client
+            .post("https://github.com/login/oauth/access_token")
+            .header("Accept", "application/json")
+            .form(&params)
+            .send()
+            .await
+            .map_err(|e| crate::OAuthError::RequestFailed(e.to_string()))?;
+
+        #[derive(serde::Deserialize)]
+        struct GithubTokenResponse {
+            access_token: String,
+            token_type: String,
+        }
+
+        let token_response: GithubTokenResponse = response
+            .json()
+            .await
+            .map_err(|e| crate::OAuthError::InvalidResponse(e.to_string()))?;
 
         Ok(OAuthTokens {
-            access_token: "github_access_token".to_string(),
-            refresh_token: None, // GitHub doesn't provide refresh tokens
-            expires_in: None,    // GitHub tokens don't expire
-            token_type: "Bearer".to_string(),
+            access_token: token_response.access_token,
+            refresh_token: None,
+            expires_in: None,
+            token_type: token_response.token_type,
         })
     }
 
-    async fn get_user(&self, _token: &str) -> Result<OAuthUser> {
-        // TODO: Implement actual HTTP requests to:
-        // GET https://api.github.com/user
-        // GET https://api.github.com/user/emails
+    async fn get_user(&self, token: &str) -> Result<OAuthUser> {
+        let client = reqwest::Client::new();
+
+        let response = client
+            .get("https://api.github.com/user")
+            .header("Authorization", format!("Bearer {}", token))
+            .header("User-Agent", "RustForge-OAuth")
+            .send()
+            .await
+            .map_err(|e| crate::OAuthError::RequestFailed(e.to_string()))?;
+
+        #[derive(serde::Deserialize)]
+        struct GithubUserInfo {
+            id: u64,
+            login: String,
+            name: Option<String>,
+            email: Option<String>,
+            avatar_url: Option<String>,
+        }
+
+        let mut user_info: GithubUserInfo = response
+            .json()
+            .await
+            .map_err(|e| crate::OAuthError::InvalidResponse(e.to_string()))?;
+
+        // If email is not public, fetch from emails endpoint
+        if user_info.email.is_none() {
+            #[derive(serde::Deserialize)]
+            struct GithubEmail {
+                email: String,
+                primary: bool,
+            }
+
+            let email_response = client
+                .get("https://api.github.com/user/emails")
+                .header("Authorization", format!("Bearer {}", token))
+                .header("User-Agent", "RustForge-OAuth")
+                .send()
+                .await
+                .map_err(|e| crate::OAuthError::RequestFailed(e.to_string()))?;
+
+            let emails: Vec<GithubEmail> = email_response
+                .json()
+                .await
+                .map_err(|e| crate::OAuthError::InvalidResponse(e.to_string()))?;
+
+            user_info.email = emails
+                .into_iter()
+                .find(|e| e.primary)
+                .map(|e| e.email);
+        }
 
         Ok(OAuthUser {
             provider: "github".to_string(),
-            provider_id: "github_user_id".to_string(),
-            email: Some("user@github.com".to_string()),
-            name: Some("GitHub User".to_string()),
-            avatar: None,
+            provider_id: user_info.id.to_string(),
+            email: user_info.email,
+            name: user_info.name.or(Some(user_info.login)),
+            avatar: user_info.avatar_url,
         })
     }
 }
@@ -181,30 +318,89 @@ impl OAuthProvider for FacebookProvider {
         )
     }
 
-    async fn exchange_code(&self, _code: &str) -> Result<OAuthTokens> {
-        // TODO: Implement actual HTTP request to:
-        // GET https://graph.facebook.com/v12.0/oauth/access_token
-        // with code, client_id, client_secret, redirect_uri
+    async fn exchange_code(&self, code: &str) -> Result<OAuthTokens> {
+        let client = reqwest::Client::new();
+
+        let url = format!(
+            "https://graph.facebook.com/v12.0/oauth/access_token?\
+             client_id={}&\
+             client_secret={}&\
+             code={}&\
+             redirect_uri={}",
+            self.client_id, self.client_secret, code, self.redirect_uri
+        );
+
+        let response = client
+            .get(&url)
+            .send()
+            .await
+            .map_err(|e| crate::OAuthError::RequestFailed(e.to_string()))?;
+
+        #[derive(serde::Deserialize)]
+        struct FacebookTokenResponse {
+            access_token: String,
+            token_type: String,
+            expires_in: Option<u64>,
+        }
+
+        let token_response: FacebookTokenResponse = response
+            .json()
+            .await
+            .map_err(|e| crate::OAuthError::InvalidResponse(e.to_string()))?;
 
         Ok(OAuthTokens {
-            access_token: "facebook_access_token".to_string(),
+            access_token: token_response.access_token,
             refresh_token: None,
-            expires_in: Some(5184000), // Facebook tokens typically expire in 60 days
-            token_type: "Bearer".to_string(),
+            expires_in: token_response.expires_in,
+            token_type: token_response.token_type,
         })
     }
 
-    async fn get_user(&self, _token: &str) -> Result<OAuthUser> {
-        // TODO: Implement actual HTTP request to:
-        // GET https://graph.facebook.com/me?fields=id,name,email,picture
-        // with access_token parameter
+    async fn get_user(&self, token: &str) -> Result<OAuthUser> {
+        let client = reqwest::Client::new();
+
+        let url = format!(
+            "https://graph.facebook.com/me?\
+             fields=id,name,email,picture&\
+             access_token={}",
+            token
+        );
+
+        let response = client
+            .get(&url)
+            .send()
+            .await
+            .map_err(|e| crate::OAuthError::RequestFailed(e.to_string()))?;
+
+        #[derive(serde::Deserialize)]
+        struct FacebookPicture {
+            data: FacebookPictureData,
+        }
+
+        #[derive(serde::Deserialize)]
+        struct FacebookPictureData {
+            url: String,
+        }
+
+        #[derive(serde::Deserialize)]
+        struct FacebookUserInfo {
+            id: String,
+            name: Option<String>,
+            email: Option<String>,
+            picture: Option<FacebookPicture>,
+        }
+
+        let user_info: FacebookUserInfo = response
+            .json()
+            .await
+            .map_err(|e| crate::OAuthError::InvalidResponse(e.to_string()))?;
 
         Ok(OAuthUser {
             provider: "facebook".to_string(),
-            provider_id: "facebook_user_id".to_string(),
-            email: Some("user@facebook.com".to_string()),
-            name: Some("Facebook User".to_string()),
-            avatar: None,
+            provider_id: user_info.id,
+            email: user_info.email,
+            name: user_info.name,
+            avatar: user_info.picture.map(|p| p.data.url),
         })
     }
 }
