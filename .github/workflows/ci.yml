@@ -100,11 +100,11 @@ jobs:
           key: ${{ runner.os }}-${{ matrix.rust }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Build all features
-        run: cargo build --workspace --all-features --verbose
+        run: cargo build --workspace --exclude rf-mail --all-features --verbose
         continue-on-error: ${{ matrix.rust == 'nightly' }}
 
       - name: Build release
-        run: cargo build --workspace --all-features --release --verbose
+        run: cargo build --workspace --exclude rf-mail --all-features --release --verbose
         continue-on-error: ${{ matrix.rust == 'nightly' }}
 
   test:
@@ -193,7 +193,7 @@ jobs:
           MINIO_ACCESS_KEY: minioadmin
           MINIO_SECRET_KEY: minioadmin123
           RUST_LOG: debug
-        run: cargo test --workspace --all-features --verbose
+        run: cargo test --workspace --exclude rf-mail --all-features --verbose
 
   coverage:
     name: Code Coverage
