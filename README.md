@@ -278,6 +278,8 @@ RustForge implements **every major feature** from Laravel 12, achieving complete
 
 #### Option 1: One-Liner Installer (Recommended) ⚡
 
+The easiest way to get started:
+
 ```bash
 bash <(curl -s https://raw.githubusercontent.com/Chregu12/RustForge/main/install.sh) my-project
 cd my-project
@@ -286,29 +288,27 @@ cargo run
 
 **That's it!** Your RustForge app is running on http://localhost:3000 🎉
 
-#### Option 2: GitHub Template (Best for Learning) 📚
+#### Option 2: Manual Setup 🔧
 
-1. Go to **[RustForge-Starter Template](https://github.com/Chregu12/RustForge-Starter)**
-2. Click **"Use this template"** → Create new repository
-3. Clone your new repository
-4. Run the app:
+If you prefer manual setup:
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/YOUR_REPO.git my-project
+# Clone the repository
+git clone https://github.com/Chregu12/RustForge.git
+cd RustForge/starter-template
+
+# Copy the starter template
+cp -r ../starter-template my-project
 cd my-project
+
+# Setup environment
 cp .env.example .env
+
+# Run the app
 cargo run
 ```
 
-#### Option 3: Manual Clone 🔧
-
-```bash
-git clone https://github.com/Chregu12/RustForge-Starter.git my-project
-cd my-project
-rm -rf .git && git init
-cp .env.example .env
-cargo run
-```
+Your API is now available at `http://localhost:3000`!
 
 ### Your First RustForge App
 
