@@ -22,11 +22,17 @@ use async_trait::async_trait;
 ///     .text("Hello")
 ///     .build()?;
 ///
-/// assert!(mailer.send(&mail).await.is_ok());
+/// assert!(mailer.send(message.into()).await.is_ok());
 ///
 /// // Failure case
 /// let failing_mailer = MockMailer::with_failure();
-/// assert!(failing_mailer.send(&mail).await.is_err());
+/// let message2 = MessageBuilder::new()
+///     .from(Address::new("sender@example.com"))
+///     .to(Address::new("recipient@example.com"))
+///     .subject("Test")
+///     .text("Hello")
+///     .build()?;
+/// assert!(failing_mailer.send(message2.into()).await.is_err());
 /// # Ok(())
 /// # }
 /// ```
@@ -87,7 +93,7 @@ mod tests {
             .build()
             .unwrap();
 
-        assert!(mailer.send(&mail).await.is_ok());
+        assert!(mailer.send(message.into()).await.is_ok());
     }
 
     #[tokio::test]
@@ -102,6 +108,6 @@ mod tests {
             .build()
             .unwrap();
 
-        assert!(mailer.send(&mail).await.is_err());
+        assert!(mailer.send(message.into()).await.is_err());
     }
 }

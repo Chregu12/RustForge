@@ -57,7 +57,7 @@ pub struct SmtpConfig {
 ///     .text("Hello, World!")
 ///     .build()?;
 ///
-/// mailer.send(&mail).await?;
+/// mailer.send(message.into()).await?;
 /// # Ok(())
 /// # }
 /// ```

@@ -124,7 +124,7 @@ impl Mailer for LogMailer {
             "Email logged to {:?}: {} -> {}",
             self.log_path,
             mail.from.email,
-            message
+            mail
                 .to
                 .iter()
                 .map(|a| a.email.as_str())
@@ -157,7 +157,7 @@ mod tests {
             .build()
             .unwrap();
 
-        mailer.send(&mail).await.unwrap();
+        mailer.send(message.into()).await.unwrap();
 
         // Read the log file
         let contents = tokio::fs::read_to_string(log_path).await.unwrap();
