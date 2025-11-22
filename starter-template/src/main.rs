@@ -1,142 +1,172 @@
+//! RustForge Starter Template
+//!
+//! A production-ready starter template for building REST APIs with:
+//! - SeaORM database integration
+//! - JWT authentication
+//! - Request validation
+//! - Middleware support
+//! - Structured MVC architecture
+//! - Comprehensive error handling
+
+mod config;
+mod controllers;
+mod middleware;
+mod models;
+
 use axum::{
-    extract::{Path, State},
-    http::StatusCode,
+    middleware as axum_middleware,
     response::Json,
-    routing::{get, post},
+    routing::{delete, get, post, put},
     Router,
 };
-use serde::{Deserialize, Serialize};
-use std::sync::Arc;
-use tokio::sync::RwLock;
+use sea_orm_migration::MigratorTrait;
+use tower_http::{
+    cors::{Any, CorsLayer},
+    trace::TraceLayer,
+};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-// Simple in-memory database
-type Database = Arc<RwLock<Vec<Post>>>;
+use config::Settings;
+use controllers::{AuthController, PostController, UserController};
+use middleware::{auth::require_auth, logging::log_requests};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct Post {
-    id: usize,
-    title: String,
-    content: String,
-}
-
-#[derive(Debug, Deserialize)]
-struct CreatePost {
-    title: String,
-    content: String,
+// Include migrations
+mod migrations {
+    include!("../database/migrations/mod.rs");
 }
 
 #[tokio::main]
-async fn main() {
-    // Load environment variables
-    dotenv::dotenv().ok();
+async fn main() -> anyhow::Result<()> {
+    // Load configuration
+    let settings = Settings::from_env()?;
 
-    // Initialize tracing
+    // Initialize tracing/logging
     tracing_subscriber::registry()
         .with(
             tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "rustforge_app=debug,tower_http=debug".into()),
+                .unwrap_or_else(|_| "rustforge_app=debug,tower_http=debug,sea_orm=info".into()),
         )
         .with(tracing_subscriber::fmt::layer())
         .init();
 
-    // Initialize database
-    let db: Database = Arc::new(RwLock::new(vec![
-        Post {
-            id: 1,
-            title: "Welcome to RustForge!".to_string(),
-            content: "This is your first post. Start building amazing things!".to_string(),
-        },
-    ]));
+    tracing::info!("🚀 Starting {} v{}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
+    tracing::info!("📝 Environment: {}", settings.app.env);
+    tracing::info!("🔧 Debug mode: {}", settings.app.debug);
 
-    // Build application routes
+    // Connect to database
+    tracing::info!("📦 Connecting to database...");
+    let db = settings.database.connect().await?;
+    tracing::info!("✅ Database connected");
+
+    // Run migrations
+    tracing::info!("🔄 Running database migrations...");
+    migrations::Migrator::up(&db, None).await?;
+    tracing::info!("✅ Migrations completed");
+
+    // Build application with CORS
+    let cors = CorsLayer::new()
+        .allow_origin(Any)
+        .allow_methods(Any)
+        .allow_headers(Any);
+
+    // Protected routes requiring authentication
+    let protected_routes = Router::new()
+        .route("/api/posts", post(PostController::create))
+        .route("/api/posts/:id", put(PostController::update))
+        .route("/api/posts/:id", delete(PostController::delete))
+        .route("/api/profile", get(UserController::profile))
+        .layer(axum_middleware::from_fn(require_auth));
+
+    // Combine all routes
     let app = Router::new()
-        .route("/", get(root))
-        .route("/health", get(health_check))
-        .route("/api/posts", get(list_posts).post(create_post))
-        .route("/api/posts/:id", get(get_post))
+        // Public routes
+        .route("/", get(root_handler))
+        .route("/health", get(health_handler))
+
+        // Auth routes (public)
+        .route("/auth/register", post(AuthController::register))
+        .route("/auth/login", post(AuthController::login))
+
+        // Post routes (public)
+        .route("/api/posts", get(PostController::list))
+        .route("/api/posts/:id", get(PostController::get))
+
+        // Merge protected routes
+        .merge(protected_routes)
+
+        // Global middleware
+        .layer(axum_middleware::from_fn(log_requests))
+        .layer(TraceLayer::new_for_http())
+        .layer(cors)
+
+        // Shared state
         .with_state(db);
 
-    // Get port from environment or use default
-    let port = std::env::var("PORT").unwrap_or_else(|_| "3000".to_string());
-    let addr = format!("0.0.0.0:{}", port);
-
-    tracing::info!("🚀 RustForge app starting on http://{}", addr);
-    tracing::info!("📖 API endpoints:");
-    tracing::info!("   GET  http://{}/", addr);
-    tracing::info!("   GET  http://{}/health", addr);
-    tracing::info!("   GET  http://{}/api/posts", addr);
-    tracing::info!("   POST http://{}/api/posts", addr);
-    tracing::info!("   GET  http://{}/api/posts/:id", addr);
+    // Server information
+    let addr = settings.server_address();
+    tracing::info!("🌐 Server Configuration:");
+    tracing::info!("   Address: http://{}", addr);
+    tracing::info!("");
+    tracing::info!("📋 Available Endpoints:");
+    tracing::info!("   Public:");
+    tracing::info!("     GET    /              - Root endpoint");
+    tracing::info!("     GET    /health        - Health check");
+    tracing::info!("     POST   /auth/register - Register new user");
+    tracing::info!("     POST   /auth/login    - Login user");
+    tracing::info!("     GET    /api/posts     - List all posts");
+    tracing::info!("     GET    /api/posts/:id - Get post by ID");
+    tracing::info!("");
+    tracing::info!("   Protected (requires JWT token):");
+    tracing::info!("     POST   /api/posts     - Create new post");
+    tracing::info!("     PUT    /api/posts/:id - Update post");
+    tracing::info!("     DELETE /api/posts/:id - Delete post");
+    tracing::info!("     GET    /api/profile   - Get user profile");
+    tracing::info!("");
+    tracing::info!("📝 Quick Start:");
+    tracing::info!("   1. Register: curl -X POST http://{}/auth/register -H 'Content-Type: application/json' -d '{{\"email\":\"user@example.com\",\"password\":\"password123\",\"name\":\"John Doe\"}}'", addr);
+    tracing::info!("   2. Login: curl -X POST http://{}/auth/login -H 'Content-Type: application/json' -d '{{\"email\":\"user@example.com\",\"password\":\"password123\"}}'", addr);
+    tracing::info!("   3. Use token: curl http://{}/api/profile -H 'Authorization: Bearer YOUR_TOKEN'", addr);
+    tracing::info!("");
 
     // Start server
-    let listener = tokio::net::TcpListener::bind(&addr)
-        .await
-        .expect("Failed to bind to address");
+    let listener = tokio::net::TcpListener::bind(&addr).await?;
+    tracing::info!("✅ Server started successfully on http://{}", addr);
 
-    axum::serve(listener, app)
-        .await
-        .expect("Server error");
+    axum::serve(listener, app).await?;
+
+    Ok(())
 }
 
-// Root handler
-async fn root() -> Json<serde_json::Value> {
+// ============================================================================
+// Handler Functions
+// ============================================================================
+
+/// Root endpoint - API information
+async fn root_handler() -> Json<serde_json::Value> {
     Json(serde_json::json!({
-        "message": "Welcome to RustForge!",
-        "version": "1.0.0",
+        "name": env!("CARGO_PKG_NAME"),
+        "version": env!("CARGO_PKG_VERSION"),
+        "description": "RustForge starter template with authentication, database, and more",
         "endpoints": {
             "health": "/health",
-            "posts": "/api/posts"
+            "auth": {
+                "register": "/auth/register",
+                "login": "/auth/login"
+            },
+            "api": {
+                "posts": "/api/posts",
+                "profile": "/api/profile"
+            }
         }
     }))
 }
 
-// Health check endpoint
-async fn health_check() -> Json<serde_json::Value> {
+/// Health check endpoint
+async fn health_handler() -> Json<serde_json::Value> {
     Json(serde_json::json!({
         "status": "healthy",
-        "timestamp": chrono::Utc::now().to_rfc3339()
+        "timestamp": chrono::Utc::now().to_rfc3339(),
+        "service": env!("CARGO_PKG_NAME"),
+        "version": env!("CARGO_PKG_VERSION")
     }))
-}
-
-// List all posts
-async fn list_posts(State(db): State<Database>) -> Json<Vec<Post>> {
-    let posts = db.read().await;
-    Json(posts.clone())
-}
-
-// Get a single post by ID
-async fn get_post(
-    Path(id): Path<usize>,
-    State(db): State<Database>,
-) -> Result<Json<Post>, StatusCode> {
-    let posts = db.read().await;
-    posts
-        .iter()
-        .find(|post| post.id == id)
-        .cloned()
-        .map(Json)
-        .ok_or(StatusCode::NOT_FOUND)
-}
-
-// Create a new post
-async fn create_post(
-    State(db): State<Database>,
-    Json(payload): Json<CreatePost>,
-) -> Result<Json<Post>, StatusCode> {
-    let mut posts = db.write().await;
-
-    let new_id = posts.iter().map(|p| p.id).max().unwrap_or(0) + 1;
-
-    let post = Post {
-        id: new_id,
-        title: payload.title,
-        content: payload.content,
-    };
-
-    posts.push(post.clone());
-
-    tracing::info!("Created new post with id: {}", new_id);
-
-    Ok(Json(post))
 }
