@@ -51,31 +51,43 @@ jobs:
           - 1025:1025
           - 8025:8025
 
+      minio:
+        image: minio/minio:latest
+        env:
+          MINIO_ROOT_USER: minioadmin
+          MINIO_ROOT_PASSWORD: minioadmin123
+        ports:
+          - 9000:9000
+          - 9001:9001
+        options: >-
+          --health-cmd "mc ready local || curl -f http://localhost:9000/minio/health/live"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+          --entrypoint sh
+        cmd: -c "mkdir -p /data && minio server /data --console-address ':9001'"
+
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: Install Rust
-      uses: actions-rs/toolchain@v1
-      with:
-        profile: minimal
-        toolchain: stable
-        override: true
+      uses: dtolnay/rust-toolchain@stable
 
     - name: Cache cargo registry
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: ~/.cargo/registry
         key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
 
     - name: Cache cargo index
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: ~/.cargo/git
         key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
 
     - name: Cache cargo build
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: target
         key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
@@ -86,6 +98,9 @@ jobs:
         REDIS_URL: redis://localhost:6379
         DATABASE_URL: postgresql://rustforge:testpass@localhost:5432/rustforge_test
         MAILHOG_SMTP_URL: smtp://localhost:1025
+        MINIO_ENDPOINT: http://localhost:9000
+        MINIO_ACCESS_KEY: minioadmin
+        MINIO_SECRET_KEY: minioadmin123
 
     - name: Run application model tests
       run: cargo test --test 'app_models_test' --all-features
@@ -104,12 +119,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
-    - uses: actions-rs/toolchain@v1
-      with:
-        toolchain: stable
-        override: true
+    - uses: dtolnay/rust-toolchain@stable
 
     - name: Install cargo-audit
       run: cargo install cargo-audit
@@ -122,16 +134,12 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
-    - uses: actions-rs/toolchain@v1
-      with:
-        profile: minimal
-        toolchain: stable
-        override: true
+    - uses: dtolnay/rust-toolchain@stable
 
     - name: Cache cargo build
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: target
         key: ${{ runner.os }}-cargo-build-all-${{ hashFiles('**/Cargo.lock') }}
@@ -169,12 +177,9 @@ jobs:
           - 5432:5432
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
-    - uses: actions-rs/toolchain@v1
-      with:
-        toolchain: stable
-        override: true
+    - uses: dtolnay/rust-toolchain@stable
 
     - name: Install tarpaulin
       run: cargo install cargo-tarpaulin
@@ -186,7 +191,8 @@ jobs:
         DATABASE_URL: postgresql://rustforge:testpass@localhost:5432/rustforge_test
 
     - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v4
       with:
         files: ./cobertura.xml
         fail_ci_if_error: false
+        token: ${{ secrets.CODECOV_TOKEN }}

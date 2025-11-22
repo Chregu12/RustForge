@@ -53,7 +53,15 @@ jobs:
           MINIO_ROOT_PASSWORD: minioadmin123
         ports:
           - 9000:9000
-        options: --health-cmd "curl -f http://localhost:9000/minio/health/live"
+          - 9001:9001
+        options: >-
+          --health-cmd "mc ready local || curl -f http://localhost:9000/minio/health/live"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+          --entrypoint sh
+        # MinIO needs explicit server command
+        cmd: -c "mkdir -p /data && minio server /data --console-address ':9001'"
 
     steps:
       - uses: actions/checkout@v4
@@ -62,7 +70,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Cache Dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry
@@ -77,7 +85,10 @@ jobs:
         env:
           DATABASE_URL: postgresql://rustforge:testpass@localhost:5432/rustforge_test
           REDIS_URL: redis://localhost:6379
-        run: cargo test --all --verbose
+          MINIO_ENDPOINT: http://localhost:9000
+          MINIO_ACCESS_KEY: minioadmin
+          MINIO_SECRET_KEY: minioadmin123
+        run: cargo test --workspace --all-features --verbose
 
   fmt:
     name: Rustfmt
@@ -97,4 +108,4 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy
-      - run: cargo clippy --all-targets --all-features -- -D warnings
+      - run: cargo clippy --workspace --all-targets --all-features -- -D warnings
