@@ -57,7 +57,7 @@ pub struct SmtpConfig {
 ///     .text("Hello, World!")
 ///     .build()?;
 ///
-/// mailer.send(&message).await?;
+/// mailer.send(&mail).await?;
 /// # Ok(())
 /// # }
 /// ```
@@ -81,14 +81,14 @@ impl SmtpMailer {
 
 #[async_trait]
 impl Mailer for SmtpMailer {
-    async fn send(&self, message: &Message) -> Result<(), MailError> {
-        let lettre_message = convert_to_lettre(message)?;
+    async fn send(&self, mail: Mail) -> Result<(), MailError> {
+        let lettre_message = convert_to_lettre(mail)?;
 
         self.transport.send(lettre_message).await?;
 
         tracing::info!(
-            to = ?message.to,
-            subject = %message.subject,
+            to = ?mail.to,
+            subject = %mail.subject,
             "Email sent via SMTP"
         );
 
@@ -99,16 +99,16 @@ impl Mailer for SmtpMailer {
 /// Convert our Message to lettre's Message
 fn convert_to_lettre(message: &Message) -> Result<LettreMessage, MailError> {
     // Parse from address
-    let from: Mailbox = if let Some(name) = &message.from.name {
-        format!("{} <{}>", name, message.from.email).parse()?
+    let from: Mailbox = if let Some(name) = &mail.from.name {
+        format!("{} <{}>", name, mail.from.email).parse()?
     } else {
-        message.from.email.parse()?
+        mail.from.email.parse()?
     };
 
     let mut builder = LettreMessage::builder().from(from);
 
     // Add To addresses
-    for to in &message.to {
+    for to in &mail.to {
         let mailbox: Mailbox = if let Some(name) = &to.name {
             format!("{} <{}>", name, to.email).parse()?
         } else {
@@ -118,7 +118,7 @@ fn convert_to_lettre(message: &Message) -> Result<LettreMessage, MailError> {
     }
 
     // Add CC addresses
-    for cc in &message.cc {
+    for cc in &mail.cc {
         let mailbox: Mailbox = if let Some(name) = &cc.name {
             format!("{} <{}>", name, cc.email).parse()?
         } else {
@@ -128,7 +128,7 @@ fn convert_to_lettre(message: &Message) -> Result<LettreMessage, MailError> {
     }
 
     // Add BCC addresses
-    for bcc in &message.bcc {
+    for bcc in &mail.bcc {
         let mailbox: Mailbox = if let Some(name) = &bcc.name {
             format!("{} <{}>", name, bcc.email).parse()?
         } else {
@@ -138,7 +138,7 @@ fn convert_to_lettre(message: &Message) -> Result<LettreMessage, MailError> {
     }
 
     // Add reply-to
-    if let Some(reply_to) = &message.reply_to {
+    if let Some(reply_to) = &mail.reply_to {
         let mailbox: Mailbox = if let Some(name) = &reply_to.name {
             format!("{} <{}>", name, reply_to.email).parse()?
         } else {
@@ -148,10 +148,10 @@ fn convert_to_lettre(message: &Message) -> Result<LettreMessage, MailError> {
     }
 
     // Add subject
-    builder = builder.subject(&message.subject);
+    builder = builder.subject(&mail.subject);
 
     // Build body (multipart if both HTML and text)
-    let lettre_message = match (&message.html, &message.text) {
+    let lettre_message = match (&mail.html, &mail.text) {
         (Some(html), Some(text)) => {
             // Multipart: both HTML and text
             builder.multipart(
@@ -199,7 +199,7 @@ mod tests {
             .build()
             .unwrap();
 
-        let lettre_msg = convert_to_lettre(&message);
+        let lettre_msg = convert_to_lettre(&mail);
         assert!(lettre_msg.is_ok());
     }
 
@@ -214,7 +214,7 @@ mod tests {
             .build()
             .unwrap();
 
-        let lettre_msg = convert_to_lettre(&message);
+        let lettre_msg = convert_to_lettre(&mail);
         assert!(lettre_msg.is_ok());
     }
 }

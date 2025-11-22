@@ -1,6 +1,6 @@
 //! Mailer trait and Mailable trait definitions
 
-use crate::{MailError, Message};
+use crate::{Mail, MailError};
 use async_trait::async_trait;
 
 /// Mailer backend trait
@@ -13,12 +13,12 @@ pub trait Mailer: Send + Sync {
     /// # Errors
     ///
     /// Returns an error if the message fails to send.
-    async fn send(&self, message: &Message) -> Result<(), MailError>;
+    async fn send(&self, mail: Mail) -> Result<(), MailError>;
 
     /// Send multiple messages
     ///
     /// Default implementation sends messages sequentially.
-    async fn send_batch(&self, messages: &[Message]) -> Result<(), MailError> {
+    async fn send_batch(&self, messages: Vec<Mail>) -> Result<(), MailError> {
         for message in messages {
             self.send(message).await?;
         }
@@ -61,7 +61,7 @@ pub trait Mailable: Send + Sync {
     /// Send the email using the provided mailer
     async fn send(&self, mailer: &dyn Mailer) -> Result<(), MailError> {
         let message = self.build().await?;
-        mailer.send(&message).await
+        mailer.send(message.into()).await
     }
 
     /// Queue name for background sending (optional)

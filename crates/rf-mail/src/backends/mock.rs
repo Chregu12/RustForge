@@ -1,6 +1,6 @@
 //! Mock mailer backend for testing
 
-use crate::{MailError, Mailer, Message};
+use crate::{MailError, Mailer};
 use async_trait::async_trait;
 
 /// Mock mailer for testing
@@ -22,11 +22,11 @@ use async_trait::async_trait;
 ///     .text("Hello")
 ///     .build()?;
 ///
-/// assert!(mailer.send(&message).await.is_ok());
+/// assert!(mailer.send(&mail).await.is_ok());
 ///
 /// // Failure case
 /// let failing_mailer = MockMailer::with_failure();
-/// assert!(failing_mailer.send(&message).await.is_err());
+/// assert!(failing_mailer.send(&mail).await.is_err());
 /// # Ok(())
 /// # }
 /// ```
@@ -55,14 +55,14 @@ impl Default for MockMailer {
 
 #[async_trait]
 impl Mailer for MockMailer {
-    async fn send(&self, message: &Message) -> Result<(), MailError> {
+    async fn send(&self, mail: Mail) -> Result<(), MailError> {
         if self.should_fail {
             return Err(MailError::SendFailed("Mock failure".into()));
         }
 
         tracing::debug!(
-            to = ?message.to,
-            subject = %message.subject,
+            to = ?mail.to,
+            subject = %mail.subject,
             "Mock email sent"
         );
 
@@ -87,7 +87,7 @@ mod tests {
             .build()
             .unwrap();
 
-        assert!(mailer.send(&message).await.is_ok());
+        assert!(mailer.send(&mail).await.is_ok());
     }
 
     #[tokio::test]
@@ -102,6 +102,6 @@ mod tests {
             .build()
             .unwrap();
 
-        assert!(mailer.send(&message).await.is_err());
+        assert!(mailer.send(&mail).await.is_err());
     }
 }
