@@ -223,7 +223,7 @@ impl PostmarkMailer {
             .json(&body)
             .send()
             .await
-            .map_err(|e| MailError::SendError(e.to_string()))?;
+            .map_err(|e| MailError::SendFailed(e.to_string()))?;
 
         let status = response.status();
         let response_text = response
@@ -232,14 +232,14 @@ impl PostmarkMailer {
             .unwrap_or_else(|_| "Failed to read response".to_string());
 
         if !status.is_success() {
-            return Err(MailError::SendError(format!(
+            return Err(MailError::SendFailed(format!(
                 "Postmark API error ({}): {}",
                 status, response_text
             )));
         }
 
         let postmark_response: PostmarkResponse = serde_json::from_str(&response_text)
-            .map_err(|e| MailError::SendError(format!("Failed to parse response: {}", e)))?;
+            .map_err(|e| MailError::SendFailed(format!("Failed to parse response: {}", e)))?;
 
         Ok(postmark_response)
     }

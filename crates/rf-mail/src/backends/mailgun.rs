@@ -255,7 +255,7 @@ impl MailgunMailer {
             let part = reqwest::multipart::Part::bytes(attachment.content.clone())
                 .file_name(attachment.filename.clone())
                 .mime_str(&attachment.content_type)
-                .map_err(|e| MailError::SendError(format!("Invalid mime type: {}", e)))?;
+                .map_err(|e| MailError::SendFailed(format!("Invalid mime type: {}", e)))?;
 
             multipart = multipart.part("attachment", part);
         }
@@ -274,7 +274,7 @@ impl MailgunMailer {
             .multipart(multipart)
             .send()
             .await
-            .map_err(|e| MailError::SendError(e.to_string()))?;
+            .map_err(|e| MailError::SendFailed(e.to_string()))?;
 
         let status = response.status();
         let response_text = response
@@ -283,14 +283,14 @@ impl MailgunMailer {
             .unwrap_or_else(|_| "Failed to read response".to_string());
 
         if !status.is_success() {
-            return Err(MailError::SendError(format!(
+            return Err(MailError::SendFailed(format!(
                 "Mailgun API error ({}): {}",
                 status, response_text
             )));
         }
 
         let mailgun_response: MailgunResponse = serde_json::from_str(&response_text)
-            .map_err(|e| MailError::SendError(format!("Failed to parse response: {}", e)))?;
+            .map_err(|e| MailError::SendFailed(format!("Failed to parse response: {}", e)))?;
 
         Ok(mailgun_response)
     }
