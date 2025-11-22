@@ -133,6 +133,7 @@ members = [
     # Phase 2: Observability
     "crates/foundry-observability",
 ]
+exclude = ["starter-template"]
 resolver = "2"
 
 [workspace.package]
