@@ -23,7 +23,7 @@ use std::sync::{Arc, Mutex};
 ///     .text("Hello")
 ///     .build()?;
 ///
-/// mailer.send(&mail).await?;
+/// mailer.send(message.into()).await?;
 ///
 /// assert!(mailer.was_sent_to("recipient@example.com"));
 /// assert_eq!(mailer.sent_count(), 1);
@@ -120,7 +120,7 @@ mod tests {
             .build()
             .unwrap();
 
-        mailer.send(&mail).await.unwrap();
+        mailer.send(message.into()).await.unwrap();
 
         assert_eq!(mailer.sent_count(), 1);
         assert!(mailer.was_sent_to("user@example.com"));
@@ -142,7 +142,7 @@ mod tests {
             .build()
             .unwrap();
 
-        mailer.send(&mail).await.unwrap();
+        mailer.send(message.into()).await.unwrap();
         assert_eq!(mailer.sent_count(), 1);
 
         mailer.clear();

@@ -116,7 +116,7 @@ async fn test_memory_mailer() {
         .build()
         .unwrap();
 
-    mailer.send(&message).await.unwrap();
+    mailer.send(message.into()).await.unwrap();
 
     let sent = mailer.sent_messages();
     assert_eq!(sent.len(), 1);
@@ -167,7 +167,7 @@ async fn test_mail_fake() {
         .build()
         .unwrap();
 
-    fake_mailer.send(&message).await.unwrap();
+    fake_mailer.send(message.into()).await.unwrap();
 
     assert_sent_count(1);
     assert_sent(|msg| msg.subject == "Fake Test");
@@ -215,7 +215,7 @@ async fn test_order_shipped_mailable() {
         .build()
         .unwrap();
 
-    mailer.send(&message).await.unwrap();
+    mailer.send(message.into()).await.unwrap();
 
     let sent = mailer.sent_messages();
     assert_eq!(sent.len(), 1);
