@@ -9,14 +9,10 @@ jobs:
     name: Build and Deploy Docs
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - name: Install Rust
-      uses: actions-rs/toolchain@v1
-      with:
-        profile: minimal
-        toolchain: stable
-        override: true
+      uses: dtolnay/rust-toolchain@stable
 
     - name: Build documentation
       run: cargo doc --no-deps --all-features --workspace
@@ -25,7 +21,7 @@ jobs:
       run: echo '<meta http-equiv="refresh" content="0; url=rustforge">' > target/doc/index.html
 
     - name: Deploy to GitHub Pages
-      uses: peaceiris/actions-gh-pages@v3
+      uses: peaceiris/actions-gh-pages@v4
       if: github.ref == 'refs/heads/main'
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
