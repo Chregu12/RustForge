@@ -287,7 +287,7 @@ impl SendGridMailer {
             .json(&body)
             .send()
             .await
-            .map_err(|e| MailError::SendError(e.to_string()))?;
+            .map_err(|e| MailError::SendFailed(e.to_string()))?;
 
         let status = response.status();
 
@@ -297,7 +297,7 @@ impl SendGridMailer {
                 .await
                 .unwrap_or_else(|_| "Failed to read error response".to_string());
 
-            return Err(MailError::SendError(format!(
+            return Err(MailError::SendFailed(format!(
                 "SendGrid API error ({}): {}",
                 status, error_text
             )));

@@ -215,7 +215,7 @@ impl SesMailer {
             .body(body)
             .send()
             .await
-            .map_err(|e| MailError::SendError(e.to_string()))?;
+            .map_err(|e| MailError::SendFailed(e.to_string()))?;
 
         let status = response.status();
         let response_text = response
@@ -224,7 +224,7 @@ impl SesMailer {
             .unwrap_or_else(|_| "Failed to read response".to_string());
 
         if !status.is_success() {
-            return Err(MailError::SendError(format!(
+            return Err(MailError::SendFailed(format!(
                 "AWS SES API error ({}): {}",
                 status, response_text
             )));
@@ -287,7 +287,7 @@ impl SesMailer {
 
             Ok(SesResponse { message_id })
         } else {
-            Err(MailError::SendError(
+            Err(MailError::SendFailed(
                 "Failed to parse SES response".to_string(),
             ))
         }
@@ -300,7 +300,7 @@ impl Mailer for SesMailer {
         // Check for attachments - SES SendEmail doesn't support attachments
         // Must use SendRawEmail for attachments
         if !mail.attachments.is_empty() && !self.config.use_raw {
-            return Err(MailError::SendError(
+            return Err(MailError::SendFailed(
                 "SES SendEmail does not support attachments. Use use_raw=true for attachments"
                     .to_string(),
             ));
