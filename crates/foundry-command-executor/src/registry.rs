@@ -104,7 +104,10 @@ mod tests {
             &self.descriptor
         }
 
-        async fn execute(&self, _ctx: CommandContext) -> Result<CommandResult, foundry_plugins::CommandError> {
+        async fn execute(
+            &self,
+            _ctx: CommandContext,
+        ) -> Result<CommandResult, foundry_plugins::CommandError> {
             Ok(CommandResult::success("test"))
         }
     }
@@ -122,7 +125,9 @@ mod tests {
             },
         }) as DynCommand;
 
-        registry.register("test".to_string(), command.clone()).unwrap();
+        registry
+            .register("test".to_string(), command.clone())
+            .unwrap();
 
         assert!(registry.has("test"));
         assert!(registry.get("test").is_ok());

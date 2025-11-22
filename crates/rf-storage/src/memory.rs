@@ -72,7 +72,10 @@ impl Default for MemoryStorage {
 impl Storage for MemoryStorage {
     async fn put(&self, path: &str, contents: Vec<u8>) -> Result<(), StorageError> {
         let size = contents.len();
-        self.files.lock().unwrap().insert(path.to_string(), contents);
+        self.files
+            .lock()
+            .unwrap()
+            .insert(path.to_string(), contents);
 
         tracing::debug!(
             path = %path,
@@ -155,7 +158,10 @@ mod tests {
     async fn test_memory_storage_put_get() {
         let storage = MemoryStorage::new();
 
-        storage.put("test.txt", b"Hello, World!".to_vec()).await.unwrap();
+        storage
+            .put("test.txt", b"Hello, World!".to_vec())
+            .await
+            .unwrap();
 
         let contents = storage.get("test.txt").await.unwrap();
         assert_eq!(contents, b"Hello, World!");
@@ -211,7 +217,10 @@ mod tests {
     async fn test_memory_storage_copy() {
         let storage = MemoryStorage::new();
 
-        storage.put("original.txt", b"content".to_vec()).await.unwrap();
+        storage
+            .put("original.txt", b"content".to_vec())
+            .await
+            .unwrap();
         storage.copy("original.txt", "copy.txt").await.unwrap();
 
         assert!(storage.exists("original.txt").await.unwrap());

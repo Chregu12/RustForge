@@ -50,20 +50,16 @@ impl ComponentParser {
         Ok(Self {
             // Match: <x-alert type="danger">content</x-alert>
             component_tag_re: Regex::new(
-                r#"(?s)<x-([a-zA-Z0-9._-]+)((?:\s+[^>]*)?)>(.*?)</x-\1>"#
+                r#"(?s)<x-([a-zA-Z0-9._-]+)((?:\s+[^>]*)?)>(.*?)</x-\1>"#,
             )?,
             // Match: <x-alert type="danger" />
-            self_closing_re: Regex::new(
-                r#"<x-([a-zA-Z0-9._-]+)((?:\s+[^>]*)?)\s*/>"#
-            )?,
+            self_closing_re: Regex::new(r#"<x-([a-zA-Z0-9._-]+)((?:\s+[^>]*)?)\s*/>"#)?,
             // Match: <x-slot name="header" class="bold">content</x-slot>
             slot_re: Regex::new(
-                r#"(?s)<x-slot(?:\s+name="([^"]+)")?((?:\s+[^>]*)?)>(.*?)</x-slot>"#
+                r#"(?s)<x-slot(?:\s+name="([^"]+)")?((?:\s+[^>]*)?)>(.*?)</x-slot>"#,
             )?,
             // Match attributes: type="danger" or :type="variable"
-            attribute_re: Regex::new(
-                r#"(?:(\w+)="([^"]*)"|:(\w+)="([^"]*)")"#
-            )?,
+            attribute_re: Regex::new(r#"(?:(\w+)="([^"]*)"|:(\w+)="([^"]*)")"#)?,
         })
     }
 
@@ -127,10 +123,7 @@ impl ComponentParser {
                 // Bound attribute: :type="variable"
                 let expr = cap.get(4).unwrap().as_str();
                 // Store with {{ }} markers for later evaluation
-                attributes.insert(
-                    name.as_str().to_string(),
-                    format!("{{{{ {} }}}}", expr),
-                );
+                attributes.insert(name.as_str().to_string(), format!("{{{{ {} }}}}", expr));
             }
         }
 

@@ -58,10 +58,7 @@ mod tests {
             .route("/test", get(|| async { "OK" }))
             .layer(axum::middleware::from_fn(request_id_middleware));
 
-        let request = Request::builder()
-            .uri("/test")
-            .body(Body::empty())
-            .unwrap();
+        let request = Request::builder().uri("/test").body(Body::empty()).unwrap();
 
         let response = app.oneshot(request).await.unwrap();
 
@@ -84,10 +81,7 @@ mod tests {
             .route("/test", get(handler))
             .layer(axum::middleware::from_fn(request_id_middleware));
 
-        let request = Request::builder()
-            .uri("/test")
-            .body(Body::empty())
-            .unwrap();
+        let request = Request::builder().uri("/test").body(Body::empty()).unwrap();
 
         let response = app.oneshot(request).await.unwrap();
 
@@ -108,15 +102,9 @@ mod tests {
             .route("/test", get(|| async { "OK" }))
             .layer(axum::middleware::from_fn(request_id_middleware));
 
-        let request1 = Request::builder()
-            .uri("/test")
-            .body(Body::empty())
-            .unwrap();
+        let request1 = Request::builder().uri("/test").body(Body::empty()).unwrap();
 
-        let request2 = Request::builder()
-            .uri("/test")
-            .body(Body::empty())
-            .unwrap();
+        let request2 = Request::builder().uri("/test").body(Body::empty()).unwrap();
 
         let response1 = app.clone().oneshot(request1).await.unwrap();
         let response2 = app.oneshot(request2).await.unwrap();

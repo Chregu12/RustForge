@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::time::sleep;
-use tracing::{info, warn, error};
+use tracing::{error, info, warn};
 
 use crate::backends::QueueBackend;
 use crate::error::QueueResult;
@@ -65,7 +65,11 @@ impl Worker {
     }
 
     /// Register a job handler
-    pub fn register_handler<H: JobHandler + 'static>(&mut self, name: impl Into<String>, handler: H) {
+    pub fn register_handler<H: JobHandler + 'static>(
+        &mut self,
+        name: impl Into<String>,
+        handler: H,
+    ) {
         Arc::get_mut(&mut self.handler_registry)
             .unwrap()
             .register(name, handler);

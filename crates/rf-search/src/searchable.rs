@@ -269,7 +269,10 @@ mod tests {
 
         assert_eq!(options.limit, 20);
         assert_eq!(options.offset, 10);
-        assert_eq!(options.filters.get("status"), Some(&"published".to_string()));
+        assert_eq!(
+            options.filters.get("status"),
+            Some(&"published".to_string())
+        );
         assert_eq!(options.highlight_fields.len(), 1);
         assert!(options.sort.is_some());
     }

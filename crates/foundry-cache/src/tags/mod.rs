@@ -46,7 +46,12 @@ impl TaggedCache {
     }
 
     /// Set a tagged value
-    pub async fn set<T>(&self, key: &str, value: &T, ttl: Option<Duration>) -> Result<(), CacheError>
+    pub async fn set<T>(
+        &self,
+        key: &str,
+        value: &T,
+        ttl: Option<Duration>,
+    ) -> Result<(), CacheError>
     where
         T: Serialize,
     {

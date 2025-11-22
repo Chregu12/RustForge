@@ -1,6 +1,8 @@
 //! Example notification implementations
 
-use crate::messages::{DatabaseNotification, MailMessage, SlackAttachment, SlackMessage, SmsMessage};
+use crate::messages::{
+    DatabaseNotification, MailMessage, SlackAttachment, SlackMessage, SmsMessage,
+};
 use crate::{Channel, Notification};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};

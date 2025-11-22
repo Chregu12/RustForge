@@ -43,11 +43,7 @@ impl Snapshot {
         Ok(())
     }
 
-    pub fn update<T: Serialize>(
-        &self,
-        name: impl AsRef<str>,
-        value: &T,
-    ) -> anyhow::Result<()> {
+    pub fn update<T: Serialize>(&self, name: impl AsRef<str>, value: &T) -> anyhow::Result<()> {
         let snapshot_path = self.base_dir.join(format!("{}.json", name.as_ref()));
         let serialized = serde_json::to_string_pretty(value)?;
         fs::write(&snapshot_path, &serialized)?;

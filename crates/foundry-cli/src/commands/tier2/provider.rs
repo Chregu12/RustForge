@@ -17,11 +17,12 @@ pub struct MakeProviderCommand {
 
 impl MakeProviderCommand {
     pub async fn execute(&self) -> anyhow::Result<()> {
-        let provider_name = if self.name.ends_with("ServiceProvider") || self.name.ends_with("Provider") {
-            self.name.clone()
-        } else {
-            format!("{}ServiceProvider", self.name)
-        };
+        let provider_name =
+            if self.name.ends_with("ServiceProvider") || self.name.ends_with("Provider") {
+                self.name.clone()
+            } else {
+                format!("{}ServiceProvider", self.name)
+            };
 
         println!("Creating service provider: {}", provider_name);
 
@@ -31,10 +32,7 @@ impl MakeProviderCommand {
             self.generate_provider(&provider_name)
         };
 
-        let filename = format!(
-            "app/providers/{}.rs",
-            self.to_snake_case(&provider_name)
-        );
+        let filename = format!("app/providers/{}.rs", self.to_snake_case(&provider_name));
 
         fs::create_dir_all("app/providers")?;
         fs::write(&filename, content)?;
@@ -46,8 +44,10 @@ impl MakeProviderCommand {
             fs::write("app/providers/mod.rs", mod_content)?;
             println!("✓ Created providers module: app/providers/mod.rs");
         } else {
-            println!("⚠ Don't forget to add 'pub mod {};' to app/providers/mod.rs",
-                     self.to_snake_case(&provider_name));
+            println!(
+                "⚠ Don't forget to add 'pub mod {};' to app/providers/mod.rs",
+                self.to_snake_case(&provider_name)
+            );
         }
 
         println!("\n📝 Next steps:");

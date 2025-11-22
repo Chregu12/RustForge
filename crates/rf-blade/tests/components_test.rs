@@ -1,10 +1,10 @@
 //! Comprehensive tests for Blade Components (Phase 2)
 
+use rf_blade::ast::AstNode;
+use rf_blade::compiler_new::{Compiler, RenderContext};
 use rf_blade::components::*;
 use rf_blade::lexer::{Lexer, Token};
 use rf_blade::parser_new::Parser;
-use rf_blade::compiler_new::{Compiler, RenderContext};
-use rf_blade::ast::AstNode;
 use serde_json::json;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -19,7 +19,11 @@ fn test_lexer_self_closing_component() {
 
     assert_eq!(tokens.len(), 1);
     match &tokens[0] {
-        Token::ComponentStart { name, attributes, self_closing } => {
+        Token::ComponentStart {
+            name,
+            attributes,
+            self_closing,
+        } => {
             assert_eq!(name, "alert");
             assert_eq!(attributes.len(), 0);
             assert!(self_closing);
@@ -34,7 +38,11 @@ fn test_lexer_component_with_attributes() {
 
     assert_eq!(tokens.len(), 1);
     match &tokens[0] {
-        Token::ComponentStart { name, attributes, self_closing } => {
+        Token::ComponentStart {
+            name,
+            attributes,
+            self_closing,
+        } => {
             assert_eq!(name, "alert");
             assert_eq!(attributes.len(), 2);
             assert_eq!(attributes[0].0, "type");
@@ -52,7 +60,9 @@ fn test_lexer_component_with_content() {
 
     assert_eq!(tokens.len(), 3);
     match &tokens[0] {
-        Token::ComponentStart { name, self_closing, .. } => {
+        Token::ComponentStart {
+            name, self_closing, ..
+        } => {
             assert_eq!(name, "card");
             assert!(!self_closing);
         }
@@ -137,7 +147,12 @@ fn test_parse_component_with_slots() {
     let nodes = Parser::parse(template).unwrap();
 
     match &nodes[0] {
-        AstNode::Component { name, slots, children, .. } => {
+        AstNode::Component {
+            name,
+            slots,
+            children,
+            ..
+        } => {
             assert_eq!(name, "card");
             assert!(slots.contains_key("header"));
             assert!(!children.is_empty());
@@ -158,7 +173,9 @@ fn test_parse_nested_components() {
             assert_eq!(children.len(), 1);
 
             match &children[0] {
-                AstNode::Component { name: inner_name, .. } => {
+                AstNode::Component {
+                    name: inner_name, ..
+                } => {
                     assert_eq!(inner_name, "button");
                 }
                 _ => panic!("Expected nested Component node"),
@@ -180,9 +197,7 @@ fn test_attribute_bag_creation() {
 
 #[test]
 fn test_attribute_bag_from_pairs() {
-    let bag = AttributeBag::from_pairs(vec![
-        ("class".to_string(), "btn".to_string()),
-    ]);
+    let bag = AttributeBag::from_pairs(vec![("class".to_string(), "btn".to_string())]);
 
     assert_eq!(bag.get("class"), Some(&"btn".to_string()));
 }
@@ -239,7 +254,10 @@ fn test_attribute_bag_to_html() {
 #[test]
 fn test_attribute_bag_html_escape() {
     let mut bag = AttributeBag::new();
-    bag.set("data".to_string(), "<script>alert('xss')</script>".to_string());
+    bag.set(
+        "data".to_string(),
+        "<script>alert('xss')</script>".to_string(),
+    );
 
     let html = bag.to_html();
 
@@ -330,10 +348,7 @@ fn test_base_component_creation() {
 
 #[test]
 fn test_base_component_render_simple() {
-    let component = BaseComponent::new(
-        "alert",
-        r#"<div class="alert">{{ $slot }}</div>"#,
-    );
+    let component = BaseComponent::new("alert", r#"<div class="alert">{{ $slot }}</div>"#);
 
     let props = ComponentProps::new();
     let attributes = AttributeBag::new();
@@ -401,10 +416,7 @@ fn test_component_registry_alias() {
 #[test]
 fn test_component_registry_render() {
     let mut registry = ComponentRegistry::new();
-    let component = BaseComponent::new(
-        "alert",
-        r#"<div class="alert">{{ $slot }}</div>"#,
-    );
+    let component = BaseComponent::new("alert", r#"<div class="alert">{{ $slot }}</div>"#);
 
     registry.register("alert", component).unwrap();
 
@@ -413,7 +425,9 @@ fn test_component_registry_render() {
     let mut slots = HashMap::new();
     slots.insert("default".to_string(), "Test".to_string());
 
-    let html = registry.render_component("alert", &props, &attributes, &slots).unwrap();
+    let html = registry
+        .render_component("alert", &props, &attributes, &slots)
+        .unwrap();
 
     assert!(html.contains("alert"));
     assert!(html.contains("Test"));
@@ -483,10 +497,7 @@ fn test_render_self_closing_component() {
     let template = r#"<x-icon name="check" />"#;
 
     let mut registry = ComponentRegistry::new();
-    let component = BaseComponent::new(
-        "icon",
-        r#"<i class="icon icon-{{ $name }}"></i>"#,
-    );
+    let component = BaseComponent::new("icon", r#"<i class="icon icon-{{ $name }}"></i>"#);
     registry.register("icon", component).unwrap();
 
     let ast = Parser::parse(template).unwrap();

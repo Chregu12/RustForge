@@ -116,7 +116,10 @@ impl QueueFake {
     pub fn assert_pushed_on(&self, job_type: &str, queue: &str) {
         let records = self.records.lock().unwrap();
 
-        if !records.iter().any(|r| r.job_type == job_type && r.queue == queue) {
+        if !records
+            .iter()
+            .any(|r| r.job_type == job_type && r.queue == queue)
+        {
             panic!(
                 "Failed asserting that job '{}' was pushed on queue '{}'. Found on queues: {:?}",
                 job_type,
@@ -399,8 +402,6 @@ mod tests {
             priority: 0,
         });
 
-        fake.assert_pushed_with("send_email", |payload| {
-            payload["to"] == "test@example.com"
-        });
+        fake.assert_pushed_with("send_email", |payload| payload["to"] == "test@example.com");
     }
 }

@@ -112,7 +112,9 @@ impl JobRunner {
 
                         // Calculate next run time
                         let schedule_expr = job.schedule();
-                        if let Ok(schedule) = CronSchedule::with_timezone(schedule_expr, self.config.timezone) {
+                        if let Ok(schedule) =
+                            CronSchedule::with_timezone(schedule_expr, self.config.timezone)
+                        {
                             state.next_run = schedule.next_after(&now);
                         }
 

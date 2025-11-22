@@ -2,7 +2,7 @@
 
 use crate::publisher::{AssetPublisher, PublishConfig};
 use async_trait::async_trait;
-use foundry_plugins::{FoundryCommand, CommandResult, CommandContext, CommandError};
+use foundry_plugins::{CommandContext, CommandError, CommandResult, FoundryCommand};
 use std::path::PathBuf;
 
 /// Asset publishing command
@@ -34,7 +34,9 @@ impl FoundryCommand for AssetPublishCommand {
                         source_dir = PathBuf::from(&ctx.args[i + 1]);
                         i += 2;
                     } else {
-                        return Err(CommandError::Message("--source requires a value".to_string()));
+                        return Err(CommandError::Message(
+                            "--source requires a value".to_string(),
+                        ));
                     }
                 }
                 "--target" => {
@@ -42,7 +44,9 @@ impl FoundryCommand for AssetPublishCommand {
                         target_dir = PathBuf::from(&ctx.args[i + 1]);
                         i += 2;
                     } else {
-                        return Err(CommandError::Message("--target requires a value".to_string()));
+                        return Err(CommandError::Message(
+                            "--target requires a value".to_string(),
+                        ));
                     }
                 }
                 "--no-versioning" => {
@@ -78,12 +82,13 @@ impl FoundryCommand for AssetPublishCommand {
         };
 
         let publisher = AssetPublisher::new(config);
-        let result = publisher.publish()
-            .map_err(|e| CommandError::Other(e))?;
+        let result = publisher.publish().map_err(|e| CommandError::Other(e))?;
 
         // Save manifest
         let manifest_path = target_dir.join("asset-manifest.json");
-        result.manifest.save(&manifest_path)
+        result
+            .manifest
+            .save(&manifest_path)
             .map_err(|e| CommandError::Other(e))?;
 
         let message = format!(
@@ -94,11 +99,13 @@ impl FoundryCommand for AssetPublishCommand {
             manifest_path.display()
         );
 
-        Ok(CommandResult::success(&message).with_data(serde_json::json!({
-            "files_published": result.files_published,
-            "bytes_copied": result.bytes_copied,
-            "manifest_path": manifest_path.to_string_lossy(),
-        })))
+        Ok(
+            CommandResult::success(&message).with_data(serde_json::json!({
+                "files_published": result.files_published,
+                "bytes_copied": result.bytes_copied,
+                "manifest_path": manifest_path.to_string_lossy(),
+            })),
+        )
     }
 }
 

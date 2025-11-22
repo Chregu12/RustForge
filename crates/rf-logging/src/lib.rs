@@ -72,8 +72,8 @@ pub enum LogFormat {
 
 /// Initialize logging with configuration
 pub fn init_logging(config: LogConfig) -> Result<(), Box<dyn std::error::Error>> {
-    let env_filter = EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| EnvFilter::new(&config.level));
+    let env_filter =
+        EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(&config.level));
 
     let registry = tracing_subscriber::registry().with(env_filter);
 

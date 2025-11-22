@@ -1,12 +1,12 @@
-//! Authentication Demo - Complete Auth Example with rf-auth
-//!
-//! Demonstrates:
-//! - Password hashing with bcrypt
-//! - JWT token generation and validation
-//! - User registration and login flows
-//! - Protected routes with authentication
-//! - Role-based access control
-//! - Token refresh mechanism
+// Authentication Demo - Complete Auth Example with rf-auth
+//
+// Demonstrates:
+// - Password hashing with bcrypt
+// - JWT token generation and validation
+// - User registration and login flows
+// - Protected routes with authentication
+// - Role-based access control
+// - Token refresh mechanism
 
 use axum::{
     extract::Extension,
@@ -98,9 +98,7 @@ async fn main() -> anyhow::Result<()> {
     // Setup authentication components
     info!("🔧 Setting up authentication...");
     let password_hasher = Arc::new(PasswordHasher::bcrypt(12)?);
-    let jwt_manager = Arc::new(JwtManager::new(
-        "demo-secret-key-min-32-characters-long",
-    )?);
+    let jwt_manager = Arc::new(JwtManager::new("demo-secret-key-min-32-characters-long")?);
     info!("✅ Authentication configured\n");
 
     // Build application router
@@ -262,15 +260,15 @@ async fn refresh_handler(
     // Validate refresh token
     let claims = jwt
         .validate_refresh_token(&req.refresh_token)
-        .map_err(|_| (StatusCode::UNAUTHORIZED, "Invalid refresh token".to_string()))?;
+        .map_err(|_| {
+            (
+                StatusCode::UNAUTHORIZED,
+                "Invalid refresh token".to_string(),
+            )
+        })?;
 
     // Generate new access token
-    let new_claims = Claims::new(
-        claims.user_id,
-        claims.sub.clone(),
-        claims.roles.clone(),
-        24,
-    );
+    let new_claims = Claims::new(claims.user_id, claims.sub.clone(), claims.roles.clone(), 24);
 
     let token = jwt
         .generate_token(&new_claims)
@@ -329,17 +327,24 @@ fn extract_claims_from_headers(
     let auth_header = headers
         .get("Authorization")
         .and_then(|h| h.to_str().ok())
-        .ok_or((StatusCode::UNAUTHORIZED, "Missing Authorization header".to_string()))?;
+        .ok_or((
+            StatusCode::UNAUTHORIZED,
+            "Missing Authorization header".to_string(),
+        ))?;
 
     // Extract token from "Bearer <token>"
-    let token = auth_header
-        .strip_prefix("Bearer ")
-        .ok_or((StatusCode::UNAUTHORIZED, "Invalid Authorization header format".to_string()))?;
+    let token = auth_header.strip_prefix("Bearer ").ok_or((
+        StatusCode::UNAUTHORIZED,
+        "Invalid Authorization header format".to_string(),
+    ))?;
 
     // Validate token
-    let claims = jwt
-        .validate_token(token)
-        .map_err(|_| (StatusCode::UNAUTHORIZED, "Invalid or expired token".to_string()))?;
+    let claims = jwt.validate_token(token).map_err(|_| {
+        (
+            StatusCode::UNAUTHORIZED,
+            "Invalid or expired token".to_string(),
+        )
+    })?;
 
     Ok(claims)
 }

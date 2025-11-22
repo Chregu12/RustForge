@@ -31,9 +31,7 @@
 //! ```
 
 use async_trait::async_trait;
-use sea_orm::{
-    DatabaseConnection, DbErr, EntityTrait, ModelTrait, Related,
-};
+use sea_orm::{DatabaseConnection, DbErr, EntityTrait, ModelTrait, Related};
 use std::collections::HashMap;
 
 /// Result type for loading operations
@@ -271,11 +269,7 @@ where
     /// ```rust,no_run
     /// let users_with_posts = users.load(&db, "posts").await?;
     /// ```
-    async fn load<R>(
-        &mut self,
-        db: &DatabaseConnection,
-        relation: &str,
-    ) -> LoadResult<&mut Self>
+    async fn load<R>(&mut self, db: &DatabaseConnection, relation: &str) -> LoadResult<&mut Self>
     where
         R: EntityTrait,
         E: Related<R>;
@@ -300,11 +294,7 @@ where
     E: EntityTrait,
     E::Model: ModelTrait + Send,
 {
-    async fn load<R>(
-        &mut self,
-        db: &DatabaseConnection,
-        relation: &str,
-    ) -> LoadResult<&mut Self>
+    async fn load<R>(&mut self, db: &DatabaseConnection, relation: &str) -> LoadResult<&mut Self>
     where
         R: EntityTrait,
         E: Related<R>,
@@ -487,9 +477,7 @@ mod tests {
 
     #[test]
     fn test_eager_load_config_priority() {
-        let config = EagerLoadConfig::new()
-            .always("posts")
-            .never("posts"); // never takes priority
+        let config = EagerLoadConfig::new().always("posts").never("posts"); // never takes priority
 
         assert!(!config.should_load("posts"));
     }

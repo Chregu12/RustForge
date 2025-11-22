@@ -32,12 +32,7 @@ fn test_form_validation_required() {
 #[test]
 fn test_form_validation_email() {
     let form = Form::new("test_form")
-        .field(
-            Field::email("email")
-                .label("Email")
-                .required()
-                .build()
-        )
+        .field(Field::email("email").label("Email").required().build())
         .build();
 
     let mut data = FormData::new();
@@ -60,7 +55,7 @@ fn test_form_validation_min_length() {
             Field::text("password")
                 .label("Password")
                 .min_length(8)
-                .build()
+                .build(),
         )
         .build();
 

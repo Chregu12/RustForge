@@ -1,9 +1,7 @@
 //! Soft delete traits
 
 use async_trait::async_trait;
-use sea_orm::{
-    ActiveModelBehavior, ActiveModelTrait, EntityTrait, ModelTrait,
-};
+use sea_orm::{ActiveModelBehavior, ActiveModelTrait, EntityTrait, ModelTrait};
 
 /// Trait for soft deletable entities
 ///
@@ -15,7 +13,11 @@ where
     <Self as EntityTrait>::Model: HasSoftDelete + Send + Sync,
 {
     /// The active model type for this entity
-    type ActiveModel: ActiveModelTrait<Entity = Self> + ActiveModelBehavior + Send + Sync + From<<Self as EntityTrait>::Model>;
+    type ActiveModel: ActiveModelTrait<Entity = Self>
+        + ActiveModelBehavior
+        + Send
+        + Sync
+        + From<<Self as EntityTrait>::Model>;
     /// Soft delete a model (must be implemented by user)
     async fn soft_delete<C>(
         db: &C,

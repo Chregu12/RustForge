@@ -17,7 +17,9 @@ pub mod slots;
 
 pub use attributes::AttributeBag;
 pub use class_component::{BaseComponent, Component, ComponentError, ComponentResult};
-pub use compiler::{ComponentCompiler, ComponentCompilerBuilder, ComponentCompileError, ComponentCompileResult};
+pub use compiler::{
+    ComponentCompileError, ComponentCompileResult, ComponentCompiler, ComponentCompilerBuilder,
+};
 pub use parser::{ComponentParser, ComponentTag, ParseError};
 pub use props::{ComponentProps, PropDefinition, PropError, PropType};
 pub use registry::{ComponentRegistry, RegistryError, RegistryResult};

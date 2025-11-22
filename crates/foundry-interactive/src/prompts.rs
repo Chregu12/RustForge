@@ -2,11 +2,11 @@ use crate::error::{PromptError, PromptResult};
 use dialoguer::{Confirm, Input, MultiSelect, Password, Select};
 use rustyline::completion::{Completer, Pair};
 use rustyline::error::ReadlineError;
-use rustyline::{CompletionType, Config, Editor};
-use rustyline::hint::Hinter;
 use rustyline::highlight::Highlighter;
+use rustyline::hint::Hinter;
 use rustyline::validate::Validator;
 use rustyline::Helper;
+use rustyline::{CompletionType, Config, Editor};
 
 /// Options for configuring prompts
 #[derive(Debug, Clone)]
@@ -126,11 +126,7 @@ pub fn choice(prompt: &str, options: &[SelectOption], default: usize) -> PromptR
         return Err(PromptError::InvalidInput("No options provided".to_string()));
     }
 
-    let default = if default >= options.len() {
-        0
-    } else {
-        default
-    };
+    let default = if default >= options.len() { 0 } else { default };
 
     let items: Vec<String> = options.iter().map(|opt| opt.to_string()).collect();
 
@@ -202,9 +198,7 @@ pub fn multi_select(
 
     let items: Vec<String> = options.iter().map(|opt| opt.to_string()).collect();
 
-    let defaults_bool: Vec<bool> = (0..options.len())
-        .map(|i| defaults.contains(&i))
-        .collect();
+    let defaults_bool: Vec<bool> = (0..options.len()).map(|i| defaults.contains(&i)).collect();
 
     let selections = MultiSelect::new()
         .with_prompt(prompt)
@@ -324,9 +318,7 @@ pub fn autocomplete(
                 Ok(trimmed.to_string())
             }
         }
-        Err(ReadlineError::Interrupted) | Err(ReadlineError::Eof) => {
-            Err(PromptError::Cancelled)
-        }
+        Err(ReadlineError::Interrupted) | Err(ReadlineError::Eof) => Err(PromptError::Cancelled),
         Err(err) => Err(PromptError::IoError(std::io::Error::new(
             std::io::ErrorKind::Other,
             err.to_string(),

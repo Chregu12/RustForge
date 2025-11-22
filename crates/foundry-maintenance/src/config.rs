@@ -18,7 +18,9 @@ impl Default for MaintenanceConfig {
     fn default() -> Self {
         Self {
             file_path: PathBuf::from(".maintenance"),
-            message: Some("We are currently down for maintenance. Please check back soon.".to_string()),
+            message: Some(
+                "We are currently down for maintenance. Please check back soon.".to_string(),
+            ),
             secret: None,
         }
     }
@@ -123,10 +125,7 @@ mod tests {
 
     #[test]
     fn test_state_serialize() {
-        let state = MaintenanceState::new(
-            Some("Test".to_string()),
-            Some("secret".to_string()),
-        );
+        let state = MaintenanceState::new(Some("Test".to_string()), Some("secret".to_string()));
 
         let json = serde_json::to_string(&state).unwrap();
         assert!(json.contains("Test"));

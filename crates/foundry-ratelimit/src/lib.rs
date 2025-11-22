@@ -2,13 +2,13 @@
 //!
 //! Request and user-based rate limiting with Redis backend support.
 
-pub mod middleware;
 pub mod limiter;
+pub mod middleware;
 pub mod storage;
 
+pub use limiter::{RateLimit, RateLimiter};
 pub use middleware::RateLimitMiddleware;
-pub use limiter::{RateLimiter, RateLimit};
-pub use storage::{RateLimitStorage, MemoryStorage};
+pub use storage::{MemoryStorage, RateLimitStorage};
 
 #[derive(Debug, thiserror::Error)]
 pub enum RateLimitError {

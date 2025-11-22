@@ -48,8 +48,8 @@ impl QueueConfig {
     /// - `QUEUE_PREFIX` or defaults to "queue"
     #[cfg(feature = "redis-backend")]
     pub fn redis_from_env() -> Self {
-        let url = std::env::var("REDIS_URL")
-            .unwrap_or_else(|_| "redis://localhost:6379".to_string());
+        let url =
+            std::env::var("REDIS_URL").unwrap_or_else(|_| "redis://localhost:6379".to_string());
         let prefix = std::env::var("QUEUE_PREFIX").unwrap_or_else(|_| "queue".to_string());
 
         Self::Redis { url, prefix }
@@ -186,20 +186,19 @@ impl Default for QueueConfigBuilder {
 #[cfg(test)]
 mod tests {
 
-#[cfg(test)]
-async fn redis_available() -> bool {
-    use redis::AsyncCommands;
-    let redis_url = std::env::var("REDIS_URL").unwrap_or_else(|_| "redis://localhost:6379".to_string());
-    match redis::Client::open(redis_url.as_str()) {
-        Ok(client) => {
-            match client.get_multiplexed_async_connection().await {
+    #[cfg(test)]
+    async fn redis_available() -> bool {
+        use redis::AsyncCommands;
+        let redis_url =
+            std::env::var("REDIS_URL").unwrap_or_else(|_| "redis://localhost:6379".to_string());
+        match redis::Client::open(redis_url.as_str()) {
+            Ok(client) => match client.get_multiplexed_async_connection().await {
                 Ok(mut conn) => conn.ping::<_, String>().await.is_ok(),
                 Err(_) => false,
-            }
-        },
-        Err(_) => false,
+            },
+            Err(_) => false,
+        }
     }
-}
 
     use super::*;
 

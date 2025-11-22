@@ -29,9 +29,7 @@ impl FoundryCommand for HttpRequestCommand {
 
     async fn execute(&self, ctx: CommandContext) -> Result<CommandResult, CommandError> {
         if ctx.args.len() < 2 {
-            return Err(CommandError::Message(
-                "Method and URL required".to_string(),
-            ));
+            return Err(CommandError::Message("Method and URL required".to_string()));
         }
 
         let method = &ctx.args[0];

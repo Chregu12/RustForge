@@ -68,7 +68,9 @@ pub trait Authorizable: Sized + Send + Sync + 'static {
         };
 
         if let Some(policy_arc_any) = policy_opt {
-            if let Some(policy_arc) = policy_arc_any.downcast_ref::<std::sync::Arc<dyn super::policies::Policy<Self, R>>>() {
+            if let Some(policy_arc) = policy_arc_any
+                .downcast_ref::<std::sync::Arc<dyn super::policies::Policy<Self, R>>>()
+            {
                 // Check before hook
                 if let Some(result) = policy_arc.before(self, resource).await {
                     return result;
@@ -170,7 +172,9 @@ pub trait Authorizable: Sized + Send + Sync + 'static {
         };
 
         if let Some(policy_arc_any) = policy_opt {
-            if let Some(policy_arc) = policy_arc_any.downcast_ref::<Arc<dyn super::policies::Policy<Self, R>>>() {
+            if let Some(policy_arc) =
+                policy_arc_any.downcast_ref::<Arc<dyn super::policies::Policy<Self, R>>>()
+            {
                 return policy_arc.create(self).await;
             }
         }

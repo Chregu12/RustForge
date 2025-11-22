@@ -46,16 +46,10 @@ pub enum AstNode {
     },
 
     /// While loop
-    While {
-        condition: Expr,
-        body: Vec<AstNode>,
-    },
+    While { condition: Expr, body: Vec<AstNode> },
 
     /// Section definition
-    Section {
-        name: String,
-        content: Vec<AstNode>,
-    },
+    Section { name: String, content: Vec<AstNode> },
 
     /// Yield placeholder
     Yield {
@@ -64,9 +58,7 @@ pub enum AstNode {
     },
 
     /// Template extension
-    Extends {
-        parent: String,
-    },
+    Extends { parent: String },
 
     /// Template include
     Include {
@@ -75,43 +67,28 @@ pub enum AstNode {
     },
 
     /// Auth check
-    Auth {
-        content: Vec<AstNode>,
-    },
+    Auth { content: Vec<AstNode> },
 
     /// Guest check
-    Guest {
-        content: Vec<AstNode>,
-    },
+    Guest { content: Vec<AstNode> },
 
     /// CSRF token
     Csrf,
 
     /// HTTP method override
-    Method {
-        method: String,
-    },
+    Method { method: String },
 
     /// JSON output
-    Json {
-        variable: String,
-    },
+    Json { variable: String },
 
     /// Dump variable
-    Dump {
-        variable: String,
-    },
+    Dump { variable: String },
 
     /// Validation error display
-    Error {
-        field: String,
-    },
+    Error { field: String },
 
     /// Custom directive
-    Custom {
-        name: String,
-        args: String,
-    },
+    Custom { name: String, args: String },
 
     /// Component usage
     Component {
@@ -128,9 +105,7 @@ pub enum AstNode {
     },
 
     /// Props directive (for component prop access)
-    Props {
-        name: String,
-    },
+    Props { name: String },
 }
 
 /// Expression node for conditions and values
@@ -159,28 +134,16 @@ pub enum Expr {
     },
 
     /// Unary operation: !$flag, -$num
-    UnaryOp {
-        op: UnaryOperator,
-        expr: Box<Expr>,
-    },
+    UnaryOp { op: UnaryOperator, expr: Box<Expr> },
 
     /// Function call: count($items), isset($var)
-    FunctionCall {
-        name: String,
-        args: Vec<Expr>,
-    },
+    FunctionCall { name: String, args: Vec<Expr> },
 
     /// Member access: $user.name
-    MemberAccess {
-        object: Box<Expr>,
-        member: String,
-    },
+    MemberAccess { object: Box<Expr>, member: String },
 
     /// Array access: $arr[0], $map['key']
-    ArrayAccess {
-        array: Box<Expr>,
-        index: Box<Expr>,
-    },
+    ArrayAccess { array: Box<Expr>, index: Box<Expr> },
 
     /// Raw expression (fallback for complex PHP expressions)
     Raw(String),
@@ -190,11 +153,11 @@ pub enum Expr {
 #[derive(Debug, Clone, PartialEq)]
 pub enum BinaryOperator {
     // Comparison
-    Equal,        // ==
-    NotEqual,     // !=
-    LessThan,     // <
-    LessOrEqual,  // <=
-    GreaterThan,  // >
+    Equal,          // ==
+    NotEqual,       // !=
+    LessThan,       // <
+    LessOrEqual,    // <=
+    GreaterThan,    // >
     GreaterOrEqual, // >=
 
     // Logical

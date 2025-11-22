@@ -40,10 +40,7 @@ pub trait RelationshipHelpers: ModelTrait + Sized {
     /// let post = Post::find_by_id(1).one(&db).await?.unwrap();
     /// let author = post.load_belongs_to::<User>(&db).await?;
     /// ```
-    async fn load_belongs_to<R>(
-        &self,
-        db: &DatabaseConnection,
-    ) -> Result<Option<R::Model>, DbErr>
+    async fn load_belongs_to<R>(&self, db: &DatabaseConnection) -> Result<Option<R::Model>, DbErr>
     where
         R: EntityTrait,
         Self::Entity: Related<R>,

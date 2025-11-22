@@ -78,8 +78,6 @@ impl DatabaseUserProvider {
         _name: String,
         password: String,
     ) -> Result<DbUser, AuthError> {
-
-
         let _password_hash = DbUser::hash_password(&password)?;
         let _now = Utc::now();
 
@@ -222,7 +220,9 @@ impl SessionStore for DatabaseSessionStore {
     async fn create(&self, session_id: impl Into<String> + Send) -> Session {
         let session = Session::new(
             session_id.into(),
-            self.ttl.to_std().unwrap_or(std::time::Duration::from_secs(7200)),
+            self.ttl
+                .to_std()
+                .unwrap_or(std::time::Duration::from_secs(7200)),
         );
         // Ignore errors for now
         let _ = self.create_session(&session).await;
@@ -242,7 +242,9 @@ impl SessionStore for DatabaseSessionStore {
     }
 
     fn ttl(&self) -> std::time::Duration {
-        self.ttl.to_std().unwrap_or(std::time::Duration::from_secs(7200))
+        self.ttl
+            .to_std()
+            .unwrap_or(std::time::Duration::from_secs(7200))
     }
 }
 

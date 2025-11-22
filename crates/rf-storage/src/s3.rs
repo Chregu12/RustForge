@@ -35,7 +35,10 @@ impl S3Storage {
         let base_url = if let Some(endpoint) = &config.endpoint {
             format!("{}/{}", endpoint, config.bucket)
         } else {
-            format!("https://s3.{}.amazonaws.com/{}", config.region, config.bucket)
+            format!(
+                "https://s3.{}.amazonaws.com/{}",
+                config.region, config.bucket
+            )
         };
 
         let credentials = Credentials::new(
@@ -233,7 +236,10 @@ impl Storage for S3Storage {
         format!("{}/{}", self.base_url, path)
     }
 
-    async fn last_modified(&self, path: &str) -> Result<Option<chrono::DateTime<Utc>>, StorageError> {
+    async fn last_modified(
+        &self,
+        path: &str,
+    ) -> Result<Option<chrono::DateTime<Utc>>, StorageError> {
         let resp = self
             .client
             .head_object()
@@ -316,12 +322,12 @@ mod tests {
     }
 
     #[tokio::test]
-async fn test_signed_url() {
-    if !s3_available().await {
-        eprintln!("⏭️  Skipping test_signed_url: MinIO/S3 not available");
-        eprintln!("   Start services with: ./scripts/test-env-up.sh");
-        return;
-    }
+    async fn test_signed_url() {
+        if !s3_available().await {
+            eprintln!("⏭️  Skipping test_signed_url: MinIO/S3 not available");
+            eprintln!("   Start services with: ./scripts/test-env-up.sh");
+            return;
+        }
         let config = S3Config {
             bucket: "test-bucket".to_string(),
             region: "us-east-1".to_string(),
@@ -332,17 +338,19 @@ async fn test_signed_url() {
         };
 
         let storage = S3Storage::new(config).await.unwrap();
-        let url = storage.signed_url("test.txt", Duration::from_secs(3600)).await;
+        let url = storage
+            .signed_url("test.txt", Duration::from_secs(3600))
+            .await;
         assert!(url.is_ok());
     }
 
     #[tokio::test]
-async fn test_s3_operations() {
-    if !s3_available().await {
-        eprintln!("⏭️  Skipping test_s3_operations: MinIO/S3 not available");
-        eprintln!("   Start services with: ./scripts/test-env-up.sh");
-        return;
-    }
+    async fn test_s3_operations() {
+        if !s3_available().await {
+            eprintln!("⏭️  Skipping test_s3_operations: MinIO/S3 not available");
+            eprintln!("   Start services with: ./scripts/test-env-up.sh");
+            return;
+        }
         let config = S3Config {
             bucket: "test-bucket".to_string(),
             region: "us-east-1".to_string(),

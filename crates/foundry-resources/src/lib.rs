@@ -35,20 +35,20 @@
 //! }
 //! ```
 
-pub mod resource;
 pub mod collection;
-pub mod pagination;
 pub mod filter;
-pub mod metadata;
-pub mod response;
 pub mod macros;
+pub mod metadata;
+pub mod pagination;
+pub mod resource;
+pub mod response;
 
-pub use resource::{Resource, ResourceContext, ResourceOptions};
-pub use collection::{ResourceCollection, CollectionOptions};
-pub use pagination::{Pagination, PaginationMeta, PaginationLinks};
+pub use collection::{CollectionOptions, ResourceCollection};
 pub use filter::{FieldFilter, FilterOptions};
 pub use metadata::{Metadata, MetadataBuilder};
-pub use response::{ApiResponse, ApiError};
+pub use pagination::{Pagination, PaginationLinks, PaginationMeta};
+pub use resource::{Resource, ResourceContext, ResourceOptions};
+pub use response::{ApiError, ApiResponse};
 
 #[derive(Debug, thiserror::Error)]
 pub enum ResourceError {

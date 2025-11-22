@@ -77,9 +77,7 @@ fn manager_example() -> Result<()> {
     println!("Generated state token: {}", state);
 
     // Get driver with state
-    let mut driver = manager.github()?
-        .state(state.clone())
-        .build()?;
+    let mut driver = manager.github()?.state(state.clone()).build()?;
 
     let auth_url = driver.redirect()?;
     println!("GitHub auth URL: {}\n", auth_url);
@@ -120,7 +118,10 @@ fn state_management_example() -> Result<()> {
     let state = state_manager.generate();
     println!("Generated state: {}", state);
     println!("State is valid: {}", state_manager.verify(&state));
-    println!("State is valid (2nd try): {}\n", state_manager.verify(&state));
+    println!(
+        "State is valid (2nd try): {}\n",
+        state_manager.verify(&state)
+    );
 
     Ok(())
 }
@@ -143,7 +144,10 @@ fn account_linking_example() {
     println!("  Provider: {}", social_account.provider);
     println!("  Provider User ID: {}", social_account.provider_user_id);
     println!("  User ID: {}", social_account.user_id);
-    println!("  Has refresh token: {}\n", social_account.refresh_token.is_some());
+    println!(
+        "  Has refresh token: {}\n",
+        social_account.refresh_token.is_some()
+    );
 
     // Configure linking strategy
     let linker = AccountLinker::new(LinkingStrategy::AutoLinkByEmail);
@@ -164,10 +168,7 @@ async fn complete_oauth_flow_example() -> Result<()> {
 
     // Step 1: Redirect to provider
     let state = manager.generate_state();
-    let mut driver = manager.github()?
-        .state(state.clone())
-        .with_pkce()
-        .build()?;
+    let mut driver = manager.github()?.state(state.clone()).with_pkce().build()?;
 
     let auth_url = driver.redirect()?;
     println!("1. Redirect user to: {}", auth_url);

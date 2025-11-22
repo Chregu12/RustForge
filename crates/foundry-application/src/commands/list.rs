@@ -1,8 +1,8 @@
 use crate::CommandRegistry;
 use async_trait::async_trait;
+use foundry_console::{BorderStyle, Colorize, Table, TableCell, TableRow};
 use foundry_domain::{CommandDescriptor, CommandKind};
 use foundry_plugins::{CommandContext, CommandError, CommandResult, CommandStatus, FoundryCommand};
-use foundry_console::{Table, TableRow, TableCell, BorderStyle, Colorize};
 use serde_json::json;
 
 pub struct ListCommand {
@@ -33,7 +33,9 @@ impl FoundryCommand for ListCommand {
     }
 
     async fn execute(&self, ctx: CommandContext) -> Result<CommandResult, CommandError> {
-        let catalog = self.registry.descriptors()
+        let catalog = self
+            .registry
+            .descriptors()
             .map_err(|e| CommandError::Message(e.to_string()))?;
         let total = catalog.len();
 

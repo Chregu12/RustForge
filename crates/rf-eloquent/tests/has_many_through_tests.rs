@@ -5,8 +5,7 @@
 
 use rf_eloquent::has_many_through;
 use sea_orm::{
-    entity::prelude::*, Database, DatabaseBackend, DatabaseConnection,
-    DbErr, Schema, Set,
+    entity::prelude::*, Database, DatabaseBackend, DatabaseConnection, DbErr, Schema, Set,
 };
 
 // ============================================================================
@@ -27,10 +26,10 @@ pub enum Relation {}
 impl ActiveModelBehavior for ActiveModel {}
 
 pub mod country {
-    pub use super::Entity;
-    pub use super::Model;
     pub use super::ActiveModel;
     pub use super::Column;
+    pub use super::Entity;
+    pub use super::Model;
 }
 
 // ============================================================================
@@ -363,11 +362,7 @@ async fn test_has_many_through_multi_level() {
         .await
         .unwrap();
 
-    assert_eq!(
-        comments.len(),
-        2,
-        "Alice's Post 1 should have 2 comments"
-    );
+    assert_eq!(comments.len(), 2, "Alice's Post 1 should have 2 comments");
 }
 
 #[tokio::test]
@@ -533,9 +528,6 @@ async fn test_has_many_through_preserves_data_integrity() {
             .unwrap()
             .unwrap();
 
-        assert_eq!(
-            user.country_id, 2,
-            "Post should belong to user from Canada"
-        );
+        assert_eq!(user.country_id, 2, "Post should belong to user from Canada");
     }
 }

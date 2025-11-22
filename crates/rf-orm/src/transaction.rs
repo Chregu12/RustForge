@@ -210,10 +210,7 @@ mod tests {
 
     #[test]
     fn test_isolation_level_sql() {
-        assert_eq!(
-            IsolationLevel::ReadCommitted.to_sql(),
-            "READ COMMITTED"
-        );
+        assert_eq!(IsolationLevel::ReadCommitted.to_sql(), "READ COMMITTED");
         assert_eq!(IsolationLevel::Serializable.to_sql(), "SERIALIZABLE");
     }
 }

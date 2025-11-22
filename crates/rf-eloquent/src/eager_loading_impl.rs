@@ -4,7 +4,9 @@
 //! It uses a value-based approach with JSON serialization to work around Rust's type system limitations.
 
 use async_trait::async_trait;
-use sea_orm::{DatabaseConnection, DbErr, EntityTrait, Iden, QueryFilter, ColumnTrait, sea_query::Expr};
+use sea_orm::{
+    sea_query::Expr, ColumnTrait, DatabaseConnection, DbErr, EntityTrait, Iden, QueryFilter,
+};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt::Debug;
@@ -66,9 +68,7 @@ impl<'a> ConcreteEagerLoader<'a> {
         );
 
         // Convert parent IDs to sea_orm::Value for the IN clause
-        let values: Vec<sea_orm::Value> = parent_ids.iter()
-            .map(|id| id.clone().into())
-            .collect();
+        let values: Vec<sea_orm::Value> = parent_ids.iter().map(|id| id.clone().into()).collect();
 
         // Execute single query with IN clause - THIS IS THE KEY OPTIMIZATION!
         // Instead of N queries (one per parent), we do 1 query for all parents
@@ -110,7 +110,8 @@ impl<'a> ConcreteEagerLoader<'a> {
             foreign_key_values.len()
         );
 
-        let values: Vec<sea_orm::Value> = foreign_key_values.iter()
+        let values: Vec<sea_orm::Value> = foreign_key_values
+            .iter()
             .map(|id| id.clone().into())
             .collect();
 
@@ -120,7 +121,10 @@ impl<'a> ConcreteEagerLoader<'a> {
             .await
             .map_err(|e| EagerLoadError::DatabaseError(e))?;
 
-        tracing::debug!("Loaded {} related models in single query", related_models.len());
+        tracing::debug!(
+            "Loaded {} related models in single query",
+            related_models.len()
+        );
 
         Ok(related_models)
     }
@@ -176,9 +180,8 @@ impl<'a> ConcreteEagerLoader<'a> {
 
         // Step 1: Load all pivot rows for all parent IDs in ONE query
         // WHERE parent_id IN (1, 2, 3, 4, 5...)
-        let parent_values: Vec<sea_orm::Value> = parent_ids.iter()
-            .map(|id| id.clone().into())
-            .collect();
+        let parent_values: Vec<sea_orm::Value> =
+            parent_ids.iter().map(|id| id.clone().into()).collect();
 
         let pivot_rows = PE::find()
             .filter(foreign_pivot_key.is_in(parent_values.clone()))
@@ -204,11 +207,17 @@ impl<'a> ConcreteEagerLoader<'a> {
             .filter(
                 related_primary_key.in_subquery(
                     sea_orm::sea_query::Query::select()
-                        .expr(sea_orm::sea_query::Expr::col((PE::default(), related_pivot_key)))
+                        .expr(sea_orm::sea_query::Expr::col((
+                            PE::default(),
+                            related_pivot_key,
+                        )))
                         .from(PE::default())
-                        .and_where(sea_orm::sea_query::Expr::col((PE::default(), foreign_pivot_key)).is_in(parent_values))
-                        .to_owned()
-                )
+                        .and_where(
+                            sea_orm::sea_query::Expr::col((PE::default(), foreign_pivot_key))
+                                .is_in(parent_values),
+                        )
+                        .to_owned(),
+                ),
             )
             .into_model::<M>()
             .all(self.db)
@@ -343,11 +352,7 @@ mod tests {
 
     #[test]
     fn test_group_by_trait() {
-        let items = vec![
-            (1, "a"),
-            (1, "b"),
-            (2, "c"),
-        ];
+        let items = vec![(1, "a"), (1, "b"), (2, "c")];
 
         let grouped = items.into_iter().group_by_key();
         assert_eq!(grouped.len(), 2);

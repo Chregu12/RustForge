@@ -1,8 +1,6 @@
 use async_trait::async_trait;
 use foundry_domain::CommandDescriptor;
-use foundry_plugins::{
-    FoundryCommand, CommandContext, CommandError, CommandResult, CommandStatus,
-};
+use foundry_plugins::{CommandContext, CommandError, CommandResult, CommandStatus, FoundryCommand};
 use serde_json::json;
 use std::fs;
 use std::io::Write;
@@ -39,12 +37,12 @@ impl FoundryCommand for MakeGraphQLTypeCommand {
         let name = ctx
             .args
             .get(0)
-            .ok_or_else(|| {
-                CommandError::Message("Type name is required".to_string())
-            })?;
+            .ok_or_else(|| CommandError::Message("Type name is required".to_string()))?;
 
-        let with_model = ctx.args.contains(&"--model".to_string()) || ctx.args.contains(&"-m".to_string());
-        let with_migration = ctx.args.contains(&"--migration".to_string()) || ctx.args.contains(&"-M".to_string());
+        let with_model =
+            ctx.args.contains(&"--model".to_string()) || ctx.args.contains(&"-m".to_string());
+        let with_migration =
+            ctx.args.contains(&"--migration".to_string()) || ctx.args.contains(&"-M".to_string());
 
         let type_name = capitalize(name);
         let snake_name = to_snake_case(name);
@@ -61,16 +59,18 @@ impl FoundryCommand for MakeGraphQLTypeCommand {
         }
 
         let type_content = generate_type_template(&type_name, &snake_name);
-        fs::create_dir_all("crates/foundry-graphql/src/types")
-            .map_err(|e| CommandError::Message(format!("Failed to create types directory: {}", e)))?;
+        fs::create_dir_all("crates/foundry-graphql/src/types").map_err(|e| {
+            CommandError::Message(format!("Failed to create types directory: {}", e))
+        })?;
         fs::write(&type_path, type_content)
             .map_err(|e| CommandError::Message(format!("Failed to write type file: {}", e)))?;
 
         // Create resolver file
         let resolver_path = format!("crates/foundry-graphql/src/resolvers/{}.rs", snake_name);
         let resolver_content = generate_resolver_template(&type_name, &snake_name);
-        fs::create_dir_all("crates/foundry-graphql/src/resolvers")
-            .map_err(|e| CommandError::Message(format!("Failed to create resolvers directory: {}", e)))?;
+        fs::create_dir_all("crates/foundry-graphql/src/resolvers").map_err(|e| {
+            CommandError::Message(format!("Failed to create resolvers directory: {}", e))
+        })?;
         fs::write(&resolver_path, resolver_content)
             .map_err(|e| CommandError::Message(format!("Failed to write resolver file: {}", e)))?;
 
@@ -92,7 +92,10 @@ impl FoundryCommand for MakeGraphQLTypeCommand {
         ];
 
         if with_model {
-            messages.push(format!("📝 Remember to add Sea-ORM model for {}", type_name));
+            messages.push(format!(
+                "📝 Remember to add Sea-ORM model for {}",
+                type_name
+            ));
         }
 
         if with_migration {
@@ -183,8 +186,16 @@ pub struct Update{}Input {{
 
 pub use Entity as {}Entity;
 "#,
-        type_name, table_name, type_name, type_name, type_name, type_name, type_name, type_name,
-        type_name, type_name
+        type_name,
+        table_name,
+        type_name,
+        type_name,
+        type_name,
+        type_name,
+        type_name,
+        type_name,
+        type_name,
+        type_name
     )
 }
 
@@ -412,4 +423,3 @@ fn to_snake_case(s: &str) -> String {
     }
     result
 }
-

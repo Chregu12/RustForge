@@ -39,7 +39,7 @@
 
 use async_trait::async_trait;
 use dashmap::DashMap;
-use sea_orm::{DatabaseConnection, DbErr, EntityTrait, ColumnTrait, QueryFilter};
+use sea_orm::{ColumnTrait, DatabaseConnection, DbErr, EntityTrait, QueryFilter};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -285,7 +285,9 @@ impl<'a> OptimizedEagerLoader<'a> {
 
         // Optimization 3: Batch loading for large datasets
         if self.config.batch_size > 0 && models.len() > self.config.batch_size {
-            return self.load_relation_batched(models, relation_name, parent_ids).await;
+            return self
+                .load_relation_batched(models, relation_name, parent_ids)
+                .await;
         }
 
         // Optimization 4: Load related models in single query

@@ -2,11 +2,7 @@
 //!
 //! Ein vollständiges Beispiel für einen Echtzeit-Chat mit WebSockets.
 
-use crate::websocket::{
-    manager::WebSocketManager,
-    channel::Channel,
-    message::WebSocketMessage,
-};
+use crate::websocket::{channel::Channel, manager::WebSocketManager, message::WebSocketMessage};
 use serde::{Deserialize, Serialize};
 
 /// Eine Chat-Nachricht
@@ -71,8 +67,7 @@ impl ChatService {
     /// # }
     /// ```
     pub async fn create_room(&self, room_name: &str, description: &str) {
-        let channel = Channel::new(format!("chat:{}", room_name))
-            .with_description(description);
+        let channel = Channel::new(format!("chat:{}", room_name)).with_description(description);
 
         self.manager.channel_manager().create_channel(channel).await;
     }
@@ -97,7 +92,10 @@ impl ChatService {
         let channel_name = format!("chat:{}", room);
         let ws_message = message.to_websocket_message()?;
 
-        let count = self.manager.send_to_channel(&channel_name, ws_message).await;
+        let count = self
+            .manager
+            .send_to_channel(&channel_name, ws_message)
+            .await;
 
         Ok(count)
     }
@@ -107,7 +105,9 @@ impl ChatService {
         let channel_name = format!("chat:{}", room);
         let ws_message = WebSocketMessage::system(message);
 
-        self.manager.send_to_channel(&channel_name, ws_message).await
+        self.manager
+            .send_to_channel(&channel_name, ws_message)
+            .await
     }
 
     /// Benachrichtigt über einen Benutzer-Beitritt
@@ -125,7 +125,10 @@ impl ChatService {
     /// Gibt die Anzahl der Benutzer in einem Raum zurück
     pub async fn room_user_count(&self, room: &str) -> usize {
         let channel_name = format!("chat:{}", room);
-        self.manager.channel_manager().subscriber_count(&channel_name).await
+        self.manager
+            .channel_manager()
+            .subscriber_count(&channel_name)
+            .await
     }
 
     /// Liste aller Chat-Räume

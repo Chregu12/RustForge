@@ -29,8 +29,8 @@ use super::polymorphic::{PolymorphicError, PolymorphicResult};
 use async_trait::async_trait;
 use sea_orm::{
     sea_query::{Expr, SimpleExpr},
-    ColumnTrait, Condition, DatabaseConnection, DbErr, EntityTrait, FromQueryResult, PaginatorTrait, QueryFilter,
-    QueryOrder, QuerySelect, Selector,
+    ColumnTrait, Condition, DatabaseConnection, DbErr, EntityTrait, FromQueryResult,
+    PaginatorTrait, QueryFilter, QueryOrder, QuerySelect, Selector,
 };
 use std::marker::PhantomData;
 

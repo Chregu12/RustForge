@@ -92,9 +92,8 @@ impl Container {
     ) -> Result<()> {
         let key = key.into();
         let arc_instance = Arc::new(instance);
-        let wrapped_factory: Factory = Arc::new(move || {
-            Ok(arc_instance.clone() as Arc<dyn Any + Send + Sync>)
-        });
+        let wrapped_factory: Factory =
+            Arc::new(move || Ok(arc_instance.clone() as Arc<dyn Any + Send + Sync>));
 
         let binding = Binding::singleton(wrapped_factory);
         let mut bindings = self.bindings.write().await;
@@ -163,10 +162,7 @@ impl Container {
     /// Get all services with a specific tag
     pub async fn tagged(&self, tag: impl AsRef<str>) -> Result<Vec<String>> {
         let tags = self.tags.read().await;
-        Ok(tags
-            .get(tag.as_ref())
-            .cloned()
-            .unwrap_or_default())
+        Ok(tags.get(tag.as_ref()).cloned().unwrap_or_default())
     }
 
     /// Create an alias for a service
@@ -221,9 +217,7 @@ impl Container {
                 crate::binding::BindingType::Singleton => {
                     Binding::singleton(binding.factory.clone())
                 }
-                crate::binding::BindingType::Factory => {
-                    Binding::factory(binding.factory.clone())
-                }
+                crate::binding::BindingType::Factory => Binding::factory(binding.factory.clone()),
             };
             bindings.insert(key.clone(), new_binding.with_tags(binding.tags.clone()));
         }
@@ -250,9 +244,11 @@ mod tests {
         let container = Container::new();
 
         container
-            .bind("test", || Ok(TestService {
-                value: "test".to_string(),
-            }))
+            .bind("test", || {
+                Ok(TestService {
+                    value: "test".to_string(),
+                })
+            })
             .await
             .unwrap();
 
@@ -265,9 +261,11 @@ mod tests {
         let container = Container::new();
 
         container
-            .singleton("counter", || Ok(TestService {
-                value: "singleton".to_string(),
-            }))
+            .singleton("counter", || {
+                Ok(TestService {
+                    value: "singleton".to_string(),
+                })
+            })
             .await
             .unwrap();
 
@@ -297,9 +295,11 @@ mod tests {
         let container = Container::new();
 
         container
-            .bind("exists", || Ok(TestService {
-                value: "test".to_string(),
-            }))
+            .bind("exists", || {
+                Ok(TestService {
+                    value: "test".to_string(),
+                })
+            })
             .await
             .unwrap();
 
@@ -312,9 +312,11 @@ mod tests {
         let container = Container::new();
 
         container
-            .bind("original", || Ok(TestService {
-                value: "test".to_string(),
-            }))
+            .bind("original", || {
+                Ok(TestService {
+                    value: "test".to_string(),
+                })
+            })
             .await
             .unwrap();
 
@@ -329,7 +331,10 @@ mod tests {
         let container = Container::new();
 
         container
-            .tag(vec!["cache".to_string()], vec!["redis".to_string(), "memcached".to_string()])
+            .tag(
+                vec!["cache".to_string()],
+                vec!["redis".to_string(), "memcached".to_string()],
+            )
             .await
             .unwrap();
 

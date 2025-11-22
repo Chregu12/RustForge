@@ -26,12 +26,12 @@
 use proc_macro::TokenStream;
 use syn::{parse_macro_input, DeriveInput};
 
-mod parser;
 mod generator;
+mod parser;
 mod rules;
 
-use parser::StructInfo;
 use generator::generate_validate_impl;
+use parser::StructInfo;
 
 /// Derive macro for automatic validation
 ///

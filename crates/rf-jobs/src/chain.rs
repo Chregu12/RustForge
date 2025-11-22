@@ -323,7 +323,6 @@ impl QueueManager {
 
         Ok(())
     }
-
 }
 
 #[cfg(test)]

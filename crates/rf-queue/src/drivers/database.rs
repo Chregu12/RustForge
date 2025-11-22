@@ -6,8 +6,8 @@ use crate::{JobMetadata, Queue, QueueError, QueueResult};
 use async_trait::async_trait;
 use chrono::{DateTime, Duration as ChronoDuration, Utc};
 use sea_orm::{
-    entity::prelude::*, ActiveModelBehavior, ActiveValue::NotSet, ColumnTrait, DatabaseConnection, EntityTrait,
-    QueryFilter, QueryOrder, Set,
+    entity::prelude::*, ActiveModelBehavior, ActiveValue::NotSet, ColumnTrait, DatabaseConnection,
+    EntityTrait, QueryFilter, QueryOrder, Set,
 };
 
 /// Job entry entity
@@ -125,7 +125,9 @@ impl DatabaseQueue {
                 failed_job_entry::Entity::delete_by_id(failed_job.id)
                     .exec(&self.db)
                     .await
-                    .map_err(|e| QueueError::Backend(format!("Failed to delete failed job: {}", e)))?;
+                    .map_err(|e| {
+                        QueueError::Backend(format!("Failed to delete failed job: {}", e))
+                    })?;
 
                 count += 1;
             }
@@ -232,10 +234,9 @@ impl Queue for DatabaseQueue {
             failed_at: Set(Utc::now()),
         };
 
-        failed
-            .insert(&self.db)
-            .await
-            .map_err(|e| QueueError::Backend(format!("Failed to create failed job entry: {}", e)))?;
+        failed.insert(&self.db).await.map_err(|e| {
+            QueueError::Backend(format!("Failed to create failed job entry: {}", e))
+        })?;
 
         // Delete from jobs table
         job_entry::Entity::delete_by_id(id)

@@ -68,7 +68,8 @@ pub trait ResourcePolicy<U, R>: Send + Sync {
 pub struct PolicyRegistry {
     // Map: (TypeId of Resource) -> Map: (Action name) -> Callback
     policies: RwLock<HashMap<TypeId, HashMap<String, PolicyCallback>>>,
-    before_callbacks: RwLock<Vec<Arc<dyn Fn(&dyn Any, &str, &dyn Any) -> Option<bool> + Send + Sync>>>,
+    before_callbacks:
+        RwLock<Vec<Arc<dyn Fn(&dyn Any, &str, &dyn Any) -> Option<bool> + Send + Sync>>>,
 }
 
 impl PolicyRegistry {
@@ -167,7 +168,12 @@ impl PolicyRegistry {
     }
 
     /// Authorize an action or return an error
-    pub async fn authorize<R>(&self, action: &str, user: &dyn Any, resource: &R) -> AuthorizationResult
+    pub async fn authorize<R>(
+        &self,
+        action: &str,
+        user: &dyn Any,
+        resource: &R,
+    ) -> AuthorizationResult
     where
         R: 'static,
     {

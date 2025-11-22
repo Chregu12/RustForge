@@ -81,9 +81,8 @@ fn process_components(markdown: &str) -> Result<String, MailError> {
 /// Process @button(url) text @endbutton
 fn process_buttons(markdown: &str) -> Result<String, MailError> {
     static BUTTON_RE: OnceLock<Regex> = OnceLock::new();
-    let re = BUTTON_RE.get_or_init(|| {
-        Regex::new(r"@button\(([^\)]+)\)\s*\n?(.*?)\n?@endbutton").unwrap()
-    });
+    let re = BUTTON_RE
+        .get_or_init(|| Regex::new(r"@button\(([^\)]+)\)\s*\n?(.*?)\n?@endbutton").unwrap());
 
     let result = re.replace_all(markdown, |caps: &regex::Captures| {
         let url = &caps[1];
@@ -109,9 +108,7 @@ fn process_buttons(markdown: &str) -> Result<String, MailError> {
 /// Process @panel text @endpanel
 fn process_panels(markdown: &str) -> Result<String, MailError> {
     static PANEL_RE: OnceLock<Regex> = OnceLock::new();
-    let re = PANEL_RE.get_or_init(|| {
-        Regex::new(r"@panel\s*\n?(.*?)\n?@endpanel").unwrap()
-    });
+    let re = PANEL_RE.get_or_init(|| Regex::new(r"@panel\s*\n?(.*?)\n?@endpanel").unwrap());
 
     let result = re.replace_all(markdown, |caps: &regex::Captures| {
         let content = &caps[1].trim();
@@ -130,9 +127,7 @@ fn process_panels(markdown: &str) -> Result<String, MailError> {
 /// Process @table ... @endtable (enhanced styling)
 fn process_tables(markdown: &str) -> Result<String, MailError> {
     static TABLE_RE: OnceLock<Regex> = OnceLock::new();
-    let re = TABLE_RE.get_or_init(|| {
-        Regex::new(r"(?s)@table\s*\n(.*?)\n@endtable").unwrap()
-    });
+    let re = TABLE_RE.get_or_init(|| Regex::new(r"(?s)@table\s*\n(.*?)\n@endtable").unwrap());
 
     let result = re.replace_all(markdown, |caps: &regex::Captures| {
         let table_content = &caps[1];

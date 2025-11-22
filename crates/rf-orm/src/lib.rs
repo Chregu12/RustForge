@@ -120,8 +120,8 @@ pub mod polymorphic;
 pub mod query;
 pub mod query_builder;
 pub mod relationships;
-pub mod scopes;
 pub mod schema_builder;
+pub mod scopes;
 pub mod soft_delete;
 pub mod transaction;
 
@@ -130,8 +130,8 @@ pub mod advanced_migrations;
 pub mod sharding;
 
 // Performance optimization modules
-pub mod query_cache;
 pub mod pool_optimizer;
+pub mod query_cache;
 
 #[cfg(test)]
 pub mod testing;
@@ -158,12 +158,12 @@ pub use query::{
 pub use query_builder::QueryBuilder;
 pub use relationships::{
     basic::{eager_load, RelationshipHelpers},
-    through::{has_one_through, has_many_through, HasOneThrough, HasManyThrough, ThroughResult},
+    loading::{CollectionExt, EagerLoad, LazyLoad, LoadResult, SupportsEagerLoading},
     morph_to_many::{attach_morph, detach_morph, sync_morph, toggle_morph, MorphToManyResult},
-    loading::{EagerLoad, LazyLoad, CollectionExt, LoadResult, SupportsEagerLoading},
+    through::{has_many_through, has_one_through, HasManyThrough, HasOneThrough, ThroughResult},
 };
-pub use scopes::{HasScopes, ScopeFn, ScopeExt, ScopeRegistry};
 pub use schema_builder::{Blueprint, Column, ColumnType, DatabaseType, ForeignKey, Index, Schema};
+pub use scopes::{HasScopes, ScopeExt, ScopeFn, ScopeRegistry};
 pub use soft_delete::SoftDelete;
 pub use transaction::{IsolationLevel, IsolationLevelExt, Savepoint, Transaction, TransactionExt};
 
@@ -186,20 +186,20 @@ pub use sea_orm::{
 // Re-export commonly used types
 pub mod prelude {
     pub use super::{
-        AdvancedMigrationBuilder, AdvancedMigrationError, AdvancedMigrationResult, BatchResult,
-        Blueprint, Collection, Column, ColumnType, DatabaseConfig, DatabaseManager, DatabaseType,
-        DbError, DbResult, EventObserver, ForeignKey, ForeignKeyAction, GeographicStrategy,
-        HashStrategy, HasScopes, Index, IntoCollection, IsolationLevel, IsolationLevelExt,
-        Migration, MigrationError, MigrationResult, MigrationStatus, Migrator, Model, ModelEvent,
-        ModelEvents, MorphMany, MorphOne, MorphTo, MorphToMany, Morphable,
-        PolymorphicQueryBuilder, PolymorphicResult, QueryBuilder, RangeStrategy,
-        RelationshipHelpers, Savepoint, ScopeExt, ScopeFn, ScopeRegistry, Schema, SchemaContext,
-        ShardError, ShardManager, ShardResult, ShardStrategy, SoftDelete, TenantStrategy,
-        Transaction, TransactionExt, eager_load, morph_many, morph_one, morph_to,
+        eager_load, morph_many, morph_one, morph_to, AdvancedMigrationBuilder,
+        AdvancedMigrationError, AdvancedMigrationResult, BatchResult, Blueprint, Collection,
+        Column, ColumnType, DatabaseConfig, DatabaseManager, DatabaseType, DbError, DbResult,
+        EventObserver, ForeignKey, ForeignKeyAction, GeographicStrategy, HasScopes, HashStrategy,
+        Index, IntoCollection, IsolationLevel, IsolationLevelExt, Migration, MigrationError,
+        MigrationResult, MigrationStatus, Migrator, Model, ModelEvent, ModelEvents, MorphMany,
+        MorphOne, MorphTo, MorphToMany, Morphable, PolymorphicQueryBuilder, PolymorphicResult,
+        QueryBuilder, RangeStrategy, RelationshipHelpers, Savepoint, Schema, SchemaContext,
+        ScopeExt, ScopeFn, ScopeRegistry, ShardError, ShardManager, ShardResult, ShardStrategy,
+        SoftDelete, TenantStrategy, Transaction, TransactionExt,
     };
     pub use sea_orm::{
-        ActiveModelBehavior, ActiveModelTrait, ColumnTrait, DatabaseConnection, DatabaseTransaction,
-        DbErr, EntityTrait, IntoActiveModel, ModelTrait, PaginatorTrait, QueryFilter, QueryOrder,
-        QuerySelect, QueryTrait, Related, RelationTrait, Set,
+        ActiveModelBehavior, ActiveModelTrait, ColumnTrait, DatabaseConnection,
+        DatabaseTransaction, DbErr, EntityTrait, IntoActiveModel, ModelTrait, PaginatorTrait,
+        QueryFilter, QueryOrder, QuerySelect, QueryTrait, Related, RelationTrait, Set,
     };
 }

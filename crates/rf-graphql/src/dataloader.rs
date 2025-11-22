@@ -42,7 +42,11 @@ mod tests {
         type Value = User;
         type Error = Arc<std::io::Error>;
 
-        fn load(&self, keys: &[i64]) -> impl std::future::Future<Output = Result<HashMap<i64, Self::Value>, Self::Error>> + Send {
+        fn load(
+            &self,
+            keys: &[i64],
+        ) -> impl std::future::Future<Output = Result<HashMap<i64, Self::Value>, Self::Error>> + Send
+        {
             let keys = keys.to_vec();
             async move {
                 // Simulate database batch query
@@ -80,11 +84,7 @@ mod tests {
         let loader = DataLoader::new(UserLoader, tokio::spawn);
 
         // Load multiple users - should be batched
-        let futures = vec![
-            loader.load_one(1),
-            loader.load_one(2),
-            loader.load_one(3),
-        ];
+        let futures = vec![loader.load_one(1), loader.load_one(2), loader.load_one(3)];
 
         let results = futures::future::join_all(futures).await;
 

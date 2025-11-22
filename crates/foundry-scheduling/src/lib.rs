@@ -34,14 +34,14 @@ pub mod cron;
 pub mod jobs;
 pub mod scheduler;
 
-pub use cron::{CronSchedule, CronParser, CronPatterns, CronError};
-pub use jobs::{ScheduledJob, JobContext, JobResult, JobRunner, RunnerConfig};
+pub use cron::{CronError, CronParser, CronPatterns, CronSchedule};
+pub use jobs::{JobContext, JobResult, JobRunner, RunnerConfig, ScheduledJob};
 pub use scheduler::TaskScheduler;
 
 /// Prelude module for convenient imports
 pub mod prelude {
-    pub use crate::cron::{CronSchedule, CronParser, CronPatterns};
-    pub use crate::jobs::{ScheduledJob, JobContext, JobResult, JobError};
+    pub use crate::cron::{CronParser, CronPatterns, CronSchedule};
+    pub use crate::jobs::{JobContext, JobError, JobResult, ScheduledJob};
     pub use crate::scheduler::TaskScheduler;
 }
 

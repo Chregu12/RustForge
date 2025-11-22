@@ -282,9 +282,12 @@ impl Schema {
         }
 
         let conn = DB_CONNECTION.read().await;
-        conn.as_ref()
-            .map(Arc::clone)
-            .ok_or_else(|| DbError::InvalidConfig("No database connection set. Call Schema::set_connection() or use Schema::new().".to_string()))
+        conn.as_ref().map(Arc::clone).ok_or_else(|| {
+            DbError::InvalidConfig(
+                "No database connection set. Call Schema::set_connection() or use Schema::new()."
+                    .to_string(),
+            )
+        })
     }
 
     /// Create a new table
@@ -969,21 +972,13 @@ impl Blueprint {
         let mut sql = format!("CREATE TABLE {} (\n", self.table_name);
 
         // Columns
-        let column_defs: Vec<String> = self
-            .columns
-            .iter()
-            .map(|col| col.to_sql(db_type))
-            .collect();
+        let column_defs: Vec<String> = self.columns.iter().map(|col| col.to_sql(db_type)).collect();
         sql.push_str(&format!("  {}", column_defs.join(",\n  ")));
 
         // Foreign keys
         if !self.foreign_keys.is_empty() {
             sql.push_str(",\n");
-            let fk_defs: Vec<String> = self
-                .foreign_keys
-                .iter()
-                .map(|fk| fk.to_sql())
-                .collect();
+            let fk_defs: Vec<String> = self.foreign_keys.iter().map(|fk| fk.to_sql()).collect();
             sql.push_str(&format!("  {}", fk_defs.join(",\n  ")));
         }
 
@@ -1212,11 +1207,12 @@ impl Column {
     /// Generate SQL for this column
     fn to_sql(&self, db_type: DatabaseType) -> String {
         // For SQLite primary keys with autoincrement, use INTEGER type
-        let column_type_sql = if self.primary_key && self.auto_increment && db_type == DatabaseType::SQLite {
-            "INTEGER".to_string()
-        } else {
-            self.column_type.to_sql(db_type)
-        };
+        let column_type_sql =
+            if self.primary_key && self.auto_increment && db_type == DatabaseType::SQLite {
+                "INTEGER".to_string()
+            } else {
+                self.column_type.to_sql(db_type)
+            };
 
         let mut sql = format!("{} {}", self.name, column_type_sql);
 
@@ -1227,7 +1223,7 @@ impl Column {
         if self.auto_increment {
             match db_type {
                 DatabaseType::SQLite => sql.push_str(" AUTOINCREMENT"),
-                DatabaseType::PostgreSQL => {}, // Handled by SERIAL type
+                DatabaseType::PostgreSQL => {} // Handled by SERIAL type
                 DatabaseType::MySQL => sql.push_str(" AUTO_INCREMENT"),
             }
         }
@@ -1494,24 +1490,51 @@ mod tests {
 
     #[test]
     fn test_database_type_detection() {
-        assert_eq!(DatabaseType::from_url("sqlite::memory:"), DatabaseType::SQLite);
-        assert_eq!(DatabaseType::from_url("postgres://localhost/test"), DatabaseType::PostgreSQL);
-        assert_eq!(DatabaseType::from_url("postgresql://localhost/test"), DatabaseType::PostgreSQL);
-        assert_eq!(DatabaseType::from_url("mysql://localhost/test"), DatabaseType::MySQL);
+        assert_eq!(
+            DatabaseType::from_url("sqlite::memory:"),
+            DatabaseType::SQLite
+        );
+        assert_eq!(
+            DatabaseType::from_url("postgres://localhost/test"),
+            DatabaseType::PostgreSQL
+        );
+        assert_eq!(
+            DatabaseType::from_url("postgresql://localhost/test"),
+            DatabaseType::PostgreSQL
+        );
+        assert_eq!(
+            DatabaseType::from_url("mysql://localhost/test"),
+            DatabaseType::MySQL
+        );
     }
 
     #[test]
     fn test_column_type_sql() {
         assert_eq!(ColumnType::Integer.to_sql(DatabaseType::SQLite), "INTEGER");
-        assert_eq!(ColumnType::BigInteger.to_sql(DatabaseType::PostgreSQL), "BIGINT");
-        assert_eq!(ColumnType::String(Some(100)).to_sql(DatabaseType::SQLite), "VARCHAR(100)");
-        assert_eq!(ColumnType::String(None).to_sql(DatabaseType::SQLite), "VARCHAR(255)");
+        assert_eq!(
+            ColumnType::BigInteger.to_sql(DatabaseType::PostgreSQL),
+            "BIGINT"
+        );
+        assert_eq!(
+            ColumnType::String(Some(100)).to_sql(DatabaseType::SQLite),
+            "VARCHAR(100)"
+        );
+        assert_eq!(
+            ColumnType::String(None).to_sql(DatabaseType::SQLite),
+            "VARCHAR(255)"
+        );
         assert_eq!(ColumnType::Text.to_sql(DatabaseType::SQLite), "TEXT");
-        assert_eq!(ColumnType::Boolean.to_sql(DatabaseType::PostgreSQL), "BOOLEAN");
+        assert_eq!(
+            ColumnType::Boolean.to_sql(DatabaseType::PostgreSQL),
+            "BOOLEAN"
+        );
         assert_eq!(ColumnType::Boolean.to_sql(DatabaseType::SQLite), "INTEGER");
         assert_eq!(ColumnType::Json.to_sql(DatabaseType::PostgreSQL), "JSON");
         assert_eq!(ColumnType::JsonB.to_sql(DatabaseType::PostgreSQL), "JSONB");
-        assert_eq!(ColumnType::Decimal(10, 2).to_sql(DatabaseType::SQLite), "DECIMAL(10, 2)");
+        assert_eq!(
+            ColumnType::Decimal(10, 2).to_sql(DatabaseType::SQLite),
+            "DECIMAL(10, 2)"
+        );
     }
 
     #[test]
@@ -1674,7 +1697,8 @@ mod tests {
         blueprint.id();
         blueprint.string("title");
         blueprint.foreign_id("user_id");
-        blueprint.foreign("user_id")
+        blueprint
+            .foreign("user_id")
             .references("id")
             .on("users")
             .on_delete("cascade");
@@ -1728,7 +1752,8 @@ mod tests {
         let mut blueprint = Blueprint::new("posts".to_string());
         blueprint.id();
         blueprint.string("title");
-        blueprint.foreign("user_id")
+        blueprint
+            .foreign("user_id")
             .references("id")
             .on("users")
             .on_delete("cascade");
@@ -1753,7 +1778,8 @@ mod tests {
     #[test]
     fn test_column_modifiers_chaining() {
         let mut blueprint = Blueprint::new("products".to_string());
-        let col = blueprint.integer("stock")
+        let col = blueprint
+            .integer("stock")
             .default("0")
             .unsigned()
             .comment("Available stock");
@@ -1785,8 +1811,14 @@ mod tests {
         blueprint.timestamp("ts");
 
         assert_eq!(blueprint.columns.len(), 16);
-        assert_eq!(blueprint.columns[1].column_type, ColumnType::String(Some(255)));
-        assert_eq!(blueprint.columns[2].column_type, ColumnType::String(Some(100)));
+        assert_eq!(
+            blueprint.columns[1].column_type,
+            ColumnType::String(Some(255))
+        );
+        assert_eq!(
+            blueprint.columns[2].column_type,
+            ColumnType::String(Some(100))
+        );
         assert_eq!(blueprint.columns[3].column_type, ColumnType::Text);
         assert_eq!(blueprint.columns[9].column_type, ColumnType::Decimal(10, 2));
     }
@@ -1848,9 +1880,7 @@ mod tests {
             on_update: None,
         };
 
-        fk.on("users")
-            .on_delete("cascade")
-            .on_update("restrict");
+        fk.on("users").on_delete("cascade").on_update("restrict");
 
         assert_eq!(fk.on, "users");
         assert_eq!(fk.on_delete, Some("CASCADE".to_string()));

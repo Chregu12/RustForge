@@ -140,13 +140,12 @@ pub fn alert_component() -> ComponentRenderer {
             .and_then(|v| v.as_bool())
             .unwrap_or(false);
 
-        let mut html = format!(
-            r#"<div class="alert alert-{}" role="alert">"#,
-            alert_type
-        );
+        let mut html = format!(r#"<div class="alert alert-{}" role="alert">"#, alert_type);
 
         if dismissible {
-            html.push_str(r#"<button type="button" class="close" data-dismiss="alert">&times;</button>"#);
+            html.push_str(
+                r#"<button type="button" class="close" data-dismiss="alert">&times;</button>"#,
+            );
         }
 
         html.push_str(&format!("{}</div>", message));
@@ -241,10 +240,7 @@ pub fn input_component() -> ComponentRenderer {
 
         let label = context.get("label").and_then(|v| v.as_str());
 
-        let value = context
-            .get("value")
-            .and_then(|v| v.as_str())
-            .unwrap_or("");
+        let value = context.get("value").and_then(|v| v.as_str()).unwrap_or("");
 
         let placeholder = context.get("placeholder").and_then(|v| v.as_str());
 
@@ -258,10 +254,7 @@ pub fn input_component() -> ComponentRenderer {
         let mut html = String::from(r#"<div class="form-group">"#);
 
         if let Some(label_text) = label {
-            html.push_str(&format!(
-                r#"<label for="{}">{}</label>"#,
-                name, label_text
-            ));
+            html.push_str(&format!(r#"<label for="{}">{}</label>"#, name, label_text));
         }
 
         html.push_str(&format!(
@@ -284,10 +277,7 @@ pub fn input_component() -> ComponentRenderer {
         html.push_str(">");
 
         if let Some(err) = error {
-            html.push_str(&format!(
-                r#"<span class="error-message">{}</span>"#,
-                err
-            ));
+            html.push_str(&format!(r#"<span class="error-message">{}</span>"#, err));
         }
 
         html.push_str("</div>");

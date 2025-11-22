@@ -187,7 +187,8 @@ pub struct ResetPasswordTemplate {
 
 impl Template for ResetPasswordTemplate {
     fn render(&self) -> String {
-        format!(r#"<!DOCTYPE html>
+        format!(
+            r#"<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -230,6 +231,8 @@ impl Template for ResetPasswordTemplate {
         </div>
     </div>
 </body>
-</html>"#, self.token, self.email)
+</html>"#,
+            self.token, self.email
+        )
     }
 }

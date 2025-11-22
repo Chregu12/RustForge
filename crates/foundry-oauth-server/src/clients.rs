@@ -4,8 +4,8 @@
 
 use crate::errors::{OAuth2Error, OAuth2Result};
 use crate::models::Client;
-use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
 use argon2::password_hash::SaltString;
+use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
 use async_trait::async_trait;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
@@ -86,7 +86,9 @@ impl Default for InMemoryClientRepository {
 #[async_trait]
 impl ClientRepository for InMemoryClientRepository {
     async fn find(&self, client_id: Uuid) -> OAuth2Result<Option<Client>> {
-        let clients = self.clients.read()
+        let clients = self
+            .clients
+            .read()
             .map_err(|e| OAuth2Error::InternalError(format!("Lock poisoned: {}", e)))?;
         Ok(clients.get(&client_id).cloned())
     }
@@ -96,9 +98,13 @@ impl ClientRepository for InMemoryClientRepository {
         client_id: Uuid,
         client_secret: &str,
     ) -> OAuth2Result<Option<Client>> {
-        let clients = self.clients.read()
+        let clients = self
+            .clients
+            .read()
             .map_err(|e| OAuth2Error::InternalError(format!("Lock poisoned: {}", e)))?;
-        let secrets = self.secrets.read()
+        let secrets = self
+            .secrets
+            .read()
             .map_err(|e| OAuth2Error::InternalError(format!("Lock poisoned: {}", e)))?;
 
         let Some(client) = clients.get(&client_id) else {
@@ -128,7 +134,9 @@ impl ClientRepository for InMemoryClientRepository {
         // Hash secret if confidential client
         if let Some(secret) = &client.secret {
             let hashed = self.hash_secret(secret)?;
-            let mut secrets = self.secrets.write()
+            let mut secrets = self
+                .secrets
+                .write()
                 .map_err(|e| OAuth2Error::InternalError(format!("Lock poisoned: {}", e)))?;
             secrets.insert(client.id, hashed);
 
@@ -136,7 +144,9 @@ impl ClientRepository for InMemoryClientRepository {
             client.secret = Some("***REDACTED***".to_string());
         }
 
-        let mut clients = self.clients.write()
+        let mut clients = self
+            .clients
+            .write()
             .map_err(|e| OAuth2Error::InternalError(format!("Lock poisoned: {}", e)))?;
         clients.insert(client.id, client.clone());
 
@@ -144,7 +154,9 @@ impl ClientRepository for InMemoryClientRepository {
     }
 
     async fn update(&self, client: Client) -> OAuth2Result<Client> {
-        let mut clients = self.clients.write()
+        let mut clients = self
+            .clients
+            .write()
             .map_err(|e| OAuth2Error::InternalError(format!("Lock poisoned: {}", e)))?;
 
         if !clients.contains_key(&client.id) {
@@ -156,9 +168,13 @@ impl ClientRepository for InMemoryClientRepository {
     }
 
     async fn delete(&self, client_id: Uuid) -> OAuth2Result<()> {
-        let mut clients = self.clients.write()
+        let mut clients = self
+            .clients
+            .write()
             .map_err(|e| OAuth2Error::InternalError(format!("Lock poisoned: {}", e)))?;
-        let mut secrets = self.secrets.write()
+        let mut secrets = self
+            .secrets
+            .write()
             .map_err(|e| OAuth2Error::InternalError(format!("Lock poisoned: {}", e)))?;
 
         clients.remove(&client_id);
@@ -168,7 +184,9 @@ impl ClientRepository for InMemoryClientRepository {
     }
 
     async fn revoke(&self, client_id: Uuid) -> OAuth2Result<()> {
-        let mut clients = self.clients.write()
+        let mut clients = self
+            .clients
+            .write()
             .map_err(|e| OAuth2Error::InternalError(format!("Lock poisoned: {}", e)))?;
 
         let Some(client) = clients.get_mut(&client_id) else {
@@ -180,7 +198,9 @@ impl ClientRepository for InMemoryClientRepository {
     }
 
     async fn list(&self) -> OAuth2Result<Vec<Client>> {
-        let clients = self.clients.read()
+        let clients = self
+            .clients
+            .read()
             .map_err(|e| OAuth2Error::InternalError(format!("Lock poisoned: {}", e)))?;
         Ok(clients.values().cloned().collect())
     }
@@ -200,7 +220,10 @@ impl ClientBuilder {
         Self {
             name: None,
             redirect_uris: Vec::new(),
-            grants: vec!["authorization_code".to_string(), "refresh_token".to_string()],
+            grants: vec![
+                "authorization_code".to_string(),
+                "refresh_token".to_string(),
+            ],
             scopes: vec!["*".to_string()],
             confidential: true,
         }
@@ -321,10 +344,7 @@ mod tests {
         repo.store(client).await.unwrap();
 
         // Valid credentials
-        let authenticated = repo
-            .find_by_credentials(client_id, &secret)
-            .await
-            .unwrap();
+        let authenticated = repo.find_by_credentials(client_id, &secret).await.unwrap();
         assert!(authenticated.is_some());
 
         // Invalid credentials
@@ -348,9 +368,7 @@ mod tests {
         repo.store(client).await.unwrap();
 
         // Public client cannot authenticate with secret
-        let result = repo
-            .find_by_credentials(client_id, "any_secret")
-            .await;
+        let result = repo.find_by_credentials(client_id, "any_secret").await;
         assert!(result.is_err());
     }
 

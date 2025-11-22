@@ -1,5 +1,5 @@
-pub mod product;
 pub mod account;
+pub mod product;
 
-pub use product::{Product, ProductInput, UpdateProductInput};
 pub use account::{Account, AccountInput, UpdateAccountInput};
+pub use product::{Product, ProductInput, UpdateProductInput};

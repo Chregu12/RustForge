@@ -4,7 +4,6 @@
 /// similar to Laravel's `vendor:publish --tag=stubs`.
 ///
 /// This allows users to customize built-in stubs for their own use.
-
 use crate::stubs::{Stub, StubManager};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -85,10 +84,7 @@ impl StubPublisher {
         // Create destination directory if needed
         if self.config.create_dirs && !self.config.destination.exists() {
             fs::create_dir_all(&self.config.destination).map_err(|e| {
-                PublishError::DirectoryError(format!(
-                    "Failed to create directory: {}",
-                    e
-                ))
+                PublishError::DirectoryError(format!("Failed to create directory: {}", e))
             })?;
         }
 
@@ -104,19 +100,9 @@ impl StubPublisher {
             match self.manager.get(&stub_id) {
                 Ok(stub) => match self.publish_stub(&stub) {
                     Ok(pub_stub) => published.push(pub_stub),
-                    Err(e) => {
-                        return Err(PublishError::PublishFailed(
-                            stub_id,
-                            Box::new(e),
-                        ))
-                    }
+                    Err(e) => return Err(PublishError::PublishFailed(stub_id, Box::new(e))),
                 },
-                Err(e) => {
-                    return Err(PublishError::StubLoadFailed(
-                        stub_id,
-                        e.to_string(),
-                    ))
-                }
+                Err(e) => return Err(PublishError::StubLoadFailed(stub_id, e.to_string())),
             }
         }
 
@@ -136,9 +122,8 @@ impl StubPublisher {
         }
 
         // Write the stub content
-        fs::write(&destination, &stub.content).map_err(|e| {
-            PublishError::WriteError(format!("Failed to write stub: {}", e))
-        })?;
+        fs::write(&destination, &stub.content)
+            .map_err(|e| PublishError::WriteError(format!("Failed to write stub: {}", e)))?;
 
         let size = stub.content.len() as u64;
         let overwritten = destination.exists();
@@ -159,10 +144,7 @@ impl StubPublisher {
         // Create destination directory if needed
         if self.config.create_dirs && !self.config.destination.exists() {
             fs::create_dir_all(&self.config.destination).map_err(|e| {
-                PublishError::DirectoryError(format!(
-                    "Failed to create directory: {}",
-                    e
-                ))
+                PublishError::DirectoryError(format!("Failed to create directory: {}", e))
             })?;
         }
 
@@ -177,12 +159,7 @@ impl StubPublisher {
         for stub in stubs {
             match self.publish_stub(&stub) {
                 Ok(pub_stub) => published.push(pub_stub),
-                Err(e) => {
-                    return Err(PublishError::PublishFailed(
-                        stub.id,
-                        Box::new(e),
-                    ))
-                }
+                Err(e) => return Err(PublishError::PublishFailed(stub.id, Box::new(e))),
             }
         }
 
@@ -207,12 +184,7 @@ impl StubPublisher {
                         size: stub.content.len() as u64,
                     });
                 }
-                Err(e) => {
-                    return Err(PublishError::StubLoadFailed(
-                        stub_id,
-                        e.to_string(),
-                    ))
-                }
+                Err(e) => return Err(PublishError::StubLoadFailed(stub_id, e.to_string())),
             }
         }
 

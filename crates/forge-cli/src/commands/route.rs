@@ -35,7 +35,8 @@ pub async fn list(method_filter: Option<&str>, path_filter: Option<&str>) -> Res
         println!();
     }
 
-    println!("  {:<8} {:<40} {:<30} {}",
+    println!(
+        "  {:<8} {:<40} {:<30} {}",
         "Method".bold(),
         "URI".bold(),
         "Name".bold(),
@@ -48,9 +49,24 @@ pub async fn list(method_filter: Option<&str>, path_filter: Option<&str>) -> Res
         ("GET", "/", "home", "HomeController@index"),
         ("GET", "/api/users", "users.index", "UserController@index"),
         ("POST", "/api/users", "users.store", "UserController@store"),
-        ("GET", "/api/users/{id}", "users.show", "UserController@show"),
-        ("PUT", "/api/users/{id}", "users.update", "UserController@update"),
-        ("DELETE", "/api/users/{id}", "users.destroy", "UserController@destroy"),
+        (
+            "GET",
+            "/api/users/{id}",
+            "users.show",
+            "UserController@show",
+        ),
+        (
+            "PUT",
+            "/api/users/{id}",
+            "users.update",
+            "UserController@update",
+        ),
+        (
+            "DELETE",
+            "/api/users/{id}",
+            "users.destroy",
+            "UserController@destroy",
+        ),
         ("GET", "/api/posts", "posts.index", "PostController@index"),
         ("POST", "/api/posts", "posts.store", "PostController@store"),
     ];
@@ -77,7 +93,8 @@ pub async fn list(method_filter: Option<&str>, path_filter: Option<&str>) -> Res
             _ => method.white(),
         };
 
-        println!("  {:<8} {:<40} {:<30} {}",
+        println!(
+            "  {:<8} {:<40} {:<30} {}",
             method_colored,
             uri,
             name.bright_black(),
@@ -113,8 +130,16 @@ pub async fn cache() -> Result<()> {
     println!();
     println!("{} Routes cached successfully!", "✓".green().bold());
     println!();
-    println!("  {} Cache location: {}", "ℹ".blue(), "bootstrap/cache/routes.cache".yellow());
-    println!("  {} Clear cache with: {}", "ℹ".blue(), "forge route:clear".yellow());
+    println!(
+        "  {} Cache location: {}",
+        "ℹ".blue(),
+        "bootstrap/cache/routes.cache".yellow()
+    );
+    println!(
+        "  {} Clear cache with: {}",
+        "ℹ".blue(),
+        "forge route:clear".yellow()
+    );
 
     Ok(())
 }

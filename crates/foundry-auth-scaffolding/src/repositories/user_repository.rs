@@ -51,27 +51,50 @@ impl PostgresUserRepository {
     }
 
     fn row_to_user(&self, row: &sqlx::postgres::PgRow) -> RepositoryResult<User> {
-        let two_factor_recovery_codes_json: Option<String> = row.try_get("two_factor_recovery_codes")
+        let two_factor_recovery_codes_json: Option<String> = row
+            .try_get("two_factor_recovery_codes")
             .map_err(|e| RepositoryError::DatabaseError(e.to_string()))?;
 
         let two_factor_recovery_codes = if let Some(json) = two_factor_recovery_codes_json {
-            Some(serde_json::from_str(&json)
-                .map_err(|e| RepositoryError::SerializationError(format!("Failed to parse recovery codes: {}", e)))?)
+            Some(serde_json::from_str(&json).map_err(|e| {
+                RepositoryError::SerializationError(format!(
+                    "Failed to parse recovery codes: {}",
+                    e
+                ))
+            })?)
         } else {
             None
         };
 
         Ok(User {
-            id: row.try_get("id").map_err(|e| RepositoryError::DatabaseError(e.to_string()))?,
-            name: row.try_get("name").map_err(|e| RepositoryError::DatabaseError(e.to_string()))?,
-            email: row.try_get("email").map_err(|e| RepositoryError::DatabaseError(e.to_string()))?,
-            password_hash: row.try_get("password_hash").map_err(|e| RepositoryError::DatabaseError(e.to_string()))?,
-            email_verified_at: row.try_get("email_verified_at").map_err(|e| RepositoryError::DatabaseError(e.to_string()))?,
-            two_factor_secret: row.try_get("two_factor_secret").map_err(|e| RepositoryError::DatabaseError(e.to_string()))?,
+            id: row
+                .try_get("id")
+                .map_err(|e| RepositoryError::DatabaseError(e.to_string()))?,
+            name: row
+                .try_get("name")
+                .map_err(|e| RepositoryError::DatabaseError(e.to_string()))?,
+            email: row
+                .try_get("email")
+                .map_err(|e| RepositoryError::DatabaseError(e.to_string()))?,
+            password_hash: row
+                .try_get("password_hash")
+                .map_err(|e| RepositoryError::DatabaseError(e.to_string()))?,
+            email_verified_at: row
+                .try_get("email_verified_at")
+                .map_err(|e| RepositoryError::DatabaseError(e.to_string()))?,
+            two_factor_secret: row
+                .try_get("two_factor_secret")
+                .map_err(|e| RepositoryError::DatabaseError(e.to_string()))?,
             two_factor_recovery_codes,
-            remember_token: row.try_get("remember_token").map_err(|e| RepositoryError::DatabaseError(e.to_string()))?,
-            created_at: row.try_get("created_at").map_err(|e| RepositoryError::DatabaseError(e.to_string()))?,
-            updated_at: row.try_get("updated_at").map_err(|e| RepositoryError::DatabaseError(e.to_string()))?,
+            remember_token: row
+                .try_get("remember_token")
+                .map_err(|e| RepositoryError::DatabaseError(e.to_string()))?,
+            created_at: row
+                .try_get("created_at")
+                .map_err(|e| RepositoryError::DatabaseError(e.to_string()))?,
+            updated_at: row
+                .try_get("updated_at")
+                .map_err(|e| RepositoryError::DatabaseError(e.to_string()))?,
         })
     }
 }
@@ -119,8 +142,10 @@ impl UserRepository for PostgresUserRepository {
         }
 
         let two_factor_recovery_codes_json = if let Some(codes) = &user.two_factor_recovery_codes {
-            Some(serde_json::to_string(codes)
-                .map_err(|e| RepositoryError::SerializationError(e.to_string()))?)
+            Some(
+                serde_json::to_string(codes)
+                    .map_err(|e| RepositoryError::SerializationError(e.to_string()))?,
+            )
         } else {
             None
         };
@@ -148,8 +173,10 @@ impl UserRepository for PostgresUserRepository {
 
     async fn update(&self, user: User) -> RepositoryResult<User> {
         let two_factor_recovery_codes_json = if let Some(codes) = &user.two_factor_recovery_codes {
-            Some(serde_json::to_string(codes)
-                .map_err(|e| RepositoryError::SerializationError(e.to_string()))?)
+            Some(
+                serde_json::to_string(codes)
+                    .map_err(|e| RepositoryError::SerializationError(e.to_string()))?,
+            )
         } else {
             None
         };
@@ -206,9 +233,7 @@ impl UserRepository for PostgresUserRepository {
         .await
         .map_err(|e| RepositoryError::DatabaseError(format!("Failed to list users: {}", e)))?;
 
-        rows.iter()
-            .map(|row| self.row_to_user(row))
-            .collect()
+        rows.iter().map(|row| self.row_to_user(row)).collect()
     }
 
     async fn count(&self) -> RepositoryResult<i64> {
@@ -217,7 +242,8 @@ impl UserRepository for PostgresUserRepository {
             .await
             .map_err(|e| RepositoryError::DatabaseError(format!("Failed to count users: {}", e)))?;
 
-        let count: i64 = row.try_get("count")
+        let count: i64 = row
+            .try_get("count")
             .map_err(|e| RepositoryError::DatabaseError(e.to_string()))?;
 
         Ok(count)
@@ -251,17 +277,23 @@ impl Default for InMemoryUserRepository {
 #[async_trait]
 impl UserRepository for InMemoryUserRepository {
     async fn find_by_id(&self, id: Uuid) -> RepositoryResult<Option<User>> {
-        let users = self.users.read()
+        let users = self
+            .users
+            .read()
             .map_err(|e| RepositoryError::DatabaseError(format!("Lock poisoned: {}", e)))?;
         Ok(users.get(&id).cloned())
     }
 
     async fn find_by_email(&self, email: &str) -> RepositoryResult<Option<User>> {
-        let emails = self.emails.read()
+        let emails = self
+            .emails
+            .read()
             .map_err(|e| RepositoryError::DatabaseError(format!("Lock poisoned: {}", e)))?;
 
         if let Some(user_id) = emails.get(email) {
-            let users = self.users.read()
+            let users = self
+                .users
+                .read()
                 .map_err(|e| RepositoryError::DatabaseError(format!("Lock poisoned: {}", e)))?;
             Ok(users.get(user_id).cloned())
         } else {
@@ -275,9 +307,13 @@ impl UserRepository for InMemoryUserRepository {
             return Err(RepositoryError::AlreadyExists);
         }
 
-        let mut users = self.users.write()
+        let mut users = self
+            .users
+            .write()
             .map_err(|e| RepositoryError::DatabaseError(format!("Lock poisoned: {}", e)))?;
-        let mut emails = self.emails.write()
+        let mut emails = self
+            .emails
+            .write()
             .map_err(|e| RepositoryError::DatabaseError(format!("Lock poisoned: {}", e)))?;
 
         emails.insert(user.email.clone(), user.id);
@@ -287,7 +323,9 @@ impl UserRepository for InMemoryUserRepository {
     }
 
     async fn update(&self, user: User) -> RepositoryResult<User> {
-        let mut users = self.users.write()
+        let mut users = self
+            .users
+            .write()
             .map_err(|e| RepositoryError::DatabaseError(format!("Lock poisoned: {}", e)))?;
 
         if !users.contains_key(&user.id) {
@@ -297,7 +335,9 @@ impl UserRepository for InMemoryUserRepository {
         // Update email mapping if email changed
         if let Some(existing) = users.get(&user.id) {
             if existing.email != user.email {
-                let mut emails = self.emails.write()
+                let mut emails = self
+                    .emails
+                    .write()
                     .map_err(|e| RepositoryError::DatabaseError(format!("Lock poisoned: {}", e)))?;
                 emails.remove(&existing.email);
                 emails.insert(user.email.clone(), user.id);
@@ -309,9 +349,13 @@ impl UserRepository for InMemoryUserRepository {
     }
 
     async fn delete(&self, id: Uuid) -> RepositoryResult<()> {
-        let mut users = self.users.write()
+        let mut users = self
+            .users
+            .write()
             .map_err(|e| RepositoryError::DatabaseError(format!("Lock poisoned: {}", e)))?;
-        let mut emails = self.emails.write()
+        let mut emails = self
+            .emails
+            .write()
             .map_err(|e| RepositoryError::DatabaseError(format!("Lock poisoned: {}", e)))?;
 
         if let Some(user) = users.remove(&id) {
@@ -323,7 +367,9 @@ impl UserRepository for InMemoryUserRepository {
     }
 
     async fn list(&self, limit: i64, offset: i64) -> RepositoryResult<Vec<User>> {
-        let users = self.users.read()
+        let users = self
+            .users
+            .read()
             .map_err(|e| RepositoryError::DatabaseError(format!("Lock poisoned: {}", e)))?;
 
         let mut user_list: Vec<User> = users.values().cloned().collect();
@@ -336,7 +382,9 @@ impl UserRepository for InMemoryUserRepository {
     }
 
     async fn count(&self) -> RepositoryResult<i64> {
-        let users = self.users.read()
+        let users = self
+            .users
+            .read()
             .map_err(|e| RepositoryError::DatabaseError(format!("Lock poisoned: {}", e)))?;
         Ok(users.len() as i64)
     }
@@ -366,7 +414,11 @@ mod tests {
         assert_eq!(found.name, "John Doe");
 
         // Find by email
-        let found = repo.find_by_email("john@example.com").await.unwrap().unwrap();
+        let found = repo
+            .find_by_email("john@example.com")
+            .await
+            .unwrap()
+            .unwrap();
         assert_eq!(found.id, user_id);
 
         // Update

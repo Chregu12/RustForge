@@ -5,7 +5,7 @@
 //!
 //! Run with: cargo run --example scoped_services
 
-use rf_container::{ScopeManager, ScopedContainer, ServiceRegistry, Scope};
+use rf_container::{Scope, ScopeManager, ScopedContainer, ServiceRegistry};
 use std::sync::{Arc, Mutex};
 
 /// Request-scoped logger that includes a unique request ID
@@ -94,11 +94,7 @@ struct UserService {
 }
 
 impl UserService {
-    fn new(
-        logger: Arc<RequestLogger>,
-        db: Arc<TenantDatabase>,
-        cache: Arc<RequestCache>,
-    ) -> Self {
+    fn new(logger: Arc<RequestLogger>, db: Arc<TenantDatabase>, cache: Arc<RequestCache>) -> Self {
         Self { logger, db, cache }
     }
 
@@ -113,7 +109,8 @@ impl UserService {
         }
 
         // Query database
-        self.db.query(&format!("SELECT * FROM users WHERE id = {}", user_id));
+        self.db
+            .query(&format!("SELECT * FROM users WHERE id = {}", user_id));
 
         let user = format!("User {}", user_id);
         self.cache.set(cache_key, user.clone());
@@ -182,11 +179,8 @@ async fn main() {
                 logger.log("Request processing started");
 
                 // Create application service
-                let user_service = UserService::new(
-                    Arc::clone(&logger),
-                    Arc::clone(&db),
-                    Arc::clone(&cache),
-                );
+                let user_service =
+                    UserService::new(Arc::clone(&logger), Arc::clone(&db), Arc::clone(&cache));
 
                 // First call - hits database
                 let user = user_service.get_user(42);

@@ -1,6 +1,6 @@
 //! Pagination support for resource collections
 
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 /// Pagination parameters
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -129,7 +129,10 @@ impl PaginationLinks {
         let total_pages = pagination.total_pages(total);
 
         let first = format!("{}?page=1&per_page={}", base_url, pagination.per_page);
-        let last = format!("{}?page={}&per_page={}", base_url, total_pages, pagination.per_page);
+        let last = format!(
+            "{}?page={}&per_page={}",
+            base_url, total_pages, pagination.per_page
+        );
 
         let prev = if pagination.has_prev() {
             Some(format!(

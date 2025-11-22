@@ -1,24 +1,24 @@
-//! Hello World - Minimal RustForge Phase 2 Application
-//!
-//! Demonstrates integration of:
-//! - rf-core: Error handling and request context
-//! - rf-web: Axum integration with middleware
-//! - rf-config: Type-safe configuration
-//! - rf-container: Dependency injection
-//!
-//! ## Running
-//!
-//! ```bash
-//! cargo run -p hello
-//! ```
-//!
-//! ## Endpoints
-//!
-//! - `GET /` - Hello world
-//! - `GET /health` - Health check
-//! - `GET /ready` - Readiness probe
-//! - `GET /metrics` - Metrics (placeholder)
-//! - `POST /echo` - Echo request body
+// Hello World - Minimal RustForge Phase 2 Application
+//
+// Demonstrates integration of:
+// - rf-core: Error handling and request context
+// - rf-web: Axum integration with middleware
+// - rf-config: Type-safe configuration
+// - rf-container: Dependency injection
+//
+// ## Running
+//
+// ```bash
+// cargo run -p hello
+// ```
+//
+// ## Endpoints
+//
+// - `GET /` - Hello world
+// - `GET /health` - Health check
+// - `GET /ready` - Readiness probe
+// - `GET /metrics` - Metrics (placeholder)
+// - `POST /echo` - Echo request body
 
 use axum::{
     extract::{Extension, Json},
@@ -28,10 +28,7 @@ use axum::{
 use rf_config::{AppConfig, ConfigLoader};
 use rf_container::{Scope, ServiceRegistry};
 use rf_core::{AppError, AppResult, RequestContext};
-use rf_web::{
-    middleware::CorsConfig,
-    RouterBuilder,
-};
+use rf_web::{middleware::CorsConfig, RouterBuilder};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tracing::{info, Level};
@@ -95,7 +92,10 @@ async fn main() -> anyhow::Result<()> {
         return Err(anyhow::anyhow!("Invalid configuration: {}", e));
     }
 
-    info!("Server config: {}:{}", config.server.host, config.server.port);
+    info!(
+        "Server config: {}:{}",
+        config.server.host, config.server.port
+    );
 
     // Setup dependency injection container
     let mut container = ServiceRegistry::new();
@@ -118,10 +118,7 @@ async fn main() -> anyhow::Result<()> {
             axum::http::Method::POST,
             axum::http::Method::OPTIONS,
         ],
-        allowed_headers: vec![
-            "content-type".to_string(),
-            "authorization".to_string(),
-        ],
+        allowed_headers: vec!["content-type".to_string(), "authorization".to_string()],
         max_age: Some(std::time::Duration::from_secs(3600)),
     };
 
@@ -204,9 +201,7 @@ async fn metrics_handler() -> AppResult<Json<MetricsResponse>> {
 }
 
 /// Echo handler
-async fn echo_handler(
-    Json(payload): Json<EchoMessage>,
-) -> AppResult<Json<EchoMessage>> {
+async fn echo_handler(Json(payload): Json<EchoMessage>) -> AppResult<Json<EchoMessage>> {
     info!("Echo: {}", payload.message);
 
     if payload.message.is_empty() {

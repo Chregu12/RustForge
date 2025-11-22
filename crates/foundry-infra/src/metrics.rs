@@ -84,8 +84,7 @@ impl Timer {
     /// Stoppt den Timer und gibt eine Metrik zurück
     pub fn stop_as_metric(self) -> Metric {
         let elapsed = self.start.elapsed();
-        Metric::new(&self.name, elapsed.as_millis() as f64, "ms")
-            .with_tags(self.tags)
+        Metric::new(&self.name, elapsed.as_millis() as f64, "ms").with_tags(self.tags)
     }
 }
 
@@ -188,7 +187,10 @@ impl MetricsCollector {
 
     /// Sammelt eine Metrik
     pub async fn collect(&self, metric: Metric) {
-        debug!("Collecting metric: {} = {} {}", metric.name, metric.value, metric.unit);
+        debug!(
+            "Collecting metric: {} = {} {}",
+            metric.name, metric.value, metric.unit
+        );
 
         // Füge zur Historie hinzu
         let mut history = self.history.write().await;
@@ -226,17 +228,15 @@ impl MetricsCollector {
     /// Gibt Metriken für einen Namen zurück
     pub async fn get_by_name(&self, name: &str) -> Vec<Metric> {
         let metrics = self.metrics.read().await;
-        metrics
-            .iter()
-            .filter(|m| m.name == name)
-            .cloned()
-            .collect()
+        metrics.iter().filter(|m| m.name == name).cloned().collect()
     }
 
     /// Gibt Aggregate-Statistiken für eine Metrik zurück
     pub async fn get_aggregate(&self, name: &str) -> Option<MetricAggregate> {
         let history = self.history.read().await;
-        history.get(name).map(|values| MetricAggregate::from_metrics(values))
+        history
+            .get(name)
+            .map(|values| MetricAggregate::from_metrics(values))
     }
 
     /// Gibt alle verfügbaren Metrik-Namen zurück
@@ -310,8 +310,16 @@ impl SystemMetrics {
             Metric::new("system.cpu.usage", self.cpu_usage_percent, "percent"),
             Metric::new("system.memory.usage", self.memory_usage_mb, "mb"),
             Metric::new("system.memory.available", self.memory_available_mb, "mb"),
-            Metric::new("system.connections.active", self.active_connections as f64, "count"),
-            Metric::new("system.requests.per_second", self.requests_per_second, "rps"),
+            Metric::new(
+                "system.connections.active",
+                self.active_connections as f64,
+                "count",
+            ),
+            Metric::new(
+                "system.requests.per_second",
+                self.requests_per_second,
+                "rps",
+            ),
             Metric::new("system.response_time.avg", self.avg_response_time_ms, "ms"),
         ]
     }

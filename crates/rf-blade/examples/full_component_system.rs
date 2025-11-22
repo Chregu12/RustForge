@@ -120,10 +120,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     for tag in &tags {
         println!("   - Component: {}", tag.name);
         println!("     Attributes: {:?}", tag.attributes);
-        println!(
-            "     Slots: {:?}",
-            tag.slots.slot_names()
-        );
+        println!("     Slots: {:?}", tag.slots.slot_names());
     }
 
     // 3. Render components manually
@@ -148,7 +145,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     card_slots.insert("default".to_string(), "Card body content".to_string());
     card_slots.insert("footer".to_string(), "Card Footer".to_string());
 
-    let rendered = registry.render_component("card", &ComponentProps::new(), &attributes, &card_slots)?;
+    let rendered =
+        registry.render_component("card", &ComponentProps::new(), &attributes, &card_slots)?;
     println!("   Rendered:\n{}", rendered);
 
     // 5. Component compiler integration
@@ -206,8 +204,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("   Slot bag contents:");
     println!("   - Default: {:?}", slot_bag.default().map(|s| &s.content));
-    println!("   - Header: {:?}", slot_bag.get("header").map(|s| &s.content));
-    println!("   - Footer: {:?}", slot_bag.get("footer").map(|s| &s.content));
+    println!(
+        "   - Header: {:?}",
+        slot_bag.get("header").map(|s| &s.content)
+    );
+    println!(
+        "   - Footer: {:?}",
+        slot_bag.get("footer").map(|s| &s.content)
+    );
     println!("   - All slots: {:?}", slot_bag.slot_names());
 
     println!("\n✅ All examples completed successfully!");

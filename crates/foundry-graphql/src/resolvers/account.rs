@@ -1,6 +1,8 @@
 use crate::context::GraphQLContext;
 use crate::error::{database_error, not_found, validation_error};
-use crate::types::account::{Account, AccountEntity, AccountColumn, AccountActiveModel, AccountInput, UpdateAccountInput};
+use crate::types::account::{
+    Account, AccountActiveModel, AccountColumn, AccountEntity, AccountInput, UpdateAccountInput,
+};
 use async_graphql::{Context, Object, Result};
 use chrono::Utc;
 use sea_orm::{

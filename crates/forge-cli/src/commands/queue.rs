@@ -24,7 +24,12 @@ pub async fn work(
 
     let queue_name = queue.unwrap_or("default");
 
-    println!("{}", format!("Starting queue worker on: {}", queue_name).green().bold());
+    println!(
+        "{}",
+        format!("Starting queue worker on: {}", queue_name)
+            .green()
+            .bold()
+    );
     println!();
 
     // Display configuration
@@ -54,7 +59,10 @@ pub async fn work(
     //    - Handles failures
     //    - Respects timeout and memory limits
 
-    println!("  {} Worker started and listening for jobs...", "✓".green().bold());
+    println!(
+        "  {} Worker started and listening for jobs...",
+        "✓".green().bold()
+    );
     println!();
     println!("  {} Press Ctrl+C to stop the worker", "ℹ".blue());
     println!();
@@ -85,7 +93,10 @@ pub async fn work(
     // Placeholder: simulate processing
     println!("  {} Processed: ProcessEmailJob (1/1) [2.5s]", "✓".green());
     tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
-    println!("  {} Processed: GenerateThumbnailJob (2/2) [0.8s]", "✓".green());
+    println!(
+        "  {} Processed: GenerateThumbnailJob (2/2) [0.8s]",
+        "✓".green()
+    );
 
     Ok(())
 }
@@ -96,7 +107,10 @@ pub async fn listen(queue: Option<&str>) -> Result<()> {
 
     let queue_name = queue.unwrap_or("default");
 
-    println!("{}", format!("Listening to queue: {}", queue_name).green().bold());
+    println!(
+        "{}",
+        format!("Listening to queue: {}", queue_name).green().bold()
+    );
     println!();
 
     // Note: This is a placeholder implementation
@@ -106,7 +120,11 @@ pub async fn listen(queue: Option<&str>) -> Result<()> {
     // 3. Listen for new jobs continuously
     // 4. Process jobs as they arrive
 
-    println!("  {} Listening for jobs on queue: {}", "•".cyan(), queue_name.yellow());
+    println!(
+        "  {} Listening for jobs on queue: {}",
+        "•".cyan(),
+        queue_name.yellow()
+    );
     println!();
     println!("  {} Worker is now listening...", "✓".green().bold());
     println!("  {} Press Ctrl+C to stop", "ℹ".blue());
@@ -137,9 +155,16 @@ pub async fn retry(id: &str, queue: Option<&str>) -> Result<()> {
 
         // Placeholder
         let failed_count = 3;
-        println!("  {} Retrying {} failed job(s)...", "→".yellow(), failed_count);
+        println!(
+            "  {} Retrying {} failed job(s)...",
+            "→".yellow(),
+            failed_count
+        );
         println!();
-        println!("{} All failed jobs have been queued for retry!", "✓".green().bold());
+        println!(
+            "{} All failed jobs have been queued for retry!",
+            "✓".green().bold()
+        );
     } else {
         println!("{}", format!("Retrying job: {}", id).yellow().bold());
         println!();
@@ -157,7 +182,11 @@ pub async fn retry(id: &str, queue: Option<&str>) -> Result<()> {
         // 3. Find the failed job by ID
         // 4. Re-queue it for processing
 
-        println!("{} Job '{}' has been queued for retry!", "✓".green().bold(), id);
+        println!(
+            "{} Job '{}' has been queued for retry!",
+            "✓".green().bold(),
+            id
+        );
     }
 
     Ok(())
@@ -182,7 +211,8 @@ pub async fn failed(queue: Option<&str>) -> Result<()> {
     // 3. Query for failed jobs
     // 4. Display them with details
 
-    println!("  {:<10} {:<30} {:<15} {:<20} {}",
+    println!(
+        "  {:<10} {:<30} {:<15} {:<20} {}",
         "ID".bold(),
         "Job".bold(),
         "Queue".bold(),
@@ -193,9 +223,27 @@ pub async fn failed(queue: Option<&str>) -> Result<()> {
 
     // Example failed jobs (would load from actual queue)
     let example_jobs = vec![
-        ("1", "ProcessEmailJob", "default", "2024-01-15 10:30:00", "ConnectionTimeout"),
-        ("2", "GenerateThumbnailJob", "images", "2024-01-15 11:45:00", "FileNotFound"),
-        ("3", "SendNotificationJob", "notifications", "2024-01-15 14:20:00", "InvalidRecipient"),
+        (
+            "1",
+            "ProcessEmailJob",
+            "default",
+            "2024-01-15 10:30:00",
+            "ConnectionTimeout",
+        ),
+        (
+            "2",
+            "GenerateThumbnailJob",
+            "images",
+            "2024-01-15 11:45:00",
+            "FileNotFound",
+        ),
+        (
+            "3",
+            "SendNotificationJob",
+            "notifications",
+            "2024-01-15 14:20:00",
+            "InvalidRecipient",
+        ),
     ];
 
     for (id, job, q, failed_at, exception) in example_jobs {
@@ -205,7 +253,8 @@ pub async fn failed(queue: Option<&str>) -> Result<()> {
             }
         }
 
-        println!("  {:<10} {:<30} {:<15} {:<20} {}",
+        println!(
+            "  {:<10} {:<30} {:<15} {:<20} {}",
             id.yellow(),
             job,
             q.bright_black(),
@@ -215,9 +264,18 @@ pub async fn failed(queue: Option<&str>) -> Result<()> {
     }
 
     println!();
-    println!("  {} Use 'forge queue:retry <id>' to retry a specific job", "ℹ".blue());
-    println!("  {} Use 'forge queue:retry all' to retry all failed jobs", "ℹ".blue());
-    println!("  {} Use 'forge queue:flush' to delete failed jobs", "ℹ".blue());
+    println!(
+        "  {} Use 'forge queue:retry <id>' to retry a specific job",
+        "ℹ".blue()
+    );
+    println!(
+        "  {} Use 'forge queue:retry all' to retry all failed jobs",
+        "ℹ".blue()
+    );
+    println!(
+        "  {} Use 'forge queue:flush' to delete failed jobs",
+        "ℹ".blue()
+    );
 
     Ok(())
 }
@@ -227,7 +285,12 @@ pub async fn flush(hours: Option<u32>, queue: Option<&str>) -> Result<()> {
     ensure_forge_project()?;
 
     if let Some(h) = hours {
-        println!("{}", format!("Flushing failed jobs older than {} hours...", h).yellow().bold());
+        println!(
+            "{}",
+            format!("Flushing failed jobs older than {} hours...", h)
+                .yellow()
+                .bold()
+        );
     } else {
         println!("{}", "Flushing all failed jobs...".yellow().bold());
     }
@@ -253,7 +316,11 @@ pub async fn flush(hours: Option<u32>, queue: Option<&str>) -> Result<()> {
 
     // Placeholder
     let flushed_count = 5;
-    println!("{} Flushed {} failed job(s)!", "✓".green().bold(), flushed_count);
+    println!(
+        "{} Flushed {} failed job(s)!",
+        "✓".green().bold(),
+        flushed_count
+    );
 
     Ok(())
 }

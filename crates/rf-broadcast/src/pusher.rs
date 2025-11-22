@@ -52,7 +52,7 @@
 //! ```
 
 use crate::{
-    Broadcaster, BroadcastError, BroadcastResult, Channel, ConnectionId, Event, PresenceInfo,
+    BroadcastError, BroadcastResult, Broadcaster, Channel, ConnectionId, Event, PresenceInfo,
     UserId,
 };
 use async_trait::async_trait;
@@ -91,11 +91,7 @@ impl PusherConfig {
     /// Get API base URL
     pub fn base_url(&self) -> String {
         if let Some(host) = &self.host {
-            format!(
-                "{}://{}",
-                if self.use_tls { "https" } else { "http" },
-                host
-            )
+            format!("{}://{}", if self.use_tls { "https" } else { "http" }, host)
         } else {
             format!(
                 "{}://api-{}.pusher.com",
@@ -108,11 +104,7 @@ impl PusherConfig {
     /// Get WebSocket base URL
     pub fn ws_url(&self) -> String {
         if let Some(host) = &self.host {
-            format!(
-                "{}://{}",
-                if self.use_tls { "wss" } else { "ws" },
-                host
-            )
+            format!("{}://{}", if self.use_tls { "wss" } else { "ws" }, host)
         } else {
             format!(
                 "{}://ws-{}.pusher.com",
@@ -160,10 +152,7 @@ impl PusherBroadcaster {
             chrono::Utc::now().timestamp().to_string(),
         );
         params.insert("auth_version".to_string(), "1.0".to_string());
-        params.insert(
-            "body_md5".to_string(),
-            format!("{:x}", md5::compute(body)),
-        );
+        params.insert("body_md5".to_string(), format!("{:x}", md5::compute(body)));
 
         // Sort params
         let mut sorted: Vec<_> = params.iter().collect();
@@ -339,7 +328,11 @@ impl PusherBroadcaster {
             .expect("HMAC can take key of any size");
         mac.update(string_to_sign.as_bytes());
 
-        format!("{}:{}", self.config.key, hex::encode(mac.finalize().into_bytes()))
+        format!(
+            "{}:{}",
+            self.config.key,
+            hex::encode(mac.finalize().into_bytes())
+        )
     }
 
     /// Verify webhook signature
@@ -416,10 +409,7 @@ impl Broadcaster for PusherBroadcaster {
         }
 
         let cache = self.presence_cache.read().await;
-        Ok(cache
-            .get(&channel.name())
-            .cloned()
-            .unwrap_or_default())
+        Ok(cache.get(&channel.name()).cloned().unwrap_or_default())
     }
 
     async fn is_subscribed(

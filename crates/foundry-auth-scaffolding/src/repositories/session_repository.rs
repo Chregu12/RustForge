@@ -2,7 +2,7 @@
 //!
 //! Provides database-backed session storage
 
-use crate::models::{Session, PasswordReset, EmailVerification};
+use crate::models::{EmailVerification, PasswordReset, Session};
 use crate::repositories::user_repository::{RepositoryError, RepositoryResult};
 use async_trait::async_trait;
 use chrono::Utc;
@@ -36,9 +36,18 @@ pub trait PasswordResetRepository: Send + Sync {
 /// Email Verification Repository Trait
 #[async_trait]
 pub trait EmailVerificationRepository: Send + Sync {
-    async fn create_verification(&self, verification: EmailVerification) -> RepositoryResult<EmailVerification>;
-    async fn find_verification_by_token(&self, token: &str) -> RepositoryResult<Option<EmailVerification>>;
-    async fn find_verification_by_user(&self, user_id: Uuid) -> RepositoryResult<Option<EmailVerification>>;
+    async fn create_verification(
+        &self,
+        verification: EmailVerification,
+    ) -> RepositoryResult<EmailVerification>;
+    async fn find_verification_by_token(
+        &self,
+        token: &str,
+    ) -> RepositoryResult<Option<EmailVerification>>;
+    async fn find_verification_by_user(
+        &self,
+        user_id: Uuid,
+    ) -> RepositoryResult<Option<EmailVerification>>;
     async fn delete_verification(&self, id: Uuid) -> RepositoryResult<()>;
     async fn delete_verifications_by_user(&self, user_id: Uuid) -> RepositoryResult<()>;
     async fn delete_expired_verifications(&self) -> RepositoryResult<usize>;
@@ -56,14 +65,30 @@ impl PostgresSessionRepository {
 
     fn row_to_session(&self, row: &sqlx::postgres::PgRow) -> RepositoryResult<Session> {
         Ok(Session {
-            id: row.try_get("id").map_err(|e| RepositoryError::DatabaseError(e.to_string()))?,
-            user_id: row.try_get("user_id").map_err(|e| RepositoryError::DatabaseError(e.to_string()))?,
-            token: row.try_get("token").map_err(|e| RepositoryError::DatabaseError(e.to_string()))?,
-            ip_address: row.try_get("ip_address").map_err(|e| RepositoryError::DatabaseError(e.to_string()))?,
-            user_agent: row.try_get("user_agent").map_err(|e| RepositoryError::DatabaseError(e.to_string()))?,
-            last_activity: row.try_get("last_activity").map_err(|e| RepositoryError::DatabaseError(e.to_string()))?,
-            expires_at: row.try_get("expires_at").map_err(|e| RepositoryError::DatabaseError(e.to_string()))?,
-            created_at: row.try_get("created_at").map_err(|e| RepositoryError::DatabaseError(e.to_string()))?,
+            id: row
+                .try_get("id")
+                .map_err(|e| RepositoryError::DatabaseError(e.to_string()))?,
+            user_id: row
+                .try_get("user_id")
+                .map_err(|e| RepositoryError::DatabaseError(e.to_string()))?,
+            token: row
+                .try_get("token")
+                .map_err(|e| RepositoryError::DatabaseError(e.to_string()))?,
+            ip_address: row
+                .try_get("ip_address")
+                .map_err(|e| RepositoryError::DatabaseError(e.to_string()))?,
+            user_agent: row
+                .try_get("user_agent")
+                .map_err(|e| RepositoryError::DatabaseError(e.to_string()))?,
+            last_activity: row
+                .try_get("last_activity")
+                .map_err(|e| RepositoryError::DatabaseError(e.to_string()))?,
+            expires_at: row
+                .try_get("expires_at")
+                .map_err(|e| RepositoryError::DatabaseError(e.to_string()))?,
+            created_at: row
+                .try_get("created_at")
+                .map_err(|e| RepositoryError::DatabaseError(e.to_string()))?,
         })
     }
 }
@@ -136,16 +161,14 @@ impl SessionRepository for PostgresSessionRepository {
         .await
         .map_err(|e| RepositoryError::DatabaseError(e.to_string()))?;
 
-        rows.iter()
-            .map(|row| self.row_to_session(row))
-            .collect()
+        rows.iter().map(|row| self.row_to_session(row)).collect()
     }
 
     async fn update_session(&self, session: Session) -> RepositoryResult<Session> {
         let result = sqlx::query(
             "UPDATE sessions
              SET ip_address = $2, user_agent = $3, last_activity = $4, expires_at = $5
-             WHERE id = $1"
+             WHERE id = $1",
         )
         .bind(session.id)
         .bind(&session.ip_address)
@@ -168,7 +191,9 @@ impl SessionRepository for PostgresSessionRepository {
             .bind(id)
             .execute(&self.pool)
             .await
-            .map_err(|e| RepositoryError::DatabaseError(format!("Failed to delete session: {}", e)))?;
+            .map_err(|e| {
+                RepositoryError::DatabaseError(format!("Failed to delete session: {}", e))
+            })?;
 
         Ok(())
     }
@@ -178,7 +203,9 @@ impl SessionRepository for PostgresSessionRepository {
             .bind(user_id)
             .execute(&self.pool)
             .await
-            .map_err(|e| RepositoryError::DatabaseError(format!("Failed to delete user sessions: {}", e)))?;
+            .map_err(|e| {
+                RepositoryError::DatabaseError(format!("Failed to delete user sessions: {}", e))
+            })?;
 
         Ok(())
     }
@@ -188,7 +215,9 @@ impl SessionRepository for PostgresSessionRepository {
             .bind(Utc::now())
             .execute(&self.pool)
             .await
-            .map_err(|e| RepositoryError::DatabaseError(format!("Failed to delete expired sessions: {}", e)))?;
+            .map_err(|e| {
+                RepositoryError::DatabaseError(format!("Failed to delete expired sessions: {}", e))
+            })?;
 
         Ok(result.rows_affected() as usize)
     }
@@ -204,13 +233,26 @@ impl PostgresPasswordResetRepository {
         Self { pool }
     }
 
-    fn row_to_password_reset(&self, row: &sqlx::postgres::PgRow) -> RepositoryResult<PasswordReset> {
+    fn row_to_password_reset(
+        &self,
+        row: &sqlx::postgres::PgRow,
+    ) -> RepositoryResult<PasswordReset> {
         Ok(PasswordReset {
-            id: row.try_get("id").map_err(|e| RepositoryError::DatabaseError(e.to_string()))?,
-            email: row.try_get("email").map_err(|e| RepositoryError::DatabaseError(e.to_string()))?,
-            token: row.try_get("token").map_err(|e| RepositoryError::DatabaseError(e.to_string()))?,
-            expires_at: row.try_get("expires_at").map_err(|e| RepositoryError::DatabaseError(e.to_string()))?,
-            created_at: row.try_get("created_at").map_err(|e| RepositoryError::DatabaseError(e.to_string()))?,
+            id: row
+                .try_get("id")
+                .map_err(|e| RepositoryError::DatabaseError(e.to_string()))?,
+            email: row
+                .try_get("email")
+                .map_err(|e| RepositoryError::DatabaseError(e.to_string()))?,
+            token: row
+                .try_get("token")
+                .map_err(|e| RepositoryError::DatabaseError(e.to_string()))?,
+            expires_at: row
+                .try_get("expires_at")
+                .map_err(|e| RepositoryError::DatabaseError(e.to_string()))?,
+            created_at: row
+                .try_get("created_at")
+                .map_err(|e| RepositoryError::DatabaseError(e.to_string()))?,
         })
     }
 }
@@ -220,7 +262,7 @@ impl PasswordResetRepository for PostgresPasswordResetRepository {
     async fn create_reset(&self, reset: PasswordReset) -> RepositoryResult<PasswordReset> {
         sqlx::query(
             "INSERT INTO password_resets (id, email, token, expires_at, created_at)
-             VALUES ($1, $2, $3, $4, $5)"
+             VALUES ($1, $2, $3, $4, $5)",
         )
         .bind(reset.id)
         .bind(&reset.email)
@@ -229,7 +271,9 @@ impl PasswordResetRepository for PostgresPasswordResetRepository {
         .bind(reset.created_at)
         .execute(&self.pool)
         .await
-        .map_err(|e| RepositoryError::DatabaseError(format!("Failed to insert password reset: {}", e)))?;
+        .map_err(|e| {
+            RepositoryError::DatabaseError(format!("Failed to insert password reset: {}", e))
+        })?;
 
         Ok(reset)
     }
@@ -238,7 +282,7 @@ impl PasswordResetRepository for PostgresPasswordResetRepository {
         let row = sqlx::query(
             "SELECT id, email, token, expires_at, created_at
              FROM password_resets
-             WHERE token = $1"
+             WHERE token = $1",
         )
         .bind(token)
         .fetch_optional(&self.pool)
@@ -257,7 +301,7 @@ impl PasswordResetRepository for PostgresPasswordResetRepository {
              FROM password_resets
              WHERE email = $1
              ORDER BY created_at DESC
-             LIMIT 1"
+             LIMIT 1",
         )
         .bind(email)
         .fetch_optional(&self.pool)
@@ -275,7 +319,9 @@ impl PasswordResetRepository for PostgresPasswordResetRepository {
             .bind(id)
             .execute(&self.pool)
             .await
-            .map_err(|e| RepositoryError::DatabaseError(format!("Failed to delete password reset: {}", e)))?;
+            .map_err(|e| {
+                RepositoryError::DatabaseError(format!("Failed to delete password reset: {}", e))
+            })?;
 
         Ok(())
     }
@@ -285,7 +331,9 @@ impl PasswordResetRepository for PostgresPasswordResetRepository {
             .bind(email)
             .execute(&self.pool)
             .await
-            .map_err(|e| RepositoryError::DatabaseError(format!("Failed to delete password resets: {}", e)))?;
+            .map_err(|e| {
+                RepositoryError::DatabaseError(format!("Failed to delete password resets: {}", e))
+            })?;
 
         Ok(())
     }
@@ -295,7 +343,9 @@ impl PasswordResetRepository for PostgresPasswordResetRepository {
             .bind(Utc::now())
             .execute(&self.pool)
             .await
-            .map_err(|e| RepositoryError::DatabaseError(format!("Failed to delete expired resets: {}", e)))?;
+            .map_err(|e| {
+                RepositoryError::DatabaseError(format!("Failed to delete expired resets: {}", e))
+            })?;
 
         Ok(result.rows_affected() as usize)
     }
@@ -311,23 +361,39 @@ impl PostgresEmailVerificationRepository {
         Self { pool }
     }
 
-    fn row_to_email_verification(&self, row: &sqlx::postgres::PgRow) -> RepositoryResult<EmailVerification> {
+    fn row_to_email_verification(
+        &self,
+        row: &sqlx::postgres::PgRow,
+    ) -> RepositoryResult<EmailVerification> {
         Ok(EmailVerification {
-            id: row.try_get("id").map_err(|e| RepositoryError::DatabaseError(e.to_string()))?,
-            user_id: row.try_get("user_id").map_err(|e| RepositoryError::DatabaseError(e.to_string()))?,
-            token: row.try_get("token").map_err(|e| RepositoryError::DatabaseError(e.to_string()))?,
-            expires_at: row.try_get("expires_at").map_err(|e| RepositoryError::DatabaseError(e.to_string()))?,
-            created_at: row.try_get("created_at").map_err(|e| RepositoryError::DatabaseError(e.to_string()))?,
+            id: row
+                .try_get("id")
+                .map_err(|e| RepositoryError::DatabaseError(e.to_string()))?,
+            user_id: row
+                .try_get("user_id")
+                .map_err(|e| RepositoryError::DatabaseError(e.to_string()))?,
+            token: row
+                .try_get("token")
+                .map_err(|e| RepositoryError::DatabaseError(e.to_string()))?,
+            expires_at: row
+                .try_get("expires_at")
+                .map_err(|e| RepositoryError::DatabaseError(e.to_string()))?,
+            created_at: row
+                .try_get("created_at")
+                .map_err(|e| RepositoryError::DatabaseError(e.to_string()))?,
         })
     }
 }
 
 #[async_trait]
 impl EmailVerificationRepository for PostgresEmailVerificationRepository {
-    async fn create_verification(&self, verification: EmailVerification) -> RepositoryResult<EmailVerification> {
+    async fn create_verification(
+        &self,
+        verification: EmailVerification,
+    ) -> RepositoryResult<EmailVerification> {
         sqlx::query(
             "INSERT INTO email_verifications (id, user_id, token, expires_at, created_at)
-             VALUES ($1, $2, $3, $4, $5)"
+             VALUES ($1, $2, $3, $4, $5)",
         )
         .bind(verification.id)
         .bind(verification.user_id)
@@ -336,16 +402,21 @@ impl EmailVerificationRepository for PostgresEmailVerificationRepository {
         .bind(verification.created_at)
         .execute(&self.pool)
         .await
-        .map_err(|e| RepositoryError::DatabaseError(format!("Failed to insert email verification: {}", e)))?;
+        .map_err(|e| {
+            RepositoryError::DatabaseError(format!("Failed to insert email verification: {}", e))
+        })?;
 
         Ok(verification)
     }
 
-    async fn find_verification_by_token(&self, token: &str) -> RepositoryResult<Option<EmailVerification>> {
+    async fn find_verification_by_token(
+        &self,
+        token: &str,
+    ) -> RepositoryResult<Option<EmailVerification>> {
         let row = sqlx::query(
             "SELECT id, user_id, token, expires_at, created_at
              FROM email_verifications
-             WHERE token = $1"
+             WHERE token = $1",
         )
         .bind(token)
         .fetch_optional(&self.pool)
@@ -358,13 +429,16 @@ impl EmailVerificationRepository for PostgresEmailVerificationRepository {
         }
     }
 
-    async fn find_verification_by_user(&self, user_id: Uuid) -> RepositoryResult<Option<EmailVerification>> {
+    async fn find_verification_by_user(
+        &self,
+        user_id: Uuid,
+    ) -> RepositoryResult<Option<EmailVerification>> {
         let row = sqlx::query(
             "SELECT id, user_id, token, expires_at, created_at
              FROM email_verifications
              WHERE user_id = $1
              ORDER BY created_at DESC
-             LIMIT 1"
+             LIMIT 1",
         )
         .bind(user_id)
         .fetch_optional(&self.pool)
@@ -382,7 +456,12 @@ impl EmailVerificationRepository for PostgresEmailVerificationRepository {
             .bind(id)
             .execute(&self.pool)
             .await
-            .map_err(|e| RepositoryError::DatabaseError(format!("Failed to delete email verification: {}", e)))?;
+            .map_err(|e| {
+                RepositoryError::DatabaseError(format!(
+                    "Failed to delete email verification: {}",
+                    e
+                ))
+            })?;
 
         Ok(())
     }
@@ -392,7 +471,12 @@ impl EmailVerificationRepository for PostgresEmailVerificationRepository {
             .bind(user_id)
             .execute(&self.pool)
             .await
-            .map_err(|e| RepositoryError::DatabaseError(format!("Failed to delete email verifications: {}", e)))?;
+            .map_err(|e| {
+                RepositoryError::DatabaseError(format!(
+                    "Failed to delete email verifications: {}",
+                    e
+                ))
+            })?;
 
         Ok(())
     }
@@ -402,7 +486,12 @@ impl EmailVerificationRepository for PostgresEmailVerificationRepository {
             .bind(Utc::now())
             .execute(&self.pool)
             .await
-            .map_err(|e| RepositoryError::DatabaseError(format!("Failed to delete expired verifications: {}", e)))?;
+            .map_err(|e| {
+                RepositoryError::DatabaseError(format!(
+                    "Failed to delete expired verifications: {}",
+                    e
+                ))
+            })?;
 
         Ok(result.rows_affected() as usize)
     }

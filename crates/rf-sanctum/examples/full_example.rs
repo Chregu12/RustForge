@@ -16,7 +16,7 @@ use axum::{
 };
 use rf_sanctum::{
     spa::sanctum_csrf_cookie, LoadFromToken, NewToken, PersonalAccessToken, SanctumAuth,
-    SanctumError, Tokenable, TokenRepository,
+    SanctumError, TokenRepository, Tokenable,
 };
 use sea_orm::{Database, DatabaseConnection};
 use serde::{Deserialize, Serialize};
@@ -135,9 +135,7 @@ async fn revoke_token(
     Ok(StatusCode::NO_CONTENT)
 }
 
-async fn current_user(
-    SanctumAuth(user, token): SanctumAuth<User>,
-) -> Json<serde_json::Value> {
+async fn current_user(SanctumAuth(user, token): SanctumAuth<User>) -> Json<serde_json::Value> {
     Json(serde_json::json!({
         "user": user,
         "token_abilities": token.abilities,
@@ -145,9 +143,7 @@ async fn current_user(
 }
 
 // Protected route requiring specific abilities
-async fn admin_only(
-    SanctumAuth(user, token): SanctumAuth<User>,
-) -> Result<String, SanctumError> {
+async fn admin_only(SanctumAuth(user, token): SanctumAuth<User>) -> Result<String, SanctumError> {
     if !token.can("admin") {
         return Err(SanctumError::InsufficientPermissions(
             "admin ability required".to_string(),

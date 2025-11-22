@@ -53,8 +53,7 @@ pub fn redirect_to_provider(
 ) -> Result<String, SocialiteError> {
     let state = manager.generate_state();
 
-    let mut builder = manager.driver(provider)?
-        .state(state);
+    let mut builder = manager.driver(provider)?.state(state);
 
     if use_pkce {
         builder = builder.with_pkce();
@@ -94,14 +93,17 @@ pub async fn handle_callback(
     // Check for OAuth errors
     if let Some(error) = params.error {
         let description = params.error_description.unwrap_or_default();
-        return Err(SocialiteError::OAuthError(format!("{}: {}", error, description)));
+        return Err(SocialiteError::OAuthError(format!(
+            "{}: {}",
+            error, description
+        )));
     }
 
     // Verify state for CSRF protection
     if let Some(state) = params.state {
         if !manager.verify_state(&state) {
             return Err(SocialiteError::OAuthError(
-                "Invalid or expired state parameter".to_string()
+                "Invalid or expired state parameter".to_string(),
             ));
         }
     }
@@ -127,7 +129,11 @@ impl RouteHelper {
 
     /// Generate callback URL for a provider
     pub fn callback_url(base_url: &str, provider: &str) -> String {
-        format!("{}/auth/{}/callback", base_url.trim_end_matches('/'), provider)
+        format!(
+            "{}/auth/{}/callback",
+            base_url.trim_end_matches('/'),
+            provider
+        )
     }
 }
 

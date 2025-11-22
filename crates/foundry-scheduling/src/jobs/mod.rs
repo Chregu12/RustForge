@@ -1,5 +1,5 @@
-pub mod scheduled_job;
 pub mod job_runner;
+pub mod scheduled_job;
 
-pub use scheduled_job::{ScheduledJob, JobContext, JobResult, JobError};
-pub use job_runner::{JobRunner, RunnerConfig, JobState};
+pub use job_runner::{JobRunner, JobState, RunnerConfig};
+pub use scheduled_job::{JobContext, JobError, JobResult, ScheduledJob};

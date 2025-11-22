@@ -105,29 +105,50 @@ fn gates_example() {
     let mut gate = Gate::new();
 
     // Define gates
-    gate.define("create-post", Arc::new(|user: &User, _| {
-        user.has_permission("posts.create")
-    }));
+    gate.define(
+        "create-post",
+        Arc::new(|user: &User, _| user.has_permission("posts.create")),
+    );
 
-    gate.define("delete-post", Arc::new(|user: &User, _| {
-        user.has_permission("posts.delete")
-    }));
+    gate.define(
+        "delete-post",
+        Arc::new(|user: &User, _| user.has_permission("posts.delete")),
+    );
 
-    gate.define("manage-users", Arc::new(|user: &User, _| {
-        user.has_permission("users.manage")
-    }));
+    gate.define(
+        "manage-users",
+        Arc::new(|user: &User, _| user.has_permission("users.manage")),
+    );
 
     let admin = User::new_admin(1);
     let editor = User::new_editor(2);
 
     // Check permissions
-    println!("  Admin can create post: {}", gate.allows(&admin, "create-post"));
-    println!("  Admin can delete post: {}", gate.allows(&admin, "delete-post"));
-    println!("  Admin can manage users: {}", gate.allows(&admin, "manage-users"));
+    println!(
+        "  Admin can create post: {}",
+        gate.allows(&admin, "create-post")
+    );
+    println!(
+        "  Admin can delete post: {}",
+        gate.allows(&admin, "delete-post")
+    );
+    println!(
+        "  Admin can manage users: {}",
+        gate.allows(&admin, "manage-users")
+    );
     println!();
-    println!("  Editor can create post: {}", gate.allows(&editor, "create-post"));
-    println!("  Editor can delete post: {}", gate.denies(&editor, "delete-post"));
-    println!("  Editor can manage users: {}", gate.denies(&editor, "manage-users"));
+    println!(
+        "  Editor can create post: {}",
+        gate.allows(&editor, "create-post")
+    );
+    println!(
+        "  Editor can delete post: {}",
+        gate.denies(&editor, "delete-post")
+    );
+    println!(
+        "  Editor can manage users: {}",
+        gate.denies(&editor, "manage-users")
+    );
 }
 
 fn policies_example() {
@@ -150,17 +171,27 @@ fn policies_example() {
     };
 
     // Check authorization
-    println!("  Admin can update editor's published post: {}",
-        registry.can(&admin, "update", Some(&published_post)));
-    println!("  Admin can delete editor's post: {}",
-        registry.can(&admin, "delete", Some(&published_post)));
+    println!(
+        "  Admin can update editor's published post: {}",
+        registry.can(&admin, "update", Some(&published_post))
+    );
+    println!(
+        "  Admin can delete editor's post: {}",
+        registry.can(&admin, "delete", Some(&published_post))
+    );
     println!();
-    println!("  Editor can update own published post: {}",
-        registry.can(&editor, "update", Some(&published_post)));
-    println!("  Editor can update own draft: {}",
-        registry.can(&editor, "update", Some(&editors_draft)));
-    println!("  Editor can delete own post: {}",
-        registry.cannot(&editor, "delete", Some(&published_post)));
+    println!(
+        "  Editor can update own published post: {}",
+        registry.can(&editor, "update", Some(&published_post))
+    );
+    println!(
+        "  Editor can update own draft: {}",
+        registry.can(&editor, "update", Some(&editors_draft))
+    );
+    println!(
+        "  Editor can delete own post: {}",
+        registry.cannot(&editor, "delete", Some(&published_post))
+    );
 }
 
 fn permissions_example() {
@@ -179,9 +210,18 @@ fn permissions_example() {
     }
 
     println!();
-    println!("  Admin has 'users.manage': {}", admin.has_permission("users.manage"));
-    println!("  Editor has 'posts.create': {}", editor.has_permission("posts.create"));
-    println!("  Editor has 'users.manage': {}", editor.has_permission("users.manage"));
+    println!(
+        "  Admin has 'users.manage': {}",
+        admin.has_permission("users.manage")
+    );
+    println!(
+        "  Editor has 'posts.create': {}",
+        editor.has_permission("posts.create")
+    );
+    println!(
+        "  Editor has 'users.manage': {}",
+        editor.has_permission("users.manage")
+    );
 }
 
 fn combined_example() {
@@ -190,9 +230,10 @@ fn combined_example() {
     let mut registry = PolicyRegistry::new();
 
     // Define gates
-    gate.define("publish-post", Arc::new(|user: &User, _| {
-        user.has_all_permissions(&["posts.create", "posts.update"])
-    }));
+    gate.define(
+        "publish-post",
+        Arc::new(|user: &User, _| user.has_all_permissions(&["posts.create", "posts.update"])),
+    );
 
     // Register policy
     registry.register::<Post, PostPolicy>(PostPolicy);
@@ -206,12 +247,27 @@ fn combined_example() {
         published: true,
     };
 
-    println!("  Admin can publish post (gate): {}", gate.allows(&admin, "publish-post"));
-    println!("  Admin can update post (policy): {}", registry.can(&admin, "update", Some(&post)));
+    println!(
+        "  Admin can publish post (gate): {}",
+        gate.allows(&admin, "publish-post")
+    );
+    println!(
+        "  Admin can update post (policy): {}",
+        registry.can(&admin, "update", Some(&post))
+    );
     println!();
-    println!("  Editor can publish post (gate): {}", gate.allows(&editor, "publish-post"));
-    println!("  Editor can update own post (policy): {}", registry.can(&editor, "update", Some(&post)));
-    println!("  Editor can delete post (policy): {}", registry.cannot(&editor, "delete", Some(&post)));
+    println!(
+        "  Editor can publish post (gate): {}",
+        gate.allows(&editor, "publish-post")
+    );
+    println!(
+        "  Editor can update own post (policy): {}",
+        registry.can(&editor, "update", Some(&post))
+    );
+    println!(
+        "  Editor can delete post (policy): {}",
+        registry.cannot(&editor, "delete", Some(&post))
+    );
 
     // Use authorize to throw errors
     match registry.authorize(&editor, "delete", Some(&post)) {

@@ -153,10 +153,7 @@ impl ScopeManager {
 
     /// Get all dangerous scopes
     pub fn dangerous(&self) -> Vec<&Scope> {
-        self.scopes
-            .values()
-            .filter(|s| s.is_dangerous)
-            .collect()
+        self.scopes.values().filter(|s| s.is_dangerous).collect()
     }
 
     /// Filter scopes by pattern
@@ -263,6 +260,9 @@ mod tests {
         ));
 
         assert!(manager.exists("custom:action"));
-        assert_eq!(manager.get("custom:action").unwrap().description, "Custom action");
+        assert_eq!(
+            manager.get("custom:action").unwrap().description,
+            "Custom action"
+        );
     }
 }

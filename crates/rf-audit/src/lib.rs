@@ -5,10 +5,7 @@
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use std::{
-    collections::HashMap,
-    sync::Arc,
-};
+use std::{collections::HashMap, sync::Arc};
 use thiserror::Error;
 use tokio::sync::RwLock;
 use uuid::Uuid;
@@ -55,7 +52,11 @@ pub struct AuditEntry {
 }
 
 impl AuditEntry {
-    pub fn new(model_type: impl Into<String>, model_id: impl Into<String>, action: AuditAction) -> Self {
+    pub fn new(
+        model_type: impl Into<String>,
+        model_id: impl Into<String>,
+        action: AuditAction,
+    ) -> Self {
         Self {
             id: Uuid::new_v4(),
             user_id: None,
@@ -303,8 +304,8 @@ impl AuditLogger {
         new_values: serde_json::Value,
         user_id: Option<i64>,
     ) -> AuditResult<()> {
-        let entry = AuditEntry::new(model_type, model_id, AuditAction::Created)
-            .new_values(new_values);
+        let entry =
+            AuditEntry::new(model_type, model_id, AuditAction::Created).new_values(new_values);
 
         let entry = if let Some(uid) = user_id {
             entry.user_id(uid)
@@ -345,8 +346,8 @@ impl AuditLogger {
         old_values: serde_json::Value,
         user_id: Option<i64>,
     ) -> AuditResult<()> {
-        let entry = AuditEntry::new(model_type, model_id, AuditAction::Deleted)
-            .old_values(old_values);
+        let entry =
+            AuditEntry::new(model_type, model_id, AuditAction::Deleted).old_values(old_values);
 
         let entry = if let Some(uid) = user_id {
             entry.user_id(uid)
@@ -368,11 +369,8 @@ impl AuditLogger {
         model_type: impl Into<String>,
         model_id: impl Into<String>,
     ) -> AuditResult<Vec<AuditEntry>> {
-        self.query(
-            AuditQuery::new()
-                .model_type(model_type)
-                .model_id(model_id)
-        ).await
+        self.query(AuditQuery::new().model_type(model_type).model_id(model_id))
+            .await
     }
 
     /// Get logs by user
@@ -426,8 +424,7 @@ mod tests {
         }
 
         fn to_audit_value(&self) -> AuditResult<serde_json::Value> {
-            serde_json::to_value(self)
-                .map_err(|e| AuditError::SerializationError(e.to_string()))
+            serde_json::to_value(self).map_err(|e| AuditError::SerializationError(e.to_string()))
         }
     }
 
@@ -572,7 +569,13 @@ mod tests {
             .unwrap();
 
         logger
-            .log_updated("User", "1", serde_json::json!({}), serde_json::json!({}), None)
+            .log_updated(
+                "User",
+                "1",
+                serde_json::json!({}),
+                serde_json::json!({}),
+                None,
+            )
             .await
             .unwrap();
 
@@ -617,10 +620,7 @@ mod tests {
                 .unwrap();
         }
 
-        let logs = logger
-            .query(AuditQuery::new().limit(5))
-            .await
-            .unwrap();
+        let logs = logger.query(AuditQuery::new().limit(5)).await.unwrap();
 
         assert_eq!(logs.len(), 5);
     }
@@ -680,7 +680,12 @@ mod tests {
             .unwrap();
 
         logger
-            .log_deleted("User", "1", serde_json::json!({"name": "Alice Smith"}), Some(2))
+            .log_deleted(
+                "User",
+                "1",
+                serde_json::json!({"name": "Alice Smith"}),
+                Some(2),
+            )
             .await
             .unwrap();
 

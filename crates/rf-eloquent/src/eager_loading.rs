@@ -103,7 +103,10 @@ pub trait RelationshipLoader: Send + Sync {
     fn extract_foreign_key(&self, related: &Self::Related) -> Self::ForeignKey;
 
     /// Map a parent key to its foreign key value (usually the same)
-    fn map_parent_key(&self, parent_key: &<Self::Parent as EagerLoadable>::PrimaryKey) -> Self::ForeignKey;
+    fn map_parent_key(
+        &self,
+        parent_key: &<Self::Parent as EagerLoadable>::PrimaryKey,
+    ) -> Self::ForeignKey;
 }
 
 /// Represents a relationship to be eagerly loaded
@@ -184,16 +187,14 @@ impl<T> EagerLoadBuilder<T> {
 
     /// Add a relationship to eager load
     pub fn with(mut self, relation: &str) -> Self {
-        self.relations
-            .push(EagerLoadRelation::from_path(relation));
+        self.relations.push(EagerLoadRelation::from_path(relation));
         self
     }
 
     /// Add multiple relationships to eager load
     pub fn with_all(mut self, relations: &[&str]) -> Self {
         for relation in relations {
-            self.relations
-                .push(EagerLoadRelation::from_path(relation));
+            self.relations.push(EagerLoadRelation::from_path(relation));
         }
         self
     }
@@ -232,7 +233,11 @@ impl EagerLoader {
     }
 
     /// Load relationships for a collection of models
-    pub async fn load<M>(&self, models: &mut Vec<M>, relations: &[EagerLoadRelation]) -> EagerLoadResult<()>
+    pub async fn load<M>(
+        &self,
+        models: &mut Vec<M>,
+        relations: &[EagerLoadRelation],
+    ) -> EagerLoadResult<()>
     where
         M: ModelTrait + EagerLoadable,
     {
@@ -244,7 +249,11 @@ impl EagerLoader {
 
     /// Load a single relationship
     /// This is a generic implementation that requires models to implement EagerLoadable trait
-    async fn load_relation<M>(&self, models: &mut Vec<M>, relation: &EagerLoadRelation) -> EagerLoadResult<()>
+    async fn load_relation<M>(
+        &self,
+        models: &mut Vec<M>,
+        relation: &EagerLoadRelation,
+    ) -> EagerLoadResult<()>
     where
         M: ModelTrait + EagerLoadable,
     {
@@ -253,9 +262,7 @@ impl EagerLoader {
         }
 
         // Extract primary key values from parent models
-        let parent_ids: Vec<M::PrimaryKey> = models.iter()
-            .map(|m| m.primary_key())
-            .collect();
+        let parent_ids: Vec<M::PrimaryKey> = models.iter().map(|m| m.primary_key()).collect();
 
         tracing::debug!(
             "Loading relation '{}' for {} parent models",
@@ -296,9 +303,7 @@ impl EagerLoader {
     where
         M: ModelTrait + EagerLoadable,
     {
-        models.iter()
-            .map(|m| m.primary_key())
-            .collect()
+        models.iter().map(|m| m.primary_key()).collect()
     }
 
     /// Check for circular dependencies in eager load paths
@@ -462,8 +467,8 @@ mod tests {
 
     #[test]
     fn test_eager_load_relation_with_nested() {
-        let relation = EagerLoadRelation::new("posts")
-            .with_nested(EagerLoadRelation::new("comments"));
+        let relation =
+            EagerLoadRelation::new("posts").with_nested(EagerLoadRelation::new("comments"));
         assert_eq!(relation.nested.len(), 1);
         assert_eq!(relation.nested[0].name, "comments");
     }

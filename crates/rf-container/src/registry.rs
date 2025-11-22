@@ -159,11 +159,11 @@ impl ServiceRegistry {
 
         let mut services = self.services.lock().unwrap();
 
-        let entry = services.get_mut(&type_id).ok_or_else(|| {
-            ContainerError::ServiceNotFound {
+        let entry = services
+            .get_mut(&type_id)
+            .ok_or_else(|| ContainerError::ServiceNotFound {
                 type_name: type_name.to_string(),
-            }
-        })?;
+            })?;
 
         let instance: Arc<dyn Any + Send + Sync> = match entry.scope {
             Scope::Singleton => {

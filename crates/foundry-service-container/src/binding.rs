@@ -1,7 +1,7 @@
+use crate::error::Result;
 use std::any::Any;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use crate::error::Result;
 
 /// Type alias for a factory closure that creates service instances
 pub type Factory = Arc<dyn Fn() -> Result<Arc<dyn Any + Send + Sync>> + Send + Sync>;

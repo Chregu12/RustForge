@@ -33,13 +33,13 @@
 
 use thiserror::Error;
 
-pub mod media;
 pub mod editor;
+pub mod media;
 pub mod revisions;
 
-pub use media::{MediaLibrary, MediaFile, StorageBackend};
-pub use editor::{EditorConfig, ContentSanitizer};
-pub use revisions::{RevisionManager, Revision};
+pub use editor::{ContentSanitizer, EditorConfig};
+pub use media::{MediaFile, MediaLibrary, StorageBackend};
+pub use revisions::{Revision, RevisionManager};
 
 /// CMS errors
 #[derive(Error, Debug)]

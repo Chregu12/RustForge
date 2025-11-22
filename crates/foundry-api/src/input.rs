@@ -19,7 +19,6 @@
 /// let tags = parser.option_array("tags");
 /// println!("Tags: {:?}", tags);
 /// ```
-
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt;
@@ -83,7 +82,8 @@ impl InputParser {
                     let flag = ch.to_string();
 
                     // Check if next arg could be a value for this flag
-                    if ch == rest.chars().last().unwrap() && i + 1 < args.len()
+                    if ch == rest.chars().last().unwrap()
+                        && i + 1 < args.len()
                         && !args[i + 1].starts_with('-')
                     {
                         let value = args[i + 1].clone();
@@ -125,7 +125,9 @@ impl InputParser {
 
     /// Get a single option value
     pub fn option(&self, name: &str) -> Option<String> {
-        self.options.get(name).and_then(|values| values.first().cloned())
+        self.options
+            .get(name)
+            .and_then(|values| values.first().cloned())
     }
 
     /// Get all values for an option (supports arrays)
@@ -233,16 +235,8 @@ impl InputValidator {
     }
 
     /// Add a string length rule
-    pub fn string_length(
-        self,
-        field: impl Into<String>,
-        min: usize,
-        max: usize,
-    ) -> Self {
-        self.rule(
-            field,
-            vec![Rule::MinLength(min), Rule::MaxLength(max)],
-        )
+    pub fn string_length(self, field: impl Into<String>, min: usize, max: usize) -> Self {
+        self.rule(field, vec![Rule::MinLength(min), Rule::MaxLength(max)])
     }
 
     /// Add a pattern rule

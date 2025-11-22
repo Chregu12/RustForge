@@ -2,11 +2,9 @@
 //!
 //! This crate provides SSE streaming for real-time updates.
 
-use axum::{
-    response::{
-        sse::{Event as SseEvent, KeepAlive, Sse},
-        IntoResponse,
-    },
+use axum::response::{
+    sse::{Event as SseEvent, KeepAlive, Sse},
+    IntoResponse,
 };
 use futures::Stream;
 use serde::{Deserialize, Serialize};
@@ -212,9 +210,7 @@ impl Stream for EventStream {
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         match Pin::new(&mut self.inner).poll_next(cx) {
-            Poll::Ready(Some(Ok(event))) => {
-                Poll::Ready(Some(Ok(event.into_sse_event())))
-            }
+            Poll::Ready(Some(Ok(event))) => Poll::Ready(Some(Ok(event.into_sse_event()))),
             Poll::Ready(Some(Err(_))) => {
                 // Lagged, skip
                 cx.waker().wake_by_ref();

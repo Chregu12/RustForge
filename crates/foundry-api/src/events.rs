@@ -35,7 +35,6 @@
 /// dispatcher.dispatch(CommandEvent::starting("list", vec![])).await;
 /// # }
 /// ```
-
 use foundry_plugins::{AppError, CommandResult};
 use serde::{Deserialize, Serialize};
 use tokio::sync::broadcast;
@@ -67,11 +66,7 @@ impl CommandEvent {
     }
 
     /// Create a CommandFinished event
-    pub fn finished(
-        command: impl Into<String>,
-        result: CommandResult,
-        duration_ms: u64,
-    ) -> Self {
+    pub fn finished(command: impl Into<String>, result: CommandResult, duration_ms: u64) -> Self {
         CommandEvent::Finished(CommandFinishedEvent {
             command: command.into(),
             status: format!("{:?}", result.status),
@@ -82,11 +77,7 @@ impl CommandEvent {
     }
 
     /// Create a CommandFailed event
-    pub fn failed(
-        command: impl Into<String>,
-        error: AppError,
-        duration_ms: u64,
-    ) -> Self {
+    pub fn failed(command: impl Into<String>, error: AppError, duration_ms: u64) -> Self {
         CommandEvent::Failed(CommandFailedEvent {
             command: command.into(),
             error_code: error.code.clone(),
@@ -242,9 +233,7 @@ mod tests {
 
         assert_eq!(dispatcher.subscriber_count(), 2);
 
-        dispatcher
-            .command_starting("test", vec![])
-            .await;
+        dispatcher.command_starting("test", vec![]).await;
 
         // Both subscribers should receive the event
         let (mut rx1, mut rx2) = (rx1, rx2);

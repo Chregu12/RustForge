@@ -169,8 +169,8 @@ pub fn render_context(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tempfile::TempDir;
     use std::fs;
+    use tempfile::TempDir;
 
     fn create_test_engine() -> (Arc<ViewEngine>, TempDir) {
         let temp_dir = TempDir::new().unwrap();
@@ -188,8 +188,7 @@ mod tests {
     fn test_view_response_creation() {
         let (engine, _temp_dir) = create_test_engine();
 
-        let response = ViewResponse::new(engine.clone(), "test")
-            .with("name", "World");
+        let response = ViewResponse::new(engine.clone(), "test").with("name", "World");
 
         // Convert to response to trigger rendering
         let axum_response = response.into_response();
@@ -245,8 +244,7 @@ mod tests {
 
     #[test]
     fn test_html_response() {
-        let response = HtmlResponse::new("<h1>Test</h1>")
-            .status(StatusCode::OK);
+        let response = HtmlResponse::new("<h1>Test</h1>").status(StatusCode::OK);
 
         let axum_response = response.into_response();
         assert_eq!(axum_response.status(), StatusCode::OK);

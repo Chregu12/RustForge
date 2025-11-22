@@ -70,8 +70,12 @@ pub fn plural(word: &str) -> String {
     }
 
     // Basic pluralization rules
-    if lower.ends_with("s") || lower.ends_with("x") || lower.ends_with("z")
-        || lower.ends_with("ch") || lower.ends_with("sh") {
+    if lower.ends_with("s")
+        || lower.ends_with("x")
+        || lower.ends_with("z")
+        || lower.ends_with("ch")
+        || lower.ends_with("sh")
+    {
         format!("{}es", word)
     } else if lower.ends_with("y") && !is_vowel(lower.chars().rev().nth(1).unwrap_or('a')) {
         format!("{}ies", &word[..word.len() - 1])
@@ -311,7 +315,10 @@ mod tests {
 
     #[test]
     fn test_words() {
-        assert_eq!(words("Hello beautiful world", 2, "..."), "Hello beautiful...");
+        assert_eq!(
+            words("Hello beautiful world", 2, "..."),
+            "Hello beautiful..."
+        );
         assert_eq!(words("Hello world", 5, "..."), "Hello world");
     }
 
@@ -353,7 +360,10 @@ mod tests {
 
     #[test]
     fn test_between() {
-        assert_eq!(between("Hello [World] Foo", "[", "]"), Some("World".to_string()));
+        assert_eq!(
+            between("Hello [World] Foo", "[", "]"),
+            Some("World".to_string())
+        );
         assert_eq!(between("Hello World", "[", "]"), None);
     }
 

@@ -35,11 +35,11 @@
 //! # }
 //! ```
 
-use sea_orm::{ConnectOptions, Database, DatabaseConnection, DbErr, ConnectionTrait, Statement};
+use chrono::{DateTime, Utc};
+use sea_orm::{ConnectOptions, ConnectionTrait, Database, DatabaseConnection, DbErr, Statement};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::time::Duration;
-use chrono::{DateTime, Utc};
 use thiserror::Error;
 
 /// Pool optimization errors
@@ -294,9 +294,7 @@ impl PoolStats {
         // 1. Utilization is below 90%
         // 2. Timeout rate is below 5%
         // 3. Error rate is below 1%
-        self.utilization_rate() < 0.9
-            && self.timeout_rate() < 0.05
-            && self.error_rate() < 0.01
+        self.utilization_rate() < 0.9 && self.timeout_rate() < 0.05 && self.error_rate() < 0.01
     }
 }
 
@@ -343,7 +341,10 @@ impl PoolOptimizer {
     }
 
     /// Create a new optimized pool
-    pub async fn create_pool(config: &PoolConfig, database_url: &str) -> PoolResult<DatabaseConnection> {
+    pub async fn create_pool(
+        config: &PoolConfig,
+        database_url: &str,
+    ) -> PoolResult<DatabaseConnection> {
         let options = config.to_connect_options(database_url);
 
         let db = Database::connect(options)
@@ -379,7 +380,8 @@ impl PoolOptimizer {
                     "Pool utilization is very high ({:.1}%)",
                     stats.utilization_rate() * 100.0
                 ),
-                suggested_action: "Increase max_connections or optimize query performance".to_string(),
+                suggested_action: "Increase max_connections or optimize query performance"
+                    .to_string(),
             });
         } else if stats.utilization_rate() > 0.7 {
             recommendations.push(PoolRecommendation {
@@ -448,7 +450,8 @@ impl PoolOptimizer {
         // Execute a simple query to verify database connectivity
         let backend = self.db.get_database_backend();
         let stmt = Statement::from_string(backend, "SELECT 1".to_string());
-        let result = self.db
+        let result = self
+            .db
             .execute(stmt)
             .await
             .map_err(PoolError::DatabaseError)?;

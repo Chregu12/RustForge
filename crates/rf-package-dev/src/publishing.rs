@@ -80,7 +80,11 @@ impl Publisher {
     }
 
     /// Publish assets of the given type to the destination
-    pub async fn publish(&self, asset_type: AssetType, dest: impl AsRef<Path>) -> PackageResult<()> {
+    pub async fn publish(
+        &self,
+        asset_type: AssetType,
+        dest: impl AsRef<Path>,
+    ) -> PackageResult<()> {
         let dest = dest.as_ref();
 
         match asset_type {
@@ -145,7 +149,8 @@ impl Publisher {
 
         std::fs::create_dir_all(dest_dir)?;
 
-        let file_name = src.file_name()
+        let file_name = src
+            .file_name()
             .ok_or_else(|| PackageError::PublishError("Invalid file name".to_string()))?;
         let dest = dest_dir.join(file_name);
 
@@ -159,12 +164,11 @@ impl Publisher {
 
         // Create backup if needed
         if dest.exists() && self.config.backup {
-            let backup = dest.with_extension(
-                format!("{}{}",
-                    dest.extension().and_then(|s| s.to_str()).unwrap_or(""),
-                    self.config.backup_suffix
-                )
-            );
+            let backup = dest.with_extension(format!(
+                "{}{}",
+                dest.extension().and_then(|s| s.to_str()).unwrap_or(""),
+                self.config.backup_suffix
+            ));
             std::fs::copy(&dest, &backup)?;
             if self.config.verbose {
                 println!("Created backup: {}", backup.display());
@@ -181,47 +185,56 @@ impl Publisher {
     }
 
     /// Copy a directory recursively
-    fn copy_directory<'a>(&'a self, src: &'a Path, dest: &'a Path) -> std::pin::Pin<Box<dyn std::future::Future<Output = PackageResult<()>> + 'a>> {
+    fn copy_directory<'a>(
+        &'a self,
+        src: &'a Path,
+        dest: &'a Path,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = PackageResult<()>> + 'a>> {
         Box::pin(async move {
-        if !src.exists() {
-            return Ok(());
-        }
+            if !src.exists() {
+                return Ok(());
+            }
 
-        std::fs::create_dir_all(dest)?;
+            std::fs::create_dir_all(dest)?;
 
-        let entries = std::fs::read_dir(src)?;
-        for entry in entries {
-            let entry = entry?;
-            let src_path = entry.path();
-            let file_name = entry.file_name();
-            let dest_path = dest.join(&file_name);
+            let entries = std::fs::read_dir(src)?;
+            for entry in entries {
+                let entry = entry?;
+                let src_path = entry.path();
+                let file_name = entry.file_name();
+                let dest_path = dest.join(&file_name);
 
-            if src_path.is_dir() {
-                self.copy_directory(&src_path, &dest_path).await?;
-            } else {
-                if dest_path.exists() && !self.config.overwrite {
-                    if self.config.verbose {
-                        println!("Skipping existing file: {}", dest_path.display());
+                if src_path.is_dir() {
+                    self.copy_directory(&src_path, &dest_path).await?;
+                } else {
+                    if dest_path.exists() && !self.config.overwrite {
+                        if self.config.verbose {
+                            println!("Skipping existing file: {}", dest_path.display());
+                        }
+                        continue;
                     }
-                    continue;
-                }
 
-                if dest_path.exists() && self.config.backup {
-                    let backup = PathBuf::from(format!("{}{}",
-                        dest_path.display(),
-                        self.config.backup_suffix
-                    ));
-                    std::fs::copy(&dest_path, &backup)?;
-                }
+                    if dest_path.exists() && self.config.backup {
+                        let backup = PathBuf::from(format!(
+                            "{}{}",
+                            dest_path.display(),
+                            self.config.backup_suffix
+                        ));
+                        std::fs::copy(&dest_path, &backup)?;
+                    }
 
-                std::fs::copy(&src_path, &dest_path)?;
-                if self.config.verbose {
-                    println!("Published: {} -> {}", src_path.display(), dest_path.display());
+                    std::fs::copy(&src_path, &dest_path)?;
+                    if self.config.verbose {
+                        println!(
+                            "Published: {} -> {}",
+                            src_path.display(),
+                            dest_path.display()
+                        );
+                    }
                 }
             }
-        }
 
-        Ok(())
+            Ok(())
         })
     }
 }

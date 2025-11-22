@@ -160,7 +160,8 @@ impl PolicyRegistry {
         P::User: 'static,
     {
         let type_id = TypeId::of::<T>();
-        let boxed: Box<dyn Any + Send + Sync> = Box::new(Arc::new(policy) as Arc<dyn Policy<T, User = P::User>>);
+        let boxed: Box<dyn Any + Send + Sync> =
+            Box::new(Arc::new(policy) as Arc<dyn Policy<T, User = P::User>>);
 
         let mut policies = self.policies.lock().unwrap();
         policies.insert(type_id, boxed);
@@ -257,9 +258,9 @@ impl PolicyRegistry {
 
         let policies = self.policies.lock().unwrap();
 
-        let policy_box = policies
-            .get(&type_id)
-            .ok_or_else(|| AuthorizationError::PolicyNotFound(format!("No policy for type: {:?}", type_id)))?;
+        let policy_box = policies.get(&type_id).ok_or_else(|| {
+            AuthorizationError::PolicyNotFound(format!("No policy for type: {:?}", type_id))
+        })?;
 
         // Downcast to the specific policy type
         let policy = policy_box
@@ -422,7 +423,9 @@ mod tests {
             is_admin: false,
         };
 
-        assert!(registry.authorize::<TestPost, TestUser>(&user, "create", None).is_ok());
+        assert!(registry
+            .authorize::<TestPost, TestUser>(&user, "create", None)
+            .is_ok());
     }
 
     #[test]
@@ -483,7 +486,10 @@ mod tests {
 
         let result = registry.authorize(&user, "update", Some(&post));
         assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), AuthorizationError::PolicyNotFound(_)));
+        assert!(matches!(
+            result.unwrap_err(),
+            AuthorizationError::PolicyNotFound(_)
+        ));
     }
 
     #[test]
@@ -547,6 +553,9 @@ mod tests {
 
         let result = registry.check(&user, "invalid-action", Some(&post));
         assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), AuthorizationError::InvalidAbility(_)));
+        assert!(matches!(
+            result.unwrap_err(),
+            AuthorizationError::InvalidAbility(_)
+        ));
     }
 }

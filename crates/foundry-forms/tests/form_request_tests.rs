@@ -36,8 +36,7 @@ struct UnauthorizedRequest;
 
 impl FormRequest for UnauthorizedRequest {
     fn rules(&self) -> FormRequestValidator {
-        FormRequestValidator::new()
-            .rule("name", vec![required()])
+        FormRequestValidator::new().rule("name", vec![required()])
     }
 
     fn authorize(&self) -> bool {
@@ -49,13 +48,15 @@ struct CustomMessagesRequest;
 
 impl FormRequest for CustomMessagesRequest {
     fn rules(&self) -> FormRequestValidator {
-        FormRequestValidator::new()
-            .rule("email", vec![required(), email()])
+        FormRequestValidator::new().rule("email", vec![required(), email()])
     }
 
     fn messages(&self) -> HashMap<String, String> {
         let mut messages = HashMap::new();
-        messages.insert("email".to_string(), "We need your email address!".to_string());
+        messages.insert(
+            "email".to_string(),
+            "We need your email address!".to_string(),
+        );
         messages
     }
 }
@@ -81,9 +82,9 @@ fn test_form_request_passes() {
 fn test_form_request_fails_validation() {
     let request = CreateUserRequest;
     let data = data_with(vec![
-        ("name", "Jo"),  // Too short
+        ("name", "Jo"),        // Too short
         ("email", "invalid"),  // Invalid email
-        ("password", "short"),  // Too short
+        ("password", "short"), // Too short
     ]);
 
     let result = request.validate(data);
@@ -169,8 +170,7 @@ fn test_form_request_with_confirmed_fails() {
 
     impl FormRequest for PasswordResetRequest {
         fn rules(&self) -> FormRequestValidator {
-            FormRequestValidator::new()
-                .rule("password", vec![required(), confirmed()])
+            FormRequestValidator::new().rule("password", vec![required(), confirmed()])
         }
     }
 
@@ -199,23 +199,14 @@ fn test_form_request_with_conditional_validation() {
     let request = ConditionalRequest;
 
     // Test with admin role and code
-    let data = data_with(vec![
-        ("role", "admin"),
-        ("admin_code", "SECRET"),
-    ]);
+    let data = data_with(vec![("role", "admin"), ("admin_code", "SECRET")]);
     assert!(request.validate(data).is_ok());
 
     // Test with admin role but no code
-    let data = data_with(vec![
-        ("role", "admin"),
-        ("admin_code", ""),
-    ]);
+    let data = data_with(vec![("role", "admin"), ("admin_code", "")]);
     assert!(request.validate(data).is_err());
 
     // Test with user role and no code
-    let data = data_with(vec![
-        ("role", "user"),
-        ("admin_code", ""),
-    ]);
+    let data = data_with(vec![("role", "user"), ("admin_code", "")]);
     assert!(request.validate(data).is_ok());
 }

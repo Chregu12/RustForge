@@ -43,7 +43,7 @@
 use async_trait::async_trait;
 use foundry_cache::manager::cache_manager::CacheManager;
 use foundry_cache::store::CacheError;
-use sea_orm::{DatabaseConnection, DbErr, EntityTrait, QuerySelect, Statement, ConnectionTrait};
+use sea_orm::{ConnectionTrait, DatabaseConnection, DbErr, EntityTrait, QuerySelect, Statement};
 use serde::{Deserialize, Serialize};
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
@@ -147,7 +147,10 @@ impl QueryFingerprint {
 
         Self {
             sql: normalized_sql,
-            params: params.into_iter().map(|p| Self::normalize_param(&p)).collect(),
+            params: params
+                .into_iter()
+                .map(|p| Self::normalize_param(&p))
+                .collect(),
             database: None,
         }
     }
@@ -367,11 +370,7 @@ pub trait CacheableQuery: Sized {
     type Output;
 
     /// Execute query with caching
-    async fn cached(
-        self,
-        cache: &QueryCache,
-        ttl: Duration,
-    ) -> QueryCacheResult<Self::Output>;
+    async fn cached(self, cache: &QueryCache, ttl: Duration) -> QueryCacheResult<Self::Output>;
 
     /// Execute query with custom cache key
     async fn cached_with_key(
@@ -387,10 +386,7 @@ pub struct QueryExtractor;
 
 impl QueryExtractor {
     /// Extract SQL statement from a query builder
-    pub fn extract_statement<E>(
-        _select: &impl QuerySelect,
-        db: &DatabaseConnection,
-    ) -> Statement
+    pub fn extract_statement<E>(_select: &impl QuerySelect, db: &DatabaseConnection) -> Statement
     where
         E: EntityTrait,
     {
@@ -398,10 +394,7 @@ impl QueryExtractor {
         // to properly extract the SQL and parameters from the query builder
 
         // For now, return a placeholder
-        Statement::from_string(
-            db.get_database_backend(),
-            "SELECT * FROM table".to_string(),
-        )
+        Statement::from_string(db.get_database_backend(), "SELECT * FROM table".to_string())
     }
 }
 
@@ -411,10 +404,7 @@ mod tests {
 
     #[test]
     fn test_query_fingerprint_normalization() {
-        let fp1 = QueryFingerprint::new(
-            "SELECT * FROM users WHERE id = ?",
-            vec!["1".to_string()],
-        );
+        let fp1 = QueryFingerprint::new("SELECT * FROM users WHERE id = ?", vec!["1".to_string()]);
 
         let fp2 = QueryFingerprint::new(
             "SELECT   *   FROM   users   WHERE   id   =   ?",
@@ -422,10 +412,7 @@ mod tests {
         );
 
         // Should generate the same cache key
-        assert_eq!(
-            fp1.to_cache_key("test:"),
-            fp2.to_cache_key("test:")
-        );
+        assert_eq!(fp1.to_cache_key("test:"), fp2.to_cache_key("test:"));
     }
 
     #[test]
@@ -460,10 +447,7 @@ mod tests {
         );
 
         // Different parameters should generate different cache keys
-        assert_ne!(
-            fp1.to_cache_key("test:"),
-            fp2.to_cache_key("test:")
-        );
+        assert_ne!(fp1.to_cache_key("test:"), fp2.to_cache_key("test:"));
     }
 
     #[test]

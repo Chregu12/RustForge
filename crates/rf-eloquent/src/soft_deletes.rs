@@ -244,8 +244,7 @@ macro_rules! impl_soft_deletes {
             fn is_trashed(&self) -> bool {
                 matches!(
                     &self.$field,
-                    sea_orm::ActiveValue::Set(Some(_))
-                        | sea_orm::ActiveValue::Unchanged(Some(_))
+                    sea_orm::ActiveValue::Set(Some(_)) | sea_orm::ActiveValue::Unchanged(Some(_))
                 )
             }
 
@@ -283,8 +282,8 @@ macro_rules! impl_soft_delete_entity {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use sea_orm::{entity::prelude::*, ActiveValue, Set};
     use chrono::DateTime as ChronoDateTime;
+    use sea_orm::{entity::prelude::*, ActiveValue, Set};
 
     // Test entity for soft deletes
     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]

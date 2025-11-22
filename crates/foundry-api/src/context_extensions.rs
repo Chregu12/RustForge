@@ -2,7 +2,6 @@
 ///
 /// This module provides extensions to CommandContext that are commonly needed
 /// but don't belong in the core plugins crate.
-
 use crate::verbosity::Verbosity;
 use foundry_plugins::CommandContext;
 
@@ -30,22 +29,23 @@ impl CommandContextExt for CommandContext {
     }
 
     fn has_flag(&self, flag: &str) -> bool {
-        self.args.iter().any(|arg| arg == flag || arg.starts_with(&format!("--{}", flag)))
+        self.args
+            .iter()
+            .any(|arg| arg == flag || arg.starts_with(&format!("--{}", flag)))
     }
 
     fn option(&self, name: &str) -> Option<String> {
         let prefix = format!("--{}=", name);
-        self.args.iter()
-            .find_map(|arg| {
-                if arg.starts_with(&prefix) {
-                    Some(arg.strip_prefix(&prefix).unwrap().to_string())
-                } else if arg == &format!("--{}", name) {
-                    // Find the next argument as the value
-                    None // Would need index to implement properly
-                } else {
-                    None
-                }
-            })
+        self.args.iter().find_map(|arg| {
+            if arg.starts_with(&prefix) {
+                Some(arg.strip_prefix(&prefix).unwrap().to_string())
+            } else if arg == &format!("--{}", name) {
+                // Find the next argument as the value
+                None // Would need index to implement properly
+            } else {
+                None
+            }
+        })
     }
 
     fn positional_args(&self) -> Vec<String> {
@@ -74,9 +74,9 @@ impl CommandContextExt for CommandContext {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use foundry_plugins::{CommandContext, ResponseFormat, ExecutionOptions};
-    use std::sync::Arc;
+    use foundry_plugins::{CommandContext, ExecutionOptions, ResponseFormat};
     use mockall::mock;
+    use std::sync::Arc;
 
     // Mock implementations for testing would go here
     #[test]

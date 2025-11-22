@@ -66,7 +66,8 @@ impl DatabaseCreateCommand {
             }
         }
         Err(CommandError::Message(
-            "DATABASE_URL not found in .env file. Please set DATABASE_URL or run setup wizard.".to_string()
+            "DATABASE_URL not found in .env file. Please set DATABASE_URL or run setup wizard."
+                .to_string(),
         ))
     }
 
@@ -80,7 +81,8 @@ impl DatabaseCreateCommand {
             "sqlite"
         } else {
             return Err(CommandError::Message(
-                "Invalid DATABASE_URL format. Supported: mysql://, postgresql://, sqlite:".to_string()
+                "Invalid DATABASE_URL format. Supported: mysql://, postgresql://, sqlite:"
+                    .to_string(),
             ));
         };
 
@@ -95,21 +97,31 @@ impl DatabaseCreateCommand {
                 // Parse MySQL connection string
                 // Format: mysql://user:pass@host:port/database
                 if let Some(credentials) = url.strip_prefix("mysql://") {
-                    println!("✓ MySQL connection string: {}", credentials.replace(char::is_whitespace, ""));
+                    println!(
+                        "✓ MySQL connection string: {}",
+                        credentials.replace(char::is_whitespace, "")
+                    );
                     println!("✓ Connection validated (format check)");
                     Ok(())
                 } else {
-                    Err(CommandError::Message("Invalid MySQL URL format".to_string()))
+                    Err(CommandError::Message(
+                        "Invalid MySQL URL format".to_string(),
+                    ))
                 }
             }
             "postgres" => {
                 // Parse PostgreSQL connection string
                 if let Some(credentials) = url.strip_prefix("postgresql://") {
-                    println!("✓ PostgreSQL connection string: {}", credentials.replace(char::is_whitespace, ""));
+                    println!(
+                        "✓ PostgreSQL connection string: {}",
+                        credentials.replace(char::is_whitespace, "")
+                    );
                     println!("✓ Connection validated (format check)");
                     Ok(())
                 } else {
-                    Err(CommandError::Message("Invalid PostgreSQL URL format".to_string()))
+                    Err(CommandError::Message(
+                        "Invalid PostgreSQL URL format".to_string(),
+                    ))
                 }
             }
             "sqlite" => {
@@ -119,7 +131,9 @@ impl DatabaseCreateCommand {
                     println!("✓ Connection validated (path check)");
                     Ok(())
                 } else {
-                    Err(CommandError::Message("Invalid SQLite URL format".to_string()))
+                    Err(CommandError::Message(
+                        "Invalid SQLite URL format".to_string(),
+                    ))
                 }
             }
             _ => Err(CommandError::Message("Unknown database driver".to_string())),
@@ -215,10 +229,7 @@ impl DatabaseCreateCommand {
 
         // Note: Administrative connection string created for documentation purposes
         let _admin_url = if root_password.is_empty() {
-            format!(
-                "mysql://{}@{}:{}/{}",
-                root_user, host, port, db_name
-            )
+            format!("mysql://{}@{}:{}/{}", root_user, host, port, db_name)
         } else {
             format!(
                 "mysql://{}:{}@{}:{}/{}",
@@ -240,7 +251,15 @@ impl DatabaseCreateCommand {
                  CREATE USER IF NOT EXISTS '{}' IDENTIFIED BY '{}'; \
                  GRANT ALL PRIVILEGES ON {}.* TO '{}'; \
                  FLUSH PRIVILEGES;\"",
-                root_user, root_password, host, port, db_name, db_user, db_password, db_name, db_user
+                root_user,
+                root_password,
+                host,
+                port,
+                db_name,
+                db_user,
+                db_password,
+                db_name,
+                db_user
             )
         };
 
@@ -343,7 +362,11 @@ impl DatabaseCreateCommand {
         Ok(connection_url)
     }
 
-    async fn setup_sqlite(&self, _ctx: &CommandContext, db_path: Option<String>) -> Result<String, CommandError> {
+    async fn setup_sqlite(
+        &self,
+        _ctx: &CommandContext,
+        db_path: Option<String>,
+    ) -> Result<String, CommandError> {
         println!("\n🔧 SQLite Database Setup\n");
 
         let db_path = match db_path {
@@ -530,11 +553,7 @@ impl FoundryCommand for DatabaseCreateCommand {
             // Interactive selection
             let selection = dialoguer::Select::new()
                 .with_prompt("Wähle eine Datenbank")
-                .items(&[
-                    "MySQL / MariaDB",
-                    "PostgreSQL",
-                    "SQLite",
-                ])
+                .items(&["MySQL / MariaDB", "PostgreSQL", "SQLite"])
                 .interact()
                 .map_err(|e| CommandError::Message(format!("Selection error: {}", e)))?;
 
@@ -550,8 +569,23 @@ impl FoundryCommand for DatabaseCreateCommand {
 
         // Setup based on driver
         let database_url = match driver {
-            "mysql" => self.setup_mysql(&ctx, host, port, root_user, root_password, db_name, db_user, db_password).await?,
-            "postgres" => self.setup_postgres(&ctx, host, port, db_name, db_user, db_password).await?,
+            "mysql" => {
+                self.setup_mysql(
+                    &ctx,
+                    host,
+                    port,
+                    root_user,
+                    root_password,
+                    db_name,
+                    db_user,
+                    db_password,
+                )
+                .await?
+            }
+            "postgres" => {
+                self.setup_postgres(&ctx, host, port, db_name, db_user, db_password)
+                    .await?
+            }
             "sqlite" => self.setup_sqlite(&ctx, db_path).await?,
             _ => return Err(CommandError::Message("Unknown database driver".to_string())),
         };
@@ -688,7 +722,10 @@ mod tests {
         let result = DatabaseCreateCommand::validate_database_url(url);
 
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Invalid DATABASE_URL format"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Invalid DATABASE_URL format"));
     }
 
     #[test]
@@ -696,7 +733,10 @@ mod tests {
         let cmd = DatabaseCreateCommand::new();
         let descriptor = cmd.descriptor();
 
-        let description = descriptor.description.as_ref().expect("Description should exist");
+        let description = descriptor
+            .description
+            .as_ref()
+            .expect("Description should exist");
         assert!(description.contains("--existing"));
         assert!(description.contains("--validate-only"));
         assert!(description.contains("Use Existing Database from .env"));

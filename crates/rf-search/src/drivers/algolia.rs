@@ -2,8 +2,8 @@
 //!
 //! Provides integration with Algolia's hosted search service.
 
-use crate::driver::{ConfigurableDriver, SearchDriver, SearchError, Result};
-use crate::searchable::{Searchable, SearchHit, SearchOptions, SearchResult};
+use crate::driver::{ConfigurableDriver, Result, SearchDriver, SearchError};
+use crate::searchable::{SearchHit, SearchOptions, SearchResult, Searchable};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -128,10 +128,7 @@ impl AlgoliaDriver {
 
 #[async_trait]
 impl SearchDriver for AlgoliaDriver {
-    async fn index<T: Searchable + Serialize + Send + Sync>(
-        &self,
-        item: &T,
-    ) -> Result<()> {
+    async fn index<T: Searchable + Serialize + Send + Sync>(&self, item: &T) -> Result<()> {
         let index_name = T::index_name();
         let url = format!("{}/{}", self.index_url(index_name), item.search_id());
 
@@ -139,9 +136,7 @@ impl SearchDriver for AlgoliaDriver {
         let data = serde_json::to_value(&searchable)
             .map_err(|e| SearchError::IndexError(e.to_string()))?;
 
-        let _: Value = self
-            .request(reqwest::Method::PUT, &url, Some(data))
-            .await?;
+        let _: Value = self.request(reqwest::Method::PUT, &url, Some(data)).await?;
 
         Ok(())
     }
@@ -162,10 +157,7 @@ impl SearchDriver for AlgoliaDriver {
             .map(|item| {
                 let mut obj = serde_json::to_value(&item.to_searchable()).unwrap_or_default();
                 if let Some(obj_map) = obj.as_object_mut() {
-                    obj_map.insert(
-                        "objectID".to_string(),
-                        Value::String(item.search_id()),
-                    );
+                    obj_map.insert("objectID".to_string(), Value::String(item.search_id()));
                 }
                 json!({
                     "action": "addObject",
@@ -187,9 +179,7 @@ impl SearchDriver for AlgoliaDriver {
         let index_name = T::index_name();
         let url = format!("{}/{}", self.index_url(index_name), id);
 
-        let _: Value = self
-            .request(reqwest::Method::DELETE, &url, None)
-            .await?;
+        let _: Value = self.request(reqwest::Method::DELETE, &url, None).await?;
 
         Ok(())
     }
@@ -263,11 +253,9 @@ impl SearchDriver for AlgoliaDriver {
             .map(|(idx, hit)| SearchHit {
                 score: ((response.nb_hits - idx) as f32) / (response.nb_hits as f32),
                 data: hit.data,
-                highlights: hit.highlight_result.map(|hr| {
-                    hr.into_iter()
-                        .map(|(k, v)| (k, v.value))
-                        .collect()
-                }),
+                highlights: hit
+                    .highlight_result
+                    .map(|hr| hr.into_iter().map(|(k, v)| (k, v.value)).collect()),
                 metadata: HashMap::new(),
             })
             .collect();
@@ -284,9 +272,7 @@ impl SearchDriver for AlgoliaDriver {
         let index_name = T::index_name();
         let url = format!("{}/clear", self.index_url(index_name));
 
-        let _: Value = self
-            .request(reqwest::Method::POST, &url, None)
-            .await?;
+        let _: Value = self.request(reqwest::Method::POST, &url, None).await?;
 
         Ok(())
     }
@@ -315,9 +301,7 @@ impl SearchDriver for AlgoliaDriver {
         let url = format!("{}/1/indexes", self.base_url());
 
         // Try to list indexes as a health check
-        let _: Value = self
-            .request(reqwest::Method::GET, &url, None)
-            .await?;
+        let _: Value = self.request(reqwest::Method::GET, &url, None).await?;
 
         Ok(())
     }
@@ -379,8 +363,7 @@ mod tests {
 
     #[test]
     fn test_algolia_config() {
-        let config = AlgoliaConfig::new("TEST_APP_ID", "test_key")
-            .timeout(60);
+        let config = AlgoliaConfig::new("TEST_APP_ID", "test_key").timeout(60);
 
         assert_eq!(config.app_id, "TEST_APP_ID");
         assert_eq!(config.timeout_secs, 60);

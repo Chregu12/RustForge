@@ -1,9 +1,9 @@
+use async_trait::async_trait;
 use chrono::Utc;
 use rf_sanctum::{
-    LoadFromToken, PersonalAccessToken, SanctumAuth, SanctumError, Tokenable, TokenRepository,
+    LoadFromToken, PersonalAccessToken, SanctumAuth, SanctumError, TokenRepository, Tokenable,
 };
 use sea_orm::{Database, DatabaseConnection, DbErr};
-use async_trait::async_trait;
 
 // Test user model
 #[derive(Clone, Debug)]
@@ -43,7 +43,8 @@ async fn setup_test_db() -> Result<DatabaseConnection, DbErr> {
     // Run migrations
     let sql = include_str!("../migrations/create_personal_access_tokens.sql");
     // Convert PostgreSQL syntax to SQLite
-    let sql = sql.replace("BIGSERIAL", "INTEGER")
+    let sql = sql
+        .replace("BIGSERIAL", "INTEGER")
         .replace("BIGINT", "INTEGER")
         .replace("VARCHAR(255)", "TEXT")
         .replace("VARCHAR(64)", "TEXT")
@@ -52,12 +53,9 @@ async fn setup_test_db() -> Result<DatabaseConnection, DbErr> {
         .replace("IF NOT EXISTS", "");
 
     for statement in sql.split(';').filter(|s| !s.trim().is_empty()) {
-        sea_orm::Statement::from_string(
-            sea_orm::DatabaseBackend::Sqlite,
-            statement.to_string(),
-        )
-        .execute(&db)
-        .await?;
+        sea_orm::Statement::from_string(sea_orm::DatabaseBackend::Sqlite, statement.to_string())
+            .execute(&db)
+            .await?;
     }
 
     Ok(db)
@@ -129,9 +127,7 @@ async fn test_wildcard_ability() -> Result<(), Box<dyn std::error::Error>> {
         name: "Test User".to_string(),
     };
 
-    let new_token = user
-        .create_token("admin-app", vec!["*"], None, &db)
-        .await?;
+    let new_token = user.create_token("admin-app", vec!["*"], None, &db).await?;
 
     assert!(new_token.token.can("anything"));
     assert!(new_token.token.can("read:posts"));
@@ -223,8 +219,12 @@ async fn test_multiple_tokens() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     // Create multiple tokens
-    let _token1 = user.create_token("app1", vec!["read:posts"], None, &db).await?;
-    let _token2 = user.create_token("app2", vec!["write:posts"], None, &db).await?;
+    let _token1 = user
+        .create_token("app1", vec!["read:posts"], None, &db)
+        .await?;
+    let _token2 = user
+        .create_token("app2", vec!["write:posts"], None, &db)
+        .await?;
     let _token3 = user.create_token("app3", vec!["*"], None, &db).await?;
 
     // Get all tokens
@@ -244,8 +244,12 @@ async fn test_revoke_all_tokens() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     // Create multiple tokens
-    let _token1 = user.create_token("app1", vec!["read:posts"], None, &db).await?;
-    let _token2 = user.create_token("app2", vec!["write:posts"], None, &db).await?;
+    let _token1 = user
+        .create_token("app1", vec!["read:posts"], None, &db)
+        .await?;
+    let _token2 = user
+        .create_token("app2", vec!["write:posts"], None, &db)
+        .await?;
 
     // Revoke all
     user.revoke_all_tokens(&db).await?;

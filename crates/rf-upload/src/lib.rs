@@ -91,14 +91,9 @@ impl FileUpload {
             .map_err(|e| UploadError::Multipart(e.to_string()))?
             .ok_or(UploadError::NoFile)?;
 
-        let filename = field
-            .file_name()
-            .ok_or(UploadError::NoFile)?
-            .to_string();
+        let filename = field.file_name().ok_or(UploadError::NoFile)?.to_string();
 
-        let content_type = field
-            .content_type()
-            .unwrap_or("application/octet-stream");
+        let content_type = field.content_type().unwrap_or("application/octet-stream");
 
         let mime_type: Mime = content_type
             .parse()
@@ -241,8 +236,8 @@ pub mod image_processing {
     impl ImageProcessor {
         /// Load from file
         pub fn from_path<P: AsRef<Path>>(path: P) -> UploadResult<Self> {
-            let image = image::open(path)
-                .map_err(|e| UploadError::ImageProcessing(e.to_string()))?;
+            let image =
+                image::open(path).map_err(|e| UploadError::ImageProcessing(e.to_string()))?;
             Ok(Self { image })
         }
 
@@ -256,21 +251,18 @@ pub mod image_processing {
         /// Resize image
         pub fn resize(mut self, width: u32, height: u32, mode: ResizeMode) -> Self {
             self.image = match mode {
-                ResizeMode::Fit => self.image.resize(
-                    width,
-                    height,
-                    image::imageops::FilterType::Lanczos3,
-                ),
-                ResizeMode::Fill => self.image.resize_to_fill(
-                    width,
-                    height,
-                    image::imageops::FilterType::Lanczos3,
-                ),
-                ResizeMode::Exact => self.image.resize_exact(
-                    width,
-                    height,
-                    image::imageops::FilterType::Lanczos3,
-                ),
+                ResizeMode::Fit => {
+                    self.image
+                        .resize(width, height, image::imageops::FilterType::Lanczos3)
+                }
+                ResizeMode::Fill => {
+                    self.image
+                        .resize_to_fill(width, height, image::imageops::FilterType::Lanczos3)
+                }
+                ResizeMode::Exact => {
+                    self.image
+                        .resize_exact(width, height, image::imageops::FilterType::Lanczos3)
+                }
             };
             self
         }
@@ -307,8 +299,14 @@ mod tests {
     fn test_sanitize_filename() {
         assert_eq!(sanitize_filename("test.jpg"), "test.jpg");
         assert_eq!(sanitize_filename("test file.jpg"), "test_file.jpg");
-        assert_eq!(sanitize_filename("../../../etc/passwd"), ".._.._.._etc_passwd");
-        assert_eq!(sanitize_filename("file with spaces.png"), "file_with_spaces.png");
+        assert_eq!(
+            sanitize_filename("../../../etc/passwd"),
+            ".._.._.._etc_passwd"
+        );
+        assert_eq!(
+            sanitize_filename("file with spaces.png"),
+            "file_with_spaces.png"
+        );
     }
 
     #[test]

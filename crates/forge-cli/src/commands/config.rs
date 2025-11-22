@@ -44,10 +44,21 @@ pub async fn cache() -> Result<()> {
     println!();
     println!("{} Configuration cached successfully!", "✓".green().bold());
     println!();
-    println!("  {} Cache location: {}", "ℹ".blue(), "bootstrap/cache/config.cache".yellow());
-    println!("  {} Clear cache with: {}", "ℹ".blue(), "forge config:clear".yellow());
+    println!(
+        "  {} Cache location: {}",
+        "ℹ".blue(),
+        "bootstrap/cache/config.cache".yellow()
+    );
+    println!(
+        "  {} Clear cache with: {}",
+        "ℹ".blue(),
+        "forge config:clear".yellow()
+    );
     println!();
-    println!("  {} Cached configuration will be used in production for better performance", "ℹ".blue());
+    println!(
+        "  {} Cached configuration will be used in production for better performance",
+        "ℹ".blue()
+    );
 
     Ok(())
 }
@@ -67,9 +78,15 @@ pub async fn clear() -> Result<()> {
 
     println!("  {} Removing cache file...", "•".cyan());
     println!();
-    println!("{} Configuration cache cleared successfully!", "✓".green().bold());
+    println!(
+        "{} Configuration cache cleared successfully!",
+        "✓".green().bold()
+    );
     println!();
-    println!("  {} Configuration will now be loaded from files", "ℹ".blue());
+    println!(
+        "  {} Configuration will now be loaded from files",
+        "ℹ".blue()
+    );
 
     Ok(())
 }

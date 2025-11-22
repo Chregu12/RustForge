@@ -201,9 +201,15 @@ mod tests {
         let storage = Storage::new();
         let watcher = MailWatcher::new(storage);
 
-        watcher.record(MailInfo::new("admin@example.com", "Admin Email")).await;
-        watcher.record(MailInfo::new("noreply@example.com", "Automated Email")).await;
-        watcher.record(MailInfo::new("admin@example.com", "Another Admin Email")).await;
+        watcher
+            .record(MailInfo::new("admin@example.com", "Admin Email"))
+            .await;
+        watcher
+            .record(MailInfo::new("noreply@example.com", "Automated Email"))
+            .await;
+        watcher
+            .record(MailInfo::new("admin@example.com", "Another Admin Email"))
+            .await;
 
         let admin_emails = watcher.from("admin@example.com").await;
         assert_eq!(admin_emails.len(), 2);
@@ -214,15 +220,27 @@ mod tests {
         let storage = Storage::new();
         let watcher = MailWatcher::new(storage);
 
-        watcher.record(MailInfo::new("test@example.com", "Plain Email")).await;
-        watcher.record(
-            MailInfo::new("test@example.com", "Email with Attachment")
-                .with_attachment("document.pdf", "application/pdf", 1024)
-        ).await;
-        watcher.record(
-            MailInfo::new("test@example.com", "Email with Image")
-                .with_attachment("photo.jpg", "image/jpeg", 2048)
-        ).await;
+        watcher
+            .record(MailInfo::new("test@example.com", "Plain Email"))
+            .await;
+        watcher
+            .record(
+                MailInfo::new("test@example.com", "Email with Attachment").with_attachment(
+                    "document.pdf",
+                    "application/pdf",
+                    1024,
+                ),
+            )
+            .await;
+        watcher
+            .record(
+                MailInfo::new("test@example.com", "Email with Image").with_attachment(
+                    "photo.jpg",
+                    "image/jpeg",
+                    2048,
+                ),
+            )
+            .await;
 
         let with_attachments = watcher.with_attachments().await;
         assert_eq!(with_attachments.len(), 2);

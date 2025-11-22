@@ -200,10 +200,10 @@ pub mod eager_loading;
 pub mod eager_loading_impl;
 pub mod eager_loading_optimized;
 pub mod events;
+pub mod polymorphic_impl;
 pub mod query_helpers;
 pub mod relationships;
 pub mod scopes;
-pub mod polymorphic_impl;
 pub mod soft_deletes;
 
 // Phase 19: Automatic eager loading detection
@@ -218,32 +218,30 @@ pub use accessors::{
     AttributeValue, HasAccessors, HasMutators,
 };
 pub use casting::{
-    cast_value, uncast_value, CastError, CastRegistry, CastResult, CastType, CastedValue,
-    HasCasts,
+    cast_value, uncast_value, CastError, CastRegistry, CastResult, CastType, CastedValue, HasCasts,
 };
 pub use eager_loading::{
     EagerLoadBuilder, EagerLoadError, EagerLoadRelation, EagerLoadResult, EagerLoadStats,
-    EagerLoader, RelationshipCache, WithEagerLoad, EagerLoadable, RelationshipLoader,
+    EagerLoadable, EagerLoader, RelationshipCache, RelationshipLoader, WithEagerLoad,
 };
-pub use eager_loading_impl::{
-    ConcreteEagerLoader, GroupedModels, GroupBy,
-};
+pub use eager_loading_impl::{ConcreteEagerLoader, GroupBy, GroupedModels};
 pub use events::{
     EventContext, EventDispatcher, EventError, EventListener, EventObserver, EventResult,
     ModelEvent, ModelEvents,
 };
-pub use query_helpers::{belongs_to, belongs_to_many, has_one, has_many, has_many_through, attach, detach, sync};
+pub use query_helpers::{
+    attach, belongs_to, belongs_to_many, detach, has_many, has_many_through, has_one, sync,
+};
 pub use relationships::{
     BelongsTo, BelongsToMany, HasMany, HasManyThrough, HasOne, HasOneThrough, HasRelationships,
-    RelationshipError, RelationshipResult, RelationshipKind,
+    RelationshipError, RelationshipKind, RelationshipResult,
 };
 pub use scopes::{
     CommonScopes, GlobalScopeRegistry, HasScopes, ScopeBuilder, ScopeError, ScopeResult,
     ScopedQuery,
 };
 pub use soft_deletes::{
-    clear_deleted_at, set_deleted_at, ForceDelete, SoftDeleteEntity, SoftDeleteScope,
-    SoftDeletes,
+    clear_deleted_at, set_deleted_at, ForceDelete, SoftDeleteEntity, SoftDeleteScope, SoftDeletes,
 };
 
 // Re-export polymorphic relationships
@@ -280,19 +278,19 @@ pub mod prelude {
     };
     pub use super::eager_loading::{
         EagerLoadBuilder, EagerLoadError, EagerLoadRelation, EagerLoadResult, EagerLoadStats,
-        EagerLoader, RelationshipCache, WithEagerLoad, EagerLoadable, RelationshipLoader,
+        EagerLoadable, EagerLoader, RelationshipCache, RelationshipLoader, WithEagerLoad,
     };
-    pub use super::eager_loading_impl::{
-        ConcreteEagerLoader, GroupedModels, GroupBy,
-    };
+    pub use super::eager_loading_impl::{ConcreteEagerLoader, GroupBy, GroupedModels};
     pub use super::events::{
         EventContext, EventDispatcher, EventError, EventListener, EventObserver, EventResult,
         ModelEvent, ModelEvents,
     };
-    pub use super::query_helpers::{belongs_to, belongs_to_many, has_one, has_many, has_many_through, attach, detach, sync};
+    pub use super::query_helpers::{
+        attach, belongs_to, belongs_to_many, detach, has_many, has_many_through, has_one, sync,
+    };
     pub use super::relationships::{
-        BelongsTo, BelongsToMany, HasMany, HasManyThrough, HasOne, HasOneThrough,
-        HasRelationships, RelationshipError, RelationshipResult, RelationshipKind,
+        BelongsTo, BelongsToMany, HasMany, HasManyThrough, HasOne, HasOneThrough, HasRelationships,
+        RelationshipError, RelationshipKind, RelationshipResult,
     };
     pub use super::scopes::{
         CommonScopes, GlobalScopeRegistry, HasScopes, ScopeBuilder, ScopeError, ScopeResult,
@@ -307,14 +305,12 @@ pub mod prelude {
     pub use super::polymorphic_relationships::*;
 
     // Automatic eager loading detection
-    pub use super::auto_eager_load::{
-        QueryTracker, NPlusOnePattern, QueryStats, QueryLog,
-    };
+    pub use super::auto_eager_load::{NPlusOnePattern, QueryLog, QueryStats, QueryTracker};
 
     // SeaORM re-exports
     pub use sea_orm::{
-        ActiveModelBehavior, ActiveModelTrait, ColumnTrait, DatabaseConnection, DbErr,
-        EntityTrait, ModelTrait, QueryFilter, QueryOrder, QuerySelect,
+        ActiveModelBehavior, ActiveModelTrait, ColumnTrait, DatabaseConnection, DbErr, EntityTrait,
+        ModelTrait, QueryFilter, QueryOrder, QuerySelect,
     };
 }
 

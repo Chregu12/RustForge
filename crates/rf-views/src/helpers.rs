@@ -186,8 +186,8 @@ macro_rules! render_view {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tempfile::TempDir;
     use std::fs;
+    use tempfile::TempDir;
 
     fn create_test_engine() -> (ViewEngine, TempDir) {
         let temp_dir = TempDir::new().unwrap();

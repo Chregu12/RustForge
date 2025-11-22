@@ -134,7 +134,12 @@ impl Mailer for SendmailMailer {
         tracing::info!(
             "Email sent via sendmail: {} -> {}",
             message.from.email,
-            message.to.iter().map(|a| a.email.as_str()).collect::<Vec<_>>().join(", ")
+            message
+                .to
+                .iter()
+                .map(|a| a.email.as_str())
+                .collect::<Vec<_>>()
+                .join(", ")
         );
 
         Ok(())

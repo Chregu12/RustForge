@@ -1,9 +1,7 @@
 //! Integration tests for rf-horizon
 
 use rf_horizon::{
-    collector::MetricsCollector,
-    metrics::*,
-    Horizon, HorizonBuilder, JobHistoryStatus,
+    collector::MetricsCollector, metrics::*, Horizon, HorizonBuilder, JobHistoryStatus,
 };
 use rf_jobs::QueueManager;
 
@@ -366,9 +364,7 @@ async fn test_horizon_state_batches() {
         finished_at: None,
     };
 
-    horizon
-        .record_batch("batch-1".to_string(), progress)
-        .await;
+    horizon.record_batch("batch-1".to_string(), progress).await;
 
     let state = horizon.state().await;
     assert_eq!(state.batches.len(), 1);

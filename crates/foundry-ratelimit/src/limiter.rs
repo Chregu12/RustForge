@@ -1,7 +1,7 @@
 //! Rate limiter implementation
 
-use std::time::Duration;
 use crate::{RateLimitStorage, Result};
+use std::time::Duration;
 
 #[derive(Debug, Clone)]
 pub struct RateLimit {

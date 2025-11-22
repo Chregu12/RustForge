@@ -260,9 +260,10 @@ pub fn cast_value(value: &str, cast_type: CastType) -> CastResult<CastedValue> {
         }
         CastType::Date => {
             // Parse as date and convert to DateTime at midnight
-            let dt = NaiveDateTime::parse_from_str(&format!("{} 00:00:00", value), "%Y-%m-%d %H:%M:%S")
-                .map(|ndt| DateTime::<Utc>::from_naive_utc_and_offset(ndt, Utc))
-                .map_err(|e| CastError::InvalidDate(e.to_string()))?;
+            let dt =
+                NaiveDateTime::parse_from_str(&format!("{} 00:00:00", value), "%Y-%m-%d %H:%M:%S")
+                    .map(|ndt| DateTime::<Utc>::from_naive_utc_and_offset(ndt, Utc))
+                    .map_err(|e| CastError::InvalidDate(e.to_string()))?;
             Ok(CastedValue::DateTime(dt))
         }
         CastType::Encrypted => {
@@ -277,19 +278,13 @@ pub fn cast_value(value: &str, cast_type: CastType) -> CastResult<CastedValue> {
         }
         CastType::Array => {
             let arr: Vec<serde_json::Value> = serde_json::from_str(value)?;
-            let casted: Vec<CastedValue> = arr
-                .into_iter()
-                .map(CastedValue::Json)
-                .collect();
+            let casted: Vec<CastedValue> = arr.into_iter().map(CastedValue::Json).collect();
             Ok(CastedValue::Array(casted))
         }
         CastType::Collection => {
             // Similar to array
             let arr: Vec<serde_json::Value> = serde_json::from_str(value)?;
-            let casted: Vec<CastedValue> = arr
-                .into_iter()
-                .map(CastedValue::Json)
-                .collect();
+            let casted: Vec<CastedValue> = arr.into_iter().map(CastedValue::Json).collect();
             Ok(CastedValue::Array(casted))
         }
         CastType::Custom(name) => Err(CastError::CastFailed(format!(
@@ -356,10 +351,22 @@ mod tests {
 
     #[test]
     fn test_cast_boolean() {
-        assert!(cast_value("true", CastType::Boolean).unwrap().as_bool().unwrap());
-        assert!(cast_value("1", CastType::Boolean).unwrap().as_bool().unwrap());
-        assert!(!cast_value("false", CastType::Boolean).unwrap().as_bool().unwrap());
-        assert!(!cast_value("0", CastType::Boolean).unwrap().as_bool().unwrap());
+        assert!(cast_value("true", CastType::Boolean)
+            .unwrap()
+            .as_bool()
+            .unwrap());
+        assert!(cast_value("1", CastType::Boolean)
+            .unwrap()
+            .as_bool()
+            .unwrap());
+        assert!(!cast_value("false", CastType::Boolean)
+            .unwrap()
+            .as_bool()
+            .unwrap());
+        assert!(!cast_value("0", CastType::Boolean)
+            .unwrap()
+            .as_bool()
+            .unwrap());
     }
 
     #[test]

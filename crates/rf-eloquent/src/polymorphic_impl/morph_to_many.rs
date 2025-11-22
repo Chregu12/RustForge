@@ -227,7 +227,7 @@ impl<T> MorphToMany<T> {
         // This requires building dynamic INSERT queries through SeaORM
         // For now, return a placeholder error
         Err(PolymorphicError::NotImplemented(
-            "MorphToMany::attach not yet implemented".to_string()
+            "MorphToMany::attach not yet implemented".to_string(),
         ))
     }
 
@@ -249,7 +249,7 @@ impl<T> MorphToMany<T> {
     ) -> PolymorphicResult<()> {
         // TODO: Implement polymorphic detach
         Err(PolymorphicError::NotImplemented(
-            "MorphToMany::detach not yet implemented".to_string()
+            "MorphToMany::detach not yet implemented".to_string(),
         ))
     }
 
@@ -271,7 +271,7 @@ impl<T> MorphToMany<T> {
     ) -> PolymorphicResult<()> {
         // TODO: Implement polymorphic sync
         Err(PolymorphicError::NotImplemented(
-            "MorphToMany::sync not yet implemented".to_string()
+            "MorphToMany::sync not yet implemented".to_string(),
         ))
     }
 
@@ -286,7 +286,7 @@ impl<T> MorphToMany<T> {
     ) -> PolymorphicResult<()> {
         // TODO: Implement polymorphic toggle
         Err(PolymorphicError::NotImplemented(
-            "MorphToMany::toggle not yet implemented".to_string()
+            "MorphToMany::toggle not yet implemented".to_string(),
         ))
     }
 }

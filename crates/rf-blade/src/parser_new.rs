@@ -45,8 +45,7 @@ impl Parser {
     /// Parse template from string
     pub fn parse(input: &str) -> ParseResult<Vec<AstNode>> {
         // Tokenize
-        let tokens = Lexer::tokenize(input)
-            .map_err(|e| ParseError::LexerError(e.to_string()))?;
+        let tokens = Lexer::tokenize(input).map_err(|e| ParseError::LexerError(e.to_string()))?;
 
         // Parse tokens
         let mut parser = Self::new(tokens);
@@ -75,7 +74,12 @@ impl Parser {
 
             // Debug: check position
             if cfg!(test) && nodes.len() > 10 {
-                eprintln!("DEBUG: Parsed {} nodes, position: {}/{}", nodes.len(), self.position, self.tokens.len());
+                eprintln!(
+                    "DEBUG: Parsed {} nodes, position: {}/{}",
+                    nodes.len(),
+                    self.position,
+                    self.tokens.len()
+                );
             }
         }
 
@@ -123,7 +127,11 @@ impl Parser {
                 self.parse_standalone_directive(directive_type, args)
             }
 
-            Some(Token::ComponentStart { name, attributes, self_closing }) => {
+            Some(Token::ComponentStart {
+                name,
+                attributes,
+                self_closing,
+            }) => {
                 let name = name.clone();
                 let attributes = attributes.clone();
                 let self_closing = *self_closing;
@@ -242,8 +250,16 @@ impl Parser {
             if kv.len() != 2 {
                 return Err(ParseError::InvalidArguments(args));
             }
-            let key = kv[0].trim().strip_prefix('$').unwrap_or(kv[0].trim()).to_string();
-            let item = kv[1].trim().strip_prefix('$').unwrap_or(kv[1].trim()).to_string();
+            let key = kv[0]
+                .trim()
+                .strip_prefix('$')
+                .unwrap_or(kv[0].trim())
+                .to_string();
+            let item = kv[1]
+                .trim()
+                .strip_prefix('$')
+                .unwrap_or(kv[1].trim())
+                .to_string();
             (Some(key), item)
         } else {
             let item = item_part.strip_prefix('$').unwrap_or(item_part).to_string();
@@ -253,7 +269,10 @@ impl Parser {
         let body = self.parse_nodes()?;
 
         // Expect @endforeach
-        if !matches!(self.current(), Some(Token::DirectiveEnd(DirectiveType::EndForEach))) {
+        if !matches!(
+            self.current(),
+            Some(Token::DirectiveEnd(DirectiveType::EndForEach))
+        ) {
             return Err(ParseError::UnclosedDirective("@foreach".to_string()));
         }
         self.advance();
@@ -282,7 +301,10 @@ impl Parser {
         let body = self.parse_nodes()?;
 
         // Expect @endfor
-        if !matches!(self.current(), Some(Token::DirectiveEnd(DirectiveType::EndFor))) {
+        if !matches!(
+            self.current(),
+            Some(Token::DirectiveEnd(DirectiveType::EndFor))
+        ) {
             return Err(ParseError::UnclosedDirective("@for".to_string()));
         }
         self.advance();
@@ -301,7 +323,10 @@ impl Parser {
         let body = self.parse_nodes()?;
 
         // Expect @endwhile
-        if !matches!(self.current(), Some(Token::DirectiveEnd(DirectiveType::EndWhile))) {
+        if !matches!(
+            self.current(),
+            Some(Token::DirectiveEnd(DirectiveType::EndWhile))
+        ) {
             return Err(ParseError::UnclosedDirective("@while".to_string()));
         }
         self.advance();
@@ -336,7 +361,10 @@ impl Parser {
         let content = self.parse_nodes()?;
 
         // Expect @endauth
-        if !matches!(self.current(), Some(Token::DirectiveEnd(DirectiveType::EndAuth))) {
+        if !matches!(
+            self.current(),
+            Some(Token::DirectiveEnd(DirectiveType::EndAuth))
+        ) {
             return Err(ParseError::UnclosedDirective("@auth".to_string()));
         }
         self.advance();
@@ -349,7 +377,10 @@ impl Parser {
         let content = self.parse_nodes()?;
 
         // Expect @endguest
-        if !matches!(self.current(), Some(Token::DirectiveEnd(DirectiveType::EndGuest))) {
+        if !matches!(
+            self.current(),
+            Some(Token::DirectiveEnd(DirectiveType::EndGuest))
+        ) {
             return Err(ParseError::UnclosedDirective("@guest".to_string()));
         }
         self.advance();
@@ -362,9 +393,7 @@ impl Parser {
         // Parse: 'content' or 'content', 'default value'
         let parts: Vec<&str> = args.split(',').map(|s| s.trim()).collect();
 
-        let name = parts[0]
-            .trim_matches(|c| c == '\'' || c == '"')
-            .to_string();
+        let name = parts[0].trim_matches(|c| c == '\'' || c == '"').to_string();
 
         let default = if parts.len() > 1 {
             Some(parts[1].trim_matches(|c| c == '\'' || c == '"').to_string())
@@ -509,7 +538,10 @@ impl Parser {
 
         while !self.is_at_end() {
             // Check for @endslot
-            if matches!(self.current(), Some(Token::DirectiveEnd(DirectiveType::EndSlot))) {
+            if matches!(
+                self.current(),
+                Some(Token::DirectiveEnd(DirectiveType::EndSlot))
+            ) {
                 self.advance();
                 break;
             }

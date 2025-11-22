@@ -67,10 +67,10 @@ impl InertiaMiddleware {
         let mut response = next.run(req).await;
 
         // Add Inertia headers to response
-        if let Ok(headers) = response.headers_mut().try_insert(
-            "X-Inertia",
-            HeaderValue::from_static("true"),
-        ) {
+        if let Ok(headers) = response
+            .headers_mut()
+            .try_insert("X-Inertia", HeaderValue::from_static("true"))
+        {
             // Header insertion successful
         }
 
@@ -167,10 +167,9 @@ where
             let mut response = inner.call(req).await?;
 
             // Add Inertia header to response
-            response.headers_mut().insert(
-                "X-Inertia",
-                HeaderValue::from_static("true"),
-            );
+            response
+                .headers_mut()
+                .insert("X-Inertia", HeaderValue::from_static("true"));
 
             Ok(response)
         })
@@ -203,10 +202,7 @@ mod tests {
         let config = InertiaConfig::new();
         let middleware = InertiaMiddleware::new(config);
 
-        middleware
-            .shared_props()
-            .add("app_name", "RustForge")
-            .await;
+        middleware.shared_props().add("app_name", "RustForge").await;
 
         let props = middleware.shared_props().all().await;
         assert!(props.has("app_name"));

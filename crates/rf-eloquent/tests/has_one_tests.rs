@@ -4,9 +4,7 @@
 //! executing actual SeaORM queries.
 
 use rf_eloquent::prelude::*;
-use sea_orm::{
-    entity::prelude::*, Database, DbBackend, DbErr, Schema, Set,
-};
+use sea_orm::{entity::prelude::*, Database, DbBackend, DbErr, Schema, Set};
 
 // ============================================================================
 // Test Entities - Users
@@ -37,10 +35,10 @@ impl ActiveModelBehavior for UserActiveModel {}
 
 // Create user module
 pub mod user {
-    pub use super::UserEntity as Entity;
-    pub use super::UserModel as Model;
     pub use super::UserActiveModel as ActiveModel;
     pub use super::UserColumn as Column;
+    pub use super::UserEntity as Entity;
+    pub use super::UserModel as Model;
     pub use super::UserRelation as Relation;
 }
 
@@ -169,11 +167,7 @@ async fn test_has_one_loads_related_model() {
     let profile = profile.insert(&db).await.unwrap();
 
     // Load relationship using SeaORM's built-in find_related
-    let loaded_profile = user
-        .find_related(profile::Entity)
-        .one(&db)
-        .await
-        .unwrap();
+    let loaded_profile = user.find_related(profile::Entity).one(&db).await.unwrap();
 
     // Verify profile was loaded - THIS IS THE KEY TEST!
     assert!(loaded_profile.is_some(), "Should load the user's profile");
@@ -181,7 +175,10 @@ async fn test_has_one_loads_related_model() {
     assert_eq!(loaded_profile.id, profile.id);
     assert_eq!(loaded_profile.user_id, user.id);
     assert_eq!(loaded_profile.bio, "Software Engineer");
-    assert_eq!(loaded_profile.avatar_url, Some("https://example.com/avatar.jpg".to_string()));
+    assert_eq!(
+        loaded_profile.avatar_url,
+        Some("https://example.com/avatar.jpg".to_string())
+    );
 }
 
 #[tokio::test]
@@ -207,11 +204,10 @@ async fn test_has_one_using_query_helper() {
 
     // Test the has_one query helper function
     use rf_eloquent::has_one;
-    let loaded_profile = has_one::<profile::Entity, profile::Model, _>(
-        &db,
-        user.id,
-        profile::Column::UserId
-    ).await.unwrap();
+    let loaded_profile =
+        has_one::<profile::Entity, profile::Model, _>(&db, user.id, profile::Column::UserId)
+            .await
+            .unwrap();
 
     // THIS IS THE CRITICAL TEST - should NOT be None!
     assert!(loaded_profile.is_some(), "Should load the user's profile");
@@ -236,14 +232,16 @@ async fn test_has_one_returns_none_for_user_without_profile() {
 
     // Load relationship using query helper
     use rf_eloquent::has_one;
-    let loaded_profile = has_one::<profile::Entity, profile::Model, _>(
-        &db,
-        user.id,
-        profile::Column::UserId
-    ).await.unwrap();
+    let loaded_profile =
+        has_one::<profile::Entity, profile::Model, _>(&db, user.id, profile::Column::UserId)
+            .await
+            .unwrap();
 
     // Verify None returned
-    assert!(loaded_profile.is_none(), "Should return None for user without profile");
+    assert!(
+        loaded_profile.is_none(),
+        "Should return None for user without profile"
+    );
 }
 
 #[tokio::test]
@@ -285,17 +283,15 @@ async fn test_has_one_with_multiple_users() {
 
     // Load profiles for both users using query helper
     use rf_eloquent::has_one;
-    let alice_profile = has_one::<profile::Entity, profile::Model, _>(
-        &db,
-        user1.id,
-        profile::Column::UserId
-    ).await.unwrap();
+    let alice_profile =
+        has_one::<profile::Entity, profile::Model, _>(&db, user1.id, profile::Column::UserId)
+            .await
+            .unwrap();
 
-    let charlie_profile = has_one::<profile::Entity, profile::Model, _>(
-        &db,
-        user2.id,
-        profile::Column::UserId
-    ).await.unwrap();
+    let charlie_profile =
+        has_one::<profile::Entity, profile::Model, _>(&db, user2.id, profile::Column::UserId)
+            .await
+            .unwrap();
 
     // Verify each user gets their correct profile
     assert!(alice_profile.is_some());
@@ -338,11 +334,10 @@ async fn test_has_one_with_different_relationship_type() {
 
     // Load address using query helper
     use rf_eloquent::has_one;
-    let loaded_address = has_one::<address::Entity, address::Model, _>(
-        &db,
-        user.id,
-        address::Column::UserId
-    ).await.unwrap();
+    let loaded_address =
+        has_one::<address::Entity, address::Model, _>(&db, user.id, address::Column::UserId)
+            .await
+            .unwrap();
 
     // Verify address was loaded correctly
     assert!(loaded_address.is_some(), "Should load the user's address");
@@ -385,11 +380,10 @@ async fn test_has_one_query_only_returns_one_result() {
 
     // Load using has_one - should return only ONE profile, not multiple
     use rf_eloquent::has_one;
-    let loaded_profile = has_one::<profile::Entity, profile::Model, _>(
-        &db,
-        user.id,
-        profile::Column::UserId
-    ).await.unwrap();
+    let loaded_profile =
+        has_one::<profile::Entity, profile::Model, _>(&db, user.id, profile::Column::UserId)
+            .await
+            .unwrap();
 
     // Verify only one result is returned (has_one uses .one() not .all())
     assert!(loaded_profile.is_some(), "Should load one profile");
@@ -405,11 +399,16 @@ async fn test_has_one_with_non_existent_foreign_key() {
     let loaded_profile = has_one::<profile::Entity, profile::Model, _>(
         &db,
         999, // Non-existent user ID
-        profile::Column::UserId
-    ).await.unwrap();
+        profile::Column::UserId,
+    )
+    .await
+    .unwrap();
 
     // Verify None returned
-    assert!(loaded_profile.is_none(), "Should return None for non-existent foreign key");
+    assert!(
+        loaded_profile.is_none(),
+        "Should return None for non-existent foreign key"
+    );
 }
 
 #[tokio::test]
@@ -435,11 +434,10 @@ async fn test_has_one_executes_real_database_query() {
 
     // Load using has_one helper
     use rf_eloquent::has_one;
-    let loaded_profile = has_one::<profile::Entity, profile::Model, _>(
-        &db,
-        user.id,
-        profile::Column::UserId
-    ).await.unwrap();
+    let loaded_profile =
+        has_one::<profile::Entity, profile::Model, _>(&db, user.id, profile::Column::UserId)
+            .await
+            .unwrap();
 
     // Verify the data matches what was inserted (proving it came from DB)
     assert!(loaded_profile.is_some());
@@ -447,9 +445,15 @@ async fn test_has_one_executes_real_database_query() {
 
     // Compare all fields to ensure data integrity
     assert_eq!(loaded_profile.id, inserted_profile.id, "ID should match");
-    assert_eq!(loaded_profile.user_id, inserted_profile.user_id, "User ID should match");
+    assert_eq!(
+        loaded_profile.user_id, inserted_profile.user_id,
+        "User ID should match"
+    );
     assert_eq!(loaded_profile.bio, inserted_profile.bio, "Bio should match");
-    assert_eq!(loaded_profile.avatar_url, inserted_profile.avatar_url, "Avatar URL should match");
+    assert_eq!(
+        loaded_profile.avatar_url, inserted_profile.avatar_url,
+        "Avatar URL should match"
+    );
 
     // This proves we're not returning stub data - we're executing real queries
 }

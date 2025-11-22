@@ -63,8 +63,7 @@ impl SerializedJob {
             id: uuid::Uuid::new_v4(),
             job_type: std::any::type_name::<J>().to_string(),
             queue: job.queue().to_string(),
-            payload: serde_json::to_value(&job)
-                .map_err(|e| JobError::SerializationError(e))?,
+            payload: serde_json::to_value(&job).map_err(|e| JobError::SerializationError(e))?,
             attempts: 0,
             max_attempts: job.max_attempts(),
             backoff_seconds: job.backoff().as_secs(),
@@ -89,8 +88,7 @@ impl SerializedJob {
             id: uuid::Uuid::new_v4(),
             job_type: std::any::type_name::<J>().to_string(),
             queue: job.queue().to_string(),
-            payload: serde_json::to_value(&job)
-                .map_err(|e| JobError::SerializationError(e))?,
+            payload: serde_json::to_value(&job).map_err(|e| JobError::SerializationError(e))?,
             attempts: 0,
             max_attempts: job.max_attempts(),
             backoff_seconds: job.backoff().as_secs(),
@@ -287,7 +285,10 @@ mod tests {
     fn test_invalid_redis_payload() {
         let result = SerializedJob::from_redis_payload("invalid json");
         assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), JobError::SerializationError(_)));
+        assert!(matches!(
+            result.unwrap_err(),
+            JobError::SerializationError(_)
+        ));
     }
 
     #[test]

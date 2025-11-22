@@ -6,11 +6,11 @@
 use crate::context::JobContext;
 use crate::error::{JobError, JobResult};
 use async_trait::async_trait;
+use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::marker::PhantomData;
 use std::sync::Arc;
-use parking_lot::RwLock;
 
 /// Backoff strategy for failed jobs
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -142,8 +142,7 @@ impl<J: JobWithRegistry + 'static> JobHandlerImpl<J> {
 impl<J: JobWithRegistry + 'static> JobHandler for JobHandlerImpl<J> {
     async fn deserialize_and_execute(&self, payload: &str, ctx: JobContext) -> JobResult {
         // Deserialize the job from JSON
-        let job: J = serde_json::from_str(payload)
-            .map_err(|e| JobError::SerializationError(e))?;
+        let job: J = serde_json::from_str(payload).map_err(|e| JobError::SerializationError(e))?;
 
         // Execute the job
         match job.handle(ctx.clone()).await {
@@ -436,7 +435,10 @@ mod tests {
 
         let result = registry.execute("test_job", "invalid json", ctx).await;
         assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), JobError::SerializationError(_)));
+        assert!(matches!(
+            result.unwrap_err(),
+            JobError::SerializationError(_)
+        ));
     }
 
     #[tokio::test]

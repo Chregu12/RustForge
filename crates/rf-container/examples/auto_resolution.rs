@@ -154,7 +154,9 @@ impl UserRepository {
         println!("  {}", cache_result);
 
         // If not in cache, query database
-        let db_result = self.db.query(&format!("SELECT * FROM users WHERE id = {}", id));
+        let db_result = self
+            .db
+            .query(&format!("SELECT * FROM users WHERE id = {}", id));
         println!("  {}", db_result);
 
         // Store in cache

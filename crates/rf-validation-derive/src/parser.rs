@@ -2,8 +2,8 @@
 //!
 //! This module extracts validation information from derive input.
 
-use syn::{DeriveInput, Data, Fields, Field, Attribute, Type, PathArguments, GenericArgument};
 use crate::rules::ValidationRule;
+use syn::{Attribute, Data, DeriveInput, Field, Fields, GenericArgument, PathArguments, Type};
 
 /// Information about a struct to be validated
 #[derive(Debug)]
@@ -31,22 +31,22 @@ impl StructInfo {
         // Only support structs with named fields
         let fields = match &input.data {
             Data::Struct(data) => match &data.fields {
-                Fields::Named(fields) => {
-                    fields.named.iter()
-                        .filter_map(|f| FieldInfo::from_field(f).transpose())
-                        .collect::<Result<Vec<_>, _>>()?
-                }
+                Fields::Named(fields) => fields
+                    .named
+                    .iter()
+                    .filter_map(|f| FieldInfo::from_field(f).transpose())
+                    .collect::<Result<Vec<_>, _>>()?,
                 _ => {
                     return Err(syn::Error::new_spanned(
                         input,
-                        "Validate can only be derived for structs with named fields"
+                        "Validate can only be derived for structs with named fields",
                     ))
                 }
             },
             _ => {
                 return Err(syn::Error::new_spanned(
                     input,
-                    "Validate can only be derived for structs"
+                    "Validate can only be derived for structs",
                 ))
             }
         };
@@ -66,7 +66,9 @@ impl FieldInfo {
         let is_optional = Self::is_option_type(&ty);
 
         // Find all #[validate(...)] attributes
-        let validate_attrs: Vec<&Attribute> = field.attrs.iter()
+        let validate_attrs: Vec<&Attribute> = field
+            .attrs
+            .iter()
             .filter(|attr| attr.path().is_ident("validate"))
             .collect();
 
@@ -94,7 +96,7 @@ impl FieldInfo {
             // #[validate(required, message = "Custom message")]
             if let syn::Meta::List(list) = &attr.meta {
                 for nested in list.parse_args_with(
-                    syn::punctuated::Punctuated::<syn::Meta, syn::Token![,]>::parse_terminated
+                    syn::punctuated::Punctuated::<syn::Meta, syn::Token![,]>::parse_terminated,
                 )? {
                     if let syn::Meta::NameValue(nv) = nested {
                         if nv.path.is_ident("message") {
@@ -153,12 +155,16 @@ impl FieldInfo {
 
     /// Check if field has the `required` rule
     pub fn is_required(&self) -> bool {
-        self.rules.iter().any(|r| matches!(r, ValidationRule::Required))
+        self.rules
+            .iter()
+            .any(|r| matches!(r, ValidationRule::Required))
     }
 
     /// Check if field is nullable (has `nullable` attribute)
     pub fn is_nullable(&self) -> bool {
-        self.rules.iter().any(|r| matches!(r, ValidationRule::Nullable))
+        self.rules
+            .iter()
+            .any(|r| matches!(r, ValidationRule::Nullable))
     }
 }
 

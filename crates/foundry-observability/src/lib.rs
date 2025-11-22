@@ -24,20 +24,20 @@
 //! ```
 
 pub mod config;
+pub mod health;
 pub mod logging;
 pub mod metrics;
+pub mod span_builder;
 pub mod telemetry;
 pub mod tracing_middleware;
-pub mod health;
-pub mod span_builder;
 
 pub use config::{ObservabilityConfig, OtelConfig, PrometheusConfig};
-pub use logging::{init_logging, StructuredLogger, LogEntry};
+pub use health::{HealthCheck, HealthChecker, HealthStatus};
+pub use logging::{init_logging, LogEntry, StructuredLogger};
 pub use metrics::{Metrics, METRICS};
+pub use span_builder::SpanBuilder;
 pub use telemetry::{init_telemetry, shutdown_telemetry};
 pub use tracing_middleware::TracingMiddleware;
-pub use health::{HealthCheck, HealthStatus, HealthChecker};
-pub use span_builder::SpanBuilder;
 
 use anyhow::Result;
 use tracing::info;
@@ -52,7 +52,10 @@ pub async fn init_observability(config: ObservabilityConfig) -> Result<()> {
     // 2. Initialize OpenTelemetry if enabled
     if config.otel.enabled {
         init_telemetry(&config.otel)?;
-        info!("OpenTelemetry initialized with endpoint: {}", config.otel.endpoint);
+        info!(
+            "OpenTelemetry initialized with endpoint: {}",
+            config.otel.endpoint
+        );
     }
 
     // 3. Metrics are automatically initialized via lazy_static

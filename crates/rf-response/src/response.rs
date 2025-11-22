@@ -18,21 +18,17 @@ pub struct Response;
 impl Response {
     /// Create a JSON response
     pub fn json<T: Serialize>(data: &T) -> ResponseBuilder {
-        ResponseBuilder::new()
-            .json(data)
-            .status(StatusCode::OK)
+        ResponseBuilder::new().json(data).status(StatusCode::OK)
     }
 
     /// Create a redirect response
     pub fn redirect(url: impl Into<String>) -> ResponseBuilder {
-        ResponseBuilder::new()
-            .redirect(url)
+        ResponseBuilder::new().redirect(url)
     }
 
     /// Create a file download response
     pub fn download(path: impl Into<String>, filename: impl Into<String>) -> ResponseBuilder {
-        ResponseBuilder::new()
-            .download(path, filename)
+        ResponseBuilder::new().download(path, filename)
     }
 
     /// Create a streaming response
@@ -40,21 +36,17 @@ impl Response {
     where
         S: Stream<Item = Result<Bytes, std::io::Error>> + Send + 'static,
     {
-        ResponseBuilder::new()
-            .stream(stream)
+        ResponseBuilder::new().stream(stream)
     }
 
     /// Create a no-content response
     pub fn no_content() -> ResponseBuilder {
-        ResponseBuilder::new()
-            .status(StatusCode::NO_CONTENT)
+        ResponseBuilder::new().status(StatusCode::NO_CONTENT)
     }
 
     /// Create a plain text response
     pub fn text(text: impl Into<String>) -> ResponseBuilder {
-        ResponseBuilder::new()
-            .text(text)
-            .status(StatusCode::OK)
+        ResponseBuilder::new().text(text).status(StatusCode::OK)
     }
 }
 
@@ -86,7 +78,7 @@ impl ResponseBuilder {
     pub fn header(mut self, key: impl AsRef<str>, value: impl AsRef<str>) -> Self {
         if let (Ok(name), Ok(val)) = (
             key.as_ref().parse::<header::HeaderName>(),
-            HeaderValue::from_str(value.as_ref())
+            HeaderValue::from_str(value.as_ref()),
         ) {
             self.headers.insert(name, val);
         }
@@ -125,7 +117,7 @@ impl ResponseBuilder {
         // For now, we'll just set the headers
         self = self.header(
             "content-disposition",
-            format!("attachment; filename=\"{}\"", filename)
+            format!("attachment; filename=\"{}\"", filename),
         );
         self = self.header("content-type", "application/octet-stream");
 
@@ -163,7 +155,7 @@ impl ResponseBuilder {
                     response.headers_mut().insert(
                         header::HeaderName::from_bytes(format!("x-flash-{}", key).as_bytes())
                             .unwrap_or(header::HeaderName::from_static("x-flash-data")),
-                        header_value
+                        header_value,
                     );
                 }
             }
@@ -213,8 +205,7 @@ mod tests {
 
     #[test]
     fn test_json_response() {
-        let response = Response::json(&serde_json::json!({"status": "ok"}))
-            .build();
+        let response = Response::json(&serde_json::json!({"status": "ok"})).build();
 
         assert_eq!(response.status(), StatusCode::OK);
         assert!(response.headers().get("content-type").is_some());
@@ -222,22 +213,18 @@ mod tests {
 
     #[test]
     fn test_redirect_response() {
-        let response = Response::redirect("/dashboard")
-            .build();
+        let response = Response::redirect("/dashboard").build();
 
         assert_eq!(response.status(), StatusCode::FOUND);
-        assert_eq!(
-            response.headers().get("location").unwrap(),
-            "/dashboard"
-        );
+        assert_eq!(response.headers().get("location").unwrap(), "/dashboard");
     }
 
     #[test]
     fn test_download_response() {
-        let response = Response::download("/path/to/file.pdf", "invoice.pdf")
-            .build();
+        let response = Response::download("/path/to/file.pdf", "invoice.pdf").build();
 
-        let content_disposition = response.headers()
+        let content_disposition = response
+            .headers()
             .get("content-disposition")
             .unwrap()
             .to_str()
@@ -249,8 +236,7 @@ mod tests {
 
     #[test]
     fn test_no_content_response() {
-        let response = Response::no_content()
-            .build();
+        let response = Response::no_content().build();
 
         assert_eq!(response.status(), StatusCode::NO_CONTENT);
     }

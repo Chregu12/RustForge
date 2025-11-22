@@ -2,12 +2,12 @@
 //!
 //! Demonstrates database seeding with production safeguards
 
+use async_trait::async_trait;
 use rf_testing::{
     factory::{Factory, FactoryDefinition},
     seeder::{DatabaseSeeder, Seeder, SeederError, SeederRunner},
     Fake,
 };
-use async_trait::async_trait;
 
 // Example models
 #[derive(Debug, Clone)]

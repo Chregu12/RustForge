@@ -1,8 +1,7 @@
 //! WebSocket Integration Tests
 
 use foundry_api::websocket::{
-    Channel, ChannelManager, ConnectionId, WebSocketManager, WebSocketMessage,
-    BroadcastOptions,
+    BroadcastOptions, Channel, ChannelManager, ConnectionId, WebSocketManager, WebSocketMessage,
 };
 
 #[tokio::test]

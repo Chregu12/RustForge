@@ -28,8 +28,8 @@ pub mod collection;
 pub mod lazy;
 pub mod methods;
 
-pub use collection::{Collection, collect};
-pub use lazy::{LazyCollection, collect_lazy};
+pub use collection::{collect, Collection};
+pub use lazy::{collect_lazy, LazyCollection};
 pub use methods::{CollectionMethods, Pipe, Tap};
 
 #[cfg(test)]
@@ -63,10 +63,7 @@ mod tests {
             },
         ];
 
-        let names: Vec<String> = collect(users)
-            .filter(|u| u.active)
-            .map(|u| u.name)
-            .to_vec();
+        let names: Vec<String> = collect(users).filter(|u| u.active).map(|u| u.name).to_vec();
 
         assert_eq!(names, vec!["Alice".to_string(), "Charlie".to_string()]);
     }

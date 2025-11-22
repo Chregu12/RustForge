@@ -3,8 +3,8 @@
 //! This module provides progress bars, spinners, and multi-progress for
 //! operations like migrations, seeding, and code generation.
 
-use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use console::style;
+use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use std::time::Duration;
 
 /// Create a progress bar for a determinate operation
@@ -247,10 +247,8 @@ impl SimpleProgress {
     }
 
     pub fn finish(&self) {
-        self.bar.finish_with_message(format!(
-            "{} Complete",
-            style("✓").green().bold()
-        ));
+        self.bar
+            .finish_with_message(format!("{} Complete", style("✓").green().bold()));
     }
 
     pub fn finish_with_message(&self, message: &str) {

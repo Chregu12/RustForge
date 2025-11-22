@@ -33,8 +33,7 @@ pub async fn shutdown_telemetry() -> Result<()> {
 
 /// Initialize tracing subscriber with OpenTelemetry layer
 pub fn init_tracing_subscriber(env_filter: &str, json_format: bool) -> Result<()> {
-    let filter = EnvFilter::try_new(env_filter)
-        .unwrap_or_else(|_| EnvFilter::new("info"));
+    let filter = EnvFilter::try_new(env_filter).unwrap_or_else(|_| EnvFilter::new("info"));
 
     // Simplified: JSON/text logging without OpenTelemetry layer for now
     // Full integration requires compatible OpenTelemetry tracing-opentelemetry versions

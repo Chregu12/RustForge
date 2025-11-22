@@ -150,18 +150,12 @@ impl DockerCompose {
     pub fn service_url(&self, service: Service) -> Option<String> {
         match service {
             Service::Redis => Some(format!("redis://localhost:{}", Service::Redis.port())),
-            Service::Postgres => {
-                Some(format!(
-                    "postgresql://rustforge:testpass@localhost:{}/rustforge_test",
-                    Service::Postgres.port()
-                ))
-            }
-            Service::MailHog => {
-                Some(format!("http://localhost:8025"))
-            }
-            Service::MinIO => {
-                Some(format!("http://localhost:{}", Service::MinIO.port()))
-            }
+            Service::Postgres => Some(format!(
+                "postgresql://rustforge:testpass@localhost:{}/rustforge_test",
+                Service::Postgres.port()
+            )),
+            Service::MailHog => Some(format!("http://localhost:8025")),
+            Service::MinIO => Some(format!("http://localhost:{}", Service::MinIO.port())),
         }
     }
 
@@ -250,7 +244,10 @@ pub async fn redis_available() -> bool {
         Err(_) => return false,
     };
 
-    redis::cmd("PING").query_async::<_, String>(&mut conn).await.is_ok()
+    redis::cmd("PING")
+        .query_async::<_, String>(&mut conn)
+        .await
+        .is_ok()
 }
 
 /// Check if PostgreSQL is available for testing
@@ -275,10 +272,7 @@ pub async fn postgres_available() -> bool {
     use std::net::TcpStream;
     use std::time::Duration;
 
-    TcpStream::connect_timeout(
-        &"127.0.0.1:5432".parse().unwrap(),
-        Duration::from_secs(1)
-    ).is_ok()
+    TcpStream::connect_timeout(&"127.0.0.1:5432".parse().unwrap(), Duration::from_secs(1)).is_ok()
 }
 
 /// Check if MinIO/S3 is available for testing
@@ -303,10 +297,7 @@ pub async fn s3_available() -> bool {
     use std::net::TcpStream;
     use std::time::Duration;
 
-    TcpStream::connect_timeout(
-        &"127.0.0.1:9000".parse().unwrap(),
-        Duration::from_secs(1)
-    ).is_ok()
+    TcpStream::connect_timeout(&"127.0.0.1:9000".parse().unwrap(), Duration::from_secs(1)).is_ok()
 }
 
 /// Check if MailHog SMTP is available for testing
@@ -331,10 +322,7 @@ pub async fn mailhog_available() -> bool {
     use std::net::TcpStream;
     use std::time::Duration;
 
-    TcpStream::connect_timeout(
-        &"127.0.0.1:1025".parse().unwrap(),
-        Duration::from_secs(1)
-    ).is_ok()
+    TcpStream::connect_timeout(&"127.0.0.1:1025".parse().unwrap(), Duration::from_secs(1)).is_ok()
 }
 
 /// Check if the database is available for testing (alias for postgres_available)
@@ -349,7 +337,10 @@ mod tests {
     #[test]
     fn service_container_names() {
         assert_eq!(Service::Redis.container_name(), "rustforge_redis_test");
-        assert_eq!(Service::Postgres.container_name(), "rustforge_postgres_test");
+        assert_eq!(
+            Service::Postgres.container_name(),
+            "rustforge_postgres_test"
+        );
         assert_eq!(Service::MailHog.container_name(), "rustforge_mailhog_test");
         assert_eq!(Service::MinIO.container_name(), "rustforge_minio_test");
     }
@@ -371,15 +362,14 @@ mod tests {
 
     #[test]
     fn docker_compose_with_custom_file() {
-        let compose = DockerCompose::new()
-            .with_compose_file("docker-compose.custom.yml".to_string());
+        let compose =
+            DockerCompose::new().with_compose_file("docker-compose.custom.yml".to_string());
         assert_eq!(compose.compose_file, "docker-compose.custom.yml");
     }
 
     #[test]
     fn docker_compose_with_custom_project_name() {
-        let compose = DockerCompose::new()
-            .with_project_name("custom_project".to_string());
+        let compose = DockerCompose::new().with_project_name("custom_project".to_string());
         assert_eq!(compose.project_name, "custom_project");
     }
 

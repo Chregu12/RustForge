@@ -203,7 +203,9 @@ impl JobBatch {
         }
 
         // Mark batch as processing
-        queue.update_batch_status(batch_id, BatchStatus::Processing).await?;
+        queue
+            .update_batch_status(batch_id, BatchStatus::Processing)
+            .await?;
 
         Ok(batch_id)
     }
@@ -391,10 +393,7 @@ impl QueueManager {
     }
 
     /// Get batch progress
-    pub async fn batch_progress(
-        &self,
-        batch_id: Uuid,
-    ) -> Result<(u64, u64, u64, u64), QueueError> {
+    pub async fn batch_progress(&self, batch_id: Uuid) -> Result<(u64, u64, u64, u64), QueueError> {
         let state = self.load_batch_state(batch_id).await?;
         Ok((state.completed, state.failed, state.pending, state.total))
     }
@@ -412,7 +411,6 @@ impl QueueManager {
         conn.del::<_, ()>(&key).await?;
         Ok(())
     }
-
 }
 
 #[cfg(test)]

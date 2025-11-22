@@ -1,8 +1,8 @@
 //! Comprehensive tests for session management
 
 use rf_web::session::{
-    CookieSessionDriver, DatabaseSessionDriver, RedisSessionDriver,
-    Session, SessionConfig, SessionDriver, SessionStore, SameSite,
+    CookieSessionDriver, DatabaseSessionDriver, RedisSessionDriver, SameSite, Session,
+    SessionConfig, SessionDriver, SessionStore,
 };
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -27,7 +27,10 @@ fn test_session_put_and_get() {
     session.put("age", 30);
     session.put("active", true);
 
-    assert_eq!(session.get_as::<String>("name"), Some("John Doe".to_string()));
+    assert_eq!(
+        session.get_as::<String>("name"),
+        Some("John Doe".to_string())
+    );
     assert_eq!(session.get_as::<i32>("age"), Some(30));
     assert_eq!(session.get_as::<bool>("active"), Some(true));
 }

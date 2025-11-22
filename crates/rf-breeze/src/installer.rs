@@ -2,8 +2,8 @@
 //!
 //! Handles file generation and installation of authentication components.
 
-use crate::{BreezeResult, InstallOptions};
 use crate::templates::{controllers::*, middleware::*, routes::*, views::*};
+use crate::{BreezeResult, InstallOptions};
 use std::path::{Path, PathBuf};
 use tokio::fs;
 
@@ -65,23 +65,39 @@ impl BreezeInstaller {
         let views_dir = self.get_output_dir(options).join("resources/views");
 
         // Install layout
-        self.write_file(&views_dir.join("layouts/app.blade.html"), LAYOUT_APP).await?;
+        self.write_file(&views_dir.join("layouts/app.blade.html"), LAYOUT_APP)
+            .await?;
 
         // Install auth views
-        self.write_file(&views_dir.join("auth/login.blade.html"), LOGIN_VIEW).await?;
-        self.write_file(&views_dir.join("auth/register.blade.html"), REGISTER_VIEW).await?;
+        self.write_file(&views_dir.join("auth/login.blade.html"), LOGIN_VIEW)
+            .await?;
+        self.write_file(&views_dir.join("auth/register.blade.html"), REGISTER_VIEW)
+            .await?;
 
         if options.with_password_reset {
-            self.write_file(&views_dir.join("auth/forgot-password.blade.html"), FORGOT_PASSWORD_VIEW).await?;
-            self.write_file(&views_dir.join("auth/reset-password.blade.html"), RESET_PASSWORD_VIEW).await?;
+            self.write_file(
+                &views_dir.join("auth/forgot-password.blade.html"),
+                FORGOT_PASSWORD_VIEW,
+            )
+            .await?;
+            self.write_file(
+                &views_dir.join("auth/reset-password.blade.html"),
+                RESET_PASSWORD_VIEW,
+            )
+            .await?;
         }
 
         if options.with_email_verification {
-            self.write_file(&views_dir.join("auth/verify-email.blade.html"), VERIFY_EMAIL_VIEW).await?;
+            self.write_file(
+                &views_dir.join("auth/verify-email.blade.html"),
+                VERIFY_EMAIL_VIEW,
+            )
+            .await?;
         }
 
         // Install dashboard view
-        self.write_file(&views_dir.join("dashboard.blade.html"), DASHBOARD_VIEW).await?;
+        self.write_file(&views_dir.join("dashboard.blade.html"), DASHBOARD_VIEW)
+            .await?;
 
         Ok(())
     }
@@ -91,20 +107,31 @@ impl BreezeInstaller {
         let controllers_dir = self.get_output_dir(options).join("src/controllers/auth");
 
         // Install base controllers
-        self.write_file(&controllers_dir.join("login.rs"), LOGIN_CONTROLLER).await?;
-        self.write_file(&controllers_dir.join("register.rs"), REGISTER_CONTROLLER).await?;
+        self.write_file(&controllers_dir.join("login.rs"), LOGIN_CONTROLLER)
+            .await?;
+        self.write_file(&controllers_dir.join("register.rs"), REGISTER_CONTROLLER)
+            .await?;
 
         if options.with_password_reset {
-            self.write_file(&controllers_dir.join("password_reset.rs"), PASSWORD_RESET_CONTROLLER).await?;
+            self.write_file(
+                &controllers_dir.join("password_reset.rs"),
+                PASSWORD_RESET_CONTROLLER,
+            )
+            .await?;
         }
 
         if options.with_email_verification {
-            self.write_file(&controllers_dir.join("email_verification.rs"), EMAIL_VERIFICATION_CONTROLLER).await?;
+            self.write_file(
+                &controllers_dir.join("email_verification.rs"),
+                EMAIL_VERIFICATION_CONTROLLER,
+            )
+            .await?;
         }
 
         // Install dashboard controller
         let dashboard_dir = self.get_output_dir(options).join("src/controllers");
-        self.write_file(&dashboard_dir.join("dashboard.rs"), DASHBOARD_CONTROLLER).await?;
+        self.write_file(&dashboard_dir.join("dashboard.rs"), DASHBOARD_CONTROLLER)
+            .await?;
 
         // Create mod.rs for auth controllers
         self.create_auth_mod_file(&controllers_dir, options).await?;
@@ -125,11 +152,13 @@ impl BreezeInstaller {
             AUTH_ROUTES
         };
 
-        self.write_file(&routes_dir.join("auth.rs"), routes_content).await?;
+        self.write_file(&routes_dir.join("auth.rs"), routes_content)
+            .await?;
 
         // Install API routes if requested
         if options.with_api {
-            self.write_file(&routes_dir.join("api.rs"), API_AUTH_ROUTES).await?;
+            self.write_file(&routes_dir.join("api.rs"), API_AUTH_ROUTES)
+                .await?;
         }
 
         Ok(())
@@ -140,18 +169,23 @@ impl BreezeInstaller {
         let middleware_dir = self.get_output_dir(options).join("src/middleware");
 
         // Install base middleware
-        self.write_file(&middleware_dir.join("auth.rs"), AUTH_MIDDLEWARE).await?;
-        self.write_file(&middleware_dir.join("guest.rs"), GUEST_MIDDLEWARE).await?;
+        self.write_file(&middleware_dir.join("auth.rs"), AUTH_MIDDLEWARE)
+            .await?;
+        self.write_file(&middleware_dir.join("guest.rs"), GUEST_MIDDLEWARE)
+            .await?;
 
         if options.with_email_verification {
-            self.write_file(&middleware_dir.join("verified.rs"), VERIFIED_MIDDLEWARE).await?;
+            self.write_file(&middleware_dir.join("verified.rs"), VERIFIED_MIDDLEWARE)
+                .await?;
         }
 
         // Install role middleware
-        self.write_file(&middleware_dir.join("role.rs"), ROLE_MIDDLEWARE).await?;
+        self.write_file(&middleware_dir.join("role.rs"), ROLE_MIDDLEWARE)
+            .await?;
 
         // Create mod.rs for middleware
-        self.create_middleware_mod_file(&middleware_dir, options).await?;
+        self.create_middleware_mod_file(&middleware_dir, options)
+            .await?;
 
         Ok(())
     }
@@ -172,7 +206,8 @@ impl BreezeInstaller {
             content.push_str("pub mod email_verification;\n");
         }
 
-        self.write_file(&controllers_dir.join("mod.rs"), &content).await
+        self.write_file(&controllers_dir.join("mod.rs"), &content)
+            .await
     }
 
     /// Create mod.rs for middleware
@@ -187,7 +222,8 @@ impl BreezeInstaller {
             content.push_str("pub mod verified;\n");
         }
 
-        self.write_file(&middleware_dir.join("mod.rs"), &content).await
+        self.write_file(&middleware_dir.join("mod.rs"), &content)
+            .await
     }
 
     /// Write content to file
@@ -246,10 +282,22 @@ mod tests {
         installer.create_directories(&options).await.unwrap();
         installer.install_views(&options).await.unwrap();
 
-        assert!(temp.path().join("resources/views/layouts/app.blade.html").exists());
-        assert!(temp.path().join("resources/views/auth/login.blade.html").exists());
-        assert!(temp.path().join("resources/views/auth/register.blade.html").exists());
-        assert!(temp.path().join("resources/views/dashboard.blade.html").exists());
+        assert!(temp
+            .path()
+            .join("resources/views/layouts/app.blade.html")
+            .exists());
+        assert!(temp
+            .path()
+            .join("resources/views/auth/login.blade.html")
+            .exists());
+        assert!(temp
+            .path()
+            .join("resources/views/auth/register.blade.html")
+            .exists());
+        assert!(temp
+            .path()
+            .join("resources/views/dashboard.blade.html")
+            .exists());
     }
 
     #[tokio::test]
@@ -262,7 +310,10 @@ mod tests {
         installer.install_controllers(&options).await.unwrap();
 
         assert!(temp.path().join("src/controllers/auth/login.rs").exists());
-        assert!(temp.path().join("src/controllers/auth/register.rs").exists());
+        assert!(temp
+            .path()
+            .join("src/controllers/auth/register.rs")
+            .exists());
         assert!(temp.path().join("src/controllers/auth/mod.rs").exists());
         assert!(temp.path().join("src/controllers/dashboard.rs").exists());
     }
@@ -303,7 +354,10 @@ mod tests {
         installer.install_all(&options).await.unwrap();
 
         // Check views
-        assert!(temp.path().join("resources/views/auth/login.blade.html").exists());
+        assert!(temp
+            .path()
+            .join("resources/views/auth/login.blade.html")
+            .exists());
 
         // Check controllers
         assert!(temp.path().join("src/controllers/auth/login.rs").exists());
@@ -326,9 +380,18 @@ mod tests {
 
         installer.install_all(&options).await.unwrap();
 
-        assert!(temp.path().join("resources/views/auth/forgot-password.blade.html").exists());
-        assert!(temp.path().join("resources/views/auth/reset-password.blade.html").exists());
-        assert!(temp.path().join("src/controllers/auth/password_reset.rs").exists());
+        assert!(temp
+            .path()
+            .join("resources/views/auth/forgot-password.blade.html")
+            .exists());
+        assert!(temp
+            .path()
+            .join("resources/views/auth/reset-password.blade.html")
+            .exists());
+        assert!(temp
+            .path()
+            .join("src/controllers/auth/password_reset.rs")
+            .exists());
     }
 
     #[tokio::test]
@@ -342,8 +405,14 @@ mod tests {
 
         installer.install_all(&options).await.unwrap();
 
-        assert!(temp.path().join("resources/views/auth/verify-email.blade.html").exists());
-        assert!(temp.path().join("src/controllers/auth/email_verification.rs").exists());
+        assert!(temp
+            .path()
+            .join("resources/views/auth/verify-email.blade.html")
+            .exists());
+        assert!(temp
+            .path()
+            .join("src/controllers/auth/email_verification.rs")
+            .exists());
         assert!(temp.path().join("src/middleware/verified.rs").exists());
     }
 

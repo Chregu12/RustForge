@@ -14,11 +14,7 @@ pub struct SignedUrl {
 
 impl SignedUrl {
     /// Create a new signed URL.
-    pub fn new(
-        url: impl Into<String>,
-        secret: &str,
-        expires_at: Option<DateTime<Utc>>,
-    ) -> Self {
+    pub fn new(url: impl Into<String>, secret: &str, expires_at: Option<DateTime<Utc>>) -> Self {
         let url = url.into();
         let signature = Self::generate_signature(&url, secret, expires_at.as_ref());
 
@@ -30,11 +26,7 @@ impl SignedUrl {
     }
 
     /// Generate a signature for the URL.
-    fn generate_signature(
-        url: &str,
-        secret: &str,
-        expires_at: Option<&DateTime<Utc>>,
-    ) -> String {
+    fn generate_signature(url: &str, secret: &str, expires_at: Option<&DateTime<Utc>>) -> String {
         let mut hasher = Sha256::new();
         hasher.update(url.as_bytes());
         hasher.update(secret.as_bytes());
@@ -171,9 +163,7 @@ pub fn parse_signed_url(url: &str, _secret: &str) -> Option<SignedUrl> {
     let expires_at = params
         .get("expires")
         .and_then(|s| s.parse::<i64>().ok())
-        .map(|timestamp| {
-            DateTime::from_timestamp(timestamp, 0).unwrap_or_else(|| Utc::now())
-        });
+        .map(|timestamp| DateTime::from_timestamp(timestamp, 0).unwrap_or_else(|| Utc::now()));
 
     Some(SignedUrl {
         url: base_url.to_string(),

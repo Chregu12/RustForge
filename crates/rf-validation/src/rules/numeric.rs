@@ -533,10 +533,7 @@ mod tests {
         assert!(rule.validate(&json!(20), &HashMap::new()).await.is_ok());
         assert!(rule.validate(&json!(18), &HashMap::new()).await.is_ok());
         assert!(rule.validate(&json!(15), &HashMap::new()).await.is_err());
-        assert!(rule
-            .validate(&json!("25"), &HashMap::new())
-            .await
-            .is_ok());
+        assert!(rule.validate(&json!("25"), &HashMap::new()).await.is_ok());
     }
 
     #[tokio::test]
@@ -587,10 +584,7 @@ mod tests {
             .await
             .is_ok());
         assert!(rule.validate(&json!("123"), &HashMap::new()).await.is_ok());
-        assert!(rule
-            .validate(&json!("12"), &HashMap::new())
-            .await
-            .is_err());
+        assert!(rule.validate(&json!("12"), &HashMap::new()).await.is_err());
         assert!(rule
             .validate(&json!("1234567"), &HashMap::new())
             .await

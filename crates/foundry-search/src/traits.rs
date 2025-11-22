@@ -1,7 +1,7 @@
 //! Search traits
 
-use async_trait::async_trait;
 use crate::{Result, SearchQuery, SearchResult};
+use async_trait::async_trait;
 
 #[async_trait]
 pub trait Searchable: Send + Sync {

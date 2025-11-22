@@ -1,9 +1,6 @@
 //! HTTP routes for Horizon dashboard
 
-use crate::{
-    metrics::JobHistoryEntry,
-    Horizon,
-};
+use crate::{metrics::JobHistoryEntry, Horizon};
 use axum::{
     extract::{Path, Query, State},
     http::StatusCode,
@@ -76,10 +73,7 @@ async fn jobs_list_handler() -> impl IntoResponse {
 
 /// Job detail page
 async fn job_detail_handler(Path(id): Path<String>) -> impl IntoResponse {
-    Html(
-        include_str!("../views/job_detail.html")
-            .replace("{{job_id}}", &id),
-    )
+    Html(include_str!("../views/job_detail.html").replace("{{job_id}}", &id))
 }
 
 /// Failed jobs page
@@ -151,11 +145,7 @@ async fn stats_api_handler(
         jobs_per_minute += metrics.throughput_per_minute;
 
         // Get queue size from Redis
-        let size = state
-            .queue_manager
-            .size(queue_name)
-            .await
-            .unwrap_or(0);
+        let size = state.queue_manager.size(queue_name).await.unwrap_or(0);
 
         queues.push(QueueStat {
             name: queue_name.clone(),

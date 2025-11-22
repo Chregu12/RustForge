@@ -26,21 +26,21 @@
 //! manager.send_to_channel("chat:room1", WebSocketMessage::json(&data)?).await;
 //! ```
 
+pub mod channel;
 pub mod connection;
+pub mod examples;
 pub mod handler;
 pub mod manager;
 pub mod message;
-pub mod channel;
-pub mod examples;
 
-pub use connection::{Connection, ConnectionId};
-pub use handler::{websocket_handler, upgrade_websocket};
-pub use manager::{WebSocketManager, BroadcastOptions};
-pub use message::{WebSocketMessage, MessageType};
 pub use channel::{Channel, ChannelManager};
+pub use connection::{Connection, ConnectionId};
+pub use handler::{upgrade_websocket, websocket_handler};
+pub use manager::{BroadcastOptions, WebSocketManager};
+pub use message::{MessageType, WebSocketMessage};
 
-use axum::Router;
 use crate::AppState;
+use axum::Router;
 
 /// Erstellt einen Router mit WebSocket-Routen
 ///

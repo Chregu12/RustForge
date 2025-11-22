@@ -5,10 +5,10 @@
 
 #![cfg(feature = "postgres")]
 
+use async_trait::async_trait;
 use rf_search::driver::{SearchDriver, SearchError};
 use rf_search::drivers::PostgresSearchDriver;
-use rf_search::searchable::{Searchable, SearchOptions};
-use async_trait::async_trait;
+use rf_search::searchable::{SearchOptions, Searchable};
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 
@@ -64,7 +64,7 @@ async fn setup_test_db() -> PgPool {
             title TEXT NOT NULL,
             content TEXT NOT NULL,
             status TEXT NOT NULL
-        )"
+        )",
     )
     .execute(&pool)
     .await
@@ -108,7 +108,9 @@ async fn test_create_and_drop_fts_index() {
     let driver = PostgresSearchDriver::new(pool.clone());
 
     // Create FTS index
-    let result = driver.create_fts_index("articles", vec!["title", "content"]).await;
+    let result = driver
+        .create_fts_index("articles", vec!["title", "content"])
+        .await;
     assert!(result.is_ok(), "Should create FTS index");
 
     // Drop FTS index
@@ -133,7 +135,7 @@ async fn test_count_documents() {
     sqlx::query(
         "INSERT INTO articles (id, title, content, status) VALUES
          ('1', 'Rust Programming', 'Learn Rust', 'published'),
-         ('2', 'Web Development', 'Build web apps', 'published')"
+         ('2', 'Web Development', 'Build web apps', 'published')",
     )
     .execute(&pool)
     .await
@@ -159,7 +161,7 @@ async fn test_delete_document() {
 
     sqlx::query(
         "INSERT INTO articles (id, title, content, status) VALUES
-         ('test-1', 'Test Article', 'Test content', 'published')"
+         ('test-1', 'Test Article', 'Test content', 'published')",
     )
     .execute(&pool)
     .await
@@ -186,7 +188,7 @@ async fn test_clear_index() {
         "INSERT INTO articles (id, title, content, status) VALUES
          ('1', 'Article 1', 'Content 1', 'published'),
          ('2', 'Article 2', 'Content 2', 'published')
-         ON CONFLICT DO NOTHING"
+         ON CONFLICT DO NOTHING",
     )
     .execute(&pool)
     .await
@@ -231,7 +233,10 @@ fn test_postgres_stub_returns_error() {
     use rf_search::drivers::PostgresSearchDriver;
 
     let result = PostgresSearchDriver::new(());
-    assert!(result.is_err(), "Should return error when feature not enabled");
+    assert!(
+        result.is_err(),
+        "Should return error when feature not enabled"
+    );
 
     if let Err(SearchError::FeatureNotEnabled(feature)) = result {
         assert_eq!(feature, "postgres");

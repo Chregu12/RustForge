@@ -8,8 +8,7 @@
 /// - Database connection pooling
 ///
 /// Run with: cargo bench --bench command_dispatch
-
-use criterion::{black_box, criterion_group, criterion_main, Criterion, BenchmarkId, Throughput};
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use std::time::Duration;
 
 // Mock implementations for benchmarking
@@ -165,48 +164,42 @@ fn benchmark_input_parsing(c: &mut Criterion) {
 
 /// Benchmark zero-copy deserialization
 fn benchmark_zero_copy_cache(c: &mut Criterion) {
-    use foundry_cache::zero_copy::{ZeroCopyCache, CachedData};
+    use foundry_cache::zero_copy::{CachedData, ZeroCopyCache};
 
     let mut group = c.benchmark_group("cache_serialization");
 
     let cache = ZeroCopyCache::new();
 
-    let small_data = CachedData::new(
-        "small_key".to_string(),
-        vec![1, 2, 3, 4, 5],
-    );
+    let small_data = CachedData::new("small_key".to_string(), vec![1, 2, 3, 4, 5]);
 
-    let large_data = CachedData::new(
-        "large_key".to_string(),
-        vec![42u8; 10_000],
-    );
+    let large_data = CachedData::new("large_key".to_string(), vec![42u8; 10_000]);
 
     // Serialize small data
     group.bench_function("serialize_small", |b| {
-        b.iter(|| {
-            cache.serialize(black_box(&small_data)).unwrap()
-        });
+        b.iter(|| cache.serialize(black_box(&small_data)).unwrap());
     });
 
     // Serialize large data
     group.bench_function("serialize_large", |b| {
-        b.iter(|| {
-            cache.serialize(black_box(&large_data)).unwrap()
-        });
+        b.iter(|| cache.serialize(black_box(&large_data)).unwrap());
     });
 
     // Zero-copy deserialize
     let small_bytes = cache.serialize(&small_data).unwrap();
     group.bench_function("zero_copy_deserialize_small", |b| {
         b.iter(|| {
-            cache.deserialize_zero_copy::<CachedData>(black_box(&small_bytes)).unwrap()
+            cache
+                .deserialize_zero_copy::<CachedData>(black_box(&small_bytes))
+                .unwrap()
         });
     });
 
     let large_bytes = cache.serialize(&large_data).unwrap();
     group.bench_function("zero_copy_deserialize_large", |b| {
         b.iter(|| {
-            cache.deserialize_zero_copy::<CachedData>(black_box(&large_bytes)).unwrap()
+            cache
+                .deserialize_zero_copy::<CachedData>(black_box(&large_bytes))
+                .unwrap()
         });
     });
 

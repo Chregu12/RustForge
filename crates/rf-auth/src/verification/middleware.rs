@@ -93,7 +93,6 @@ impl RequireVerified {
         // User is verified, allow request to proceed
         next.run(req).await
     }
-
 }
 
 #[cfg(test)]

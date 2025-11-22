@@ -112,14 +112,15 @@ pub trait ContextExt {
 
 impl<'a> ContextExt for Context<'a> {
     fn get_data<T: Send + Sync + 'static>(&self) -> async_graphql::Result<&T> {
-        self.data::<T>()
-            .map_err(|_| async_graphql::Error::new(format!("Data not found: {}", std::any::type_name::<T>())))
+        self.data::<T>().map_err(|_| {
+            async_graphql::Error::new(format!("Data not found: {}", std::any::type_name::<T>()))
+        })
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{GraphQLSchema, SchemaBuilder, build_schema};
+    use super::{build_schema, GraphQLSchema, SchemaBuilder};
     use async_graphql::{EmptyMutation, EmptySubscription, Object, SimpleObject, ID};
 
     #[derive(SimpleObject, Clone)]

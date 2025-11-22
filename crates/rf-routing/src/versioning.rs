@@ -89,9 +89,7 @@ impl Default for VersionConfig {
 static VERSION_REGEX: OnceLock<Regex> = OnceLock::new();
 
 fn get_version_regex() -> &'static Regex {
-    VERSION_REGEX.get_or_init(|| {
-        Regex::new(r"application/vnd\.api\.v(\d+)\+json").unwrap()
-    })
+    VERSION_REGEX.get_or_init(|| Regex::new(r"application/vnd\.api\.v(\d+)\+json").unwrap())
 }
 
 /// Extract version from Accept header
@@ -155,9 +153,7 @@ where
 /// - `/api/v2/posts`
 pub fn extract_from_path(path: &str) -> Option<u32> {
     static PATH_REGEX: OnceLock<Regex> = OnceLock::new();
-    let regex = PATH_REGEX.get_or_init(|| {
-        Regex::new(r"/v(\d+)/").unwrap()
-    });
+    let regex = PATH_REGEX.get_or_init(|| Regex::new(r"/v(\d+)/").unwrap());
 
     regex
         .captures(path)

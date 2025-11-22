@@ -51,10 +51,7 @@ mod tests {
             .route("/test", get(|| async { "OK" }))
             .layer(timeout_layer(Duration::from_secs(1)));
 
-        let request = Request::builder()
-            .uri("/test")
-            .body(Body::empty())
-            .unwrap();
+        let request = Request::builder().uri("/test").body(Body::empty()).unwrap();
 
         let response = app.oneshot(request).await.unwrap();
 
@@ -74,10 +71,7 @@ mod tests {
             )
             .layer(timeout_layer(Duration::from_millis(100)));
 
-        let request = Request::builder()
-            .uri("/slow")
-            .body(Body::empty())
-            .unwrap();
+        let request = Request::builder().uri("/slow").body(Body::empty()).unwrap();
 
         let result = app.oneshot(request).await;
 
@@ -91,10 +85,7 @@ mod tests {
             .route("/test", get(|| async { "OK" }))
             .layer(default_timeout_layer());
 
-        let request = Request::builder()
-            .uri("/test")
-            .body(Body::empty())
-            .unwrap();
+        let request = Request::builder().uri("/test").body(Body::empty()).unwrap();
 
         let response = app.oneshot(request).await.unwrap();
 

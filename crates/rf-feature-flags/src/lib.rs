@@ -172,7 +172,11 @@ impl FeatureFlags {
     }
 
     /// Check if a flag is enabled for a specific percentage
-    pub async fn is_enabled_for_percentage(&self, flag: &str, user_id: &str) -> FeatureFlagResult<bool> {
+    pub async fn is_enabled_for_percentage(
+        &self,
+        flag: &str,
+        user_id: &str,
+    ) -> FeatureFlagResult<bool> {
         let config = self.storage.get(flag).await?;
 
         match config {
@@ -266,13 +270,21 @@ impl FeatureFlags {
     }
 
     /// Enable for specific users
-    pub async fn enable_for_users(&self, flag: &str, user_ids: Vec<String>) -> FeatureFlagResult<()> {
+    pub async fn enable_for_users(
+        &self,
+        flag: &str,
+        user_ids: Vec<String>,
+    ) -> FeatureFlagResult<()> {
         let config = FlagConfig::new(flag).for_users(user_ids);
         self.storage.set(config).await
     }
 
     /// Enable for specific groups
-    pub async fn enable_for_groups(&self, flag: &str, groups: Vec<String>) -> FeatureFlagResult<()> {
+    pub async fn enable_for_groups(
+        &self,
+        flag: &str,
+        groups: Vec<String>,
+    ) -> FeatureFlagResult<()> {
         let config = FlagConfig::new(flag).for_groups(groups);
         self.storage.set(config).await
     }
@@ -330,7 +342,11 @@ mod tests {
         let mut enabled_count = 0;
         for i in 0..100 {
             let user_id = format!("user_{}", i);
-            if flags.is_enabled_for_percentage("beta_feature", &user_id).await.unwrap() {
+            if flags
+                .is_enabled_for_percentage("beta_feature", &user_id)
+                .await
+                .unwrap()
+            {
                 enabled_count += 1;
             }
         }
@@ -343,13 +359,25 @@ mod tests {
     async fn test_user_targeting() {
         let flags = FeatureFlags::new();
         flags
-            .enable_for_users("premium_feature", vec!["user_1".to_string(), "user_2".to_string()])
+            .enable_for_users(
+                "premium_feature",
+                vec!["user_1".to_string(), "user_2".to_string()],
+            )
             .await
             .unwrap();
 
-        assert!(flags.is_enabled_for_user("premium_feature", "user_1").await.unwrap());
-        assert!(flags.is_enabled_for_user("premium_feature", "user_2").await.unwrap());
-        assert!(!flags.is_enabled_for_user("premium_feature", "user_3").await.unwrap());
+        assert!(flags
+            .is_enabled_for_user("premium_feature", "user_1")
+            .await
+            .unwrap());
+        assert!(flags
+            .is_enabled_for_user("premium_feature", "user_2")
+            .await
+            .unwrap());
+        assert!(!flags
+            .is_enabled_for_user("premium_feature", "user_3")
+            .await
+            .unwrap());
     }
 
     #[tokio::test]
@@ -360,8 +388,14 @@ mod tests {
             .await
             .unwrap();
 
-        assert!(flags.is_enabled_for_group("beta_feature", "beta_testers").await.unwrap());
-        assert!(!flags.is_enabled_for_group("beta_feature", "regular_users").await.unwrap());
+        assert!(flags
+            .is_enabled_for_group("beta_feature", "beta_testers")
+            .await
+            .unwrap());
+        assert!(!flags
+            .is_enabled_for_group("beta_feature", "regular_users")
+            .await
+            .unwrap());
     }
 
     #[tokio::test]
@@ -427,7 +461,10 @@ mod tests {
         flags.set_config(config).await.unwrap();
 
         // Even if user is not in the 10% or user_ids, enabled=true should make it available
-        assert!(flags.is_enabled_for_user("complex_flag", "any_user").await.unwrap());
+        assert!(flags
+            .is_enabled_for_user("complex_flag", "any_user")
+            .await
+            .unwrap());
     }
 
     #[tokio::test]
@@ -437,9 +474,18 @@ mod tests {
 
         // Same user should get same result consistently
         let user_id = "consistent_user";
-        let result1 = flags.is_enabled_for_percentage("feature", user_id).await.unwrap();
-        let result2 = flags.is_enabled_for_percentage("feature", user_id).await.unwrap();
-        let result3 = flags.is_enabled_for_percentage("feature", user_id).await.unwrap();
+        let result1 = flags
+            .is_enabled_for_percentage("feature", user_id)
+            .await
+            .unwrap();
+        let result2 = flags
+            .is_enabled_for_percentage("feature", user_id)
+            .await
+            .unwrap();
+        let result3 = flags
+            .is_enabled_for_percentage("feature", user_id)
+            .await
+            .unwrap();
 
         assert_eq!(result1, result2);
         assert_eq!(result2, result3);

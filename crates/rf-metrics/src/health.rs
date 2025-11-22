@@ -113,8 +113,14 @@ impl HealthCheck {
 
     /// Update the overall status based on component statuses
     fn update_overall_status(&mut self) {
-        let has_unhealthy = self.components.values().any(|c| c.status == HealthStatus::Unhealthy);
-        let has_degraded = self.components.values().any(|c| c.status == HealthStatus::Degraded);
+        let has_unhealthy = self
+            .components
+            .values()
+            .any(|c| c.status == HealthStatus::Unhealthy);
+        let has_degraded = self
+            .components
+            .values()
+            .any(|c| c.status == HealthStatus::Degraded);
 
         self.status = if has_unhealthy {
             HealthStatus::Unhealthy
@@ -196,9 +202,7 @@ pub struct DatabaseHealthChecker {
 
 impl DatabaseHealthChecker {
     pub fn new(name: impl Into<String>) -> Self {
-        Self {
-            name: name.into(),
-        }
+        Self { name: name.into() }
     }
 }
 
@@ -206,8 +210,7 @@ impl DatabaseHealthChecker {
 impl HealthChecker for DatabaseHealthChecker {
     async fn check_health(&self) -> ComponentHealth {
         // This is a stub - in real implementation, would check DB connection
-        ComponentHealth::healthy()
-            .with_response_time(5)
+        ComponentHealth::healthy().with_response_time(5)
     }
 }
 
@@ -241,18 +244,16 @@ impl HealthChecker for SchedulerHealthChecker {
         let last_exec = *self.last_execution.read().unwrap();
 
         match last_exec {
-            Some(time) => {
-                match SystemTime::now().duration_since(time) {
-                    Ok(duration) => {
-                        if duration > Duration::from_secs(300) {
-                            ComponentHealth::degraded("No task execution in last 5 minutes")
-                        } else {
-                            ComponentHealth::healthy()
-                        }
+            Some(time) => match SystemTime::now().duration_since(time) {
+                Ok(duration) => {
+                    if duration > Duration::from_secs(300) {
+                        ComponentHealth::degraded("No task execution in last 5 minutes")
+                    } else {
+                        ComponentHealth::healthy()
                     }
-                    Err(_) => ComponentHealth::degraded("Clock skew detected"),
                 }
-            }
+                Err(_) => ComponentHealth::degraded("Clock skew detected"),
+            },
             None => ComponentHealth::degraded("Scheduler has not executed any tasks"),
         }
     }

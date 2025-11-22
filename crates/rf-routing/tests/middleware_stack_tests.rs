@@ -42,11 +42,14 @@ fn test_add_global_middleware_batch() {
 fn test_add_middleware_group() {
     let stack = MiddlewareStack::new();
 
-    stack.add_group("api", vec![
-        "auth".to_string(),
-        "throttle".to_string(),
-        "json".to_string(),
-    ]);
+    stack.add_group(
+        "api",
+        vec![
+            "auth".to_string(),
+            "throttle".to_string(),
+            "json".to_string(),
+        ],
+    );
 
     let group = stack.group("api");
     assert!(group.is_some());
@@ -86,10 +89,10 @@ fn test_append_to_nonexistent_group() {
 fn test_add_route_middleware() {
     let stack = MiddlewareStack::new();
 
-    stack.add_route_middleware("users.create", vec![
-        "validate".to_string(),
-        "transform".to_string(),
-    ]);
+    stack.add_route_middleware(
+        "users.create",
+        vec!["validate".to_string(), "transform".to_string()],
+    );
 
     let route_mw = stack.route("users.create");
     assert!(route_mw.is_some());
@@ -142,10 +145,7 @@ fn test_resolve_with_multiple_groups() {
     stack.add_group("admin", vec!["auth".to_string(), "admin".to_string()]);
     stack.add_route_middleware("admin.users", vec!["validate".to_string()]);
 
-    let resolved = stack.resolve(
-        "admin.users",
-        &vec!["web".to_string(), "admin".to_string()],
-    );
+    let resolved = stack.resolve("admin.users", &vec!["web".to_string(), "admin".to_string()]);
 
     assert_eq!(resolved.len(), 6);
     assert_eq!(resolved[0], "cors"); // global
@@ -340,27 +340,33 @@ fn test_complex_middleware_stack() {
     stack.add_global("logging");
     stack.add_global("compression");
 
-    stack.add_group("web", vec![
-        "session".to_string(),
-        "csrf".to_string(),
-        "cookie".to_string(),
-    ]);
+    stack.add_group(
+        "web",
+        vec![
+            "session".to_string(),
+            "csrf".to_string(),
+            "cookie".to_string(),
+        ],
+    );
 
-    stack.add_group("api", vec![
-        "auth".to_string(),
-        "throttle".to_string(),
-        "json".to_string(),
-    ]);
+    stack.add_group(
+        "api",
+        vec![
+            "auth".to_string(),
+            "throttle".to_string(),
+            "json".to_string(),
+        ],
+    );
 
-    stack.add_group("admin", vec![
-        "admin_auth".to_string(),
-        "admin_log".to_string(),
-    ]);
+    stack.add_group(
+        "admin",
+        vec!["admin_auth".to_string(), "admin_log".to_string()],
+    );
 
-    stack.add_route_middleware("admin.users.create", vec![
-        "validate_user".to_string(),
-        "check_permissions".to_string(),
-    ]);
+    stack.add_route_middleware(
+        "admin.users.create",
+        vec!["validate_user".to_string(), "check_permissions".to_string()],
+    );
 
     // Resolve for a complex route
     let resolved = stack.resolve(

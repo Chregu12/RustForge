@@ -28,14 +28,14 @@
 //! let pool: Arc<DatabasePool> = registry.resolve().expect("Failed to resolve");
 //! ```
 
+mod auto_resolve;
+mod error;
 mod registry;
 mod scope;
-mod error;
 mod scoped;
-mod auto_resolve;
 
+pub use auto_resolve::{AutoResolver, Resolvable};
+pub use error::{ContainerError, ContainerResult};
 pub use registry::ServiceRegistry;
 pub use scope::Scope;
-pub use error::{ContainerError, ContainerResult};
-pub use scoped::{ScopedContainer, ScopeManager};
-pub use auto_resolve::{Resolvable, AutoResolver};
+pub use scoped::{ScopeManager, ScopedContainer};

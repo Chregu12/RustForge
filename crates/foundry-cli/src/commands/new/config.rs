@@ -146,10 +146,7 @@ impl ProjectConfig {
     }
 
     pub fn sanitized_name(&self) -> String {
-        self.name
-            .to_lowercase()
-            .replace('-', "_")
-            .replace(' ', "_")
+        self.name.to_lowercase().replace('-', "_").replace(' ', "_")
     }
 
     pub fn db_name(&self) -> String {

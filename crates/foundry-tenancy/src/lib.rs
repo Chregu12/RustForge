@@ -20,19 +20,19 @@
 //! # }
 //! ```
 
-pub mod tenant;
+pub mod manager;
 pub mod middleware;
 pub mod scopes;
-pub mod manager;
+pub mod tenant;
 
-pub use tenant::{Tenant, TenantId, TenantError};
+pub use manager::TenantManager;
 pub use middleware::TenantMiddleware;
 pub use scopes::TenantScope;
-pub use manager::TenantManager;
+pub use tenant::{Tenant, TenantError, TenantId};
 
 pub mod prelude {
-    pub use crate::tenant::{Tenant, TenantId};
-    pub use crate::middleware::TenantMiddleware;
     pub use crate::manager::TenantManager;
+    pub use crate::middleware::TenantMiddleware;
     pub use crate::scopes::TenantScope;
+    pub use crate::tenant::{Tenant, TenantId};
 }

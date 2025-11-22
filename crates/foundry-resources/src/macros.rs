@@ -42,7 +42,10 @@ macro_rules! collection {
     ($resource:ty, $models:expr, paginate: ($page:expr, $per_page:expr, $total:expr)) => {{
         let pagination = $crate::Pagination::new($page, $per_page);
         $crate::ResourceCollection::<$resource>::paginated(
-            $models.into_iter().map(<$resource as $crate::Resource>::from_model).collect(),
+            $models
+                .into_iter()
+                .map(<$resource as $crate::Resource>::from_model)
+                .collect(),
             pagination,
             $total,
         )

@@ -22,20 +22,15 @@ pub struct RequestTracker {
 /// Middleware function to track HTTP requests with Telescope
 pub async fn track_request(
     telescope: Telescope,
-) -> impl Fn(Request, Next) -> std::pin::Pin<Box<dyn std::future::Future<Output = Response> + Send>> + Clone {
+) -> impl Fn(Request, Next) -> std::pin::Pin<Box<dyn std::future::Future<Output = Response> + Send>>
+       + Clone {
     move |req: Request, next: Next| {
         let telescope = telescope.clone();
-        Box::pin(async move {
-            track_request_impl(telescope, req, next).await
-        })
+        Box::pin(async move { track_request_impl(telescope, req, next).await })
     }
 }
 
-async fn track_request_impl(
-    telescope: Telescope,
-    req: Request,
-    next: Next,
-) -> Response {
+async fn track_request_impl(telescope: Telescope, req: Request, next: Next) -> Response {
     // Generate request ID
     let request_id = Uuid::new_v4().to_string();
     let started_at = Instant::now();
@@ -61,8 +56,8 @@ async fn track_request_impl(
         .unwrap_or_else(|| "unknown".to_string());
 
     // Create request info
-    let mut request_info = RequestInfo::new(&method, &path, &ip_address)
-        .with_headers(headers.clone());
+    let mut request_info =
+        RequestInfo::new(&method, &path, &ip_address).with_headers(headers.clone());
 
     // Parse query parameters
     if !query.is_empty() {
@@ -85,9 +80,7 @@ async fn track_request_impl(
     // Record the request if watching is enabled
     if telescope.config.watch_requests {
         let watcher = RequestWatcher::new(telescope.storage().clone());
-        let final_info = request_info
-            .with_status(status)
-            .with_duration(duration_ms);
+        let final_info = request_info.with_status(status).with_duration(duration_ms);
 
         watcher.record(final_info).await;
     }

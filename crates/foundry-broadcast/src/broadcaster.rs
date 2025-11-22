@@ -1,9 +1,9 @@
 //! Broadcasting implementation
 
+use crate::{Channel, Result};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
-use serde::{Serialize, Deserialize};
-use crate::{Channel, Result};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BroadcastMessage {
@@ -25,7 +25,9 @@ impl Broadcaster {
 
     pub fn channel(&self, name: &str) -> Result<Channel> {
         let channels = self.channels.read().unwrap();
-        channels.get(name).cloned()
+        channels
+            .get(name)
+            .cloned()
             .ok_or_else(|| crate::BroadcastError::ChannelNotFound(name.to_string()))
     }
 

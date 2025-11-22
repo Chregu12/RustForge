@@ -14,7 +14,12 @@ pub async fn clear(store: Option<&str>) -> Result<()> {
     ensure_forge_project()?;
 
     if let Some(store_name) = store {
-        println!("{}", format!("Clearing cache store: {}", store_name).yellow().bold());
+        println!(
+            "{}",
+            format!("Clearing cache store: {}", store_name)
+                .yellow()
+                .bold()
+        );
     } else {
         println!("{}", "Clearing all caches...".yellow().bold());
     }
@@ -29,7 +34,11 @@ pub async fn clear(store: Option<&str>) -> Result<()> {
     if let Some(store_name) = store {
         println!("  {} Clearing store: {}", "•".cyan(), store_name.yellow());
         println!();
-        println!("{} Cache store '{}' cleared successfully!", "✓".green().bold(), store_name);
+        println!(
+            "{} Cache store '{}' cleared successfully!",
+            "✓".green().bold(),
+            store_name
+        );
     } else {
         let stores = vec!["file", "redis", "array"];
 
@@ -50,7 +59,10 @@ pub async fn clear(store: Option<&str>) -> Result<()> {
 pub async fn forget(key: &str, store: Option<&str>) -> Result<()> {
     ensure_forge_project()?;
 
-    println!("{}", format!("Forgetting cache key: {}", key).yellow().bold());
+    println!(
+        "{}",
+        format!("Forgetting cache key: {}", key).yellow().bold()
+    );
     println!();
 
     // Note: This is a placeholder implementation
@@ -79,7 +91,11 @@ pub async fn forget(key: &str, store: Option<&str>) -> Result<()> {
     }
     */
 
-    println!("{} Cache key '{}' removed successfully!", "✓".green().bold(), key);
+    println!(
+        "{} Cache key '{}' removed successfully!",
+        "✓".green().bold(),
+        key
+    );
 
     Ok(())
 }

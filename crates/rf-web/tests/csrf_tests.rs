@@ -1,6 +1,6 @@
 //! Comprehensive tests for CSRF protection
 
-use rf_web::csrf::{CsrfConfig, CsrfMiddleware, CsrfToken, csrf_field, csrf_meta};
+use rf_web::csrf::{csrf_field, csrf_meta, CsrfConfig, CsrfMiddleware, CsrfToken};
 
 #[test]
 fn test_csrf_token_generation_unique() {

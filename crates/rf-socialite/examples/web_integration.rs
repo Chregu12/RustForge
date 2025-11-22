@@ -3,8 +3,8 @@
 //! This example shows how to integrate rf-socialite with a web framework.
 //! This is a conceptual example showing the flow.
 
-use rf_socialite::*;
 use rf_socialite::routes::*;
+use rf_socialite::*;
 
 /// Example web application state
 struct AppState {

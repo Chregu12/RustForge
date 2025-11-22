@@ -172,7 +172,8 @@ impl<U> Gate<U> {
             Ok(())
         } else {
             Err(AuthorizationError::Forbidden(format!(
-                "User not authorized for ability: {}", ability
+                "User not authorized for ability: {}",
+                ability
             )))
         }
     }
@@ -282,9 +283,10 @@ mod tests {
     #[test]
     fn test_gate_authorize() {
         let mut gate = Gate::new();
-        gate.define("view-dashboard", Arc::new(|user: &TestUser, _| {
-            user.has_permission("view-dashboard")
-        }));
+        gate.define(
+            "view-dashboard",
+            Arc::new(|user: &TestUser, _| user.has_permission("view-dashboard")),
+        );
 
         let user_with_permission = TestUser {
             id: 1,
@@ -297,8 +299,12 @@ mod tests {
             permissions: vec![],
         };
 
-        assert!(gate.authorize(&user_with_permission, "view-dashboard").is_ok());
-        assert!(gate.authorize(&user_without_permission, "view-dashboard").is_err());
+        assert!(gate
+            .authorize(&user_with_permission, "view-dashboard")
+            .is_ok());
+        assert!(gate
+            .authorize(&user_without_permission, "view-dashboard")
+            .is_err());
     }
 
     #[test]
@@ -363,12 +369,14 @@ mod tests {
     #[test]
     fn test_gate_allows_all() {
         let mut gate = Gate::new();
-        gate.define("read", Arc::new(|user: &TestUser, _| {
-            user.has_permission("read")
-        }));
-        gate.define("write", Arc::new(|user: &TestUser, _| {
-            user.has_permission("write")
-        }));
+        gate.define(
+            "read",
+            Arc::new(|user: &TestUser, _| user.has_permission("read")),
+        );
+        gate.define(
+            "write",
+            Arc::new(|user: &TestUser, _| user.has_permission("write")),
+        );
 
         let user_with_all = TestUser {
             id: 1,
@@ -388,12 +396,14 @@ mod tests {
     #[test]
     fn test_gate_allows_any() {
         let mut gate = Gate::new();
-        gate.define("read", Arc::new(|user: &TestUser, _| {
-            user.has_permission("read")
-        }));
-        gate.define("write", Arc::new(|user: &TestUser, _| {
-            user.has_permission("write")
-        }));
+        gate.define(
+            "read",
+            Arc::new(|user: &TestUser, _| user.has_permission("read")),
+        );
+        gate.define(
+            "write",
+            Arc::new(|user: &TestUser, _| user.has_permission("write")),
+        );
 
         let user_with_one = TestUser {
             id: 1,
@@ -424,9 +434,10 @@ mod tests {
         let mut gate = Gate::new();
 
         // Callback that uses the ability parameter
-        gate.define("dynamic", Arc::new(|user: &TestUser, ability: &str| {
-            user.has_permission(ability)
-        }));
+        gate.define(
+            "dynamic",
+            Arc::new(|user: &TestUser, ability: &str| user.has_permission(ability)),
+        );
 
         let user = TestUser {
             id: 1,

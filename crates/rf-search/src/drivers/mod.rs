@@ -1,13 +1,13 @@
 //! Search driver implementations
 
-pub mod postgresql;
 pub mod meilisearch;
+pub mod postgresql;
 
 #[cfg(feature = "algolia")]
 pub mod algolia;
 
-pub use postgresql::PostgresSearchDriver;
 pub use meilisearch::MeilisearchDriver;
+pub use postgresql::PostgresSearchDriver;
 
 #[cfg(feature = "algolia")]
-pub use algolia::{AlgoliaDriver, AlgoliaConfig};
+pub use algolia::{AlgoliaConfig, AlgoliaDriver};

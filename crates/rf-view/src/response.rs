@@ -35,8 +35,12 @@ impl IntoResponse for ViewResponse {
                 tracing::error!("View rendering failed: {}", e);
                 return (
                     StatusCode::INTERNAL_SERVER_ERROR,
-                    Html(format!("<h1>500 Internal Server Error</h1><p>Template rendering failed: {}</p>", e)),
-                ).into_response();
+                    Html(format!(
+                        "<h1>500 Internal Server Error</h1><p>Template rendering failed: {}</p>",
+                        e
+                    )),
+                )
+                    .into_response();
             }
         };
 

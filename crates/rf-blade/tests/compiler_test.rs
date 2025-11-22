@@ -48,7 +48,10 @@ fn test_variable_html_escaping() {
     let compiler = Compiler::new();
 
     let result = compiler.compile(&ast, &mut context).unwrap();
-    assert_eq!(result, "&lt;script&gt;alert(&#x27;xss&#x27;)&lt;/script&gt;");
+    assert_eq!(
+        result,
+        "&lt;script&gt;alert(&#x27;xss&#x27;)&lt;/script&gt;"
+    );
 }
 
 #[test]
@@ -458,7 +461,10 @@ fn test_complex_template() {
 
     eprintln!("Result length: {}", result.len());
     if result.len() > 0 {
-        eprintln!("Result preview (first 500): {}", &result[..result.len().min(500)]);
+        eprintln!(
+            "Result preview (first 500): {}",
+            &result[..result.len().min(500)]
+        );
     } else {
         eprintln!("Result is EMPTY!");
     }
@@ -469,8 +475,15 @@ fn test_complex_template() {
     assert!(result.contains("Admin panel available"));
 
     // Check foreach output - note that member access works
-    assert!(result.contains("Post 1") || result.len() > 200, "Should contain Post 1. Got: {}", result);
-    assert!(result.contains("Post 2") || result.len() > 200, "Should contain Post 2");
+    assert!(
+        result.contains("Post 1") || result.len() > 200,
+        "Should contain Post 1. Got: {}",
+        result
+    );
+    assert!(
+        result.contains("Post 2") || result.len() > 200,
+        "Should contain Post 2"
+    );
 }
 
 #[test]
@@ -522,13 +535,16 @@ async fn test_blade_engine_render_compiled() {
 
     let blade = BladeEngine::new(&temp_dir).unwrap();
 
-    let html = blade.render_compiled(
-        "@if($show) Hello {{ $name }}! @endif",
-        json!({
-            "show": true,
-            "name": "World"
-        })
-    ).await.unwrap();
+    let html = blade
+        .render_compiled(
+            "@if($show) Hello {{ $name }}! @endif",
+            json!({
+                "show": true,
+                "name": "World"
+            }),
+        )
+        .await
+        .unwrap();
 
     assert_eq!(html, " Hello World! ");
 

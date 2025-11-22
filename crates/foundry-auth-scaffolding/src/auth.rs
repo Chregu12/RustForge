@@ -2,7 +2,7 @@
 //!
 //! Core authentication logic for user registration, login, and verification
 
-use crate::models::{User, Session};
+use crate::models::{Session, User};
 use crate::AuthConfig;
 use argon2::{
     password_hash::{rand_core::OsRng, PasswordHash, PasswordHasher, PasswordVerifier, SaltString},
@@ -102,8 +102,8 @@ impl AuthService {
 
     /// Verify a password against a hash
     pub fn verify_password(&self, password: &str, hash: &str) -> AuthResult<bool> {
-        let parsed_hash = PasswordHash::new(hash)
-            .map_err(|e| AuthError::PasswordHashError(e.to_string()))?;
+        let parsed_hash =
+            PasswordHash::new(hash).map_err(|e| AuthError::PasswordHashError(e.to_string()))?;
 
         Ok(Argon2::default()
             .verify_password(password.as_bytes(), &parsed_hash)
@@ -158,8 +158,8 @@ impl AuthService {
 
     /// Generate a secure random session token
     fn generate_session_token(&self) -> String {
+        use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
         use rand::Rng;
-        use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 
         let random_bytes: Vec<u8> = rand::thread_rng()
             .sample_iter(rand::distributions::Standard)
@@ -171,8 +171,8 @@ impl AuthService {
 
     /// Generate a secure random token (for password reset, email verification, etc.)
     pub fn generate_token(&self) -> String {
+        use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
         use rand::Rng;
-        use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 
         let random_bytes: Vec<u8> = rand::thread_rng()
             .sample_iter(rand::distributions::Standard)
@@ -244,7 +244,11 @@ mod tests {
         let service = AuthService::new(AuthConfig::default());
 
         let password_hash = service.hash_password("password123").unwrap();
-        let mut user = User::new("John".to_string(), "john@example.com".to_string(), password_hash);
+        let mut user = User::new(
+            "John".to_string(),
+            "john@example.com".to_string(),
+            password_hash,
+        );
         user.mark_email_as_verified();
 
         let credentials = Credentials {

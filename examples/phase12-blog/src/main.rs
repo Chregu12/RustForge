@@ -1,10 +1,10 @@
-//! # Phase 12 Blog Example
-//!
-//! A full-stack blog application demonstrating integration of all Phase 12 crates:
-//! - rf-blade: Template engine
-//! - rf-vite: Asset pipeline
-//! - rf-livereload: Development hot reload
-//! - rf-cms: Media management
+// # Phase 12 Blog Example
+//
+// A full-stack blog application demonstrating integration of all Phase 12 crates:
+// - rf-blade: Template engine
+// - rf-vite: Asset pipeline
+// - rf-livereload: Development hot reload
+// - rf-cms: Media management
 
 use axum::{
     routing::{get, post},

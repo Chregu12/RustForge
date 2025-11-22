@@ -2,12 +2,12 @@
 //!
 //! Dynamic configuration with caching and environment support.
 
-pub mod manager;
 pub mod cache;
+pub mod manager;
 pub mod repository;
 
-pub use manager::ConfigManager;
 pub use cache::ConfigCache;
+pub use manager::ConfigManager;
 pub use repository::{ConfigRepository, DatabaseConfigRepository};
 
 #[derive(Debug, thiserror::Error)]

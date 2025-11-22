@@ -95,13 +95,22 @@ impl HealthChecker {
             "rust" => Ok(RustVersionCheck.run().await),
             "disk" => Ok(DiskSpaceCheck.run().await),
             "memory" => Ok(MemoryCheck.run().await),
-            "env" => Ok(EnvCheck::new(self.config.required_env_vars.clone()).run().await),
-            "files" => Ok(FilePermissionsCheck::new(self.config.required_files.clone()).run().await),
+            "env" => Ok(EnvCheck::new(self.config.required_env_vars.clone())
+                .run()
+                .await),
+            "files" => Ok(
+                FilePermissionsCheck::new(self.config.required_files.clone())
+                    .run()
+                    .await,
+            ),
             "database" => {
                 if let Some(db_url) = &self.config.database_url {
                     Ok(DatabaseCheck::new(db_url.clone()).run().await)
                 } else {
-                    Ok(CheckResult::skipped("database", "No database URL configured"))
+                    Ok(CheckResult::skipped(
+                        "database",
+                        "No database URL configured",
+                    ))
                 }
             }
             "cache" => {

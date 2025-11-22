@@ -28,15 +28,27 @@ pub trait TokenRepository: Send + Sync {
     async fn delete_refresh_token(&self, id: Uuid) -> OAuth2Result<()>;
 
     // Authorization Codes
-    async fn store_authorization_code(&self, code: AuthorizationCode) -> OAuth2Result<AuthorizationCode>;
+    async fn store_authorization_code(
+        &self,
+        code: AuthorizationCode,
+    ) -> OAuth2Result<AuthorizationCode>;
     async fn find_authorization_code(&self, code: &str) -> OAuth2Result<Option<AuthorizationCode>>;
     async fn revoke_authorization_code(&self, id: Uuid) -> OAuth2Result<()>;
     async fn delete_authorization_code(&self, id: Uuid) -> OAuth2Result<()>;
 
     // Personal Access Tokens
-    async fn store_personal_access_token(&self, token: PersonalAccessToken) -> OAuth2Result<PersonalAccessToken>;
-    async fn find_personal_access_token(&self, token: &str) -> OAuth2Result<Option<PersonalAccessToken>>;
-    async fn find_personal_access_tokens_by_user(&self, user_id: Uuid) -> OAuth2Result<Vec<PersonalAccessToken>>;
+    async fn store_personal_access_token(
+        &self,
+        token: PersonalAccessToken,
+    ) -> OAuth2Result<PersonalAccessToken>;
+    async fn find_personal_access_token(
+        &self,
+        token: &str,
+    ) -> OAuth2Result<Option<PersonalAccessToken>>;
+    async fn find_personal_access_tokens_by_user(
+        &self,
+        user_id: Uuid,
+    ) -> OAuth2Result<Vec<PersonalAccessToken>>;
     async fn revoke_personal_access_token(&self, id: Uuid) -> OAuth2Result<()>;
     async fn delete_personal_access_token(&self, id: Uuid) -> OAuth2Result<()>;
     async fn update_personal_access_token_last_used(&self, id: Uuid) -> OAuth2Result<()>;
@@ -56,74 +68,145 @@ impl PostgresTokenRepository {
     }
 
     fn row_to_access_token(&self, row: &sqlx::postgres::PgRow) -> OAuth2Result<AccessToken> {
-        let scopes_json: String = row.try_get("scopes")
+        let scopes_json: String = row
+            .try_get("scopes")
             .map_err(|e| OAuth2Error::InternalError(format!("Failed to get scopes: {}", e)))?;
 
         let scopes: Vec<String> = serde_json::from_str(&scopes_json)
             .map_err(|e| OAuth2Error::InternalError(format!("Failed to parse scopes: {}", e)))?;
 
         Ok(AccessToken {
-            id: row.try_get("id").map_err(|e| OAuth2Error::InternalError(e.to_string()))?,
-            client_id: row.try_get("client_id").map_err(|e| OAuth2Error::InternalError(e.to_string()))?,
-            user_id: row.try_get("user_id").map_err(|e| OAuth2Error::InternalError(e.to_string()))?,
-            token: row.try_get("token").map_err(|e| OAuth2Error::InternalError(e.to_string()))?,
+            id: row
+                .try_get("id")
+                .map_err(|e| OAuth2Error::InternalError(e.to_string()))?,
+            client_id: row
+                .try_get("client_id")
+                .map_err(|e| OAuth2Error::InternalError(e.to_string()))?,
+            user_id: row
+                .try_get("user_id")
+                .map_err(|e| OAuth2Error::InternalError(e.to_string()))?,
+            token: row
+                .try_get("token")
+                .map_err(|e| OAuth2Error::InternalError(e.to_string()))?,
             scopes,
-            revoked: row.try_get("revoked").map_err(|e| OAuth2Error::InternalError(e.to_string()))?,
-            expires_at: row.try_get("expires_at").map_err(|e| OAuth2Error::InternalError(e.to_string()))?,
-            created_at: row.try_get("created_at").map_err(|e| OAuth2Error::InternalError(e.to_string()))?,
+            revoked: row
+                .try_get("revoked")
+                .map_err(|e| OAuth2Error::InternalError(e.to_string()))?,
+            expires_at: row
+                .try_get("expires_at")
+                .map_err(|e| OAuth2Error::InternalError(e.to_string()))?,
+            created_at: row
+                .try_get("created_at")
+                .map_err(|e| OAuth2Error::InternalError(e.to_string()))?,
         })
     }
 
     fn row_to_refresh_token(&self, row: &sqlx::postgres::PgRow) -> OAuth2Result<RefreshToken> {
         Ok(RefreshToken {
-            id: row.try_get("id").map_err(|e| OAuth2Error::InternalError(e.to_string()))?,
-            access_token_id: row.try_get("access_token_id").map_err(|e| OAuth2Error::InternalError(e.to_string()))?,
-            token: row.try_get("token").map_err(|e| OAuth2Error::InternalError(e.to_string()))?,
-            revoked: row.try_get("revoked").map_err(|e| OAuth2Error::InternalError(e.to_string()))?,
-            expires_at: row.try_get("expires_at").map_err(|e| OAuth2Error::InternalError(e.to_string()))?,
-            created_at: row.try_get("created_at").map_err(|e| OAuth2Error::InternalError(e.to_string()))?,
+            id: row
+                .try_get("id")
+                .map_err(|e| OAuth2Error::InternalError(e.to_string()))?,
+            access_token_id: row
+                .try_get("access_token_id")
+                .map_err(|e| OAuth2Error::InternalError(e.to_string()))?,
+            token: row
+                .try_get("token")
+                .map_err(|e| OAuth2Error::InternalError(e.to_string()))?,
+            revoked: row
+                .try_get("revoked")
+                .map_err(|e| OAuth2Error::InternalError(e.to_string()))?,
+            expires_at: row
+                .try_get("expires_at")
+                .map_err(|e| OAuth2Error::InternalError(e.to_string()))?,
+            created_at: row
+                .try_get("created_at")
+                .map_err(|e| OAuth2Error::InternalError(e.to_string()))?,
         })
     }
 
-    fn row_to_authorization_code(&self, row: &sqlx::postgres::PgRow) -> OAuth2Result<AuthorizationCode> {
-        let scopes_json: String = row.try_get("scopes")
+    fn row_to_authorization_code(
+        &self,
+        row: &sqlx::postgres::PgRow,
+    ) -> OAuth2Result<AuthorizationCode> {
+        let scopes_json: String = row
+            .try_get("scopes")
             .map_err(|e| OAuth2Error::InternalError(format!("Failed to get scopes: {}", e)))?;
 
         let scopes: Vec<String> = serde_json::from_str(&scopes_json)
             .map_err(|e| OAuth2Error::InternalError(format!("Failed to parse scopes: {}", e)))?;
 
         Ok(AuthorizationCode {
-            id: row.try_get("id").map_err(|e| OAuth2Error::InternalError(e.to_string()))?,
-            client_id: row.try_get("client_id").map_err(|e| OAuth2Error::InternalError(e.to_string()))?,
-            user_id: row.try_get("user_id").map_err(|e| OAuth2Error::InternalError(e.to_string()))?,
-            code: row.try_get("code").map_err(|e| OAuth2Error::InternalError(e.to_string()))?,
-            redirect_uri: row.try_get("redirect_uri").map_err(|e| OAuth2Error::InternalError(e.to_string()))?,
+            id: row
+                .try_get("id")
+                .map_err(|e| OAuth2Error::InternalError(e.to_string()))?,
+            client_id: row
+                .try_get("client_id")
+                .map_err(|e| OAuth2Error::InternalError(e.to_string()))?,
+            user_id: row
+                .try_get("user_id")
+                .map_err(|e| OAuth2Error::InternalError(e.to_string()))?,
+            code: row
+                .try_get("code")
+                .map_err(|e| OAuth2Error::InternalError(e.to_string()))?,
+            redirect_uri: row
+                .try_get("redirect_uri")
+                .map_err(|e| OAuth2Error::InternalError(e.to_string()))?,
             scopes,
-            code_challenge: row.try_get("code_challenge").map_err(|e| OAuth2Error::InternalError(e.to_string()))?,
-            code_challenge_method: row.try_get("code_challenge_method").map_err(|e| OAuth2Error::InternalError(e.to_string()))?,
-            revoked: row.try_get("revoked").map_err(|e| OAuth2Error::InternalError(e.to_string()))?,
-            expires_at: row.try_get("expires_at").map_err(|e| OAuth2Error::InternalError(e.to_string()))?,
-            created_at: row.try_get("created_at").map_err(|e| OAuth2Error::InternalError(e.to_string()))?,
+            code_challenge: row
+                .try_get("code_challenge")
+                .map_err(|e| OAuth2Error::InternalError(e.to_string()))?,
+            code_challenge_method: row
+                .try_get("code_challenge_method")
+                .map_err(|e| OAuth2Error::InternalError(e.to_string()))?,
+            revoked: row
+                .try_get("revoked")
+                .map_err(|e| OAuth2Error::InternalError(e.to_string()))?,
+            expires_at: row
+                .try_get("expires_at")
+                .map_err(|e| OAuth2Error::InternalError(e.to_string()))?,
+            created_at: row
+                .try_get("created_at")
+                .map_err(|e| OAuth2Error::InternalError(e.to_string()))?,
         })
     }
 
-    fn row_to_personal_access_token(&self, row: &sqlx::postgres::PgRow) -> OAuth2Result<PersonalAccessToken> {
-        let scopes_json: String = row.try_get("scopes")
+    fn row_to_personal_access_token(
+        &self,
+        row: &sqlx::postgres::PgRow,
+    ) -> OAuth2Result<PersonalAccessToken> {
+        let scopes_json: String = row
+            .try_get("scopes")
             .map_err(|e| OAuth2Error::InternalError(format!("Failed to get scopes: {}", e)))?;
 
         let scopes: Vec<String> = serde_json::from_str(&scopes_json)
             .map_err(|e| OAuth2Error::InternalError(format!("Failed to parse scopes: {}", e)))?;
 
         Ok(PersonalAccessToken {
-            id: row.try_get("id").map_err(|e| OAuth2Error::InternalError(e.to_string()))?,
-            user_id: row.try_get("user_id").map_err(|e| OAuth2Error::InternalError(e.to_string()))?,
-            name: row.try_get("name").map_err(|e| OAuth2Error::InternalError(e.to_string()))?,
-            token: row.try_get("token").map_err(|e| OAuth2Error::InternalError(e.to_string()))?,
+            id: row
+                .try_get("id")
+                .map_err(|e| OAuth2Error::InternalError(e.to_string()))?,
+            user_id: row
+                .try_get("user_id")
+                .map_err(|e| OAuth2Error::InternalError(e.to_string()))?,
+            name: row
+                .try_get("name")
+                .map_err(|e| OAuth2Error::InternalError(e.to_string()))?,
+            token: row
+                .try_get("token")
+                .map_err(|e| OAuth2Error::InternalError(e.to_string()))?,
             scopes,
-            revoked: row.try_get("revoked").map_err(|e| OAuth2Error::InternalError(e.to_string()))?,
-            last_used_at: row.try_get("last_used_at").map_err(|e| OAuth2Error::InternalError(e.to_string()))?,
-            expires_at: row.try_get("expires_at").map_err(|e| OAuth2Error::InternalError(e.to_string()))?,
-            created_at: row.try_get("created_at").map_err(|e| OAuth2Error::InternalError(e.to_string()))?,
+            revoked: row
+                .try_get("revoked")
+                .map_err(|e| OAuth2Error::InternalError(e.to_string()))?,
+            last_used_at: row
+                .try_get("last_used_at")
+                .map_err(|e| OAuth2Error::InternalError(e.to_string()))?,
+            expires_at: row
+                .try_get("expires_at")
+                .map_err(|e| OAuth2Error::InternalError(e.to_string()))?,
+            created_at: row
+                .try_get("created_at")
+                .map_err(|e| OAuth2Error::InternalError(e.to_string()))?,
         })
     }
 }
@@ -131,8 +214,9 @@ impl PostgresTokenRepository {
 #[async_trait]
 impl TokenRepository for PostgresTokenRepository {
     async fn store_access_token(&self, token: AccessToken) -> OAuth2Result<AccessToken> {
-        let scopes_json = serde_json::to_string(&token.scopes)
-            .map_err(|e| OAuth2Error::InternalError(format!("Failed to serialize scopes: {}", e)))?;
+        let scopes_json = serde_json::to_string(&token.scopes).map_err(|e| {
+            OAuth2Error::InternalError(format!("Failed to serialize scopes: {}", e))
+        })?;
 
         sqlx::query(
             "INSERT INTO oauth_access_tokens (id, client_id, user_id, token, scopes, revoked, expires_at, created_at)
@@ -157,7 +241,7 @@ impl TokenRepository for PostgresTokenRepository {
         let row = sqlx::query(
             "SELECT id, client_id, user_id, token, scopes, revoked, expires_at, created_at
              FROM oauth_access_tokens
-             WHERE token = $1"
+             WHERE token = $1",
         )
         .bind(token)
         .fetch_optional(&self.pool)
@@ -174,7 +258,7 @@ impl TokenRepository for PostgresTokenRepository {
         let row = sqlx::query(
             "SELECT id, client_id, user_id, token, scopes, revoked, expires_at, created_at
              FROM oauth_access_tokens
-             WHERE id = $1"
+             WHERE id = $1",
         )
         .bind(id)
         .fetch_optional(&self.pool)
@@ -192,7 +276,9 @@ impl TokenRepository for PostgresTokenRepository {
             .bind(id)
             .execute(&self.pool)
             .await
-            .map_err(|e| OAuth2Error::InternalError(format!("Failed to revoke access token: {}", e)))?;
+            .map_err(|e| {
+                OAuth2Error::InternalError(format!("Failed to revoke access token: {}", e))
+            })?;
 
         Ok(())
     }
@@ -202,7 +288,9 @@ impl TokenRepository for PostgresTokenRepository {
             .bind(id)
             .execute(&self.pool)
             .await
-            .map_err(|e| OAuth2Error::InternalError(format!("Failed to delete access token: {}", e)))?;
+            .map_err(|e| {
+                OAuth2Error::InternalError(format!("Failed to delete access token: {}", e))
+            })?;
 
         Ok(())
     }
@@ -229,7 +317,7 @@ impl TokenRepository for PostgresTokenRepository {
         let row = sqlx::query(
             "SELECT id, access_token_id, token, revoked, expires_at, created_at
              FROM oauth_refresh_tokens
-             WHERE token = $1"
+             WHERE token = $1",
         )
         .bind(token)
         .fetch_optional(&self.pool)
@@ -247,7 +335,9 @@ impl TokenRepository for PostgresTokenRepository {
             .bind(id)
             .execute(&self.pool)
             .await
-            .map_err(|e| OAuth2Error::InternalError(format!("Failed to revoke refresh token: {}", e)))?;
+            .map_err(|e| {
+                OAuth2Error::InternalError(format!("Failed to revoke refresh token: {}", e))
+            })?;
 
         Ok(())
     }
@@ -257,14 +347,20 @@ impl TokenRepository for PostgresTokenRepository {
             .bind(id)
             .execute(&self.pool)
             .await
-            .map_err(|e| OAuth2Error::InternalError(format!("Failed to delete refresh token: {}", e)))?;
+            .map_err(|e| {
+                OAuth2Error::InternalError(format!("Failed to delete refresh token: {}", e))
+            })?;
 
         Ok(())
     }
 
-    async fn store_authorization_code(&self, code: AuthorizationCode) -> OAuth2Result<AuthorizationCode> {
-        let scopes_json = serde_json::to_string(&code.scopes)
-            .map_err(|e| OAuth2Error::InternalError(format!("Failed to serialize scopes: {}", e)))?;
+    async fn store_authorization_code(
+        &self,
+        code: AuthorizationCode,
+    ) -> OAuth2Result<AuthorizationCode> {
+        let scopes_json = serde_json::to_string(&code.scopes).map_err(|e| {
+            OAuth2Error::InternalError(format!("Failed to serialize scopes: {}", e))
+        })?;
 
         sqlx::query(
             "INSERT INTO oauth_authorization_codes (id, client_id, user_id, code, redirect_uri, scopes, code_challenge, code_challenge_method, revoked, expires_at, created_at)
@@ -310,7 +406,9 @@ impl TokenRepository for PostgresTokenRepository {
             .bind(id)
             .execute(&self.pool)
             .await
-            .map_err(|e| OAuth2Error::InternalError(format!("Failed to revoke authorization code: {}", e)))?;
+            .map_err(|e| {
+                OAuth2Error::InternalError(format!("Failed to revoke authorization code: {}", e))
+            })?;
 
         Ok(())
     }
@@ -320,14 +418,20 @@ impl TokenRepository for PostgresTokenRepository {
             .bind(id)
             .execute(&self.pool)
             .await
-            .map_err(|e| OAuth2Error::InternalError(format!("Failed to delete authorization code: {}", e)))?;
+            .map_err(|e| {
+                OAuth2Error::InternalError(format!("Failed to delete authorization code: {}", e))
+            })?;
 
         Ok(())
     }
 
-    async fn store_personal_access_token(&self, token: PersonalAccessToken) -> OAuth2Result<PersonalAccessToken> {
-        let scopes_json = serde_json::to_string(&token.scopes)
-            .map_err(|e| OAuth2Error::InternalError(format!("Failed to serialize scopes: {}", e)))?;
+    async fn store_personal_access_token(
+        &self,
+        token: PersonalAccessToken,
+    ) -> OAuth2Result<PersonalAccessToken> {
+        let scopes_json = serde_json::to_string(&token.scopes).map_err(|e| {
+            OAuth2Error::InternalError(format!("Failed to serialize scopes: {}", e))
+        })?;
 
         sqlx::query(
             "INSERT INTO oauth_personal_access_tokens (id, user_id, name, token, scopes, revoked, last_used_at, expires_at, created_at)
@@ -349,11 +453,14 @@ impl TokenRepository for PostgresTokenRepository {
         Ok(token)
     }
 
-    async fn find_personal_access_token(&self, token: &str) -> OAuth2Result<Option<PersonalAccessToken>> {
+    async fn find_personal_access_token(
+        &self,
+        token: &str,
+    ) -> OAuth2Result<Option<PersonalAccessToken>> {
         let row = sqlx::query(
             "SELECT id, user_id, name, token, scopes, revoked, last_used_at, expires_at, created_at
              FROM oauth_personal_access_tokens
-             WHERE token = $1"
+             WHERE token = $1",
         )
         .bind(token)
         .fetch_optional(&self.pool)
@@ -366,12 +473,15 @@ impl TokenRepository for PostgresTokenRepository {
         }
     }
 
-    async fn find_personal_access_tokens_by_user(&self, user_id: Uuid) -> OAuth2Result<Vec<PersonalAccessToken>> {
+    async fn find_personal_access_tokens_by_user(
+        &self,
+        user_id: Uuid,
+    ) -> OAuth2Result<Vec<PersonalAccessToken>> {
         let rows = sqlx::query(
             "SELECT id, user_id, name, token, scopes, revoked, last_used_at, expires_at, created_at
              FROM oauth_personal_access_tokens
              WHERE user_id = $1
-             ORDER BY created_at DESC"
+             ORDER BY created_at DESC",
         )
         .bind(user_id)
         .fetch_all(&self.pool)
@@ -388,7 +498,9 @@ impl TokenRepository for PostgresTokenRepository {
             .bind(id)
             .execute(&self.pool)
             .await
-            .map_err(|e| OAuth2Error::InternalError(format!("Failed to revoke personal access token: {}", e)))?;
+            .map_err(|e| {
+                OAuth2Error::InternalError(format!("Failed to revoke personal access token: {}", e))
+            })?;
 
         Ok(())
     }
@@ -398,7 +510,9 @@ impl TokenRepository for PostgresTokenRepository {
             .bind(id)
             .execute(&self.pool)
             .await
-            .map_err(|e| OAuth2Error::InternalError(format!("Failed to delete personal access token: {}", e)))?;
+            .map_err(|e| {
+                OAuth2Error::InternalError(format!("Failed to delete personal access token: {}", e))
+            })?;
 
         Ok(())
     }
@@ -409,7 +523,9 @@ impl TokenRepository for PostgresTokenRepository {
             .bind(id)
             .execute(&self.pool)
             .await
-            .map_err(|e| OAuth2Error::InternalError(format!("Failed to update last_used_at: {}", e)))?;
+            .map_err(|e| {
+                OAuth2Error::InternalError(format!("Failed to update last_used_at: {}", e))
+            })?;
 
         Ok(())
     }
@@ -421,7 +537,9 @@ impl TokenRepository for PostgresTokenRepository {
             .bind(now)
             .execute(&self.pool)
             .await
-            .map_err(|e| OAuth2Error::InternalError(format!("Failed to delete expired tokens: {}", e)))?;
+            .map_err(|e| {
+                OAuth2Error::InternalError(format!("Failed to delete expired tokens: {}", e))
+            })?;
 
         let count = result.rows_affected() as usize;
 
@@ -431,7 +549,9 @@ impl TokenRepository for PostgresTokenRepository {
             .bind(now)
             .execute(&self.pool)
             .await
-            .map_err(|e| OAuth2Error::InternalError(format!("Failed to delete expired codes: {}", e)))?;
+            .map_err(|e| {
+                OAuth2Error::InternalError(format!("Failed to delete expired codes: {}", e))
+            })?;
 
         // Personal access tokens cleanup
         sqlx::query("DELETE FROM oauth_personal_access_tokens WHERE expires_at IS NOT NULL AND expires_at < $1")

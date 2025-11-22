@@ -1,7 +1,7 @@
 //! Built-in templates for code generation
 
-use handlebars::Handlebars;
 use crate::ScaffoldResult;
+use handlebars::Handlebars;
 
 /// Built-in template definitions
 pub struct BuiltinTemplates;
@@ -10,31 +10,38 @@ impl BuiltinTemplates {
     /// Register all built-in templates
     pub fn register(handlebars: &mut Handlebars<'static>) -> ScaffoldResult<()> {
         // Model template
-        handlebars.register_template_string("model", Self::MODEL_TEMPLATE)
+        handlebars
+            .register_template_string("model", Self::MODEL_TEMPLATE)
             .map_err(|e| crate::ScaffoldError::RenderError(e.to_string()))?;
 
         // Controller template
-        handlebars.register_template_string("controller", Self::CONTROLLER_TEMPLATE)
+        handlebars
+            .register_template_string("controller", Self::CONTROLLER_TEMPLATE)
             .map_err(|e| crate::ScaffoldError::RenderError(e.to_string()))?;
 
         // Resource controller template
-        handlebars.register_template_string("controller_resource", Self::CONTROLLER_RESOURCE_TEMPLATE)
+        handlebars
+            .register_template_string("controller_resource", Self::CONTROLLER_RESOURCE_TEMPLATE)
             .map_err(|e| crate::ScaffoldError::RenderError(e.to_string()))?;
 
         // Migration template
-        handlebars.register_template_string("migration", Self::MIGRATION_TEMPLATE)
+        handlebars
+            .register_template_string("migration", Self::MIGRATION_TEMPLATE)
             .map_err(|e| crate::ScaffoldError::RenderError(e.to_string()))?;
 
         // Service template
-        handlebars.register_template_string("service", Self::SERVICE_TEMPLATE)
+        handlebars
+            .register_template_string("service", Self::SERVICE_TEMPLATE)
             .map_err(|e| crate::ScaffoldError::RenderError(e.to_string()))?;
 
         // Repository template
-        handlebars.register_template_string("repository", Self::REPOSITORY_TEMPLATE)
+        handlebars
+            .register_template_string("repository", Self::REPOSITORY_TEMPLATE)
             .map_err(|e| crate::ScaffoldError::RenderError(e.to_string()))?;
 
         // Test template
-        handlebars.register_template_string("test", Self::TEST_TEMPLATE)
+        handlebars
+            .register_template_string("test", Self::TEST_TEMPLATE)
             .map_err(|e| crate::ScaffoldError::RenderError(e.to_string()))?;
 
         Ok(())

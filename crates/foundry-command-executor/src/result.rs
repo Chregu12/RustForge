@@ -111,12 +111,7 @@ mod tests {
         output.add_stdout("line1".to_string());
         output.add_stdout("line2".to_string());
 
-        let result = ExecutionResult::new(
-            0,
-            CommandResult::success("test"),
-            output,
-            75,
-        );
+        let result = ExecutionResult::new(0, CommandResult::success("test"), output, 75);
 
         assert_eq!(result.stdout(), "line1\nline2");
         assert_eq!(result.stderr(), "");

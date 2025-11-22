@@ -76,10 +76,7 @@ This email was sent by {}. If you did not sign up, please ignore this email.
         );
 
         MailBuilder::new()
-            .from(Address::with_name(
-                "noreply@example.com",
-                &self.app_name,
-            ))
+            .from(Address::with_name("noreply@example.com", &self.app_name))
             .to(self.to.clone())
             .subject(format!("Welcome to {}!", self.app_name))
             .html(html)

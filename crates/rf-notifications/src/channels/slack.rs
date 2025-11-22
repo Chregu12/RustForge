@@ -59,15 +59,13 @@ impl NotificationChannel for SlackChannel {
         // Send to Slack
         let payload = SlackPayload::from_message(slack_message);
 
-        let response = self
-            .client
-            .post(&webhook_url)
-            .json(&payload)
-            .send()
-            .await?;
+        let response = self.client.post(&webhook_url).json(&payload).send().await?;
 
         if !response.status().is_success() {
-            let error_text = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
+            let error_text = response
+                .text()
+                .await
+                .unwrap_or_else(|_| "Unknown error".to_string());
             return Err(NotificationError::SendError(format!(
                 "Slack API error: {}",
                 error_text

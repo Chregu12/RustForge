@@ -93,8 +93,8 @@ impl TestClient {
             .await
             .expect("Failed to read response body");
 
-        let body_string = String::from_utf8(body_bytes.to_vec())
-            .expect("Response body is not valid UTF-8");
+        let body_string =
+            String::from_utf8(body_bytes.to_vec()).expect("Response body is not valid UTF-8");
 
         TestResponse {
             status,
@@ -188,10 +188,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_request() {
-        let app = Router::new().route(
-            "/test",
-            get(|| async { Json(json!({"message": "hello"})) }),
-        );
+        let app = Router::new().route("/test", get(|| async { Json(json!({"message": "hello"})) }));
 
         let client = TestClient::new(app);
         let response = client.get("/test").await;

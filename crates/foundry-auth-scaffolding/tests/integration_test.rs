@@ -44,10 +44,14 @@ mod integration_tests {
         assert_ne!(user.password_hash, "secure_password_123"); // Password should be hashed
 
         // Verify password is hashed
-        let is_valid = service.verify_password("secure_password_123", &user.password_hash).unwrap();
+        let is_valid = service
+            .verify_password("secure_password_123", &user.password_hash)
+            .unwrap();
         assert!(is_valid);
 
-        let is_invalid = service.verify_password("wrong_password", &user.password_hash).unwrap();
+        let is_invalid = service
+            .verify_password("wrong_password", &user.password_hash)
+            .unwrap();
         assert!(!is_invalid);
 
         // Verify user can login
@@ -166,8 +170,8 @@ mod integration_tests {
 
     #[test]
     fn test_password_reset_flow() {
-        use foundry_auth_scaffolding::password::PasswordResetManager;
         use foundry_auth_scaffolding::models::PasswordReset;
+        use foundry_auth_scaffolding::password::PasswordResetManager;
 
         // Setup
         let service = create_test_auth_service();
@@ -230,8 +234,8 @@ mod integration_tests {
 
     #[test]
     fn test_expired_password_reset_token() {
-        use foundry_auth_scaffolding::password::PasswordResetManager;
         use foundry_auth_scaffolding::models::PasswordReset;
+        use foundry_auth_scaffolding::password::PasswordResetManager;
 
         let reset_manager = PasswordResetManager::new();
 
@@ -544,8 +548,8 @@ mod integration_tests {
 
     #[test]
     fn test_password_reset_for_multiple_requests() {
-        use foundry_auth_scaffolding::password::PasswordResetManager;
         use foundry_auth_scaffolding::models::PasswordReset;
+        use foundry_auth_scaffolding::password::PasswordResetManager;
 
         let service = create_test_auth_service();
         let reset_manager = PasswordResetManager::new();

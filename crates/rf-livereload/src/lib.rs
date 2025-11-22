@@ -30,7 +30,7 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use notify::{Watcher, RecursiveMode, Event, EventKind};
+use notify::{Event, EventKind, RecursiveMode, Watcher};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tokio::sync::{broadcast, RwLock};
@@ -261,7 +261,8 @@ impl LiveReload {
                 .as_secs(),
         };
 
-        self.reload_tx.send(event)
+        self.reload_tx
+            .send(event)
             .map_err(|e| LiveReloadError::WebSocketError(e.to_string()))?;
 
         Ok(())

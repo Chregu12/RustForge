@@ -17,11 +17,9 @@ fn get_redis_url() -> String {
 async fn redis_available() -> bool {
     use redis::AsyncCommands;
     match redis::Client::open(get_redis_url().as_str()) {
-        Ok(client) => {
-            match client.get_multiplexed_async_connection().await {
-                Ok(mut conn) => conn.ping::<_, String>().await.is_ok(),
-                Err(_) => false,
-            }
+        Ok(client) => match client.get_multiplexed_async_connection().await {
+            Ok(mut conn) => conn.ping::<_, String>().await.is_ok(),
+            Err(_) => false,
         },
         Err(_) => false,
     }
@@ -105,9 +103,7 @@ async fn test_redis_ttl_expiration() {
         eprintln!("⏭️  Skipping test_redis_ttl_expiration: Redis not available");
         return;
     }
-    let cache = RedisCache::new(&get_redis_url(), "test_ttl")
-        .await
-        .unwrap();
+    let cache = RedisCache::new(&get_redis_url(), "test_ttl").await.unwrap();
     cache.flush().await.unwrap();
 
     // Set with short TTL
@@ -437,7 +433,10 @@ async fn test_redis_cache_performance() {
     for i in 0..1000 {
         let key = format!("key:{}", i);
         let value = format!("value:{}", i);
-        cache.set(&key, &value, Duration::from_secs(60)).await.unwrap();
+        cache
+            .set(&key, &value, Duration::from_secs(60))
+            .await
+            .unwrap();
     }
 
     let write_elapsed = start.elapsed();

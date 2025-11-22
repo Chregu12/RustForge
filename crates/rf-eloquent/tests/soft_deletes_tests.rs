@@ -7,8 +7,8 @@
 //! - Force delete (2 tests)
 //! - Edge cases (3+ tests)
 
-use rf_eloquent::soft_deletes::*;
 use chrono::{Duration, Utc};
+use rf_eloquent::soft_deletes::*;
 use sea_orm::{entity::prelude::*, ActiveValue, Set};
 
 // ============================================================================

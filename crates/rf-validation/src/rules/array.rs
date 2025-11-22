@@ -420,10 +420,7 @@ mod tests {
     async fn test_not_in_rule() {
         let rule = NotInRule::from_strings(vec!["admin", "root", "system"]);
 
-        assert!(rule
-            .validate(&json!("user"), &HashMap::new())
-            .await
-            .is_ok());
+        assert!(rule.validate(&json!("user"), &HashMap::new()).await.is_ok());
         assert!(rule
             .validate(&json!("admin"), &HashMap::new())
             .await

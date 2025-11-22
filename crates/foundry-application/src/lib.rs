@@ -1,9 +1,9 @@
 //! Application Layer für Foundry Core.
 
 pub mod auth;
-pub mod lazy_config;
 mod commands;
 mod error;
+pub mod lazy_config;
 mod registry;
 
 pub use commands::{ListCommand, TestCommand};
@@ -12,9 +12,8 @@ pub use registry::CommandRegistry;
 
 // Re-export service container
 pub use foundry_service_container::{
-    Container, ProviderRegistry, ServiceProvider, ApplicationServiceProvider,
-    AuthServiceProvider, CacheServiceProvider, DatabaseServiceProvider,
-    MailServiceProvider,
+    ApplicationServiceProvider, AuthServiceProvider, CacheServiceProvider, Container,
+    DatabaseServiceProvider, MailServiceProvider, ProviderRegistry, ServiceProvider,
 };
 
 use commands::BootstrapCommands;

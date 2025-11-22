@@ -152,7 +152,12 @@ impl CliError {
     }
 
     fn display_file_location(&self, location: &FileLocation) {
-        println!("  {}:{}:{}", location.file.cyan(), location.line, location.column);
+        println!(
+            "  {}:{}:{}",
+            location.file.cyan(),
+            location.line,
+            location.column
+        );
         println!();
 
         if let Some(context) = &location.context {
@@ -160,7 +165,8 @@ impl CliError {
                 let line_num = location.line - 1 + i;
                 if line_num == location.line {
                     println!("  {} │ {}", line_num.to_string().yellow().bold(), line);
-                    println!("  {} │ {}{}",
+                    println!(
+                        "  {} │ {}{}",
                         " ".repeat(line_num.to_string().len()),
                         " ".repeat(location.column - 1),
                         "^".repeat(3).red().bold()
@@ -185,12 +191,9 @@ impl std::error::Error for CliError {}
 /// Helper functions for common errors
 
 pub fn file_not_found(path: &str) -> CliError {
-    CliError::new(
-        ErrorCode::FileNotFound,
-        format!("File not found: {}", path),
-    )
-    .with_suggestion(format!("Make sure the file exists at: {}", path))
-    .with_docs("https://docs.rustforge.dev/cli/errors#file-not-found")
+    CliError::new(ErrorCode::FileNotFound, format!("File not found: {}", path))
+        .with_suggestion(format!("Make sure the file exists at: {}", path))
+        .with_docs("https://docs.rustforge.dev/cli/errors#file-not-found")
 }
 
 pub fn file_already_exists(path: &str) -> CliError {
@@ -249,7 +252,11 @@ pub fn invalid_model_name(name: &str) -> CliError {
         "Try: {}",
         name.chars()
             .enumerate()
-            .map(|(i, c)| if i == 0 { c.to_uppercase().to_string() } else { c.to_string() })
+            .map(|(i, c)| if i == 0 {
+                c.to_uppercase().to_string()
+            } else {
+                c.to_string()
+            })
             .collect::<String>()
     ))
     .with_docs("https://docs.rustforge.dev/models#naming-conventions")
@@ -317,22 +324,21 @@ mod tests {
 
     #[test]
     fn test_cli_error_with_details() {
-        let error = CliError::new(ErrorCode::FileNotFound, "Test error")
-            .with_details("More info");
+        let error = CliError::new(ErrorCode::FileNotFound, "Test error").with_details("More info");
         assert_eq!(error.details, Some("More info".to_string()));
     }
 
     #[test]
     fn test_cli_error_with_suggestion() {
-        let error = CliError::new(ErrorCode::FileNotFound, "Test error")
-            .with_suggestion("Try this");
+        let error =
+            CliError::new(ErrorCode::FileNotFound, "Test error").with_suggestion("Try this");
         assert_eq!(error.suggestion, Some("Try this".to_string()));
     }
 
     #[test]
     fn test_cli_error_with_docs() {
-        let error = CliError::new(ErrorCode::FileNotFound, "Test error")
-            .with_docs("https://example.com");
+        let error =
+            CliError::new(ErrorCode::FileNotFound, "Test error").with_docs("https://example.com");
         assert_eq!(error.docs_link, Some("https://example.com".to_string()));
     }
 

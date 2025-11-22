@@ -17,7 +17,9 @@ use std::sync::Arc;
 pub async fn dashboard(State(panel): State<Arc<AdminPanel>>) -> Response {
     let data = match panel.dashboard().render().await {
         Ok(d) => d,
-        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, format!("Error: {}", e)).into_response(),
+        Err(e) => {
+            return (StatusCode::INTERNAL_SERVER_ERROR, format!("Error: {}", e)).into_response()
+        }
     };
 
     let html = panel
@@ -161,7 +163,11 @@ pub async fn show(
     };
 
     match resource.get(&id).await {
-        Ok(Some(data)) => Html(format!("<pre>{}</pre>", serde_json::to_string_pretty(&data).unwrap())).into_response(),
+        Ok(Some(data)) => Html(format!(
+            "<pre>{}</pre>",
+            serde_json::to_string_pretty(&data).unwrap()
+        ))
+        .into_response(),
         Ok(None) => (StatusCode::NOT_FOUND, "Record not found".to_string()).into_response(),
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, format!("Error: {}", e)).into_response(),
     }
@@ -188,7 +194,11 @@ pub async fn create_form(
     let ctx = Context {
         title: format!("Create {}", resource_name),
         resource_name: resource_name.clone(),
-        fields: serde_json::to_value(&resource.config().fields).unwrap().as_array().unwrap().clone(),
+        fields: serde_json::to_value(&resource.config().fields)
+            .unwrap()
+            .as_array()
+            .unwrap()
+            .clone(),
         data: HashMap::new(),
         errors: None,
     };
@@ -212,7 +222,12 @@ pub async fn store(
 
     let value = serde_json::to_value(&data).unwrap();
     match resource.create(value).await {
-        Ok(_) => Redirect::to(&format!("{}/resources/{}", panel.config().prefix, resource_name)).into_response(),
+        Ok(_) => Redirect::to(&format!(
+            "{}/resources/{}",
+            panel.config().prefix,
+            resource_name
+        ))
+        .into_response(),
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, format!("Error: {}", e)).into_response(),
     }
 }
@@ -240,7 +255,11 @@ pub async fn edit_form(
             let ctx = Context {
                 title: format!("Edit {} #{}", resource_name, id),
                 resource_name: resource_name.clone(),
-                fields: serde_json::to_value(&resource.config().fields).unwrap().as_array().unwrap().clone(),
+                fields: serde_json::to_value(&resource.config().fields)
+                    .unwrap()
+                    .as_array()
+                    .unwrap()
+                    .clone(),
                 data,
                 errors: None,
             };
@@ -268,7 +287,12 @@ pub async fn update(
 
     let value = serde_json::to_value(&data).unwrap();
     match resource.update(&id, value).await {
-        Ok(_) => Redirect::to(&format!("{}/resources/{}", panel.config().prefix, resource_name)).into_response(),
+        Ok(_) => Redirect::to(&format!(
+            "{}/resources/{}",
+            panel.config().prefix,
+            resource_name
+        ))
+        .into_response(),
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, format!("Error: {}", e)).into_response(),
     }
 }
@@ -283,7 +307,12 @@ pub async fn delete(
     };
 
     match resource.delete(&id).await {
-        Ok(_) => Redirect::to(&format!("{}/resources/{}", panel.config().prefix, resource_name)).into_response(),
+        Ok(_) => Redirect::to(&format!(
+            "{}/resources/{}",
+            panel.config().prefix,
+            resource_name
+        ))
+        .into_response(),
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, format!("Error: {}", e)).into_response(),
     }
 }

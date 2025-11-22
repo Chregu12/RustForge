@@ -9,7 +9,8 @@ use std::time::Duration;
 use tokio::time::sleep;
 
 type JobHandler = Arc<dyn Fn(Vec<u8>) -> JobHandlerFuture + Send + Sync>;
-type JobHandlerFuture = std::pin::Pin<Box<dyn std::future::Future<Output = Result<(), QueueError>> + Send>>;
+type JobHandlerFuture =
+    std::pin::Pin<Box<dyn std::future::Future<Output = Result<(), QueueError>> + Send>>;
 
 /// Worker for processing jobs from queue
 pub struct Worker {
@@ -51,7 +52,10 @@ impl Worker {
     }
 
     /// Register a job handler
-    pub fn handle<J: Job + 'static>(mut self, handler: impl Fn(J) -> JobHandlerFuture + Send + Sync + 'static) -> Self {
+    pub fn handle<J: Job + 'static>(
+        mut self,
+        handler: impl Fn(J) -> JobHandlerFuture + Send + Sync + 'static,
+    ) -> Self {
         let job_type = std::any::type_name::<J>();
 
         let handler_fn = Arc::new(move |data: Vec<u8>| -> JobHandlerFuture {
@@ -78,15 +82,15 @@ impl Worker {
 
         for _ in 0..worker.concurrency {
             let worker_clone = Arc::clone(&worker);
-            let handle = tokio::spawn(async move {
-                worker_clone.run_loop().await
-            });
+            let handle = tokio::spawn(async move { worker_clone.run_loop().await });
             handles.push(handle);
         }
 
         // Wait for all workers
         for handle in handles {
-            handle.await.map_err(|e| QueueError::WorkerError(e.to_string()))??;
+            handle
+                .await
+                .map_err(|e| QueueError::WorkerError(e.to_string()))??;
         }
 
         Ok(())
@@ -177,20 +181,19 @@ impl Worker {
 #[cfg(test)]
 mod tests {
 
-#[cfg(test)]
-async fn redis_available() -> bool {
-    use redis::AsyncCommands;
-    let redis_url = std::env::var("REDIS_URL").unwrap_or_else(|_| "redis://localhost:6379".to_string());
-    match redis::Client::open(redis_url.as_str()) {
-        Ok(client) => {
-            match client.get_multiplexed_async_connection().await {
+    #[cfg(test)]
+    async fn redis_available() -> bool {
+        use redis::AsyncCommands;
+        let redis_url =
+            std::env::var("REDIS_URL").unwrap_or_else(|_| "redis://localhost:6379".to_string());
+        match redis::Client::open(redis_url.as_str()) {
+            Ok(client) => match client.get_multiplexed_async_connection().await {
                 Ok(mut conn) => conn.ping::<_, String>().await.is_ok(),
                 Err(_) => false,
-            }
-        },
-        Err(_) => false,
+            },
+            Err(_) => false,
+        }
     }
-}
 
     use super::*;
     use crate::job::Job;

@@ -132,9 +132,21 @@ impl HealthReport {
     pub fn format_table(&self) -> String {
         let mut output = String::new();
         output.push_str("\n");
-        output.push_str(&"╔═══════════════════════════════════════════╗\n".cyan().to_string());
-        output.push_str(&"║         Health Check Report              ║\n".cyan().to_string());
-        output.push_str(&"╚═══════════════════════════════════════════╝\n".cyan().to_string());
+        output.push_str(
+            &"╔═══════════════════════════════════════════╗\n"
+                .cyan()
+                .to_string(),
+        );
+        output.push_str(
+            &"║         Health Check Report              ║\n"
+                .cyan()
+                .to_string(),
+        );
+        output.push_str(
+            &"╚═══════════════════════════════════════════╝\n"
+                .cyan()
+                .to_string(),
+        );
         output.push('\n');
 
         // Find max width
@@ -210,8 +222,8 @@ mod tests {
 
     #[test]
     fn test_check_result_with_details() {
-        let result = CheckResult::pass("test", "Success")
-            .with_details(serde_json::json!({"key": "value"}));
+        let result =
+            CheckResult::pass("test", "Success").with_details(serde_json::json!({"key": "value"}));
 
         assert!(result.details.is_some());
     }

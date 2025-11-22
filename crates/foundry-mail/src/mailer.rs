@@ -30,7 +30,10 @@ impl Mailer {
         Ok(response)
     }
 
-    pub async fn send_mailable<M: Mailable>(&self, mailable: M) -> Result<TransportResponse, MailerError> {
+    pub async fn send_mailable<M: Mailable>(
+        &self,
+        mailable: M,
+    ) -> Result<TransportResponse, MailerError> {
         let message = mailable.build().await?;
         self.send(&message).await
     }

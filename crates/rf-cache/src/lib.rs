@@ -114,12 +114,7 @@ pub trait Cache: Send + Sync {
     async fn flush(&self) -> CacheResult<()>;
 
     /// Get or set (remember pattern)
-    async fn remember<T, F, Fut>(
-        &self,
-        key: &str,
-        ttl: Duration,
-        f: F,
-    ) -> CacheResult<T>
+    async fn remember<T, F, Fut>(&self, key: &str, ttl: Duration, f: F) -> CacheResult<T>
     where
         T: Serialize + DeserializeOwned + Send + Sync + 'static,
         F: FnOnce() -> Fut + Send,
@@ -356,11 +351,9 @@ pub use redis::{RedisCache, RedisTaggedCache};
 
 /// Prelude module for convenient imports
 pub mod prelude {
-    pub use crate::{
-        Cache, CacheError, CacheResult, MemoryCache, TaggedCache,
-    };
-    pub use crate::advanced::{CacheWarmer, ProbabilisticCache, MultiLevelCache};
+    pub use crate::advanced::{CacheWarmer, MultiLevelCache, ProbabilisticCache};
     pub use crate::config::{CacheBackend, CacheConfig, CacheConfigBuilder};
+    pub use crate::{Cache, CacheError, CacheResult, MemoryCache, TaggedCache};
 
     #[cfg(feature = "redis-backend")]
     pub use crate::{RedisCache, RedisTaggedCache};

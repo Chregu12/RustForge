@@ -141,9 +141,7 @@ pub use registry::{global_registry, PolicyRegistry};
 /// Prelude module for convenient imports
 pub mod prelude {
     pub use super::{
-        auth_middleware::{
-            require_gate, require_policy, AuthorizeGateLayer, AuthorizePolicyLayer,
-        },
+        auth_middleware::{require_gate, require_policy, AuthorizeGateLayer, AuthorizePolicyLayer},
         authorizable::Authorizable,
         error::{AuthorizationError, AuthorizationResult},
         gates::Gate,

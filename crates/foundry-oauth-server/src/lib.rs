@@ -12,23 +12,25 @@
 //! - Token Introspection
 //! - Token Revocation
 
-pub mod models;
-pub mod grants;
-pub mod tokens;
 pub mod clients;
+pub mod errors;
+pub mod grants;
+pub mod models;
+pub mod repositories;
+pub mod routes;
 pub mod scopes;
 pub mod server;
-pub mod routes;
-pub mod errors;
-pub mod repositories;
+pub mod tokens;
 
-pub use server::OAuth2Server;
-pub use models::{Client, AccessToken, RefreshToken, AuthorizationCode, PersonalAccessToken};
-pub use grants::{GrantType, AuthorizationCodeGrant, ClientCredentialsGrant, PasswordGrant, RefreshTokenGrant};
-pub use tokens::{TokenGenerator, TokenValidator, TokenClaims};
 pub use clients::ClientRepository;
-pub use scopes::{Scope, ScopeManager};
 pub use errors::{OAuth2Error, OAuth2Result};
+pub use grants::{
+    AuthorizationCodeGrant, ClientCredentialsGrant, GrantType, PasswordGrant, RefreshTokenGrant,
+};
+pub use models::{AccessToken, AuthorizationCode, Client, PersonalAccessToken, RefreshToken};
+pub use scopes::{Scope, ScopeManager};
+pub use server::OAuth2Server;
+pub use tokens::{TokenClaims, TokenGenerator, TokenValidator};
 
 /// OAuth2 Server Configuration
 #[derive(Debug, Clone)]
@@ -62,7 +64,7 @@ impl Default for OAuth2Config {
         use rand::RngCore;
         rand::thread_rng().fill_bytes(&mut secret_bytes);
 
-        use base64::{Engine as _, engine::general_purpose::STANDARD};
+        use base64::{engine::general_purpose::STANDARD, Engine as _};
         let jwt_secret = STANDARD.encode(&secret_bytes);
 
         Self {

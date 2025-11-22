@@ -84,7 +84,9 @@ impl ChannelManager {
         metadata.insert(channel_name.clone(), channel);
 
         let mut channels = self.channels.write().await;
-        channels.entry(channel_name.clone()).or_insert_with(HashSet::new);
+        channels
+            .entry(channel_name.clone())
+            .or_insert_with(HashSet::new);
 
         info!(channel = %channel_name, "Channel created");
     }
@@ -101,7 +103,9 @@ impl ChannelManager {
     /// `true` wenn erfolgreich abonniert, `false` wenn bereits abonniert
     pub async fn subscribe(&self, channel_name: &str, connection_id: ConnectionId) -> bool {
         let mut channels = self.channels.write().await;
-        let subscribers = channels.entry(channel_name.to_string()).or_insert_with(HashSet::new);
+        let subscribers = channels
+            .entry(channel_name.to_string())
+            .or_insert_with(HashSet::new);
 
         let is_new = subscribers.insert(connection_id);
 

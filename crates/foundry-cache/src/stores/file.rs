@@ -27,8 +27,8 @@ impl FileStore {
     }
 
     pub fn from_env() -> Result<Self, CacheError> {
-        let directory = std::env::var("CACHE_FILE_PATH")
-            .unwrap_or_else(|_| "./storage/cache".to_string());
+        let directory =
+            std::env::var("CACHE_FILE_PATH").unwrap_or_else(|_| "./storage/cache".to_string());
 
         // Use blocking version since we can't await in this context
         std::fs::create_dir_all(&directory)?;
@@ -63,8 +63,8 @@ impl FileStore {
     }
 
     async fn write_value(&self, path: &Path, value: &CacheValue) -> Result<(), CacheError> {
-        let data = serde_json::to_vec(value)
-            .map_err(|e| CacheError::Serialization(e.to_string()))?;
+        let data =
+            serde_json::to_vec(value).map_err(|e| CacheError::Serialization(e.to_string()))?;
 
         fs::write(path, data).await?;
         Ok(())
@@ -79,7 +79,12 @@ impl CacheStore for FileStore {
         self.read_value(&path).await
     }
 
-    async fn set(&self, key: &str, value: CacheValue, ttl: Option<Duration>) -> Result<(), CacheError> {
+    async fn set(
+        &self,
+        key: &str,
+        value: CacheValue,
+        ttl: Option<Duration>,
+    ) -> Result<(), CacheError> {
         let _guard = self.lock.write().await;
         let path = self.get_file_path(key);
 
@@ -181,8 +186,14 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let store = FileStore::new(temp_dir.path()).await.unwrap();
 
-        store.set("key1", CacheValue::from_string("value1"), None).await.unwrap();
-        store.set("key2", CacheValue::from_string("value2"), None).await.unwrap();
+        store
+            .set("key1", CacheValue::from_string("value1"), None)
+            .await
+            .unwrap();
+        store
+            .set("key2", CacheValue::from_string("value2"), None)
+            .await
+            .unwrap();
 
         store.flush().await.unwrap();
 

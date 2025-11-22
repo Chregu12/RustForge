@@ -1,8 +1,9 @@
 use sea_orm::{
-    ColumnTrait, Condition, DatabaseConnection, EntityTrait, Order,
-    QueryFilter, QueryOrder, QuerySelect, Select, Value, QueryTrait,
-    sea_query::{Expr, LockType, LockBehavior, SimpleExpr, SelectStatement, Func, OrderedStatement},
-    DbErr,
+    sea_query::{
+        Expr, Func, LockBehavior, LockType, OrderedStatement, SelectStatement, SimpleExpr,
+    },
+    ColumnTrait, Condition, DatabaseConnection, DbErr, EntityTrait, Order, QueryFilter, QueryOrder,
+    QuerySelect, QueryTrait, Select, Value,
 };
 use std::marker::PhantomData;
 use std::sync::Arc;
@@ -292,7 +293,9 @@ where
         E2: EntityTrait,
     {
         let (sub_select, _) = subquery.into_select();
-        self.select = self.select.filter(column.in_subquery(sub_select.into_query()));
+        self.select = self
+            .select
+            .filter(column.in_subquery(sub_select.into_query()));
         self
     }
 
@@ -303,7 +306,9 @@ where
         E2: EntityTrait,
     {
         let (sub_select, _) = subquery.into_select();
-        self.select = self.select.filter(column.not_in_subquery(sub_select.into_query()));
+        self.select = self
+            .select
+            .filter(column.not_in_subquery(sub_select.into_query()));
         self
     }
 
@@ -335,7 +340,9 @@ where
         E2: EntityTrait,
     {
         let (sub_select, _) = subquery.into_select();
-        self.select = self.select.filter(Expr::exists(sub_select.into_query()).not());
+        self.select = self
+            .select
+            .filter(Expr::exists(sub_select.into_query()).not());
         self
     }
 
@@ -769,7 +776,9 @@ where
     ///     .await?;
     /// ```
     pub fn skip_locked(mut self) -> Self {
-        self.select = self.select.lock_with_behavior(LockType::Update, LockBehavior::SkipLocked);
+        self.select = self
+            .select
+            .lock_with_behavior(LockType::Update, LockBehavior::SkipLocked);
         self
     }
 
@@ -785,7 +794,9 @@ where
     ///     .await?;
     /// ```
     pub fn no_wait(mut self) -> Self {
-        self.select = self.select.lock_with_behavior(LockType::Update, LockBehavior::Nowait);
+        self.select = self
+            .select
+            .lock_with_behavior(LockType::Update, LockBehavior::Nowait);
         self
     }
 
@@ -1339,12 +1350,9 @@ where
             let offset = self.current_page * self.chunk_size;
             let db = self.query_builder.db.clone();
 
-            let chunk_query = QueryBuilder::from_select(
-                self.query_builder.select.clone(),
-                db,
-            )
-            .limit(self.chunk_size)
-            .offset(offset);
+            let chunk_query = QueryBuilder::from_select(self.query_builder.select.clone(), db)
+                .limit(self.chunk_size)
+                .offset(offset);
 
             self.current_chunk = chunk_query.get().await?;
             self.current_index = 0;

@@ -200,12 +200,12 @@ mod tests {
     // Run with: docker run -d -p 6379:6379 redis
 
     #[tokio::test]
-async fn test_redis_rate_limiter() {
-    if !redis_available().await {
-        eprintln!("⏭️  Skipping test_redis_rate_limiter: Redis not available");
-        eprintln!("   Start services with: ./scripts/test-env-up.sh");
-        return;
-    }
+    async fn test_redis_rate_limiter() {
+        if !redis_available().await {
+            eprintln!("⏭️  Skipping test_redis_rate_limiter: Redis not available");
+            eprintln!("   Start services with: ./scripts/test-env-up.sh");
+            return;
+        }
         let config = RateLimitConfig {
             max_requests: 5,
             window: Duration::from_secs(60),
@@ -235,12 +235,12 @@ async fn test_redis_rate_limiter() {
     }
 
     #[tokio::test]
-async fn test_redis_reset() {
-    if !redis_available().await {
-        eprintln!("⏭️  Skipping test_redis_reset: Redis not available");
-        eprintln!("   Start services with: ./scripts/test-env-up.sh");
-        return;
-    }
+    async fn test_redis_reset() {
+        if !redis_available().await {
+            eprintln!("⏭️  Skipping test_redis_reset: Redis not available");
+            eprintln!("   Start services with: ./scripts/test-env-up.sh");
+            return;
+        }
         let config = RateLimitConfig::per_minute(3);
         let limiter = RedisRateLimiter::new("redis://localhost", config)
             .await
@@ -266,12 +266,12 @@ async fn test_redis_reset() {
     }
 
     #[tokio::test]
-async fn test_redis_info() {
-    if !redis_available().await {
-        eprintln!("⏭️  Skipping test_redis_info: Redis not available");
-        eprintln!("   Start services with: ./scripts/test-env-up.sh");
-        return;
-    }
+    async fn test_redis_info() {
+        if !redis_available().await {
+            eprintln!("⏭️  Skipping test_redis_info: Redis not available");
+            eprintln!("   Start services with: ./scripts/test-env-up.sh");
+            return;
+        }
         let config = RateLimitConfig::per_minute(10);
         let limiter = RedisRateLimiter::new("redis://localhost", config)
             .await
@@ -295,12 +295,12 @@ async fn test_redis_info() {
     }
 
     #[tokio::test]
-async fn test_redis_separate_keys() {
-    if !redis_available().await {
-        eprintln!("⏭️  Skipping test_redis_separate_keys: Redis not available");
-        eprintln!("   Start services with: ./scripts/test-env-up.sh");
-        return;
-    }
+    async fn test_redis_separate_keys() {
+        if !redis_available().await {
+            eprintln!("⏭️  Skipping test_redis_separate_keys: Redis not available");
+            eprintln!("   Start services with: ./scripts/test-env-up.sh");
+            return;
+        }
         let config = RateLimitConfig::per_minute(2);
         let limiter = RedisRateLimiter::new("redis://localhost", config)
             .await

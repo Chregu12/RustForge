@@ -83,10 +83,7 @@ impl Entity {
 /// Example 2: Using Scopes
 async fn example_using_scopes(db: &DatabaseConnection) -> Result<(), DbErr> {
     // Single scope
-    let active_users = Entity::find()
-        .apply_if(Entity::active)
-        .all(db)
-        .await?;
+    let active_users = Entity::find().apply_if(Entity::active).all(db).await?;
 
     println!("Found {} active users", active_users.len());
 
@@ -169,10 +166,9 @@ async fn example_common_scopes(db: &DatabaseConnection) -> Result<(), DbErr> {
         .await?;
 
     // Verified records
-    let verified =
-        CommonScopes::verified::<Entity, _, _>(Entity::find(), Column::EmailVerifiedAt)
-            .all(db)
-            .await?;
+    let verified = CommonScopes::verified::<Entity, _, _>(Entity::find(), Column::EmailVerifiedAt)
+        .all(db)
+        .await?;
 
     // Featured records
     let featured = CommonScopes::featured::<Entity, _, _>(Entity::find(), Column::Featured)
@@ -234,9 +230,8 @@ async fn example_complex_scopes(db: &DatabaseConnection) -> Result<(), DbErr> {
 /// Example 8: Reusable Scope Functions
 fn example_reusable_scopes() {
     // Scopes can be stored and reused
-    let active_verified = |query: sea_orm::Select<Entity>| {
-        query.apply_if(Entity::active).apply_if(Entity::verified)
-    };
+    let active_verified =
+        |query: sea_orm::Select<Entity>| query.apply_if(Entity::active).apply_if(Entity::verified);
 
     // Use the combined scope
     let _query = Entity::find().apply_if(active_verified);

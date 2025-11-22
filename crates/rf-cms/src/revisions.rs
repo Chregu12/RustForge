@@ -90,13 +90,12 @@ impl RevisionManager {
         let mut revisions = self.revisions.write().await;
 
         // Get existing revisions for this content
-        let content_revisions = revisions.entry(content_id.to_string()).or_insert_with(Vec::new);
+        let content_revisions = revisions
+            .entry(content_id.to_string())
+            .or_insert_with(Vec::new);
 
         // Calculate next version (based on highest existing version, not length)
-        let version = content_revisions
-            .last()
-            .map(|r| r.version + 1)
-            .unwrap_or(1);
+        let version = content_revisions.last().map(|r| r.version + 1).unwrap_or(1);
 
         // Create revision
         let revision = Revision {
@@ -107,9 +106,7 @@ impl RevisionManager {
             author: author.to_string(),
             comment,
             created_at: Utc::now(),
-            size: serde_json::to_string(&data)
-                .map(|s| s.len())
-                .unwrap_or(0),
+            size: serde_json::to_string(&data).map(|s| s.len()).unwrap_or(0),
         };
 
         // Add revision
@@ -127,18 +124,11 @@ impl RevisionManager {
     pub async fn get_revisions(&self, content_id: &str) -> CmsResult<Vec<Revision>> {
         let revisions = self.revisions.read().await;
 
-        Ok(revisions
-            .get(content_id)
-            .cloned()
-            .unwrap_or_default())
+        Ok(revisions.get(content_id).cloned().unwrap_or_default())
     }
 
     /// Get specific revision
-    pub async fn get_revision(
-        &self,
-        content_id: &str,
-        version: u32,
-    ) -> CmsResult<Revision> {
+    pub async fn get_revision(&self, content_id: &str, version: u32) -> CmsResult<Revision> {
         let revisions = self.revisions.read().await;
 
         revisions
@@ -146,10 +136,7 @@ impl RevisionManager {
             .and_then(|revs| revs.iter().find(|r| r.version == version))
             .cloned()
             .ok_or_else(|| {
-                CmsError::RevisionError(format!(
-                    "Revision not found: {} v{}",
-                    content_id, version
-                ))
+                CmsError::RevisionError(format!("Revision not found: {} v{}", content_id, version))
             })
     }
 
@@ -201,7 +188,8 @@ impl RevisionManager {
         let mut modified = Vec::new();
 
         // Compare as objects
-        if let (Some(from_obj), Some(to_obj)) = (from_rev.data.as_object(), to_rev.data.as_object()) {
+        if let (Some(from_obj), Some(to_obj)) = (from_rev.data.as_object(), to_rev.data.as_object())
+        {
             // Check for added/modified keys
             for (key, to_value) in to_obj {
                 if let Some(from_value) = from_obj.get(key) {
@@ -335,9 +323,18 @@ mod tests {
         let data2 = json!({"content": "version 2"});
         let data3 = json!({"content": "version 3"});
 
-        manager.create_revision("post_1", data1, "user1", None).await.unwrap();
-        manager.create_revision("post_1", data2, "user1", None).await.unwrap();
-        manager.create_revision("post_1", data3, "user1", None).await.unwrap();
+        manager
+            .create_revision("post_1", data1, "user1", None)
+            .await
+            .unwrap();
+        manager
+            .create_revision("post_1", data2, "user1", None)
+            .await
+            .unwrap();
+        manager
+            .create_revision("post_1", data3, "user1", None)
+            .await
+            .unwrap();
 
         // Rollback to version 1
         let rolled_back = manager.rollback("post_1", 1, "user1").await.unwrap();
@@ -354,8 +351,14 @@ mod tests {
         let data1 = json!({"title": "Old", "content": "Test", "removed": "value"});
         let data2 = json!({"title": "New", "content": "Test", "added": "value"});
 
-        manager.create_revision("post_1", data1, "user1", None).await.unwrap();
-        manager.create_revision("post_1", data2, "user1", None).await.unwrap();
+        manager
+            .create_revision("post_1", data1, "user1", None)
+            .await
+            .unwrap();
+        manager
+            .create_revision("post_1", data2, "user1", None)
+            .await
+            .unwrap();
 
         let diff = manager.diff("post_1", 1, 2).await.unwrap();
 

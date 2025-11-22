@@ -5,7 +5,7 @@
 
 use crate::validator::{Rule, RuleResult};
 use async_trait::async_trait;
-use sea_orm::{ColumnTrait, ConnectionTrait, DatabaseConnection, EntityTrait, DbErr};
+use sea_orm::{ColumnTrait, ConnectionTrait, DatabaseConnection, DbErr, EntityTrait};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::marker::PhantomData;
@@ -149,10 +149,7 @@ impl<E: ValidatableEntity> ExistsRule<E> {
     ///
     /// * `db` - Database connection wrapped in Arc
     /// * `column` - Column name to check for existence
-    pub fn new(
-        db: Arc<DatabaseConnection>,
-        column: impl Into<String>,
-    ) -> Self {
+    pub fn new(db: Arc<DatabaseConnection>, column: impl Into<String>) -> Self {
         Self {
             db,
             column: column.into(),
@@ -229,10 +226,7 @@ impl<E: ValidatableEntity> UniqueRule<E> {
     ///
     /// * `db` - Database connection wrapped in Arc
     /// * `column` - Column name to check for uniqueness
-    pub fn new(
-        db: Arc<DatabaseConnection>,
-        column: impl Into<String>,
-    ) -> Self {
+    pub fn new(db: Arc<DatabaseConnection>, column: impl Into<String>) -> Self {
         Self {
             db,
             column: column.into(),
@@ -265,7 +259,7 @@ impl<E: ValidatableEntity + 'static> Rule for UniqueRule<E> {
 
         // Use ValidatableEntity trait to check uniqueness
         match E::unique_in_column(&self.db, &self.column, value, self.ignore_id).await {
-            Ok(true) => Ok(()), // Value is unique
+            Ok(true) => Ok(()),               // Value is unique
             Ok(false) => Err(self.message()), // Value is not unique
             Err(e) => Err(format!("Database error: {}", e)),
         }
@@ -372,15 +366,12 @@ impl Rule for SimpleExistsRule {
         };
 
         // Execute query
-        let stmt = Statement::from_sql_and_values(
-            backend,
-            &query,
-            vec![value_param],
-        );
+        let stmt = Statement::from_sql_and_values(backend, &query, vec![value_param]);
 
         match self.db.query_one(stmt).await {
             Ok(Some(result)) => {
-                let count: i64 = result.try_get("", "count")
+                let count: i64 = result
+                    .try_get("", "count")
                     .map_err(|e| format!("Database error: {}", e))?;
 
                 if count == 0 {
@@ -516,15 +507,12 @@ impl Rule for SimpleUniqueRule {
         };
 
         // Execute query
-        let stmt = Statement::from_sql_and_values(
-            backend,
-            &query,
-            values,
-        );
+        let stmt = Statement::from_sql_and_values(backend, &query, values);
 
         match self.db.query_one(stmt).await {
             Ok(Some(result)) => {
-                let count: i64 = result.try_get("", "count")
+                let count: i64 = result
+                    .try_get("", "count")
                     .map_err(|e| format!("Database error: {}", e))?;
 
                 if count > 0 {

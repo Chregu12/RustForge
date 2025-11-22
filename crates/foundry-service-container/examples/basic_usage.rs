@@ -29,8 +29,8 @@ async fn main() -> Result<()> {
     let container_clone = container.clone();
     container
         .bind("user_repository", move || {
-            let db: Arc<Database> = tokio::runtime::Handle::current()
-                .block_on(container_clone.resolve("database"))?;
+            let db: Arc<Database> =
+                tokio::runtime::Handle::current().block_on(container_clone.resolve("database"))?;
             Ok(UserRepository { db })
         })
         .await?;
@@ -40,7 +40,10 @@ async fn main() -> Result<()> {
     let db2: Arc<Database> = container.resolve("database").await?;
 
     // Singletons share the same instance
-    println!("Database instances are the same: {}", Arc::ptr_eq(&db1, &db2));
+    println!(
+        "Database instances are the same: {}",
+        Arc::ptr_eq(&db1, &db2)
+    );
     println!("Connection string: {}", db1.connection_string);
 
     let repo: Arc<UserRepository> = container.resolve("user_repository").await?;

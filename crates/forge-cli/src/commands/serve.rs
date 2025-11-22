@@ -12,7 +12,12 @@ pub async fn run(host: &str, port: u16) -> Result<()> {
     println!("  {} Host: {}", "•".cyan(), host);
     println!("  {} Port: {}", "•".cyan(), port);
     println!();
-    println!("{}", format!("🚀 Server will start at http://{}:{}", host, port).bright_cyan().bold());
+    println!(
+        "{}",
+        format!("🚀 Server will start at http://{}:{}", host, port)
+            .bright_cyan()
+            .bold()
+    );
     println!();
     println!("{}", "Press Ctrl+C to stop".yellow());
     println!();

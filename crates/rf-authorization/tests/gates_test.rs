@@ -35,9 +35,10 @@ impl User {
 #[test]
 fn test_gate_allows() {
     let mut gate = Gate::new();
-    gate.define("create-post", Arc::new(|user: &User, _| {
-        user.is_admin || user.has_permission("create-post")
-    }));
+    gate.define(
+        "create-post",
+        Arc::new(|user: &User, _| user.is_admin || user.has_permission("create-post")),
+    );
 
     let admin = User::new_admin(1);
     let regular_with_permission = User::new_regular(2, vec!["create-post".to_string()]);
@@ -63,9 +64,10 @@ fn test_gate_denies() {
 #[test]
 fn test_gate_authorize_success() {
     let mut gate = Gate::new();
-    gate.define("view-dashboard", Arc::new(|user: &User, _| {
-        user.has_permission("view-dashboard")
-    }));
+    gate.define(
+        "view-dashboard",
+        Arc::new(|user: &User, _| user.has_permission("view-dashboard")),
+    );
 
     let user = User::new_regular(1, vec!["view-dashboard".to_string()]);
 
@@ -75,9 +77,10 @@ fn test_gate_authorize_success() {
 #[test]
 fn test_gate_authorize_failure() {
     let mut gate = Gate::new();
-    gate.define("view-dashboard", Arc::new(|user: &User, _| {
-        user.has_permission("view-dashboard")
-    }));
+    gate.define(
+        "view-dashboard",
+        Arc::new(|user: &User, _| user.has_permission("view-dashboard")),
+    );
 
     let user = User::new_regular(1, vec![]);
 
@@ -148,12 +151,14 @@ fn test_gate_define_many() {
 #[test]
 fn test_gate_allows_all() {
     let mut gate = Gate::new();
-    gate.define("read", Arc::new(|user: &User, _| {
-        user.has_permission("read")
-    }));
-    gate.define("write", Arc::new(|user: &User, _| {
-        user.has_permission("write")
-    }));
+    gate.define(
+        "read",
+        Arc::new(|user: &User, _| user.has_permission("read")),
+    );
+    gate.define(
+        "write",
+        Arc::new(|user: &User, _| user.has_permission("write")),
+    );
 
     let user_with_all = User::new_regular(1, vec!["read".to_string(), "write".to_string()]);
     let user_with_one = User::new_regular(2, vec!["read".to_string()]);
@@ -167,12 +172,14 @@ fn test_gate_allows_all() {
 #[test]
 fn test_gate_allows_any() {
     let mut gate = Gate::new();
-    gate.define("read", Arc::new(|user: &User, _| {
-        user.has_permission("read")
-    }));
-    gate.define("write", Arc::new(|user: &User, _| {
-        user.has_permission("write")
-    }));
+    gate.define(
+        "read",
+        Arc::new(|user: &User, _| user.has_permission("read")),
+    );
+    gate.define(
+        "write",
+        Arc::new(|user: &User, _| user.has_permission("write")),
+    );
 
     let user_with_read = User::new_regular(1, vec!["read".to_string()]);
     let user_with_write = User::new_regular(2, vec!["write".to_string()]);
@@ -201,9 +208,10 @@ fn test_gate_with_ability_parameter() {
     let mut gate = Gate::new();
 
     // Callback that uses both user and ability parameters
-    gate.define("dynamic", Arc::new(|user: &User, ability: &str| {
-        user.has_permission(ability)
-    }));
+    gate.define(
+        "dynamic",
+        Arc::new(|user: &User, ability: &str| user.has_permission(ability)),
+    );
 
     let user = User::new_regular(1, vec!["dynamic".to_string()]);
 
@@ -214,18 +222,19 @@ fn test_gate_with_ability_parameter() {
 fn test_gate_complex_logic() {
     let mut gate = Gate::new();
 
-    gate.define("publish-post", Arc::new(|user: &User, _| {
-        user.is_admin || (
-            user.has_permission("posts.publish") &&
-            user.has_permission("posts.create")
-        )
-    }));
+    gate.define(
+        "publish-post",
+        Arc::new(|user: &User, _| {
+            user.is_admin
+                || (user.has_permission("posts.publish") && user.has_permission("posts.create"))
+        }),
+    );
 
     let admin = User::new_admin(1);
-    let editor = User::new_regular(2, vec![
-        "posts.publish".to_string(),
-        "posts.create".to_string(),
-    ]);
+    let editor = User::new_regular(
+        2,
+        vec!["posts.publish".to_string(), "posts.create".to_string()],
+    );
     let writer = User::new_regular(3, vec!["posts.create".to_string()]);
 
     assert!(gate.allows(&admin, "publish-post"));
@@ -245,7 +254,8 @@ fn test_gate_multiple_users() {
         User::new_regular(4, vec![]),
     ];
 
-    let admin_count = users.iter()
+    let admin_count = users
+        .iter()
         .filter(|u| gate.allows(u, "admin-only"))
         .count();
 
@@ -275,10 +285,7 @@ fn test_gate_thread_safety() {
         })
         .collect();
 
-    let results: Vec<bool> = handles
-        .into_iter()
-        .map(|h| h.join().unwrap())
-        .collect();
+    let results: Vec<bool> = handles.into_iter().map(|h| h.join().unwrap()).collect();
 
     // Every other user should be allowed (admins)
     assert_eq!(results.iter().filter(|&&r| r).count(), 5);

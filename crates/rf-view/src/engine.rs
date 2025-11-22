@@ -23,10 +23,10 @@ impl ViewEngine {
     /// ViewEngine::init("templates/**/*").expect("Failed to initialize views");
     /// ```
     pub fn init(glob_pattern: &str) -> ViewResult<()> {
-        let tera = Tera::new(glob_pattern)
-            .map_err(|e| ViewError::InitError(e.to_string()))?;
+        let tera = Tera::new(glob_pattern).map_err(|e| ViewError::InitError(e.to_string()))?;
 
-        let mut engine = VIEW_ENGINE.write()
+        let mut engine = VIEW_ENGINE
+            .write()
             .map_err(|e| ViewError::InitError(format!("Lock error: {}", e)))?;
 
         *engine = Some(tera);
@@ -72,10 +72,12 @@ impl ViewEngine {
     /// # }
     /// ```
     pub fn render(template: &str, context: &Context) -> ViewResult<String> {
-        let engine = VIEW_ENGINE.read()
+        let engine = VIEW_ENGINE
+            .read()
             .map_err(|e| ViewError::RenderError(format!("Lock error: {}", e)))?;
 
-        let tera = engine.as_ref()
+        let tera = engine
+            .as_ref()
             .ok_or_else(|| ViewError::InitError("View engine not initialized".to_string()))?;
 
         tera.render(template, context)
@@ -102,10 +104,12 @@ impl ViewEngine {
     where
         F: Fn(&Value, &HashMap<String, Value>) -> tera::Result<Value> + Send + Sync + 'static,
     {
-        let mut engine = VIEW_ENGINE.write()
+        let mut engine = VIEW_ENGINE
+            .write()
             .map_err(|e| ViewError::InitError(format!("Lock error: {}", e)))?;
 
-        let tera = engine.as_mut()
+        let tera = engine
+            .as_mut()
             .ok_or_else(|| ViewError::InitError("View engine not initialized".to_string()))?;
 
         tera.register_filter(name, filter);
@@ -135,10 +139,12 @@ impl ViewEngine {
     where
         F: Fn(&HashMap<String, Value>) -> tera::Result<Value> + Send + Sync + 'static,
     {
-        let mut engine = VIEW_ENGINE.write()
+        let mut engine = VIEW_ENGINE
+            .write()
             .map_err(|e| ViewError::InitError(format!("Lock error: {}", e)))?;
 
-        let tera = engine.as_mut()
+        let tera = engine
+            .as_mut()
             .ok_or_else(|| ViewError::InitError("View engine not initialized".to_string()))?;
 
         tera.register_function(name, function);
@@ -150,7 +156,8 @@ impl ViewEngine {
 
     /// Reload all templates (useful in development)
     pub fn reload() -> ViewResult<()> {
-        let mut engine = VIEW_ENGINE.write()
+        let mut engine = VIEW_ENGINE
+            .write()
             .map_err(|e| ViewError::InitError(format!("Lock error: {}", e)))?;
 
         if let Some(tera) = engine.as_mut() {
@@ -165,10 +172,12 @@ impl ViewEngine {
 
     /// Check if a template exists
     pub fn has_template(name: &str) -> ViewResult<bool> {
-        let engine = VIEW_ENGINE.read()
+        let engine = VIEW_ENGINE
+            .read()
             .map_err(|e| ViewError::RenderError(format!("Lock error: {}", e)))?;
 
-        let tera = engine.as_ref()
+        let tera = engine
+            .as_ref()
             .ok_or_else(|| ViewError::InitError("View engine not initialized".to_string()))?;
 
         let result = tera.get_template_names().any(|t| t == name);
@@ -177,10 +186,12 @@ impl ViewEngine {
 
     /// Get all registered template names
     pub fn template_names() -> ViewResult<Vec<String>> {
-        let engine = VIEW_ENGINE.read()
+        let engine = VIEW_ENGINE
+            .read()
             .map_err(|e| ViewError::RenderError(format!("Lock error: {}", e)))?;
 
-        let tera = engine.as_ref()
+        let tera = engine
+            .as_ref()
             .ok_or_else(|| ViewError::InitError("View engine not initialized".to_string()))?;
 
         let names: Vec<String> = tera.get_template_names().map(|s| s.to_string()).collect();

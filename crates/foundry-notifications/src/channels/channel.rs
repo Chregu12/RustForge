@@ -10,7 +10,11 @@ pub trait Channel: Send + Sync {
     fn name(&self) -> &str;
 
     /// Send notification through this channel
-    async fn send(&self, notification: &dyn Notification, recipient: &dyn std::any::Any) -> ChannelResult;
+    async fn send(
+        &self,
+        notification: &dyn Notification,
+        recipient: &dyn std::any::Any,
+    ) -> ChannelResult;
 
     /// Test if channel is configured and ready
     async fn is_ready(&self) -> bool {

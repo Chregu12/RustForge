@@ -4,7 +4,6 @@
 ///
 /// Run with:
 /// cargo run --example verbosity_example -- -vv
-
 use std::env;
 
 fn main() {
@@ -117,19 +116,10 @@ mod tests {
 
     #[test]
     fn test_parse_verbosity() {
-        assert_eq!(
-            parse_verbosity_demo(&["-v".to_string()]),
-            "verbose"
-        );
+        assert_eq!(parse_verbosity_demo(&["-v".to_string()]), "verbose");
 
-        assert_eq!(
-            parse_verbosity_demo(&["-vv".to_string()]),
-            "very_verbose"
-        );
+        assert_eq!(parse_verbosity_demo(&["-vv".to_string()]), "very_verbose");
 
-        assert_eq!(
-            parse_verbosity_demo(&[]),
-            "normal"
-        );
+        assert_eq!(parse_verbosity_demo(&[]), "normal");
     }
 }

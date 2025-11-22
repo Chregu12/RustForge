@@ -1,7 +1,7 @@
 //! Resource collections with pagination support
 
-use crate::{Resource, ResourceContext, Pagination, PaginationMeta};
-use serde::{Serialize, Deserialize};
+use crate::{Pagination, PaginationMeta, Resource, ResourceContext};
+use serde::{Deserialize, Serialize};
 
 /// Options for collection transformation
 #[derive(Debug, Clone)]
@@ -243,9 +243,7 @@ mod tests {
     #[test]
     fn test_builder() {
         let items = vec![TestResource { id: 1 }];
-        let collection = CollectionBuilder::new()
-            .items(items)
-            .build(Some(1));
+        let collection = CollectionBuilder::new().items(items).build(Some(1));
 
         assert_eq!(collection.len(), 1);
     }

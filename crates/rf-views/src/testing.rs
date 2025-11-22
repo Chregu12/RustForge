@@ -134,9 +134,7 @@ impl TestViewBuilder {
 
 /// Create a test view engine with in-memory templates
 #[cfg(test)]
-pub fn create_test_engine_with_templates(
-    templates: Vec<(&str, &str)>,
-) -> ViewResult<ViewEngine> {
+pub fn create_test_engine_with_templates(templates: Vec<(&str, &str)>) -> ViewResult<ViewEngine> {
     use std::fs;
     use tempfile::TempDir;
 

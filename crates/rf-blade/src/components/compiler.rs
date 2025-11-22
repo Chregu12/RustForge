@@ -125,9 +125,9 @@ impl ComponentCompilerBuilder {
 
     /// Build the component compiler
     pub fn build(self) -> ComponentCompileResult<ComponentCompiler> {
-        let registry = self
-            .registry
-            .ok_or_else(|| ComponentCompileError::CompilationError("Registry not set".to_string()))?;
+        let registry = self.registry.ok_or_else(|| {
+            ComponentCompileError::CompilationError("Registry not set".to_string())
+        })?;
 
         ComponentCompiler::new(registry)
     }

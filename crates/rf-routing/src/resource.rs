@@ -316,10 +316,7 @@ pub fn resource_only(name: impl Into<String>, actions: Vec<ControllerAction>) ->
 ///
 /// let posts = resource_except("posts", vec![ControllerAction::Destroy]);
 /// ```
-pub fn resource_except(
-    name: impl Into<String>,
-    actions: Vec<ControllerAction>,
-) -> ResourceRouter {
+pub fn resource_except(name: impl Into<String>, actions: Vec<ControllerAction>) -> ResourceRouter {
     ResourceRouter::new(name).except(actions)
 }
 
@@ -337,8 +334,8 @@ mod tests {
 
     #[test]
     fn test_resource_router_only() {
-        let resource =
-            ResourceRouter::new("posts").only(vec![ControllerAction::Index, ControllerAction::Show]);
+        let resource = ResourceRouter::new("posts")
+            .only(vec![ControllerAction::Index, ControllerAction::Show]);
 
         let actions = resource.actions();
         assert_eq!(actions.len(), 2);
@@ -378,8 +375,7 @@ mod tests {
 
     #[test]
     fn test_resource_router_nest() {
-        let posts = ResourceRouter::new("posts")
-            .nest(ResourceRouter::new("comments"));
+        let posts = ResourceRouter::new("posts").nest(ResourceRouter::new("comments"));
 
         assert_eq!(posts.nested_resources().len(), 1);
         assert_eq!(posts.nested_resources()[0].name(), "comments");

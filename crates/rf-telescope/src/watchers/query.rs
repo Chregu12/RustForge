@@ -360,15 +360,9 @@ mod tests {
         let storage = Storage::new();
         let watcher = QueryWatcher::new(storage);
 
-        watcher
-            .record(QueryInfo::new("SELECT 1", "postgres"))
-            .await;
-        watcher
-            .record(QueryInfo::new("SELECT 2", "mysql"))
-            .await;
-        watcher
-            .record(QueryInfo::new("SELECT 3", "postgres"))
-            .await;
+        watcher.record(QueryInfo::new("SELECT 1", "postgres")).await;
+        watcher.record(QueryInfo::new("SELECT 2", "mysql")).await;
+        watcher.record(QueryInfo::new("SELECT 3", "postgres")).await;
 
         let pg_queries = watcher.by_connection("postgres").await;
         assert_eq!(pg_queries.len(), 2);
@@ -404,12 +398,20 @@ mod tests {
 
         // Record the same query multiple times
         let sql = "SELECT * FROM users WHERE id = ?";
-        watcher.record(QueryInfo::new(sql, "postgres").with_duration(10.0)).await;
-        watcher.record(QueryInfo::new(sql, "postgres").with_duration(15.0)).await;
-        watcher.record(QueryInfo::new(sql, "postgres").with_duration(20.0)).await;
+        watcher
+            .record(QueryInfo::new(sql, "postgres").with_duration(10.0))
+            .await;
+        watcher
+            .record(QueryInfo::new(sql, "postgres").with_duration(15.0))
+            .await;
+        watcher
+            .record(QueryInfo::new(sql, "postgres").with_duration(20.0))
+            .await;
 
         // Record a different query
-        watcher.record(QueryInfo::new("SELECT * FROM posts", "postgres")).await;
+        watcher
+            .record(QueryInfo::new("SELECT * FROM posts", "postgres"))
+            .await;
 
         let duplicates = watcher.duplicate_queries().await;
         assert_eq!(duplicates.len(), 1);
@@ -461,9 +463,12 @@ mod tests {
         let storage = Storage::new();
         let watcher = QueryWatcher::new(storage);
 
-        let info = QueryInfo::new("SELECT * FROM users WHERE id = ? AND status = ?", "postgres")
-            .with_bindings(vec!["123".to_string(), "active".to_string()])
-            .with_duration(25.0);
+        let info = QueryInfo::new(
+            "SELECT * FROM users WHERE id = ? AND status = ?",
+            "postgres",
+        )
+        .with_bindings(vec!["123".to_string(), "active".to_string()])
+        .with_duration(25.0);
 
         watcher.record(info).await;
 
@@ -481,8 +486,12 @@ mod tests {
         let storage = Storage::new();
         let watcher = QueryWatcher::new(storage).with_slow_threshold(50.0);
 
-        watcher.record(QueryInfo::new("SELECT 1", "postgres").with_duration(60.0)).await;
-        watcher.record(QueryInfo::new("SELECT 2", "postgres").with_duration(40.0)).await;
+        watcher
+            .record(QueryInfo::new("SELECT 1", "postgres").with_duration(60.0))
+            .await;
+        watcher
+            .record(QueryInfo::new("SELECT 2", "postgres").with_duration(40.0))
+            .await;
 
         let slow = watcher.slow_queries().await;
         assert_eq!(slow.len(), 1);

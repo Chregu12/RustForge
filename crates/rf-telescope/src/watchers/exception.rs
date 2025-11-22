@@ -105,7 +105,9 @@ impl ExceptionWatcher {
         .with_tag(format!("type:{}", info.exception_type));
 
         if let Some(ref path) = info.request_path {
-            self.storage.store(entry.with_tag(format!("path:{}", path))).await;
+            self.storage
+                .store(entry.with_tag(format!("path:{}", path)))
+                .await;
         } else {
             self.storage.store(entry).await;
         }
@@ -158,10 +160,7 @@ mod tests {
         let watcher = ExceptionWatcher::new(storage);
 
         let info = ExceptionInfo::new("DatabaseError", "Connection failed")
-            .with_stack_trace(vec![
-                "at main.rs:10".to_string(),
-                "at db.rs:45".to_string(),
-            ]);
+            .with_stack_trace(vec!["at main.rs:10".to_string(), "at db.rs:45".to_string()]);
 
         watcher.record(info).await;
 
@@ -213,7 +212,10 @@ mod tests {
 
         let info = ExceptionInfo::new("ValidationError", "Invalid input")
             .with_location("validator.rs", 123)
-            .with_stack_trace(vec!["at validator.rs:123".to_string(), "at main.rs:45".to_string()])
+            .with_stack_trace(vec![
+                "at validator.rs:123".to_string(),
+                "at main.rs:45".to_string(),
+            ])
             .with_context("field", "email")
             .with_context("value", "invalid-email")
             .with_request("/api/register")

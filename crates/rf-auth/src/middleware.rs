@@ -4,7 +4,7 @@
 
 use crate::{jwt::JwtManager, Claims};
 use axum::{
-    extract::{Request, Extension},
+    extract::{Extension, Request},
     middleware::Next,
     response::Response,
 };

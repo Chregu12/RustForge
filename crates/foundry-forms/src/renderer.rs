@@ -106,7 +106,10 @@ impl FormRenderer {
             return Ok(html);
         }
 
-        html.push_str(&format!(r#"<div class="{}">"#, self.theme.field_wrapper_class()));
+        html.push_str(&format!(
+            r#"<div class="{}">"#,
+            self.theme.field_wrapper_class()
+        ));
 
         // Label
         if let Some(label) = &field.label {
@@ -129,7 +132,11 @@ impl FormRenderer {
         match &field.field_type {
             FieldType::Input { input_type } => {
                 let input_class = if has_error {
-                    format!("{} {}", self.theme.input_class(), self.theme.input_error_class())
+                    format!(
+                        "{} {}",
+                        self.theme.input_class(),
+                        self.theme.input_error_class()
+                    )
                 } else {
                     self.theme.input_class().to_string()
                 };
@@ -161,7 +168,11 @@ impl FormRenderer {
             }
             FieldType::TextArea { rows } => {
                 let textarea_class = if has_error {
-                    format!("{} {}", self.theme.textarea_class(), self.theme.input_error_class())
+                    format!(
+                        "{} {}",
+                        self.theme.textarea_class(),
+                        self.theme.input_error_class()
+                    )
                 } else {
                     self.theme.textarea_class().to_string()
                 };

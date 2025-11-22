@@ -1,21 +1,21 @@
-//! # htmx + RustForge: Livewire Alternative Example
-//!
-//! This example demonstrates how to achieve Livewire-like functionality
-//! using htmx with RustForge - 80% of the features with 5% of the complexity.
-//!
-//! ## Features Demonstrated:
-//! - Counter (wire:click equivalent)
-//! - Form validation (wire:model equivalent)
-//! - File upload (wire:upload equivalent)
-//! - Real-time updates (wire:poll equivalent)
-//! - Loading states (wire:loading equivalent)
-//! - Lazy loading (wire:init equivalent)
-//!
-//! ## Run:
-//! ```bash
-//! cargo run --example htmx-livewire-alternative
-//! # Open http://localhost:3000
-//! ```
+// # htmx + RustForge: Livewire Alternative Example
+//
+// This example demonstrates how to achieve Livewire-like functionality
+// using htmx with RustForge - 80% of the features with 5% of the complexity.
+//
+// ## Features Demonstrated:
+// - Counter (wire:click equivalent)
+// - Form validation (wire:model equivalent)
+// - File upload (wire:upload equivalent)
+// - Real-time updates (wire:poll equivalent)
+// - Loading states (wire:loading equivalent)
+// - Lazy loading (wire:init equivalent)
+//
+// ## Run:
+// ```bash
+// cargo run --example htmx-livewire-alternative
+// # Open http://localhost:3000
+// ```
 
 use axum::{
     Router,

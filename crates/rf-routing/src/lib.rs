@@ -80,40 +80,42 @@
 //!     .push("throttle");
 //! ```
 
-pub mod named_routes;
-pub mod signed_urls;
-pub mod url_generation;
+pub mod controller;
 pub mod groups;
 pub mod middleware_pipeline;
 pub mod middleware_stack;
-pub mod route;
-pub mod controller;
-pub mod resource;
 pub mod model_binding;
-pub mod versioning;
+pub mod named_routes;
+pub mod resource;
+pub mod route;
+pub mod signed_urls;
+pub mod url_generation;
 pub mod versioned_router;
+pub mod versioning;
 
 #[macro_use]
 pub mod macros;
 
-pub use named_routes::{NamedRoute, ParamValue, RouteRegistry, RouteUrlBuilder};
-pub use signed_urls::{SignedUrl, SignedUrlBuilder, parse_signed_url};
-pub use url_generation::{UrlGenerator, QueryStringBuilder, UrlBuilder};
+pub use controller::{Controller, ControllerAction, ControllerRegistry, ControllerRouteBuilder};
 pub use groups::{RouteGroup, RouteGroupBuilder, RouteGroupRegistry};
 pub use middleware_pipeline::{
-    MiddlewareRegistry, MiddlewarePipeline, MiddlewareGroup, MiddlewareGroupRegistry,
-    global_registry, register_middleware, pipeline,
+    global_registry, pipeline, register_middleware, MiddlewareGroup, MiddlewareGroupRegistry,
+    MiddlewarePipeline, MiddlewareRegistry,
 };
 pub use middleware_stack::{MiddlewareStack, MiddlewareStackBuilder};
-pub use route::{Route, RouteBuilder, HttpMethod};
-pub use controller::{Controller, ControllerAction, ControllerRegistry, ControllerRouteBuilder};
-pub use resource::{ResourceRouter, ResourceCollection, api_resource, resource_only, resource_except};
-pub use model_binding::{Bindable, ModelBinding, ModelBindingRegistry, ModelBindingError};
-pub use versioning::{
-    ApiVersion, VersionConfig, VersionError, VersionNegotiator, DefaultNegotiator,
-    extract_from_accept, extract_from_header, extract_from_path,
+pub use model_binding::{Bindable, ModelBinding, ModelBindingError, ModelBindingRegistry};
+pub use named_routes::{NamedRoute, ParamValue, RouteRegistry, RouteUrlBuilder};
+pub use resource::{
+    api_resource, resource_except, resource_only, ResourceCollection, ResourceRouter,
 };
+pub use route::{HttpMethod, Route, RouteBuilder};
+pub use signed_urls::{parse_signed_url, SignedUrl, SignedUrlBuilder};
+pub use url_generation::{QueryStringBuilder, UrlBuilder, UrlGenerator};
 pub use versioned_router::VersionedRouterBuilder;
+pub use versioning::{
+    extract_from_accept, extract_from_header, extract_from_path, ApiVersion, DefaultNegotiator,
+    VersionConfig, VersionError, VersionNegotiator,
+};
 
 #[cfg(test)]
 mod tests {
@@ -193,6 +195,8 @@ mod tests {
         assert!(signed.is_some());
 
         let signed = signed.unwrap();
-        assert!(signed.to_string().contains("https://example.com/api/users/123"));
+        assert!(signed
+            .to_string()
+            .contains("https://example.com/api/users/123"));
     }
 }

@@ -56,8 +56,7 @@ impl QueuePort for RedisQueue {
         info!(name = %job.name, "Queue job dispatched to Redis");
 
         // Convert QueueJob to foundry_queue::Job
-        let queue_job = Job::new(&job.name)
-            .with_payload(job.payload);
+        let queue_job = Job::new(&job.name).with_payload(job.payload);
 
         // Apply delay if specified
         let queue_job = if let Some(delay_seconds) = job.delay_seconds {

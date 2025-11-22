@@ -1,6 +1,6 @@
 //! Search driver trait and implementations
 
-use crate::searchable::{Searchable, SearchOptions, SearchResult};
+use crate::searchable::{SearchOptions, SearchResult, Searchable};
 use async_trait::async_trait;
 use thiserror::Error;
 

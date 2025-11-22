@@ -51,9 +51,7 @@ impl Attachment {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn from_file(
-        path: impl AsRef<std::path::Path>,
-    ) -> Result<Self, std::io::Error> {
+    pub fn from_file(path: impl AsRef<std::path::Path>) -> Result<Self, std::io::Error> {
         let data = std::fs::read(&path)?;
         let filename = path
             .as_ref()
@@ -81,11 +79,7 @@ impl Attachment {
 
 /// Guess content type from filename extension
 fn guess_content_type(filename: &str) -> String {
-    let extension = filename
-        .split('.')
-        .last()
-        .unwrap_or("")
-        .to_lowercase();
+    let extension = filename.split('.').last().unwrap_or("").to_lowercase();
 
     match extension.as_str() {
         "pdf" => "application/pdf",

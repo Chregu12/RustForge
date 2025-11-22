@@ -82,15 +82,15 @@ impl MailConfig {
     /// Validate configuration
     pub fn validate(&self) -> Result<(), MailError> {
         match self.driver {
-            MailDriver::Smtp if self.smtp.is_none() => {
-                Err(MailError::ConfigError("SMTP config is required for SMTP driver".into()))
-            }
-            MailDriver::Sendmail if self.sendmail.is_none() => {
-                Err(MailError::ConfigError("Sendmail config is required for Sendmail driver".into()))
-            }
-            MailDriver::Log if self.log_path.is_none() => {
-                Err(MailError::ConfigError("Log path is required for Log driver".into()))
-            }
+            MailDriver::Smtp if self.smtp.is_none() => Err(MailError::ConfigError(
+                "SMTP config is required for SMTP driver".into(),
+            )),
+            MailDriver::Sendmail if self.sendmail.is_none() => Err(MailError::ConfigError(
+                "Sendmail config is required for Sendmail driver".into(),
+            )),
+            MailDriver::Log if self.log_path.is_none() => Err(MailError::ConfigError(
+                "Log path is required for Log driver".into(),
+            )),
             _ => Ok(()),
         }
     }
@@ -155,7 +155,11 @@ impl SmtpConfig {
     }
 
     /// Set authentication credentials
-    pub fn with_credentials(mut self, username: impl Into<String>, password: impl Into<String>) -> Self {
+    pub fn with_credentials(
+        mut self,
+        username: impl Into<String>,
+        password: impl Into<String>,
+    ) -> Self {
         self.username = Some(username.into());
         self.password = Some(password.into());
         self

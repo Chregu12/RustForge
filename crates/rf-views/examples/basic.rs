@@ -56,13 +56,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     ];
 
     println!("=== Example 2: Posts Listing ===");
-    let html = engine.render_with_data("posts/index", serde_json::json!({
-        "posts": posts,
-        "pagination": {
-            "current_page": 1,
-            "total_pages": 1,
-        }
-    }))?;
+    let html = engine.render_with_data(
+        "posts/index",
+        serde_json::json!({
+            "posts": posts,
+            "pagination": {
+                "current_page": 1,
+                "total_pages": 1,
+            }
+        }),
+    )?;
     println!("{}", html);
 
     // Example 3: CSRF Token
@@ -78,7 +81,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("\n=== Example 5: Validation Errors ===");
     let mut errors = std::collections::HashMap::new();
     errors.insert("title".to_string(), vec!["Title is required".to_string()]);
-    errors.insert("body".to_string(), vec!["Body must be at least 10 characters".to_string()]);
+    errors.insert(
+        "body".to_string(),
+        vec!["Body must be at least 10 characters".to_string()],
+    );
     engine.set_errors(errors);
 
     // Example 6: Old Input

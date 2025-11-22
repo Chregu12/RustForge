@@ -182,11 +182,7 @@ mod tests {
 
     #[test]
     fn test_scope_joining() {
-        let scopes = vec![
-            Scope::new("read"),
-            Scope::new("write"),
-            Scope::new("admin"),
-        ];
+        let scopes = vec![Scope::new("read"), Scope::new("write"), Scope::new("admin")];
         let joined = Scope::join_scopes(&scopes);
         assert_eq!(joined, "read write admin");
     }
@@ -238,10 +234,7 @@ mod tests {
 
     #[test]
     fn test_scope_filtering() {
-        let validator = ScopeValidator::new(vec![
-            "read".to_string(),
-            "write".to_string(),
-        ]);
+        let validator = ScopeValidator::new(vec!["read".to_string(), "write".to_string()]);
 
         let requested = ScopeSet::from_string("read write admin");
         let filtered = validator.filter(&requested);

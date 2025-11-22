@@ -1,20 +1,39 @@
 use anyhow::{Context, Result};
 use colored::*;
+use fs_extra::dir::{self, CopyOptions};
 use std::fs;
 use std::path::{Path, PathBuf};
-use fs_extra::dir::{self, CopyOptions};
 
 pub async fn run(name: &str) -> Result<()> {
-    println!("{}", "╔══════════════════════════════════════════════════════╗".cyan());
-    println!("{}", "║                                                      ║".cyan());
-    println!("{}", format!("║   🔥 Creating new RustForge project: {:<15}║", name).cyan().bold());
-    println!("{}", "║                                                      ║".cyan());
-    println!("{}", "╚══════════════════════════════════════════════════════╝".cyan());
+    println!(
+        "{}",
+        "╔══════════════════════════════════════════════════════╗".cyan()
+    );
+    println!(
+        "{}",
+        "║                                                      ║".cyan()
+    );
+    println!(
+        "{}",
+        format!("║   🔥 Creating new RustForge project: {:<15}║", name)
+            .cyan()
+            .bold()
+    );
+    println!(
+        "{}",
+        "║                                                      ║".cyan()
+    );
+    println!(
+        "{}",
+        "╚══════════════════════════════════════════════════════╝".cyan()
+    );
     println!();
 
     // Validate project name
     if !is_valid_project_name(name) {
-        anyhow::bail!("Invalid project name. Use lowercase letters, numbers, hyphens, and underscores only.");
+        anyhow::bail!(
+            "Invalid project name. Use lowercase letters, numbers, hyphens, and underscores only."
+        );
     }
 
     // Check if directory already exists
@@ -30,7 +49,10 @@ pub async fn run(name: &str) -> Result<()> {
         copy_starter_template(&starter_template, name)?;
     } else {
         // Fallback: create basic structure
-        println!("{}", "  ⚠ Starter template not found, creating basic structure...".yellow());
+        println!(
+            "{}",
+            "  ⚠ Starter template not found, creating basic structure...".yellow()
+        );
         create_project_directory(name)?;
         create_basic_structure(name)?;
     }
@@ -42,11 +64,28 @@ pub async fn run(name: &str) -> Result<()> {
     init_git_repo(name)?;
 
     println!();
-    println!("{}", "╔══════════════════════════════════════════════════════╗".green());
-    println!("{}", "║                                                      ║".green());
-    println!("{}", "║   ✓ Project created successfully!                   ║".green().bold());
-    println!("{}", "║                                                      ║".green());
-    println!("{}", "╚══════════════════════════════════════════════════════╝".green());
+    println!(
+        "{}",
+        "╔══════════════════════════════════════════════════════╗".green()
+    );
+    println!(
+        "{}",
+        "║                                                      ║".green()
+    );
+    println!(
+        "{}",
+        "║   ✓ Project created successfully!                   ║"
+            .green()
+            .bold()
+    );
+    println!(
+        "{}",
+        "║                                                      ║".green()
+    );
+    println!(
+        "{}",
+        "╚══════════════════════════════════════════════════════╝".green()
+    );
     println!();
     println!("{}", "Next steps:".yellow().bold());
     println!("  cd {}", name);
@@ -54,15 +93,20 @@ pub async fn run(name: &str) -> Result<()> {
     println!("  forge migrate");
     println!("  cargo run");
     println!();
-    println!("{}", "Visit http://localhost:3000 to see your app! 🚀".cyan());
+    println!(
+        "{}",
+        "Visit http://localhost:3000 to see your app! 🚀".cyan()
+    );
     println!();
 
     Ok(())
 }
 
 fn is_valid_project_name(name: &str) -> bool {
-    !name.is_empty() &&
-    name.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-' || c == '_')
+    !name.is_empty()
+        && name
+            .chars()
+            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-' || c == '_')
 }
 
 fn find_starter_template() -> Result<PathBuf> {
@@ -76,8 +120,7 @@ fn find_starter_template() -> Result<PathBuf> {
     }
 
     // Check one level up (if we're in the framework repo)
-    let parent_starter = current_dir.parent()
-        .map(|p| p.join("rustforge-starter"));
+    let parent_starter = current_dir.parent().map(|p| p.join("rustforge-starter"));
     if let Some(path) = parent_starter {
         if path.exists() {
             return Ok(path);
@@ -92,8 +135,7 @@ fn copy_starter_template(template_path: &Path, project_name: &str) -> Result<()>
     println!("  {} Copying starter template...", "•".cyan());
 
     let options = CopyOptions::new();
-    dir::copy(template_path, project_name, &options)
-        .context("Failed to copy starter template")?;
+    dir::copy(template_path, project_name, &options).context("Failed to copy starter template")?;
 
     // Remove git directory from template
     let git_dir = Path::new(project_name).join(".git");
@@ -106,8 +148,7 @@ fn copy_starter_template(template_path: &Path, project_name: &str) -> Result<()>
 }
 
 fn create_project_directory(name: &str) -> Result<()> {
-    fs::create_dir(name)
-        .context(format!("Failed to create directory '{}'", name))?;
+    fs::create_dir(name).context(format!("Failed to create directory '{}'", name))?;
     Ok(())
 }
 
@@ -179,9 +220,7 @@ fn init_git_repo(name: &str) -> Result<()> {
 
     println!("  {} Initializing git repository...", "•".cyan());
 
-    let output = Command::new("git")
-        .args(&["init", name])
-        .output();
+    let output = Command::new("git").args(&["init", name]).output();
 
     if output.is_ok() {
         println!("  {} Git repository initialized", "✓".green());
@@ -193,7 +232,8 @@ fn init_git_repo(name: &str) -> Result<()> {
 }
 
 fn generate_cargo_toml(name: &str) -> String {
-    format!(r#"[package]
+    format!(
+        r#"[package]
 name = "{}"
 version = "0.1.0"
 edition = "2021"
@@ -219,11 +259,14 @@ anyhow = "1.0"
 tracing = "0.1"
 tracing-subscriber = "0.3"
 dotenv = "0.15"
-"#, name)
+"#,
+        name
+    )
 }
 
 fn generate_env_file(name: &str) -> String {
-    format!(r#"APP_NAME={}
+    format!(
+        r#"APP_NAME={}
 APP_ENV=local
 APP_DEBUG=true
 APP_URL=http://localhost:8000
@@ -240,7 +283,9 @@ CACHE_PREFIX={}_cache_
 
 # Queue
 QUEUE_DRIVER=memory
-"#, name, name, name)
+"#,
+        name, name, name
+    )
 }
 
 fn generate_gitignore() -> String {
@@ -252,7 +297,8 @@ Cargo.lock
 *.db-shm
 *.db-wal
 .DS_Store
-"#.to_string()
+"#
+    .to_string()
 }
 
 fn generate_main_rs(name: &str) -> String {
@@ -264,7 +310,8 @@ fn generate_lib_rs() -> String {
 
 // Re-export commonly used types
 pub use anyhow::Result;
-"#.to_string()
+"#
+    .to_string()
 }
 
 fn generate_db_rs() -> String {
@@ -290,11 +337,13 @@ pub async fn run_migrations(pool: &SqlitePool) -> Result<()> {
     println!("✓ Migrations completed");
     Ok(())
 }
-"#.to_string()
+"#
+    .to_string()
 }
 
 fn generate_readme(name: &str) -> String {
-    format!(r#"# {}
+    format!(
+        r#"# {}
 
 A RustForge web application.
 
@@ -335,5 +384,7 @@ RustForge is a Laravel-inspired Rust web framework with:
 - Queue system
 - Real-time broadcasting
 - And much more!
-"#, name)
+"#,
+        name
+    )
 }

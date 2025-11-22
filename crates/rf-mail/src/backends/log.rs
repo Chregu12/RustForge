@@ -25,9 +25,15 @@ impl LogMailer {
     fn format_message(message: &Message) -> String {
         let mut output = String::new();
 
-        output.push_str(&format!("================================================================================\n"));
+        output.push_str(&format!(
+            "================================================================================\n"
+        ));
         output.push_str(&format!("Message ID: {}\n", message.id));
-        output.push_str(&format!("From: {} <{}>\n", message.from.name.as_deref().unwrap_or(""), message.from.email));
+        output.push_str(&format!(
+            "From: {} <{}>\n",
+            message.from.name.as_deref().unwrap_or(""),
+            message.from.email
+        ));
 
         output.push_str("To: ");
         for (i, addr) in message.to.iter().enumerate() {
@@ -74,7 +80,11 @@ impl LogMailer {
         if !message.attachments.is_empty() {
             output.push_str(&format!("Attachments: {}\n", message.attachments.len()));
             for attachment in &message.attachments {
-                output.push_str(&format!("  - {} ({} bytes)\n", attachment.filename, attachment.size()));
+                output.push_str(&format!(
+                    "  - {} ({} bytes)\n",
+                    attachment.filename,
+                    attachment.size()
+                ));
             }
         }
 
@@ -114,7 +124,12 @@ impl Mailer for LogMailer {
             "Email logged to {:?}: {} -> {}",
             self.log_path,
             message.from.email,
-            message.to.iter().map(|a| a.email.as_str()).collect::<Vec<_>>().join(", ")
+            message
+                .to
+                .iter()
+                .map(|a| a.email.as_str())
+                .collect::<Vec<_>>()
+                .join(", ")
         );
 
         Ok(())

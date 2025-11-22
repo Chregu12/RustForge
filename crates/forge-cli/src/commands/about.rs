@@ -4,13 +4,33 @@ use std::env;
 pub fn run() {
     println!();
     println!("{}", "  ____            _   _____ ".bright_cyan());
-    println!("{}", " |  _ \\ _   _ ___| |_|  ___|__  _ __ __ _  ___ ".bright_cyan());
-    println!("{}", " | |_) | | | / __| __| |_ / _ \\| '__/ _` |/ _ \\".bright_cyan());
-    println!("{}", " |  _ <| |_| \\__ \\ |_|  _| (_) | | | (_| |  __/".bright_cyan());
-    println!("{}", " |_| \\_\\\\__,_|___/\\__|_|  \\___/|_|  \\__, |\\___|".bright_cyan());
-    println!("{}", "                                     |___/      ".bright_cyan());
+    println!(
+        "{}",
+        " |  _ \\ _   _ ___| |_|  ___|__  _ __ __ _  ___ ".bright_cyan()
+    );
+    println!(
+        "{}",
+        " | |_) | | | / __| __| |_ / _ \\| '__/ _` |/ _ \\".bright_cyan()
+    );
+    println!(
+        "{}",
+        " |  _ <| |_| \\__ \\ |_|  _| (_) | | | (_| |  __/".bright_cyan()
+    );
+    println!(
+        "{}",
+        " |_| \\_\\\\__,_|___/\\__|_|  \\___/|_|  \\__, |\\___|".bright_cyan()
+    );
+    println!(
+        "{}",
+        "                                     |___/      ".bright_cyan()
+    );
     println!();
-    println!("{}", "  Laravel-inspired Rust Web Framework".bright_white().bold());
+    println!(
+        "{}",
+        "  Laravel-inspired Rust Web Framework"
+            .bright_white()
+            .bold()
+    );
     println!();
 
     // Framework Information
@@ -30,9 +50,15 @@ pub fn run() {
 
     // Features
     println!("{}", "  Features".cyan().bold());
-    println!("    {} Eloquent-like ORM with compile-time safety", "✓".green());
+    println!(
+        "    {} Eloquent-like ORM with compile-time safety",
+        "✓".green()
+    );
     println!("    {} Artisan-style CLI commands", "✓".green());
-    println!("    {} Built-in authentication & authorization", "✓".green());
+    println!(
+        "    {} Built-in authentication & authorization",
+        "✓".green()
+    );
     println!("    {} Real-time broadcasting (WebSocket)", "✓".green());
     println!("    {} Queue system for background jobs", "✓".green());
     println!("    {} Multi-language support (i18n)", "✓".green());
@@ -60,7 +86,10 @@ pub fn run() {
     for (name, description) in crates.iter().take(5) {
         println!("    {:<15} {}", name.yellow(), description.bright_black());
     }
-    println!("    ... and {} more", (crates.len() - 5).to_string().green());
+    println!(
+        "    ... and {} more",
+        (crates.len() - 5).to_string().green()
+    );
     println!();
 
     // Statistics
@@ -73,16 +102,35 @@ pub fn run() {
 
     // Documentation
     println!("{}", "  Documentation".cyan().bold());
-    println!("    GitHub:       {}", "https://github.com/rustforge/rustforge".blue());
+    println!(
+        "    GitHub:       {}",
+        "https://github.com/rustforge/rustforge".blue()
+    );
     println!("    Docs:         {}", "https://rustforge.dev/docs".blue());
     println!();
 
     // Quick Start
     println!("{}", "  Quick Start".cyan().bold());
-    println!("    {:<20} {}", "Create new project:".white(), "forge new my-app".yellow());
-    println!("    {:<20} {}", "Generate model:".white(), "forge make:model User --migration".yellow());
-    println!("    {:<20} {}", "Run migrations:".white(), "forge migrate:run".yellow());
-    println!("    {:<20} {}", "Start server:".white(), "forge serve".yellow());
+    println!(
+        "    {:<20} {}",
+        "Create new project:".white(),
+        "forge new my-app".yellow()
+    );
+    println!(
+        "    {:<20} {}",
+        "Generate model:".white(),
+        "forge make:model User --migration".yellow()
+    );
+    println!(
+        "    {:<20} {}",
+        "Run migrations:".white(),
+        "forge migrate:run".yellow()
+    );
+    println!(
+        "    {:<20} {}",
+        "Start server:".white(),
+        "forge serve".yellow()
+    );
     println!();
 }
 

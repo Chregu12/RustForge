@@ -27,11 +27,7 @@ pub struct SimpleEvent {
 
 impl SimpleEvent {
     /// Create new simple event
-    pub fn new(
-        name: impl Into<String>,
-        data: serde_json::Value,
-        channels: Vec<Channel>,
-    ) -> Self {
+    pub fn new(name: impl Into<String>, data: serde_json::Value, channels: Vec<Channel>) -> Self {
         Self {
             name: name.into(),
             data,

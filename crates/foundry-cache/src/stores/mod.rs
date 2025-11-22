@@ -1,7 +1,7 @@
+pub mod file;
 pub mod memory;
 pub mod redis_store;
-pub mod file;
 
+pub use file::FileStore;
 pub use memory::MemoryStore;
 pub use redis_store::RedisStore;
-pub use file::FileStore;

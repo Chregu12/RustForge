@@ -33,23 +33,23 @@
 //! # }
 //! ```
 
-mod driver;
-mod user;
-pub mod providers;
-pub mod pkce;
-pub mod state;
-pub mod config;
 pub mod account_linking;
+pub mod config;
+mod driver;
 pub mod manager;
+pub mod pkce;
+pub mod providers;
 pub mod routes;
+pub mod state;
+mod user;
 
-pub use driver::{Driver, DriverBuilder, Socialite, SocialiteError, TokenResponse};
-pub use user::{User, UserData};
-pub use providers::Provider;
-pub use manager::SocialiteManager;
+pub use account_linking::{AccountLinker, LinkingStrategy, SocialAccount};
 pub use config::{ProviderConfig, SocialiteConfig};
-pub use account_linking::{SocialAccount, LinkingStrategy, AccountLinker};
-pub use state::StateManager;
+pub use driver::{Driver, DriverBuilder, Socialite, SocialiteError, TokenResponse};
+pub use manager::SocialiteManager;
 pub use pkce::Pkce;
+pub use providers::Provider;
+pub use state::StateManager;
+pub use user::{User, UserData};
 
 pub type Result<T> = std::result::Result<T, SocialiteError>;

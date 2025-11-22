@@ -163,7 +163,8 @@ impl RedisQueue {
 
                 if removed > 0 {
                     // Add to ready queue
-                    let _: () = conn.lpush(&queue_key, job_data)
+                    let _: () = conn
+                        .lpush(&queue_key, job_data)
                         .await
                         .map_err(|e| QueueError::Backend(e.to_string()))?;
 
@@ -330,9 +331,7 @@ impl Queue for RedisQueue {
 
     async fn retry(&self, mut metadata: JobMetadata) -> QueueResult<()> {
         if !metadata.can_retry() {
-            return Err(QueueError::JobFailed(
-                "Max retries exceeded".to_string(),
-            ));
+            return Err(QueueError::JobFailed("Max retries exceeded".to_string()));
         }
 
         metadata.mark_attempt();
@@ -418,17 +417,18 @@ mod tests {
     }
 
     async fn create_test_queue() -> RedisQueue {
-        let redis_url = std::env::var("REDIS_URL").unwrap_or_else(|_| "redis://localhost:6379".to_string());
+        let redis_url =
+            std::env::var("REDIS_URL").unwrap_or_else(|_| "redis://localhost:6379".to_string());
         RedisQueue::new(&redis_url, "test").await.unwrap()
     }
 
     #[tokio::test]
-async fn test_redis_push_and_reserve() {
-    if !redis_available().await {
-        eprintln!("⏭️  Skipping test_redis_push_and_reserve: Redis not available");
-        eprintln!("   Start services with: ./scripts/test-env-up.sh");
-        return;
-    }
+    async fn test_redis_push_and_reserve() {
+        if !redis_available().await {
+            eprintln!("⏭️  Skipping test_redis_push_and_reserve: Redis not available");
+            eprintln!("   Start services with: ./scripts/test-env-up.sh");
+            return;
+        }
         let queue = create_test_queue().await;
         queue.clear("default").await.unwrap();
 
@@ -448,12 +448,12 @@ async fn test_redis_push_and_reserve() {
     }
 
     #[tokio::test]
-async fn test_redis_queue_size() {
-    if !redis_available().await {
-        eprintln!("⏭️  Skipping test_redis_queue_size: Redis not available");
-        eprintln!("   Start services with: ./scripts/test-env-up.sh");
-        return;
-    }
+    async fn test_redis_queue_size() {
+        if !redis_available().await {
+            eprintln!("⏭️  Skipping test_redis_queue_size: Redis not available");
+            eprintln!("   Start services with: ./scripts/test-env-up.sh");
+            return;
+        }
         let queue = create_test_queue().await;
         queue.clear("default").await.unwrap();
 
@@ -470,12 +470,12 @@ async fn test_redis_queue_size() {
     }
 
     #[tokio::test]
-async fn test_redis_delayed_jobs() {
-    if !redis_available().await {
-        eprintln!("⏭️  Skipping test_redis_delayed_jobs: Redis not available");
-        eprintln!("   Start services with: ./scripts/test-env-up.sh");
-        return;
-    }
+    async fn test_redis_delayed_jobs() {
+        if !redis_available().await {
+            eprintln!("⏭️  Skipping test_redis_delayed_jobs: Redis not available");
+            eprintln!("   Start services with: ./scripts/test-env-up.sh");
+            return;
+        }
         let queue = create_test_queue().await;
         queue.clear("default").await.unwrap();
 
@@ -499,12 +499,12 @@ async fn test_redis_delayed_jobs() {
     }
 
     #[tokio::test]
-async fn test_redis_job_persistence() {
-    if !redis_available().await {
-        eprintln!("⏭️  Skipping test_redis_job_persistence: Redis not available");
-        eprintln!("   Start services with: ./scripts/test-env-up.sh");
-        return;
-    }
+    async fn test_redis_job_persistence() {
+        if !redis_available().await {
+            eprintln!("⏭️  Skipping test_redis_job_persistence: Redis not available");
+            eprintln!("   Start services with: ./scripts/test-env-up.sh");
+            return;
+        }
         let queue = create_test_queue().await;
         queue.clear("default").await.unwrap();
 
@@ -526,12 +526,12 @@ async fn test_redis_job_persistence() {
     }
 
     #[tokio::test]
-async fn test_redis_retry_with_backoff() {
-    if !redis_available().await {
-        eprintln!("⏭️  Skipping test_redis_retry_with_backoff: Redis not available");
-        eprintln!("   Start services with: ./scripts/test-env-up.sh");
-        return;
-    }
+    async fn test_redis_retry_with_backoff() {
+        if !redis_available().await {
+            eprintln!("⏭️  Skipping test_redis_retry_with_backoff: Redis not available");
+            eprintln!("   Start services with: ./scripts/test-env-up.sh");
+            return;
+        }
         let queue = create_test_queue().await;
         queue.clear("default").await.unwrap();
 

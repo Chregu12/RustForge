@@ -69,15 +69,15 @@
 //!
 //! This crate provides Axum route handlers out of the box. See [`handlers`] module for details.
 
-pub mod models;
 pub mod auth;
+pub mod email_verification;
 pub mod handlers;
 pub mod middleware;
-pub mod templates;
+pub mod models;
 pub mod password;
-pub mod session;
-pub mod email_verification;
 pub mod repositories;
+pub mod session;
+pub mod templates;
 
 #[cfg(feature = "two-factor")]
 pub mod two_factor;
@@ -85,10 +85,10 @@ pub mod two_factor;
 #[cfg(feature = "email")]
 pub mod email;
 
-pub use models::{User, Session};
 pub use auth::{AuthService, Credentials, RegisterData};
 pub use handlers::auth_routes;
-pub use middleware::{RequireAuth, OptionalAuth};
+pub use middleware::{OptionalAuth, RequireAuth};
+pub use models::{Session, User};
 pub use session::SessionManager;
 
 /// Auth Scaffolding Configuration

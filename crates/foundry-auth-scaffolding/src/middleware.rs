@@ -1,10 +1,6 @@
 //! Authentication Middleware
 
-use axum::{
-    extract::Request,
-    middleware::Next,
-    response::Response,
-};
+use axum::{extract::Request, middleware::Next, response::Response};
 
 /// Require authentication middleware
 pub struct RequireAuth;

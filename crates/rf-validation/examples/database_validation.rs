@@ -118,11 +118,7 @@ async fn main() {
 
     rules.insert(
         "role_id",
-        vec![Box::new(SimpleExistsRule::new(
-            db.clone(),
-            "roles",
-            "id",
-        ))],
+        vec![Box::new(SimpleExistsRule::new(db.clone(), "roles", "id"))],
     );
 
     validator.rules(rules);
@@ -187,11 +183,7 @@ async fn main() {
     let mut rules3: HashMap<&str, Vec<Box<dyn Rule>>> = HashMap::new();
     rules3.insert(
         "role_id",
-        vec![Box::new(SimpleExistsRule::new(
-            db.clone(),
-            "roles",
-            "id",
-        ))],
+        vec![Box::new(SimpleExistsRule::new(db.clone(), "roles", "id"))],
     );
 
     validator3.rules(rules3);

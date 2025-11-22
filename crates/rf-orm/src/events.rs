@@ -97,7 +97,8 @@ pub trait ModelEvents: ActiveModelTrait {
 ///
 /// Allows registering observers for specific models
 pub struct EventObserver {
-    observers: std::sync::Arc<std::sync::Mutex<std::collections::HashMap<String, Vec<ObserverCallback>>>>,
+    observers:
+        std::sync::Arc<std::sync::Mutex<std::collections::HashMap<String, Vec<ObserverCallback>>>>,
 }
 
 type ObserverCallback = Box<dyn Fn(ModelEvent) -> EventResult + Send + Sync>;

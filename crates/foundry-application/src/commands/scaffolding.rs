@@ -1,3 +1,4 @@
+use crate::commands::TinkerCommand;
 use async_trait::async_trait;
 use chrono::Utc;
 use foundry_domain::{CommandDescriptor, CommandKind};
@@ -8,7 +9,6 @@ use foundry_plugins::{
 use serde_json::json;
 use std::fs;
 use std::path::{Path, PathBuf};
-use crate::commands::TinkerCommand;
 
 pub struct MakeModelCommand {
     descriptor: CommandDescriptor,
@@ -259,13 +259,11 @@ impl MakeSeederCommand {
         let seeder_path = format!("{seeder_root}/{timestamp}_{slug}.sql");
 
         let plan = GeneratorPlan {
-            artifacts: vec![
-                GeneratedArtifact {
-                    path: seeder_path,
-                    description: format!("Datenbank-Seeder `{name}`"),
-                    preview: Some(seeder_template(&slug)),
-                },
-            ],
+            artifacts: vec![GeneratedArtifact {
+                path: seeder_path,
+                description: format!("Datenbank-Seeder `{name}`"),
+                preview: Some(seeder_template(&slug)),
+            }],
             summary: Some(format!("Legt Seeder `{name}` an")),
         };
 
@@ -298,13 +296,11 @@ impl MakeRequestCommand {
         let request_path = format!("{request_root}/{slug}_request.rs");
 
         let plan = GeneratorPlan {
-            artifacts: vec![
-                GeneratedArtifact {
-                    path: request_path,
-                    description: format!("Anfrage-Klasse `{name}`"),
-                    preview: Some(request_template(&name)),
-                },
-            ],
+            artifacts: vec![GeneratedArtifact {
+                path: request_path,
+                description: format!("Anfrage-Klasse `{name}`"),
+                preview: Some(request_template(&name)),
+            }],
             summary: Some(format!("Legt Anfrage-Klasse `{name}` an")),
         };
 
@@ -337,13 +333,11 @@ impl MakeJobCommand {
         let job_path = format!("{jobs_root}/{slug}_job.rs");
 
         let plan = GeneratorPlan {
-            artifacts: vec![
-                GeneratedArtifact {
-                    path: job_path,
-                    description: format!("Job `{name}` für asynchrone Hintergrundaufgaben"),
-                    preview: Some(job_template(&name)),
-                },
-            ],
+            artifacts: vec![GeneratedArtifact {
+                path: job_path,
+                description: format!("Job `{name}` für asynchrone Hintergrundaufgaben"),
+                preview: Some(job_template(&name)),
+            }],
             summary: Some(format!("Legt Job `{name}` an")),
         };
 
@@ -376,13 +370,11 @@ impl MakeFactoryCommand {
         let factory_path = format!("{factory_root}/{slug}_factory.rs");
 
         let plan = GeneratorPlan {
-            artifacts: vec![
-                GeneratedArtifact {
-                    path: factory_path,
-                    description: format!("Factory `{name}` für Test-Daten-Generierung"),
-                    preview: Some(factory_template(&name)),
-                },
-            ],
+            artifacts: vec![GeneratedArtifact {
+                path: factory_path,
+                description: format!("Factory `{name}` für Test-Daten-Generierung"),
+                preview: Some(factory_template(&name)),
+            }],
             summary: Some(format!("Legt Factory `{name}` an")),
         };
 
@@ -415,13 +407,11 @@ impl MakeEventCommand {
         let event_path = format!("{events_root}/{slug}_event.rs");
 
         let plan = GeneratorPlan {
-            artifacts: vec![
-                GeneratedArtifact {
-                    path: event_path,
-                    description: format!("Event `{name}` mit serialisierbarer Payload"),
-                    preview: Some(event_template(&name)),
-                },
-            ],
+            artifacts: vec![GeneratedArtifact {
+                path: event_path,
+                description: format!("Event `{name}` mit serialisierbarer Payload"),
+                preview: Some(event_template(&name)),
+            }],
             summary: Some(format!("Legt Event `{name}` an")),
         };
 
@@ -454,13 +444,11 @@ impl MakeListenerCommand {
         let listener_path = format!("{listeners_root}/{slug}_listener.rs");
 
         let plan = GeneratorPlan {
-            artifacts: vec![
-                GeneratedArtifact {
-                    path: listener_path,
-                    description: format!("Listener `{name}` mit async handle() Methode"),
-                    preview: Some(listener_template(&name)),
-                },
-            ],
+            artifacts: vec![GeneratedArtifact {
+                path: listener_path,
+                description: format!("Listener `{name}` mit async handle() Methode"),
+                preview: Some(listener_template(&name)),
+            }],
             summary: Some(format!("Legt Listener `{name}` an")),
         };
 
@@ -493,13 +481,11 @@ impl MakeCommandCommand {
         let command_path = format!("{commands_root}/{slug}_command.rs");
 
         let plan = GeneratorPlan {
-            artifacts: vec![
-                GeneratedArtifact {
-                    path: command_path,
-                    description: format!("Command `{name}` mit async execute() Methode"),
-                    preview: Some(command_template(&name)),
-                },
-            ],
+            artifacts: vec![GeneratedArtifact {
+                path: command_path,
+                description: format!("Command `{name}` mit async execute() Methode"),
+                preview: Some(command_template(&name)),
+            }],
             summary: Some(format!("Legt Command `{name}` an")),
         };
 
@@ -1234,11 +1220,10 @@ fn slugify(value: &str) -> String {
                 slug.push(ch);
             }
             last_was_separator = false;
-        } else if matches!(ch, '-' | ' ' | '/' | ':')
-            && !last_was_separator && !slug.is_empty() {
-                slug.push('_');
-                last_was_separator = true;
-            }
+        } else if matches!(ch, '-' | ' ' | '/' | ':') && !last_was_separator && !slug.is_empty() {
+            slug.push('_');
+            last_was_separator = true;
+        }
     }
 
     if slug.is_empty() {
@@ -1627,7 +1612,9 @@ impl MakeAuthCommand {
                     preview: Some(register_request_template()),
                 },
             ],
-            summary: Some("Erzeugt vollständige Auth-Struktur (Login, Register, Controller)".to_string()),
+            summary: Some(
+                "Erzeugt vollständige Auth-Struktur (Login, Register, Controller)".to_string(),
+            ),
         };
 
         Ok(plan)
@@ -1698,7 +1685,6 @@ impl FoundryGenerator for MakeAuthCommand {
         self.compute_plan(ctx)
     }
 }
-
 
 /// InstallPackageCommand - Package-Installer Stub (Passport/Sanctum)
 pub struct InstallPackageCommand {
@@ -1868,7 +1854,8 @@ pub fn routes() -> AppRouter {
             post(crate::app::http::controllers::auth_controller::logout),
         )
 }
-"#.to_string()
+"#
+    .to_string()
 }
 
 fn login_request_template() -> String {
@@ -1899,7 +1886,8 @@ impl LoginRequest {
         }
     }
 }
-"#.to_string()
+"#
+    .to_string()
 }
 
 fn register_request_template() -> String {
@@ -1939,7 +1927,8 @@ impl RegisterRequest {
         }
     }
 }
-"#.to_string()
+"#
+    .to_string()
 }
 
 fn register_auth_modules(ctx: &CommandContext) -> Result<(), CommandError> {
@@ -2418,7 +2407,9 @@ mod tests {
             "expected build method in generated artifact"
         );
         assert!(
-            entry.1.contains("pub fn build_many(&self, count: usize) -> Vec<Product>"),
+            entry
+                .1
+                .contains("pub fn build_many(&self, count: usize) -> Vec<Product>"),
             "expected build_many method in generated artifact"
         );
 
@@ -2522,7 +2513,9 @@ mod tests {
             "expected payload struct in generated artifact"
         );
         assert!(
-            entry.1.contains("pub fn new(payload: OrderPlacedPayload) -> Self"),
+            entry
+                .1
+                .contains("pub fn new(payload: OrderPlacedPayload) -> Self"),
             "expected new method in generated artifact"
         );
         assert!(
@@ -2618,7 +2611,9 @@ mod tests {
             "expected EventListener trait in generated artifact"
         );
         assert!(
-            entry.1.contains("async fn handle(&self, event: &E) -> Result<(), ListenerError>"),
+            entry
+                .1
+                .contains("async fn handle(&self, event: &E) -> Result<(), ListenerError>"),
             "expected handle method signature in generated artifact"
         );
         assert!(
@@ -2706,7 +2701,9 @@ mod tests {
             "expected command struct in generated artifact"
         );
         assert!(
-            entry.1.contains("impl FoundryCommand for SyncExternalApiCommand"),
+            entry
+                .1
+                .contains("impl FoundryCommand for SyncExternalApiCommand"),
             "expected FoundryCommand impl in generated artifact"
         );
         assert!(
@@ -2774,7 +2771,8 @@ mod tests {
 
         // Check module registration (written to disk via ensure_module_listing)
         let controller_mod = harness.temp.path().join("app/http/controllers/mod.rs");
-        let controller_mod_contents = fs::read_to_string(&controller_mod).expect("controller mod exists");
+        let controller_mod_contents =
+            fs::read_to_string(&controller_mod).expect("controller mod exists");
         assert!(
             controller_mod_contents.contains("pub mod auth_controller;"),
             "expected auth_controller registration"

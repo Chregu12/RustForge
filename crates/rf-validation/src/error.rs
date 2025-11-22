@@ -76,11 +76,7 @@ impl FieldError {
     }
 
     /// Add a parameter to the error
-    pub fn with_param(
-        mut self,
-        key: impl Into<String>,
-        value: impl Serialize,
-    ) -> Self {
+    pub fn with_param(mut self, key: impl Into<String>, value: impl Serialize) -> Self {
         if self.params.is_none() {
             self.params = Some(HashMap::new());
         }
@@ -102,7 +98,9 @@ impl From<validator::ValidationErrors> for ValidationErrors {
             for error in field_errors {
                 let mut field_error = FieldError::new(
                     error.code.to_string(),
-                    error.message.as_ref()
+                    error
+                        .message
+                        .as_ref()
                         .map(|m| m.to_string())
                         .unwrap_or_else(|| format!("Validation failed for field '{}'", field)),
                 );
@@ -148,10 +146,7 @@ mod tests {
         let mut errors = ValidationErrors::new();
         assert!(errors.is_empty());
 
-        errors.add(
-            "email",
-            FieldError::new("email", "Invalid email address"),
-        );
+        errors.add("email", FieldError::new("email", "Invalid email address"));
         assert!(!errors.is_empty());
         assert_eq!(errors.errors.len(), 1);
     }

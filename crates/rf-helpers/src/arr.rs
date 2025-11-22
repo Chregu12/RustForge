@@ -68,10 +68,7 @@ pub fn random<T>(items: &[T]) -> Option<&T> {
 /// Get multiple random elements from the array
 pub fn random_multiple<T: Clone>(items: &[T], count: usize) -> Vec<T> {
     let mut rng = rand::thread_rng();
-    items
-        .choose_multiple(&mut rng, count)
-        .cloned()
-        .collect()
+    items.choose_multiple(&mut rng, count).cloned().collect()
 }
 
 /// Shuffle the array randomly
@@ -83,7 +80,9 @@ pub fn shuffle<T: Clone>(mut items: Vec<T>) -> Vec<T> {
 
 /// Get a subset of items starting at an offset
 pub fn slice<T: Clone>(items: &[T], offset: usize, length: Option<usize>) -> Vec<T> {
-    let end = length.map(|l| (offset + l).min(items.len())).unwrap_or(items.len());
+    let end = length
+        .map(|l| (offset + l).min(items.len()))
+        .unwrap_or(items.len());
     items[offset..end].to_vec()
 }
 

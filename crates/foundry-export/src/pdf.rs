@@ -1,6 +1,6 @@
 //! PDF export functionality
 
-use crate::{ExportData, style::CellStyle};
+use crate::{style::CellStyle, ExportData};
 use printpdf::*;
 use std::io::BufWriter;
 
@@ -8,7 +8,7 @@ use std::io::BufWriter;
 #[derive(Debug, Clone)]
 pub struct PdfOptions {
     pub page_size: (f32, f32), // width, height in mm
-    pub margin: f32,            // in mm
+    pub margin: f32,           // in mm
     pub font_size: f32,
     pub title_font_size: f32,
     pub header_style: CellStyle,
@@ -72,18 +72,13 @@ impl PdfExporter {
         }
 
         // Headers
-        let col_width = (self.options.page_size.0 - 2.0 * self.options.margin) / data.headers.len() as f32;
+        let col_width =
+            (self.options.page_size.0 - 2.0 * self.options.margin) / data.headers.len() as f32;
         y_pos -= 10.0;
 
         for (i, header) in data.headers.iter().enumerate() {
             let x = self.options.margin + (i as f32 * col_width);
-            current_layer.use_text(
-                header,
-                self.options.font_size,
-                Mm(x),
-                Mm(y_pos),
-                &font,
-            );
+            current_layer.use_text(header, self.options.font_size, Mm(x), Mm(y_pos), &font);
         }
 
         y_pos -= self.options.font_size * 1.5;
@@ -92,13 +87,7 @@ impl PdfExporter {
         for row in &data.rows {
             for (i, cell) in row.iter().enumerate() {
                 let x = self.options.margin + (i as f32 * col_width);
-                current_layer.use_text(
-                    cell,
-                    self.options.font_size,
-                    Mm(x),
-                    Mm(y_pos),
-                    &font,
-                );
+                current_layer.use_text(cell, self.options.font_size, Mm(x), Mm(y_pos), &font);
             }
             y_pos -= self.options.font_size * 1.2;
 

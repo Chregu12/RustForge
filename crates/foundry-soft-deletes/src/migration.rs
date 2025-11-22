@@ -2,7 +2,6 @@
 ///
 /// Note: Due to SeaORM 0.12 API changes, users must manually create migrations.
 /// Use the macro below as a template for your migrations.
-
 use sea_orm::sea_query::{ColumnDef, Iden};
 
 /// Helper to create a deleted_at column definition

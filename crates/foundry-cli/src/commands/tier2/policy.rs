@@ -35,10 +35,7 @@ impl MakePolicyCommand {
             self.generate_model_policy(&policy_name)
         };
 
-        let filename = format!(
-            "app/policies/{}.rs",
-            self.to_snake_case(&policy_name)
-        );
+        let filename = format!("app/policies/{}.rs", self.to_snake_case(&policy_name));
 
         fs::create_dir_all("app/policies")?;
         fs::write(&filename, content)?;
@@ -50,8 +47,10 @@ impl MakePolicyCommand {
             fs::write("app/policies/mod.rs", mod_content)?;
             println!("✓ Created policies module: app/policies/mod.rs");
         } else {
-            println!("⚠ Don't forget to add 'pub mod {};' to app/policies/mod.rs",
-                     self.to_snake_case(&policy_name));
+            println!(
+                "⚠ Don't forget to add 'pub mod {};' to app/policies/mod.rs",
+                self.to_snake_case(&policy_name)
+            );
         }
 
         Ok(())
@@ -104,24 +103,17 @@ mod tests {{
     }}
 }}
 "#,
-            policy_name,
-            policy_name,
-            policy_name,
-            policy_name,
-            policy_name,
-            policy_name
+            policy_name, policy_name, policy_name, policy_name, policy_name, policy_name
         )
     }
 
     fn generate_model_policy(&self, policy_name: &str) -> String {
-        let model_name = self.model.as_ref()
-            .map(|m| m.clone())
-            .unwrap_or_else(|| {
-                policy_name
-                    .strip_suffix("Policy")
-                    .unwrap_or(policy_name)
-                    .to_string()
-            });
+        let model_name = self.model.as_ref().map(|m| m.clone()).unwrap_or_else(|| {
+            policy_name
+                .strip_suffix("Policy")
+                .unwrap_or(policy_name)
+                .to_string()
+        });
 
         format!(
             r#"//! {} - Authorization policy for {}

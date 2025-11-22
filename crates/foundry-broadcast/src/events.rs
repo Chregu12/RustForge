@@ -1,6 +1,6 @@
 //! Broadcast events
 
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 pub trait BroadcastEvent: Serialize {
     fn channel(&self) -> String;

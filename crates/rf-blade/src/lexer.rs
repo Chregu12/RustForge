@@ -46,7 +46,11 @@ pub enum Token {
     Directive(DirectiveType, String), // (type, arguments)
 
     /// Component opening tag: <x-alert type="danger">
-    ComponentStart { name: String, attributes: Vec<(String, String)>, self_closing: bool },
+    ComponentStart {
+        name: String,
+        attributes: Vec<(String, String)>,
+        self_closing: bool,
+    },
 
     /// Component closing tag: </x-alert>
     ComponentEnd(String),
@@ -142,7 +146,15 @@ impl DirectiveType {
     pub fn needs_closing(&self) -> bool {
         matches!(
             self,
-            Self::If | Self::ForEach | Self::For | Self::While | Self::Section | Self::Auth | Self::Guest | Self::ElseIf | Self::Slot
+            Self::If
+                | Self::ForEach
+                | Self::For
+                | Self::While
+                | Self::Section
+                | Self::Auth
+                | Self::Guest
+                | Self::ElseIf
+                | Self::Slot
         )
     }
 
@@ -201,12 +213,17 @@ impl Lexer {
     /// Get the next token
     fn next_token(&mut self) -> LexerResult<Token> {
         // Check for component closing tags: </x-name>
-        if self.current == Some('<') && self.peek() == Some('/') && self.peek_ahead(2) == Some('x') && self.peek_ahead(3) == Some('-') {
+        if self.current == Some('<')
+            && self.peek() == Some('/')
+            && self.peek_ahead(2) == Some('x')
+            && self.peek_ahead(3) == Some('-')
+        {
             return self.read_component_closing_tag();
         }
 
         // Check for component opening tags: <x-name>
-        if self.current == Some('<') && self.peek() == Some('x') && self.peek_ahead(2) == Some('-') {
+        if self.current == Some('<') && self.peek() == Some('x') && self.peek_ahead(2) == Some('-')
+        {
             return self.read_component_tag();
         }
 
@@ -216,7 +233,8 @@ impl Lexer {
         }
 
         // Check for raw output {!! !!}
-        if self.current == Some('{') && self.peek() == Some('!') && self.peek_ahead(2) == Some('!') {
+        if self.current == Some('{') && self.peek() == Some('!') && self.peek_ahead(2) == Some('!')
+        {
             return self.read_interpolation();
         }
 
@@ -322,9 +340,7 @@ impl Lexer {
     /// Read variable interpolation: {{ $var }} or {!! $var !!}
     fn read_interpolation(&mut self) -> LexerResult<Token> {
         // First check if this is {!! (raw output)
-        if self.current == Some('{')
-            && self.peek() == Some('!')
-            && self.peek_ahead(2) == Some('!')
+        if self.current == Some('{') && self.peek() == Some('!') && self.peek_ahead(2) == Some('!')
         {
             self.advance(); // Skip '{'
             self.advance(); // Skip first '!'
@@ -425,7 +441,9 @@ impl Lexer {
 
             // Stop at {{ or {!!
             if ch == '{' {
-                if self.peek() == Some('{') || (self.peek() == Some('!') && self.peek_ahead(2) == Some('!')) {
+                if self.peek() == Some('{')
+                    || (self.peek() == Some('!') && self.peek_ahead(2) == Some('!'))
+                {
                     break;
                 }
             }
@@ -433,7 +451,9 @@ impl Lexer {
             // Stop at component tags <x- or </x-
             if ch == '<' {
                 if (self.peek() == Some('x') && self.peek_ahead(2) == Some('-'))
-                    || (self.peek() == Some('/') && self.peek_ahead(2) == Some('x') && self.peek_ahead(3) == Some('-'))
+                    || (self.peek() == Some('/')
+                        && self.peek_ahead(2) == Some('x')
+                        && self.peek_ahead(3) == Some('-'))
                 {
                     break;
                 }
@@ -464,7 +484,8 @@ impl Lexer {
         }
 
         // Skip whitespace
-        while self.current == Some(' ') || self.current == Some('\t') || self.current == Some('\n') {
+        while self.current == Some(' ') || self.current == Some('\t') || self.current == Some('\n')
+        {
             self.advance();
         }
 
@@ -549,7 +570,10 @@ impl Lexer {
             }
 
             // Skip whitespace
-            while self.current == Some(' ') || self.current == Some('\t') || self.current == Some('\n') {
+            while self.current == Some(' ')
+                || self.current == Some('\t')
+                || self.current == Some('\n')
+            {
                 self.advance();
             }
         }
@@ -682,7 +706,10 @@ mod tests {
     fn test_tokenize_yield() {
         let tokens = Lexer::tokenize("@yield('title')").unwrap();
         assert_eq!(tokens.len(), 1);
-        assert_eq!(tokens[0], Token::Directive(DirectiveType::Yield, "'title'".to_string()));
+        assert_eq!(
+            tokens[0],
+            Token::Directive(DirectiveType::Yield, "'title'".to_string())
+        );
     }
 
     #[test]
@@ -708,21 +735,30 @@ mod tests {
     fn test_tokenize_csrf() {
         let tokens = Lexer::tokenize("@csrf").unwrap();
         assert_eq!(tokens.len(), 1);
-        assert_eq!(tokens[0], Token::Directive(DirectiveType::Csrf, String::new()));
+        assert_eq!(
+            tokens[0],
+            Token::Directive(DirectiveType::Csrf, String::new())
+        );
     }
 
     #[test]
     fn test_tokenize_method() {
         let tokens = Lexer::tokenize("@method('PUT')").unwrap();
         assert_eq!(tokens.len(), 1);
-        assert_eq!(tokens[0], Token::Directive(DirectiveType::Method, "'PUT'".to_string()));
+        assert_eq!(
+            tokens[0],
+            Token::Directive(DirectiveType::Method, "'PUT'".to_string())
+        );
     }
 
     #[test]
     fn test_tokenize_else() {
         let tokens = Lexer::tokenize("@if($a) A @else B @endif").unwrap();
         assert_eq!(tokens.len(), 5);
-        assert_eq!(tokens[2], Token::DirectiveStart(DirectiveType::Else, String::new()));
+        assert_eq!(
+            tokens[2],
+            Token::DirectiveStart(DirectiveType::Else, String::new())
+        );
     }
 
     #[test]

@@ -26,15 +26,14 @@ impl NotificationChannel for SmsChannel {
         notifiable: &dyn Notifiable,
     ) -> NotificationResult<()> {
         // Get SMS message from notification
-        let sms_message = notification
-            .to_sms()
-            .await
-            .ok_or_else(|| NotificationError::ChannelError("No SMS message provided".to_string()))?;
+        let sms_message = notification.to_sms().await.ok_or_else(|| {
+            NotificationError::ChannelError("No SMS message provided".to_string())
+        })?;
 
         // Get recipient phone number
-        let to_phone = notifiable.route_notification_for_sms().ok_or_else(|| {
-            NotificationError::RoutingError("No phone number found".to_string())
-        })?;
+        let to_phone = notifiable
+            .route_notification_for_sms()
+            .ok_or_else(|| NotificationError::RoutingError("No phone number found".to_string()))?;
 
         // Send via provider
         self.provider.send(&to_phone, &sms_message.content).await?;
@@ -107,7 +106,10 @@ impl SmsProvider for TwilioProvider {
             .await?;
 
         if !response.status().is_success() {
-            let error_text = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
+            let error_text = response
+                .text()
+                .await
+                .unwrap_or_else(|_| "Unknown error".to_string());
             return Err(NotificationError::SendError(format!(
                 "Twilio API error: {}",
                 error_text
@@ -144,7 +146,10 @@ impl Default for MockSmsProvider {
 #[async_trait]
 impl SmsProvider for MockSmsProvider {
     async fn send(&self, to: &str, message: &str) -> NotificationResult<()> {
-        self.sent.write().await.push((to.to_string(), message.to_string()));
+        self.sent
+            .write()
+            .await
+            .push((to.to_string(), message.to_string()));
         Ok(())
     }
 }

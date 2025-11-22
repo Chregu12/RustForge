@@ -185,32 +185,29 @@ mod tests {
 
     #[test]
     fn test_social_account_with_refresh_token() {
-        let account = SocialAccount::new(1, "google", "67890", "access")
-            .with_refresh_token("refresh");
+        let account =
+            SocialAccount::new(1, "google", "67890", "access").with_refresh_token("refresh");
         assert_eq!(account.refresh_token, Some("refresh".to_string()));
     }
 
     #[test]
     fn test_is_expired() {
         let past = Utc::now() - chrono::Duration::hours(1);
-        let account = SocialAccount::new(1, "github", "123", "token")
-            .with_expires_at(past);
+        let account = SocialAccount::new(1, "github", "123", "token").with_expires_at(past);
         assert!(account.is_expired());
     }
 
     #[test]
     fn test_needs_refresh() {
         let soon = Utc::now() + chrono::Duration::minutes(3);
-        let account = SocialAccount::new(1, "github", "123", "token")
-            .with_expires_at(soon);
+        let account = SocialAccount::new(1, "github", "123", "token").with_expires_at(soon);
         assert!(account.needs_refresh());
     }
 
     #[test]
     fn test_not_expired() {
         let future = Utc::now() + chrono::Duration::hours(1);
-        let account = SocialAccount::new(1, "github", "123", "token")
-            .with_expires_at(future);
+        let account = SocialAccount::new(1, "github", "123", "token").with_expires_at(future);
         assert!(!account.is_expired());
     }
 

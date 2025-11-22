@@ -56,24 +56,24 @@
 //! @endsection
 //! ```
 
+use serde_json::Value;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use serde_json::Value;
 use thiserror::Error;
 use tokio::fs;
 use tokio::sync::RwLock;
 
 // Old modules (kept for backwards compatibility)
-pub mod parser;
 pub mod compiler;
 pub mod directives;
+pub mod parser;
 
 // New compiler modules
-pub mod lexer;
 pub mod ast;
-pub mod parser_new;
 pub mod compiler_new;
+pub mod lexer;
+pub mod parser_new;
 
 // Phase 2: Components system
 pub mod components;
@@ -81,10 +81,10 @@ pub mod components;
 // Phase 19: Stacks system (@push/@stack)
 pub mod stacks;
 
-use parser::BladeParser;
 use compiler::BladeCompiler;
-pub use parser_new::Parser;
 pub use compiler_new::{Compiler, RenderContext};
+use parser::BladeParser;
+pub use parser_new::Parser;
 
 /// Blade template engine errors
 #[derive(Error, Debug)]
@@ -183,9 +183,10 @@ impl BladeEngine {
         let base_path = base_path.as_ref().to_path_buf();
 
         if !base_path.exists() {
-            return Err(BladeError::TemplateNotFound(
-                format!("Base path does not exist: {}", base_path.display())
-            ));
+            return Err(BladeError::TemplateNotFound(format!(
+                "Base path does not exist: {}",
+                base_path.display()
+            )));
         }
 
         Ok(Self {
@@ -294,7 +295,9 @@ impl BladeEngine {
         let content = fs::read_to_string(&template_path).await?;
 
         // Parse template
-        let parsed = self.parser.parse(&content)
+        let parsed = self
+            .parser
+            .parse(&content)
             .map_err(|e| BladeError::ParseError(e.to_string()))?;
 
         // Compile template
@@ -368,20 +371,22 @@ impl BladeEngine {
         // Simple variable interpolation: {{ $variable }}
         let re = regex::Regex::new(r"\{\{\s*\$?(\w+)\s*\}\}").unwrap();
 
-        result = re.replace_all(&result, |caps: &regex::Captures| {
-            let var_name = &caps[1];
+        result = re
+            .replace_all(&result, |caps: &regex::Captures| {
+                let var_name = &caps[1];
 
-            if let Some(value) = data.get(var_name) {
-                match value {
-                    Value::String(s) => html_escape(s),
-                    Value::Number(n) => n.to_string(),
-                    Value::Bool(b) => b.to_string(),
-                    _ => value.to_string(),
+                if let Some(value) = data.get(var_name) {
+                    match value {
+                        Value::String(s) => html_escape(s),
+                        Value::Number(n) => n.to_string(),
+                        Value::Bool(b) => b.to_string(),
+                        _ => value.to_string(),
+                    }
+                } else {
+                    String::new()
                 }
-            } else {
-                String::new()
-            }
-        }).to_string();
+            })
+            .to_string();
 
         Ok(result)
     }
@@ -416,15 +421,15 @@ impl BladeEngine {
     /// ```
     pub async fn render_compiled(&self, template: &str, data: Value) -> BladeResult<String> {
         // Parse template into AST
-        let ast = Parser::parse(template)
-            .map_err(|e| BladeError::ParseError(e.to_string()))?;
+        let ast = Parser::parse(template).map_err(|e| BladeError::ParseError(e.to_string()))?;
 
         // Create render context
         let mut context = RenderContext::new(data);
 
         // Compile and execute AST
         let compiler = Compiler::new();
-        let html = compiler.compile(&ast, &mut context)
+        let html = compiler
+            .compile(&ast, &mut context)
             .map_err(|e| BladeError::RenderError(e.to_string()))?;
 
         Ok(html)
@@ -448,21 +453,25 @@ impl BladeEngine {
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn render_file_compiled(&self, template_name: &str, data: Value) -> BladeResult<String> {
+    pub async fn render_file_compiled(
+        &self,
+        template_name: &str,
+        data: Value,
+    ) -> BladeResult<String> {
         // Load template file
         let template_path = self.resolve_template_path(template_name)?;
         let content = fs::read_to_string(&template_path).await?;
 
         // Parse into AST
-        let ast = Parser::parse(&content)
-            .map_err(|e| BladeError::ParseError(e.to_string()))?;
+        let ast = Parser::parse(&content).map_err(|e| BladeError::ParseError(e.to_string()))?;
 
         // Create render context
         let mut context = RenderContext::new(data);
 
         // Compile and execute
         let compiler = Compiler::new();
-        let html = compiler.compile(&ast, &mut context)
+        let html = compiler
+            .compile(&ast, &mut context)
             .map_err(|e| BladeError::RenderError(e.to_string()))?;
 
         // Handle template inheritance
@@ -476,7 +485,8 @@ impl BladeEngine {
                 .map_err(|e| BladeError::ParseError(e.to_string()))?;
 
             // Render parent with sections from child
-            let parent_html = compiler.compile(&parent_ast, &mut context)
+            let parent_html = compiler
+                .compile(&parent_ast, &mut context)
                 .map_err(|e| BladeError::RenderError(e.to_string()))?;
 
             Ok(parent_html)
@@ -517,10 +527,9 @@ mod tests {
 
         let blade = BladeEngine::new(&temp_dir).unwrap();
 
-        let html = blade.interpolate(
-            "Hello {{ $name }}!",
-            &json!({"name": "World"})
-        ).unwrap();
+        let html = blade
+            .interpolate("Hello {{ $name }}!", &json!({"name": "World"}))
+            .unwrap();
 
         assert_eq!(html, "Hello World!");
 
@@ -539,10 +548,12 @@ mod tests {
 
         let blade = BladeEngine::new(&temp_dir).unwrap();
 
-        let html = blade.interpolate(
-            "{{ $code }}",
-            &json!({"code": "<script>alert('xss')</script>"})
-        ).unwrap();
+        let html = blade
+            .interpolate(
+                "{{ $code }}",
+                &json!({"code": "<script>alert('xss')</script>"}),
+            )
+            .unwrap();
 
         assert_eq!(html, "&lt;script&gt;alert(&#x27;xss&#x27;)&lt;/script&gt;");
 

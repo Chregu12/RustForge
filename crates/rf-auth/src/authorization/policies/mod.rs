@@ -134,7 +134,8 @@ where
     T: Policy<U, R>,
     U: Sync,
     R: Sync,
-{}
+{
+}
 
 #[cfg(test)]
 mod tests {

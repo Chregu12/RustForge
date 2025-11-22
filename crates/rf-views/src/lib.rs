@@ -88,8 +88,8 @@
 //! {% endblock %}
 //! ```
 
-pub mod composers;
 pub mod components;
+pub mod composers;
 pub mod config;
 pub mod context;
 pub mod engine;
@@ -101,27 +101,27 @@ pub mod response;
 pub mod testing;
 
 // Re-exports
-pub use composers::{ComposerRegistry, ViewComposer, global as global_composers};
-pub use components::{ComponentRegistry, register_default_components};
+pub use components::{register_default_components, ComponentRegistry};
+pub use composers::{global as global_composers, ComposerRegistry, ViewComposer};
 pub use config::ViewConfig;
 pub use context::Context;
 pub use engine::ViewEngine;
 pub use error::{ViewError, ViewResult};
-pub use helpers::{view, view_with_context, redirect, redirect_with_success, redirect_with_error};
-pub use response::{ViewResponse, HtmlResponse};
+pub use helpers::{redirect, redirect_with_error, redirect_with_success, view, view_with_context};
+pub use response::{HtmlResponse, ViewResponse};
 
 /// Prelude module for convenient imports
 pub mod prelude {
+    pub use crate::components::{register_default_components, ComponentRegistry};
     pub use crate::composers::{self, ComposerRegistry, ViewComposer};
-    pub use crate::components::{ComponentRegistry, register_default_components};
     pub use crate::config::ViewConfig;
-    pub use crate::context::Context;
     pub use crate::context;
+    pub use crate::context::Context;
     pub use crate::engine::ViewEngine;
     pub use crate::error::{ViewError, ViewResult};
     pub use crate::helpers::{
-        view, view_with_context, redirect, redirect_with_success, redirect_with_error,
-        redirect_with_info, redirect_with_warning, ViewBuilder,
+        redirect, redirect_with_error, redirect_with_info, redirect_with_success,
+        redirect_with_warning, view, view_with_context, ViewBuilder,
     };
-    pub use crate::response::{ViewResponse, HtmlResponse, render, render_context};
+    pub use crate::response::{render, render_context, HtmlResponse, ViewResponse};
 }

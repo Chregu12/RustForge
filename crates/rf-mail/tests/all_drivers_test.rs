@@ -213,10 +213,8 @@ fn test_common_mailables() {
     assert!(mail.subject.contains("Welcome"));
 
     // Test PasswordResetEmail
-    let reset = PasswordResetEmail::new(
-        "john@example.com",
-        "https://example.com/reset?token=abc123",
-    );
+    let reset =
+        PasswordResetEmail::new("john@example.com", "https://example.com/reset?token=abc123");
     let mail = reset.build().build().unwrap();
     assert!(mail.subject.contains("Reset") || mail.subject.contains("Password"));
 }
@@ -274,9 +272,10 @@ mod integration {
     #[tokio::test]
     #[cfg(feature = "mailgun")]
     async fn test_mailgun_send() {
-        if let (Ok(key), Ok(domain)) =
-            (std::env::var("MAILGUN_API_KEY"), std::env::var("MAILGUN_DOMAIN"))
-        {
+        if let (Ok(key), Ok(domain)) = (
+            std::env::var("MAILGUN_API_KEY"),
+            std::env::var("MAILGUN_DOMAIN"),
+        ) {
             let config = MailgunConfig {
                 api_key: key,
                 domain,

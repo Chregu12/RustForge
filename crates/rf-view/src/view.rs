@@ -219,17 +219,29 @@ mod tests {
     #[test]
     fn test_normalize_template_name() {
         assert_eq!(View::normalize_template_name("welcome"), "welcome.tera");
-        assert_eq!(View::normalize_template_name("pages.home"), "pages/home.tera");
-        assert_eq!(View::normalize_template_name("layouts.app"), "layouts/app.tera");
-        assert_eq!(View::normalize_template_name("welcome.tera"), "welcome.tera");
+        assert_eq!(
+            View::normalize_template_name("pages.home"),
+            "pages/home.tera"
+        );
+        assert_eq!(
+            View::normalize_template_name("layouts.app"),
+            "layouts/app.tera"
+        );
+        assert_eq!(
+            View::normalize_template_name("welcome.tera"),
+            "welcome.tera"
+        );
     }
 
     #[test]
     fn test_view_creation() {
-        let view = View::make("welcome", json!({
-            "title": "Welcome",
-            "user": "John"
-        }));
+        let view = View::make(
+            "welcome",
+            json!({
+                "title": "Welcome",
+                "user": "John"
+            }),
+        );
 
         assert_eq!(view.template, "welcome.tera");
         assert!(view.layout.is_none());
@@ -237,8 +249,7 @@ mod tests {
 
     #[test]
     fn test_view_with_layout() {
-        let view = View::make("home", json!({}))
-            .layout("layouts.app");
+        let view = View::make("home", json!({})).layout("layouts.app");
 
         assert_eq!(view.layout, Some("layouts/app.tera".to_string()));
     }

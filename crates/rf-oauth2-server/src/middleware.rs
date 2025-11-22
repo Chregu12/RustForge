@@ -24,7 +24,8 @@ use std::pin::Pin;
 /// ```
 pub fn require_scopes(
     scopes: Vec<&'static str>,
-) -> impl Fn(Request, Next) -> Pin<Box<dyn Future<Output = Result<Response, OAuth2Error>> + Send>> + Clone {
+) -> impl Fn(Request, Next) -> Pin<Box<dyn Future<Output = Result<Response, OAuth2Error>> + Send>> + Clone
+{
     move |req: Request, next: Next| {
         let scopes = scopes.clone();
         Box::pin(async move {
@@ -52,7 +53,8 @@ pub fn require_scopes(
 /// Middleware to require ANY of the specified OAuth2 scopes
 pub fn require_any_scope(
     scopes: Vec<&'static str>,
-) -> impl Fn(Request, Next) -> Pin<Box<dyn Future<Output = Result<Response, OAuth2Error>> + Send>> + Clone {
+) -> impl Fn(Request, Next) -> Pin<Box<dyn Future<Output = Result<Response, OAuth2Error>> + Send>> + Clone
+{
     move |req: Request, next: Next| {
         let scopes = scopes.clone();
         Box::pin(async move {
@@ -77,10 +79,7 @@ pub fn require_any_scope(
 }
 
 /// Extract and verify OAuth2 bearer token from Authorization header
-pub async fn extract_bearer_token(
-    mut req: Request,
-    next: Next,
-) -> Result<Response, OAuth2Error> {
+pub async fn extract_bearer_token(mut req: Request, next: Next) -> Result<Response, OAuth2Error> {
     // Extract bearer token from Authorization header
     let auth_header = req
         .headers()

@@ -2,7 +2,7 @@
 
 use crate::{MaintenanceConfig, MaintenanceMode};
 use async_trait::async_trait;
-use foundry_plugins::{FoundryCommand, CommandResult, CommandContext};
+use foundry_plugins::{CommandContext, CommandResult, FoundryCommand};
 use serde_json::json;
 
 /// Command to enable maintenance mode (app:down)
@@ -20,7 +20,10 @@ impl FoundryCommand for AppDownCommand {
         })
     }
 
-    async fn execute(&self, ctx: CommandContext) -> Result<CommandResult, foundry_plugins::CommandError> {
+    async fn execute(
+        &self,
+        ctx: CommandContext,
+    ) -> Result<CommandResult, foundry_plugins::CommandError> {
         let args = ctx.args;
         let opts = ctx.options;
         // Parse arguments
@@ -36,7 +39,9 @@ impl FoundryCommand for AppDownCommand {
                         message = Some(args[i + 1].clone());
                         i += 2;
                     } else {
-                        return Err(foundry_plugins::CommandError::Message("--message requires a value".to_string()));
+                        return Err(foundry_plugins::CommandError::Message(
+                            "--message requires a value".to_string(),
+                        ));
                     }
                 }
                 "--secret" => {
@@ -44,19 +49,23 @@ impl FoundryCommand for AppDownCommand {
                         secret = Some(args[i + 1].clone());
                         i += 2;
                     } else {
-                        return Err(foundry_plugins::CommandError::Message("--secret requires a value".to_string()));
+                        return Err(foundry_plugins::CommandError::Message(
+                            "--secret requires a value".to_string(),
+                        ));
                     }
                 }
                 "--retry" => {
                     if i + 1 < args.len() {
-                        retry_after = Some(
-                            args[i + 1]
-                                .parse::<u64>()
-                                .map_err(|_| foundry_plugins::CommandError::Message("Invalid retry value".to_string()))?,
-                        );
+                        retry_after = Some(args[i + 1].parse::<u64>().map_err(|_| {
+                            foundry_plugins::CommandError::Message(
+                                "Invalid retry value".to_string(),
+                            )
+                        })?);
                         i += 2;
                     } else {
-                        return Err(foundry_plugins::CommandError::Message("--retry requires a value".to_string()));
+                        return Err(foundry_plugins::CommandError::Message(
+                            "--retry requires a value".to_string(),
+                        ));
                     }
                 }
                 _ => {
@@ -74,14 +83,15 @@ impl FoundryCommand for AppDownCommand {
         };
 
         if opts.dry_run {
-            return Ok(CommandResult::success(
-                "Would enable maintenance mode (dry run)",
-            )
-            .with_data(json!({
-                "message": config.message,
-                "secret_set": config.secret.is_some(),
-                "retry_after": retry_after,
-            })));
+            return Ok(
+                CommandResult::success("Would enable maintenance mode (dry run)").with_data(
+                    json!({
+                        "message": config.message,
+                        "secret_set": config.secret.is_some(),
+                        "retry_after": retry_after,
+                    }),
+                ),
+            );
         }
 
         let mode = MaintenanceMode::new(config);
@@ -94,11 +104,12 @@ impl FoundryCommand for AppDownCommand {
                 .map_err(|e| foundry_plugins::CommandError::Other(e))?;
         }
 
-        Ok(CommandResult::success("Application is now in maintenance mode")
-            .with_data(json!({
+        Ok(
+            CommandResult::success("Application is now in maintenance mode").with_data(json!({
                 "file": ".maintenance",
                 "secret_set": mode.config().secret.is_some(),
-            })))
+            })),
+        )
     }
 }
 
@@ -117,7 +128,10 @@ impl FoundryCommand for AppUpCommand {
         })
     }
 
-    async fn execute(&self, ctx: CommandContext) -> Result<CommandResult, foundry_plugins::CommandError> {
+    async fn execute(
+        &self,
+        ctx: CommandContext,
+    ) -> Result<CommandResult, foundry_plugins::CommandError> {
         let opts = ctx.options;
         let config = MaintenanceConfig {
             file_path: ".maintenance".into(),
@@ -134,7 +148,9 @@ impl FoundryCommand for AppUpCommand {
         let mode = MaintenanceMode::new(config);
 
         if !mode.is_active() {
-            return Ok(CommandResult::success("Application is not in maintenance mode"));
+            return Ok(CommandResult::success(
+                "Application is not in maintenance mode",
+            ));
         }
 
         mode.disable()

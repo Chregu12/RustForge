@@ -12,13 +12,12 @@ pub mod route;
 pub mod serve;
 pub mod tinker;
 
-use std::path::Path;
 use crate::errors;
+use std::path::Path;
 
 /// Check if we're in a RustForge project
 pub fn is_forge_project() -> bool {
-    Path::new("Cargo.toml").exists() &&
-    Path::new("src").exists()
+    Path::new("Cargo.toml").exists() && Path::new("src").exists()
 }
 
 /// Ensure we're in a RustForge project, or show error

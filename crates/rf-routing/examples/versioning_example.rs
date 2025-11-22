@@ -5,15 +5,10 @@
 //! - Header-based versioning (Accept: application/vnd.api.v1+json)
 //! - Custom header versioning (API-Version: 1)
 
-use axum::{
-    extract::Path,
-    response::Json,
-    routing::get,
-    Router,
-};
+use axum::{extract::Path, response::Json, routing::get, Router};
 use rf_routing::{
-    versioning::{ApiVersion, extract_from_accept, extract_from_header, extract_from_path},
     versioned_router::VersionedRouterBuilder,
+    versioning::{extract_from_accept, extract_from_header, extract_from_path, ApiVersion},
 };
 use serde::Serialize;
 

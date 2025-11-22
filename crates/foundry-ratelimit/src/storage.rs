@@ -1,10 +1,10 @@
 //! Rate limit storage backends
 
+use crate::Result;
 use async_trait::async_trait;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 use std::time::{Duration, Instant};
-use crate::Result;
 
 #[async_trait]
 pub trait RateLimitStorage: Send + Sync {
@@ -32,7 +32,10 @@ impl MemoryStorage {
 
     fn cleanup(&self) {
         let now = Instant::now();
-        self.data.write().unwrap().retain(|_, entry| entry.expires_at > now);
+        self.data
+            .write()
+            .unwrap()
+            .retain(|_, entry| entry.expires_at > now);
     }
 }
 
@@ -49,10 +52,12 @@ impl RateLimitStorage for MemoryStorage {
         let mut data = self.data.write().unwrap();
         let now = Instant::now();
 
-        let entry = data.entry(key.to_string()).or_insert_with(|| RateLimitEntry {
-            count: 0,
-            expires_at: now + window,
-        });
+        let entry = data
+            .entry(key.to_string())
+            .or_insert_with(|| RateLimitEntry {
+                count: 0,
+                expires_at: now + window,
+            });
 
         if entry.expires_at <= now {
             entry.count = 0;

@@ -7,9 +7,9 @@
 //! - Refresh Token Grant
 
 use crate::errors::{OAuth2Error, OAuth2Result};
-use crate::models::{Client, AccessToken, RefreshToken, AuthorizationCode};
+use crate::models::{AccessToken, AuthorizationCode, Client, RefreshToken};
 use crate::tokens::TokenGenerator;
-use chrono::{Utc, Duration};
+use chrono::{Duration, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -107,22 +107,27 @@ impl AuthorizationCodeGrant {
     ) -> OAuth2Result<TokenResponse> {
         // Validate code is not expired
         if code.expires_at < Utc::now() {
-            return Err(OAuth2Error::InvalidGrant("Authorization code expired".to_string()));
+            return Err(OAuth2Error::InvalidGrant(
+                "Authorization code expired".to_string(),
+            ));
         }
 
         // Validate code is not revoked
         if code.revoked {
-            return Err(OAuth2Error::InvalidGrant("Authorization code revoked".to_string()));
+            return Err(OAuth2Error::InvalidGrant(
+                "Authorization code revoked".to_string(),
+            ));
         }
 
         // Validate PKCE if required
         if let Some(challenge) = &code.code_challenge {
-            let verifier = code_verifier.ok_or_else(|| {
-                OAuth2Error::InvalidRequest("code_verifier required".to_string())
-            })?;
+            let verifier = code_verifier
+                .ok_or_else(|| OAuth2Error::InvalidRequest("code_verifier required".to_string()))?;
 
             if !self.verify_pkce(challenge, &verifier, code.code_challenge_method.as_deref())? {
-                return Err(OAuth2Error::InvalidGrant("Invalid code_verifier".to_string()));
+                return Err(OAuth2Error::InvalidGrant(
+                    "Invalid code_verifier".to_string(),
+                ));
             }
         }
 
@@ -135,10 +140,9 @@ impl AuthorizationCodeGrant {
         )?;
 
         // Generate refresh token
-        let refresh_token = self.token_generator.generate_refresh_token(
-            access_token.id,
-            self.refresh_token_lifetime,
-        )?;
+        let refresh_token = self
+            .token_generator
+            .generate_refresh_token(access_token.id, self.refresh_token_lifetime)?;
 
         Ok(TokenResponse {
             access_token: access_token.token,
@@ -150,8 +154,8 @@ impl AuthorizationCodeGrant {
     }
 
     fn generate_code(&self) -> String {
+        use base64::{engine::general_purpose::STANDARD, Engine as _};
         use rand::Rng;
-        use base64::{Engine as _, engine::general_purpose::STANDARD};
         let random_bytes: Vec<u8> = rand::thread_rng()
             .sample_iter(rand::distributions::Standard)
             .take(32)
@@ -169,15 +173,18 @@ impl AuthorizationCodeGrant {
 
         match method {
             Some("S256") => {
-                use sha2::{Sha256, Digest};
-                use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
+                use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
+                use sha2::{Digest, Sha256};
                 let mut hasher = Sha256::new();
                 hasher.update(verifier.as_bytes());
                 let hash = hasher.finalize();
                 let computed_challenge = URL_SAFE_NO_PAD.encode(hash);
 
                 // Use constant-time comparison to prevent timing attacks
-                Ok(computed_challenge.as_bytes().ct_eq(challenge.as_bytes()).into())
+                Ok(computed_challenge
+                    .as_bytes()
+                    .ct_eq(challenge.as_bytes())
+                    .into())
             }
             Some("plain") | None => {
                 // Use constant-time comparison to prevent timing attacks
@@ -269,10 +276,9 @@ impl PasswordGrant {
         )?;
 
         // Generate refresh token
-        let refresh_token = self.token_generator.generate_refresh_token(
-            access_token.id,
-            self.refresh_token_lifetime,
-        )?;
+        let refresh_token = self
+            .token_generator
+            .generate_refresh_token(access_token.id, self.refresh_token_lifetime)?;
 
         Ok(TokenResponse {
             access_token: access_token.token,
@@ -312,12 +318,16 @@ impl RefreshTokenGrant {
     ) -> OAuth2Result<TokenResponse> {
         // Validate refresh token not expired
         if old_refresh_token.expires_at < Utc::now() {
-            return Err(OAuth2Error::InvalidGrant("Refresh token expired".to_string()));
+            return Err(OAuth2Error::InvalidGrant(
+                "Refresh token expired".to_string(),
+            ));
         }
 
         // Validate not revoked
         if old_refresh_token.revoked {
-            return Err(OAuth2Error::InvalidGrant("Refresh token revoked".to_string()));
+            return Err(OAuth2Error::InvalidGrant(
+                "Refresh token revoked".to_string(),
+            ));
         }
 
         // Generate new access token (preserve scopes and user_id)
@@ -329,10 +339,9 @@ impl RefreshTokenGrant {
         )?;
 
         // Generate new refresh token
-        let refresh_token = self.token_generator.generate_refresh_token(
-            access_token.id,
-            self.refresh_token_lifetime,
-        )?;
+        let refresh_token = self
+            .token_generator
+            .generate_refresh_token(access_token.id, self.refresh_token_lifetime)?;
 
         Ok(TokenResponse {
             access_token: access_token.token,
@@ -358,14 +367,16 @@ mod tests {
         let verifier = "test_verifier_123456789012345678901234567890";
 
         // Compute S256 challenge
-        use sha2::{Sha256, Digest};
-        use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
+        use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
+        use sha2::{Digest, Sha256};
         let mut hasher = Sha256::new();
         hasher.update(verifier.as_bytes());
         let hash = hasher.finalize();
         let challenge = URL_SAFE_NO_PAD.encode(&hash);
 
-        assert!(grant.verify_pkce(&challenge, verifier, Some("S256")).unwrap());
+        assert!(grant
+            .verify_pkce(&challenge, verifier, Some("S256"))
+            .unwrap());
     }
 
     #[test]
@@ -375,6 +386,8 @@ mod tests {
         let grant = AuthorizationCodeGrant::new(token_gen, 3600, 2592000);
 
         let verifier = "plain_challenge";
-        assert!(grant.verify_pkce(verifier, verifier, Some("plain")).unwrap());
+        assert!(grant
+            .verify_pkce(verifier, verifier, Some("plain"))
+            .unwrap());
     }
 }

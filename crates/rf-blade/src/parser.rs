@@ -42,7 +42,11 @@ pub enum Directive {
     If { condition: String, content: String },
 
     /// @foreach($items as $item)
-    ForEach { items: String, item: String, content: String },
+    ForEach {
+        items: String,
+        item: String,
+        content: String,
+    },
 
     /// @auth
     Auth { content: String },
@@ -105,7 +109,8 @@ impl BladeParser {
         let mut sections = HashMap::new();
 
         // Match inline sections: @section('name', 'content')
-        let inline_re = regex::Regex::new(r#"@section\(['"](.*?)['"]\s*,\s*['"](.*?)['"]\)"#).unwrap();
+        let inline_re =
+            regex::Regex::new(r#"@section\(['"](.*?)['"]\s*,\s*['"](.*?)['"]\)"#).unwrap();
 
         for caps in inline_re.captures_iter(content) {
             let name = caps[1].to_string();
@@ -114,9 +119,8 @@ impl BladeParser {
         }
 
         // Match block sections: @section('name') ... @endsection
-        let block_re = regex::Regex::new(
-            r#"(?s)@section\(['"](.*?)['"]\)(.*?)@endsection"#
-        ).unwrap();
+        let block_re =
+            regex::Regex::new(r#"(?s)@section\(['"](.*?)['"]\)(.*?)@endsection"#).unwrap();
 
         for caps in block_re.captures_iter(content) {
             let name = caps[1].to_string();
@@ -131,7 +135,8 @@ impl BladeParser {
     fn extract_yields(&self, content: &str) -> ParseResult<Vec<String>> {
         let re = regex::Regex::new(r#"@yield\(['"](.*?)['"]\)"#).unwrap();
 
-        let yields = re.captures_iter(content)
+        let yields = re
+            .captures_iter(content)
             .map(|caps| caps[1].to_string())
             .collect();
 
@@ -143,9 +148,7 @@ impl BladeParser {
         let mut directives = Vec::new();
 
         // @if ... @endif
-        let if_re = regex::Regex::new(
-            r"(?s)@if\((.*?)\)(.*?)@endif"
-        ).unwrap();
+        let if_re = regex::Regex::new(r"(?s)@if\((.*?)\)(.*?)@endif").unwrap();
 
         for caps in if_re.captures_iter(content) {
             directives.push(Directive::If {
@@ -155,9 +158,8 @@ impl BladeParser {
         }
 
         // @foreach ... @endforeach
-        let foreach_re = regex::Regex::new(
-            r"(?s)@foreach\(\$(.*?)\s+as\s+\$(.*?)\)(.*?)@endforeach"
-        ).unwrap();
+        let foreach_re =
+            regex::Regex::new(r"(?s)@foreach\(\$(.*?)\s+as\s+\$(.*?)\)(.*?)@endforeach").unwrap();
 
         for caps in foreach_re.captures_iter(content) {
             directives.push(Directive::ForEach {
@@ -168,9 +170,7 @@ impl BladeParser {
         }
 
         // @auth ... @endauth
-        let auth_re = regex::Regex::new(
-            r"(?s)@auth(.*?)@endauth"
-        ).unwrap();
+        let auth_re = regex::Regex::new(r"(?s)@auth(.*?)@endauth").unwrap();
 
         for caps in auth_re.captures_iter(content) {
             directives.push(Directive::Auth {
@@ -179,9 +179,7 @@ impl BladeParser {
         }
 
         // @guest ... @endguest
-        let guest_re = regex::Regex::new(
-            r"(?s)@guest(.*?)@endguest"
-        ).unwrap();
+        let guest_re = regex::Regex::new(r"(?s)@guest(.*?)@endguest").unwrap();
 
         for caps in guest_re.captures_iter(content) {
             directives.push(Directive::Guest {
@@ -225,7 +223,11 @@ mod tests {
         let parsed = parser.parse(content).unwrap();
 
         assert!(parsed.sections.contains_key("content"));
-        assert!(parsed.sections.get("content").unwrap().contains("<h1>Hello</h1>"));
+        assert!(parsed
+            .sections
+            .get("content")
+            .unwrap()
+            .contains("<h1>Hello</h1>"));
     }
 
     #[test]
@@ -266,7 +268,11 @@ mod tests {
         assert_eq!(parsed.directives.len(), 1);
 
         match &parsed.directives[0] {
-            Directive::ForEach { items, item, content } => {
+            Directive::ForEach {
+                items,
+                item,
+                content,
+            } => {
                 assert_eq!(items, "posts");
                 assert_eq!(item, "post");
                 assert!(content.contains("{{ $post }}"));

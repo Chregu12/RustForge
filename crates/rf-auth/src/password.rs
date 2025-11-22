@@ -85,10 +85,11 @@ impl PasswordHasher {
     pub fn hash(&self, password: &str) -> AuthResult<String> {
         match self.algorithm {
             HashAlgorithm::Bcrypt => {
-                let hash = bcrypt::hash(password, self.bcrypt_cost)
-                    .map_err(|e| AuthError::HashingFailed {
+                let hash = bcrypt::hash(password, self.bcrypt_cost).map_err(|e| {
+                    AuthError::HashingFailed {
                         source: anyhow::anyhow!("Bcrypt hashing failed: {}", e),
-                    })?;
+                    }
+                })?;
                 Ok(hash)
             }
             HashAlgorithm::Argon2 => {
@@ -131,11 +132,10 @@ impl PasswordHasher {
         // Auto-detect algorithm from hash format
         if hash.starts_with("$2") {
             // Bcrypt hash
-            let is_valid = bcrypt::verify(password, hash).map_err(|e| {
-                AuthError::HashingFailed {
+            let is_valid =
+                bcrypt::verify(password, hash).map_err(|e| AuthError::HashingFailed {
                     source: anyhow::anyhow!("Bcrypt verification failed: {}", e),
-                }
-            })?;
+                })?;
             Ok(is_valid)
         } else if hash.starts_with("$argon2") {
             // Argon2 hash
@@ -144,10 +144,8 @@ impl PasswordHasher {
                 Argon2,
             };
 
-            let parsed_hash = PasswordHash::new(hash).map_err(|e| {
-                AuthError::HashingFailed {
-                    source: anyhow::anyhow!("Invalid argon2 hash: {}", e),
-                }
+            let parsed_hash = PasswordHash::new(hash).map_err(|e| AuthError::HashingFailed {
+                source: anyhow::anyhow!("Invalid argon2 hash: {}", e),
             })?;
 
             let argon2 = Argon2::default();

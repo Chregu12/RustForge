@@ -160,7 +160,11 @@ pub trait Controller: Send + Sync + 'static {
 /// Controller registry for managing controllers.
 #[derive(Clone)]
 pub struct ControllerRegistry<S> {
-    controllers: std::sync::Arc<parking_lot::RwLock<std::collections::HashMap<String, std::sync::Arc<dyn std::any::Any + Send + Sync>>>>,
+    controllers: std::sync::Arc<
+        parking_lot::RwLock<
+            std::collections::HashMap<String, std::sync::Arc<dyn std::any::Any + Send + Sync>>,
+        >,
+    >,
     _state: std::marker::PhantomData<S>,
 }
 
@@ -168,7 +172,9 @@ impl<S> ControllerRegistry<S> {
     /// Create a new controller registry.
     pub fn new() -> Self {
         Self {
-            controllers: std::sync::Arc::new(parking_lot::RwLock::new(std::collections::HashMap::new())),
+            controllers: std::sync::Arc::new(parking_lot::RwLock::new(
+                std::collections::HashMap::new(),
+            )),
             _state: std::marker::PhantomData,
         }
     }

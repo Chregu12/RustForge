@@ -105,8 +105,8 @@ pub struct JobMetadata {
 impl JobMetadata {
     /// Create new job metadata
     pub fn new<J: Job>(job: &J) -> Result<Self, QueueError> {
-        let data = serde_json::to_vec(job)
-            .map_err(|e| QueueError::SerializationError(e.to_string()))?;
+        let data =
+            serde_json::to_vec(job).map_err(|e| QueueError::SerializationError(e.to_string()))?;
 
         Ok(Self {
             id: uuid::Uuid::new_v4().to_string(),
@@ -162,14 +162,12 @@ impl JobMetadata {
 
     /// Convert to JSON bytes
     pub fn to_bytes(&self) -> Result<Vec<u8>, QueueError> {
-        serde_json::to_vec(self)
-            .map_err(|e| QueueError::SerializationError(e.to_string()))
+        serde_json::to_vec(self).map_err(|e| QueueError::SerializationError(e.to_string()))
     }
 
     /// Create from JSON bytes
     pub fn from_bytes(data: &[u8]) -> Result<Self, QueueError> {
-        serde_json::from_slice(data)
-            .map_err(|e| QueueError::DeserializationError(e.to_string()))
+        serde_json::from_slice(data).map_err(|e| QueueError::DeserializationError(e.to_string()))
     }
 }
 

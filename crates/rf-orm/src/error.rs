@@ -1,7 +1,7 @@
 //! Database error types
 
-use thiserror::Error;
 use sea_orm::DbErr;
+use thiserror::Error;
 
 /// Database operation errors
 #[derive(Debug, Error)]

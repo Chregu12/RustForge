@@ -1,6 +1,6 @@
 //! Integration tests for QueueFake
 
-use rf_testing::fakes::{QueueFake, queue::JobRecord};
+use rf_testing::fakes::{queue::JobRecord, QueueFake};
 use serde_json::json;
 
 #[test]
@@ -125,9 +125,7 @@ fn test_queue_fake_assert_pushed_with() {
         priority: 0,
     });
 
-    fake.assert_pushed_with("send_email", |payload| {
-        payload["to"] == "test@example.com"
-    });
+    fake.assert_pushed_with("send_email", |payload| payload["to"] == "test@example.com");
 }
 
 #[test]

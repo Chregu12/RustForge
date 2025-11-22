@@ -1,7 +1,7 @@
-use async_trait::async_trait;
 use crate::container::Container;
 use crate::error::Result;
 use crate::provider::ServiceProvider;
+use async_trait::async_trait;
 
 /// Cache service provider for caching services
 pub struct CacheServiceProvider;
@@ -66,12 +66,11 @@ impl ServiceProvider for CacheServiceProvider {
         // Register cache prefix
         container
             .singleton("cache.prefix", || {
-                Ok(std::env::var("CACHE_PREFIX")
-                    .unwrap_or_else(|_| {
-                        std::env::var("APP_NAME")
-                            .unwrap_or_else(|_| "foundry".to_string())
-                            .to_lowercase()
-                    }))
+                Ok(std::env::var("CACHE_PREFIX").unwrap_or_else(|_| {
+                    std::env::var("APP_NAME")
+                        .unwrap_or_else(|_| "foundry".to_string())
+                        .to_lowercase()
+                }))
             })
             .await?;
 

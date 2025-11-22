@@ -32,13 +32,18 @@ pub fn run() {
     let idx = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
-        .as_secs() as usize % quotes.len();
+        .as_secs() as usize
+        % quotes.len();
 
     let (quote, author) = quotes[idx];
 
     println!();
     println!("  {}", quote.italic());
     println!();
-    println!("      {} {}", "—".bright_black(), author.bright_black().italic());
+    println!(
+        "      {} {}",
+        "—".bright_black(),
+        author.bright_black().italic()
+    );
     println!();
 }

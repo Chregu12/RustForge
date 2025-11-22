@@ -155,7 +155,7 @@ async fn test_mailable_trait() {
 
 #[tokio::test]
 async fn test_mail_fake() {
-    use rf_mail::testing::{fake, assert_sent, assert_sent_count, restore};
+    use rf_mail::testing::{assert_sent, assert_sent_count, fake, restore};
 
     let fake_mailer = fake();
 
@@ -261,8 +261,7 @@ async fn test_multiple_recipients() {
 
 #[tokio::test]
 async fn test_mail_config() {
-    let smtp = SmtpMailConfig::new("localhost", 1025)
-        .with_credentials("user", "pass");
+    let smtp = SmtpMailConfig::new("localhost", 1025).with_credentials("user", "pass");
 
     let config = MailConfig::smtp(Address::new("noreply@example.com"), smtp);
 

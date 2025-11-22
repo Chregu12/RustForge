@@ -1,10 +1,6 @@
 //! Authentication middleware for admin panel
 
-use axum::{
-    extract::Request,
-    middleware::Next,
-    response::Response,
-};
+use axum::{extract::Request, middleware::Next, response::Response};
 
 /// Authentication middleware
 pub async fn auth_middleware(request: Request, next: Next) -> Response {

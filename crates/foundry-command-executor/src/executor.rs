@@ -80,15 +80,12 @@ impl CommandExecutor {
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn queue(
-        &self,
-        command_name: &str,
-        args: Vec<String>,
-    ) -> ExecutionResult<()> {
+    pub async fn queue(&self, command_name: &str, args: Vec<String>) -> ExecutionResult<()> {
         let mut options = CommandOptions::new();
         options.mode = ExecutionMode::Queued;
 
-        self.execute_with_options(command_name, args, options).await?;
+        self.execute_with_options(command_name, args, options)
+            .await?;
         Ok(())
     }
 
@@ -115,11 +112,14 @@ impl CommandExecutor {
 
         // Check if should queue
         if options.mode == ExecutionMode::Queued {
-            return self.queue_command(command_name, args, options, output_capture).await;
+            return self
+                .queue_command(command_name, args, options, output_capture)
+                .await;
         }
 
         // Execute immediately
-        self.execute_immediate(command, args, options, output_capture).await
+        self.execute_immediate(command, args, options, output_capture)
+            .await
     }
 
     /// Execute command immediately
@@ -139,9 +139,7 @@ impl CommandExecutor {
         let result = match command.execute(ctx).await {
             Ok(result) => {
                 info!("Command executed successfully");
-                output_capture.capture_stdout(
-                    result.message.clone().unwrap_or_default()
-                );
+                output_capture.capture_stdout(result.message.clone().unwrap_or_default());
                 result
             }
             Err(e) => {
@@ -220,66 +218,126 @@ impl CommandExecutor {
         // Create dummy ports (these would be real implementations in production)
         struct DummyArtifactPort;
         impl ArtifactPort for DummyArtifactPort {
-            fn write_file(&self, _path: &str, _contents: &str, _force: bool) -> Result<(), foundry_plugins::CommandError> {
+            fn write_file(
+                &self,
+                _path: &str,
+                _contents: &str,
+                _force: bool,
+            ) -> Result<(), foundry_plugins::CommandError> {
                 Ok(())
             }
         }
 
         #[async_trait::async_trait]
         impl MigrationPort for DummyArtifactPort {
-            async fn apply(&self, _config: &Value, _dry_run: bool) -> Result<foundry_plugins::MigrationRun, foundry_plugins::CommandError> {
+            async fn apply(
+                &self,
+                _config: &Value,
+                _dry_run: bool,
+            ) -> Result<foundry_plugins::MigrationRun, foundry_plugins::CommandError> {
                 Ok(foundry_plugins::MigrationRun::default())
             }
-            async fn rollback(&self, _config: &Value, _dry_run: bool) -> Result<foundry_plugins::MigrationRun, foundry_plugins::CommandError> {
+            async fn rollback(
+                &self,
+                _config: &Value,
+                _dry_run: bool,
+            ) -> Result<foundry_plugins::MigrationRun, foundry_plugins::CommandError> {
                 Ok(foundry_plugins::MigrationRun::default())
             }
         }
 
         #[async_trait::async_trait]
         impl SeedPort for DummyArtifactPort {
-            async fn run(&self, _config: &Value, _dry_run: bool) -> Result<foundry_plugins::SeedRun, foundry_plugins::CommandError> {
+            async fn run(
+                &self,
+                _config: &Value,
+                _dry_run: bool,
+            ) -> Result<foundry_plugins::SeedRun, foundry_plugins::CommandError> {
                 Ok(foundry_plugins::SeedRun::default())
             }
         }
 
         #[async_trait::async_trait]
         impl ValidationPort for DummyArtifactPort {
-            async fn validate(&self, _payload: Value, _rules: foundry_plugins::ValidationRules) -> Result<foundry_plugins::ValidationReport, foundry_plugins::CommandError> {
+            async fn validate(
+                &self,
+                _payload: Value,
+                _rules: foundry_plugins::ValidationRules,
+            ) -> Result<foundry_plugins::ValidationReport, foundry_plugins::CommandError>
+            {
                 Ok(foundry_plugins::ValidationReport::valid())
             }
         }
 
         #[async_trait::async_trait]
         impl StoragePort for DummyArtifactPort {
-            async fn put(&self, _disk: &str, _path: &str, _contents: Vec<u8>) -> Result<foundry_plugins::StoredFile, foundry_plugins::CommandError> {
-                Err(foundry_plugins::CommandError::Message("Not implemented".to_string()))
+            async fn put(
+                &self,
+                _disk: &str,
+                _path: &str,
+                _contents: Vec<u8>,
+            ) -> Result<foundry_plugins::StoredFile, foundry_plugins::CommandError> {
+                Err(foundry_plugins::CommandError::Message(
+                    "Not implemented".to_string(),
+                ))
             }
-            async fn get(&self, _disk: &str, _path: &str) -> Result<Vec<u8>, foundry_plugins::CommandError> {
-                Err(foundry_plugins::CommandError::Message("Not implemented".to_string()))
+            async fn get(
+                &self,
+                _disk: &str,
+                _path: &str,
+            ) -> Result<Vec<u8>, foundry_plugins::CommandError> {
+                Err(foundry_plugins::CommandError::Message(
+                    "Not implemented".to_string(),
+                ))
             }
-            async fn delete(&self, _disk: &str, _path: &str) -> Result<(), foundry_plugins::CommandError> {
+            async fn delete(
+                &self,
+                _disk: &str,
+                _path: &str,
+            ) -> Result<(), foundry_plugins::CommandError> {
                 Ok(())
             }
-            async fn exists(&self, _disk: &str, _path: &str) -> Result<bool, foundry_plugins::CommandError> {
+            async fn exists(
+                &self,
+                _disk: &str,
+                _path: &str,
+            ) -> Result<bool, foundry_plugins::CommandError> {
                 Ok(false)
             }
-            async fn url(&self, _disk: &str, _path: &str) -> Result<String, foundry_plugins::CommandError> {
-                Err(foundry_plugins::CommandError::Message("Not implemented".to_string()))
+            async fn url(
+                &self,
+                _disk: &str,
+                _path: &str,
+            ) -> Result<String, foundry_plugins::CommandError> {
+                Err(foundry_plugins::CommandError::Message(
+                    "Not implemented".to_string(),
+                ))
             }
         }
 
         #[async_trait::async_trait]
         impl CachePort for DummyArtifactPort {
-            async fn get(&self, _key: &str) -> Result<Option<Value>, foundry_plugins::CommandError> {
+            async fn get(
+                &self,
+                _key: &str,
+            ) -> Result<Option<Value>, foundry_plugins::CommandError> {
                 Ok(None)
             }
-            async fn put(&self, _key: &str, _value: Value, _ttl: Option<std::time::Duration>) -> Result<(), foundry_plugins::CommandError> {
+            async fn put(
+                &self,
+                _key: &str,
+                _value: Value,
+                _ttl: Option<std::time::Duration>,
+            ) -> Result<(), foundry_plugins::CommandError> {
                 Ok(())
             }
             async fn forget(&self, _key: &str) -> Result<(), foundry_plugins::CommandError> {
                 Ok(())
             }
-            async fn clear(&self, _prefix: Option<&str>) -> Result<(), foundry_plugins::CommandError> {
+            async fn clear(
+                &self,
+                _prefix: Option<&str>,
+            ) -> Result<(), foundry_plugins::CommandError> {
                 Ok(())
             }
         }
@@ -293,7 +351,10 @@ impl CommandExecutor {
 
         #[async_trait::async_trait]
         impl EventPort for DummyArtifactPort {
-            async fn publish(&self, _event: foundry_plugins::DomainEvent) -> Result<(), foundry_plugins::CommandError> {
+            async fn publish(
+                &self,
+                _event: foundry_plugins::DomainEvent,
+            ) -> Result<(), foundry_plugins::CommandError> {
                 Ok(())
             }
         }
@@ -343,7 +404,10 @@ mod tests {
             &self.descriptor
         }
 
-        async fn execute(&self, _ctx: CommandContext) -> Result<CommandResult, foundry_plugins::CommandError> {
+        async fn execute(
+            &self,
+            _ctx: CommandContext,
+        ) -> Result<CommandResult, foundry_plugins::CommandError> {
             Ok(CommandResult::success("Test command executed"))
         }
     }
@@ -395,9 +459,7 @@ mod tests {
         registry.register("test".to_string(), command).unwrap();
 
         let executor = CommandExecutor::new(registry);
-        let options = CommandOptions::new()
-            .arg("name", "value")
-            .flag("verbose");
+        let options = CommandOptions::new().arg("name", "value").flag("verbose");
 
         let result = executor.call("test", options).await.unwrap();
         assert!(result.is_success());

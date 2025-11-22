@@ -55,7 +55,11 @@ impl HealthCheck {
     }
 
     /// Create a degraded check result
-    pub fn degraded(name: impl Into<String>, message: impl Into<String>, duration: Duration) -> Self {
+    pub fn degraded(
+        name: impl Into<String>,
+        message: impl Into<String>,
+        duration: Duration,
+    ) -> Self {
         Self {
             name: name.into(),
             status: HealthState::Degraded,
@@ -67,7 +71,11 @@ impl HealthCheck {
     }
 
     /// Create an unhealthy check result
-    pub fn unhealthy(name: impl Into<String>, message: impl Into<String>, duration: Duration) -> Self {
+    pub fn unhealthy(
+        name: impl Into<String>,
+        message: impl Into<String>,
+        duration: Duration,
+    ) -> Self {
         Self {
             name: name.into(),
             status: HealthState::Unhealthy,
@@ -144,7 +152,14 @@ pub trait HealthChecker: Send + Sync {
 /// Database health checker
 pub struct DatabaseHealthChecker {
     name: String,
-    check_fn: Option<Arc<dyn Fn() -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<(), String>> + Send>> + Send + Sync>>,
+    check_fn: Option<
+        Arc<
+            dyn Fn() -> std::pin::Pin<
+                    Box<dyn std::future::Future<Output = Result<(), String>> + Send>,
+                > + Send
+                + Sync,
+        >,
+    >,
 }
 
 impl DatabaseHealthChecker {
@@ -200,7 +215,14 @@ impl HealthChecker for DatabaseHealthChecker {
 /// Redis/Cache health checker
 pub struct CacheHealthChecker {
     name: String,
-    check_fn: Option<Arc<dyn Fn() -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<(), String>> + Send>> + Send + Sync>>,
+    check_fn: Option<
+        Arc<
+            dyn Fn() -> std::pin::Pin<
+                    Box<dyn std::future::Future<Output = Result<(), String>> + Send>,
+                > + Send
+                + Sync,
+        >,
+    >,
 }
 
 impl CacheHealthChecker {
@@ -254,7 +276,14 @@ impl HealthChecker for CacheHealthChecker {
 /// Queue health checker
 pub struct QueueHealthChecker {
     name: String,
-    check_fn: Option<Arc<dyn Fn() -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<(), String>> + Send>> + Send + Sync>>,
+    check_fn: Option<
+        Arc<
+            dyn Fn() -> std::pin::Pin<
+                    Box<dyn std::future::Future<Output = Result<(), String>> + Send>,
+                > + Send
+                + Sync,
+        >,
+    >,
 }
 
 impl QueueHealthChecker {

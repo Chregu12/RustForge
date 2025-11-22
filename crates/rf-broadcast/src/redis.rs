@@ -1,6 +1,6 @@
 //! Redis-backed broadcaster for distributed deployments
 
-use crate::{Broadcaster, BroadcastError, Channel, ConnectionId, Event, PresenceInfo, UserId};
+use crate::{BroadcastError, Broadcaster, Channel, ConnectionId, Event, PresenceInfo, UserId};
 use async_trait::async_trait;
 use deadpool_redis::{Config, Pool, Runtime};
 use redis::AsyncCommands;
@@ -143,10 +143,7 @@ impl Broadcaster for RedisBroadcaster {
 
         // Add to Redis subscriptions set
         let _: () = conn
-            .sadd(
-                Self::subscriptions_key(channel),
-                connection_id.as_str(),
-            )
+            .sadd(Self::subscriptions_key(channel), connection_id.as_str())
             .await
             .map_err(|e| BroadcastError::BackendError(e.to_string()))?;
 
@@ -307,12 +304,12 @@ mod tests {
     // Run with: docker run -d -p 6379:6379 redis
 
     #[tokio::test]
-async fn test_redis_subscribe_unsubscribe() {
-    if !redis_available().await {
-        eprintln!("⏭️  Skipping test_redis_subscribe_unsubscribe: Redis not available");
-        eprintln!("   Start services with: ./scripts/test-env-up.sh");
-        return;
-    }
+    async fn test_redis_subscribe_unsubscribe() {
+        if !redis_available().await {
+            eprintln!("⏭️  Skipping test_redis_subscribe_unsubscribe: Redis not available");
+            eprintln!("   Start services with: ./scripts/test-env-up.sh");
+            return;
+        }
         let broadcaster = RedisBroadcaster::new("redis://localhost").await.unwrap();
         let channel = Channel::public("test");
         let conn_id = "conn-1".to_string();
@@ -331,12 +328,12 @@ async fn test_redis_subscribe_unsubscribe() {
     }
 
     #[tokio::test]
-async fn test_redis_presence_channel() {
-    if !redis_available().await {
-        eprintln!("⏭️  Skipping test_redis_presence_channel: Redis not available");
-        eprintln!("   Start services with: ./scripts/test-env-up.sh");
-        return;
-    }
+    async fn test_redis_presence_channel() {
+        if !redis_available().await {
+            eprintln!("⏭️  Skipping test_redis_presence_channel: Redis not available");
+            eprintln!("   Start services with: ./scripts/test-env-up.sh");
+            return;
+        }
         let broadcaster = RedisBroadcaster::new("redis://localhost").await.unwrap();
         let channel = Channel::presence("chat");
 
@@ -363,12 +360,12 @@ async fn test_redis_presence_channel() {
     }
 
     #[tokio::test]
-async fn test_redis_broadcast() {
-    if !redis_available().await {
-        eprintln!("⏭️  Skipping test_redis_broadcast: Redis not available");
-        eprintln!("   Start services with: ./scripts/test-env-up.sh");
-        return;
-    }
+    async fn test_redis_broadcast() {
+        if !redis_available().await {
+            eprintln!("⏭️  Skipping test_redis_broadcast: Redis not available");
+            eprintln!("   Start services with: ./scripts/test-env-up.sh");
+            return;
+        }
         let broadcaster = RedisBroadcaster::new("redis://localhost").await.unwrap();
         let channel = Channel::public("users");
 
@@ -386,12 +383,12 @@ async fn test_redis_broadcast() {
     }
 
     #[tokio::test]
-async fn test_redis_connections() {
-    if !redis_available().await {
-        eprintln!("⏭️  Skipping test_redis_connections: Redis not available");
-        eprintln!("   Start services with: ./scripts/test-env-up.sh");
-        return;
-    }
+    async fn test_redis_connections() {
+        if !redis_available().await {
+            eprintln!("⏭️  Skipping test_redis_connections: Redis not available");
+            eprintln!("   Start services with: ./scripts/test-env-up.sh");
+            return;
+        }
         let broadcaster = RedisBroadcaster::new("redis://localhost").await.unwrap();
         let channel = Channel::public("test");
 

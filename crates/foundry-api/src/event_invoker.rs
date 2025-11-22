@@ -2,7 +2,6 @@
 ///
 /// Wraps a regular invoker and automatically dispatches command lifecycle events.
 /// This allows applications to hook into command execution without modifying commands.
-
 use crate::events::EventDispatcher;
 use crate::invocation::{CommandInvoker, InvocationRequest};
 use foundry_application::ApplicationError;
@@ -89,19 +88,19 @@ impl CommandInvoker for EventDispatchingInvoker {
                     ApplicationError::StorageError(msg) => {
                         foundry_plugins::AppError::new("STORAGE_ERROR", msg)
                     }
-                    ApplicationError::RegistryCorrupted => {
-                        foundry_plugins::AppError::new("REGISTRY_CORRUPTED", "Registry corrupted: lock poisoned")
-                    }
-                    ApplicationError::LockPoisoned(msg) => {
-                        foundry_plugins::AppError::new("LOCK_POISONED", format!("Lock poisoned: {}", msg))
-                    }
+                    ApplicationError::RegistryCorrupted => foundry_plugins::AppError::new(
+                        "REGISTRY_CORRUPTED",
+                        "Registry corrupted: lock poisoned",
+                    ),
+                    ApplicationError::LockPoisoned(msg) => foundry_plugins::AppError::new(
+                        "LOCK_POISONED",
+                        format!("Lock poisoned: {}", msg),
+                    ),
                 };
 
                 info!(
                     "Command failed: {} (error: {}, duration: {}ms)",
-                    command,
-                    app_error.code,
-                    duration_ms
+                    command, app_error.code, duration_ms
                 );
 
                 // Dispatch CommandFailed event

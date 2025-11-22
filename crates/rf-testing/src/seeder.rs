@@ -33,8 +33,8 @@
 //! ```
 
 use async_trait::async_trait;
-use std::sync::Arc;
 use std::collections::HashMap;
+use std::sync::Arc;
 use thiserror::Error;
 
 /// Seeder errors
@@ -472,8 +472,7 @@ mod tests {
             executed: executed.clone(),
         };
 
-        let runner = SeederRunner::new()
-            .add_seeder(Box::new(seeder));
+        let runner = SeederRunner::new().add_seeder(Box::new(seeder));
 
         runner.run_all().await.unwrap();
 
@@ -487,8 +486,7 @@ mod tests {
             executed: executed.clone(),
         };
 
-        let runner = SeederRunner::new()
-            .add_seeder(Box::new(seeder));
+        let runner = SeederRunner::new().add_seeder(Box::new(seeder));
 
         assert!(runner.has_seeder("TestSeeder"));
         assert!(!runner.has_seeder("NonExistent"));

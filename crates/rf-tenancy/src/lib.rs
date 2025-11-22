@@ -316,9 +316,7 @@ mod tests {
     #[tokio::test]
     async fn test_in_memory_resolver_by_id() {
         let resolver = InMemoryTenantResolver::new();
-        resolver
-            .add_tenant(Tenant::new("1", "Tenant 1"))
-            .await;
+        resolver.add_tenant(Tenant::new("1", "Tenant 1")).await;
 
         let tenant = resolver.resolve_by_id("1").await.unwrap();
         assert_eq!(tenant.id(), "1");
@@ -376,15 +374,9 @@ mod tests {
     #[tokio::test]
     async fn test_multiple_tenants() {
         let resolver = InMemoryTenantResolver::new();
-        resolver
-            .add_tenant(Tenant::new("1", "Tenant 1"))
-            .await;
-        resolver
-            .add_tenant(Tenant::new("2", "Tenant 2"))
-            .await;
-        resolver
-            .add_tenant(Tenant::new("3", "Tenant 3"))
-            .await;
+        resolver.add_tenant(Tenant::new("1", "Tenant 1")).await;
+        resolver.add_tenant(Tenant::new("2", "Tenant 2")).await;
+        resolver.add_tenant(Tenant::new("3", "Tenant 3")).await;
 
         let tenant1 = resolver.resolve_by_id("1").await.unwrap();
         let tenant2 = resolver.resolve_by_id("2").await.unwrap();
@@ -413,9 +405,7 @@ mod tests {
     #[tokio::test]
     async fn test_concurrent_tenant_access() {
         let resolver = InMemoryTenantResolver::new();
-        resolver
-            .add_tenant(Tenant::new("1", "Tenant 1"))
-            .await;
+        resolver.add_tenant(Tenant::new("1", "Tenant 1")).await;
 
         // Simulate concurrent access
         let handles: Vec<_> = (0..10)

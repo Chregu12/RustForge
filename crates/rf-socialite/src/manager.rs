@@ -46,10 +46,9 @@ impl SocialiteManager {
     /// let driver = manager.driver("github").unwrap();
     /// ```
     pub fn driver(&self, name: &str) -> Result<DriverBuilder, SocialiteError> {
-        let config = self.config.get_provider(name)
-            .ok_or_else(|| SocialiteError::InvalidConfig(
-                format!("Provider '{}' not configured", name)
-            ))?;
+        let config = self.config.get_provider(name).ok_or_else(|| {
+            SocialiteError::InvalidConfig(format!("Provider '{}' not configured", name))
+        })?;
 
         let provider = self.name_to_provider(name)?;
 
@@ -107,9 +106,10 @@ impl SocialiteManager {
             "github" => Ok(Provider::GitHub),
             "facebook" => Ok(Provider::Facebook),
             "twitter" => Ok(Provider::Twitter),
-            _ => Err(SocialiteError::InvalidConfig(
-                format!("Unknown provider: {}", name)
-            )),
+            _ => Err(SocialiteError::InvalidConfig(format!(
+                "Unknown provider: {}",
+                name
+            ))),
         }
     }
 
@@ -169,8 +169,7 @@ mod tests {
 
     #[test]
     fn test_driver_with_config() {
-        let config = SocialiteConfig::new()
-            .with_google(ProviderConfig::new("id", "secret", "uri"));
+        let config = SocialiteConfig::new().with_google(ProviderConfig::new("id", "secret", "uri"));
         let manager = SocialiteManager::new(config);
         let result = manager.driver("google");
         assert!(result.is_ok());

@@ -77,7 +77,8 @@ impl ApiRestTemplate {
         }
 
         if self.config.has_redis() {
-            dependencies.push("redis = { version = \"0.24\", features = [\"tokio-comp\"] }".to_string());
+            dependencies
+                .push("redis = { version = \"0.24\", features = [\"tokio-comp\"] }".to_string());
         }
 
         let mut dev_dependencies = vec![];
@@ -261,8 +262,16 @@ async fn main() -> color_eyre::Result<()> {{
     Ok(())
 }}
 "#,
-            if self.config.has_database() { "mod database;\n" } else { "" },
-            if self.config.has_database() { "mod models;\n" } else { "" },
+            if self.config.has_database() {
+                "mod database;\n"
+            } else {
+                ""
+            },
+            if self.config.has_database() {
+                "mod models;\n"
+            } else {
+                ""
+            },
             self.config.name,
             db_setup,
             self.config.name,
@@ -610,8 +619,8 @@ mod tests {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::path::PathBuf;
     use crate::commands::new::config::{Feature, TemplateType};
+    use std::path::PathBuf;
 
     #[test]
     fn test_api_template_creation() {

@@ -211,10 +211,7 @@ fn example_nested_resources() {
     };
 
     println!("\nWith posts loaded:");
-    println!(
-        "{}",
-        serde_json::to_string_pretty(&resource_with).unwrap()
-    );
+    println!("{}", serde_json::to_string_pretty(&resource_with).unwrap());
 }
 
 fn example_resource_builder() {

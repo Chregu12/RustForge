@@ -123,7 +123,12 @@ impl Storage {
     }
 
     /// Get entries with pagination
-    pub async fn paginate(&self, entry_type: Option<EntryType>, page: usize, per_page: usize) -> (Vec<Entry>, usize) {
+    pub async fn paginate(
+        &self,
+        entry_type: Option<EntryType>,
+        page: usize,
+        per_page: usize,
+    ) -> (Vec<Entry>, usize) {
         let all_entries = if let Some(et) = entry_type {
             self.by_type(et).await
         } else {
@@ -215,9 +220,13 @@ mod tests {
     async fn test_storage_all() {
         let storage = Storage::new();
 
-        storage.store(Entry::new(EntryType::Request, json!({}))).await;
+        storage
+            .store(Entry::new(EntryType::Request, json!({})))
+            .await;
         storage.store(Entry::new(EntryType::Query, json!({}))).await;
-        storage.store(Entry::new(EntryType::Exception, json!({}))).await;
+        storage
+            .store(Entry::new(EntryType::Exception, json!({})))
+            .await;
 
         let all = storage.all().await;
         assert_eq!(all.len(), 3);
@@ -227,8 +236,12 @@ mod tests {
     async fn test_storage_by_type() {
         let storage = Storage::new();
 
-        storage.store(Entry::new(EntryType::Request, json!({}))).await;
-        storage.store(Entry::new(EntryType::Request, json!({}))).await;
+        storage
+            .store(Entry::new(EntryType::Request, json!({})))
+            .await;
+        storage
+            .store(Entry::new(EntryType::Request, json!({})))
+            .await;
         storage.store(Entry::new(EntryType::Query, json!({}))).await;
 
         let requests = storage.by_type(EntryType::Request).await;
@@ -242,8 +255,12 @@ mod tests {
     async fn test_storage_count() {
         let storage = Storage::new();
 
-        storage.store(Entry::new(EntryType::Request, json!({}))).await;
-        storage.store(Entry::new(EntryType::Request, json!({}))).await;
+        storage
+            .store(Entry::new(EntryType::Request, json!({})))
+            .await;
+        storage
+            .store(Entry::new(EntryType::Request, json!({})))
+            .await;
         storage.store(Entry::new(EntryType::Query, json!({}))).await;
 
         assert_eq!(storage.count(None).await, 3);
@@ -258,7 +275,9 @@ mod tests {
 
         // Create 25 entries
         for _ in 0..25 {
-            storage.store(Entry::new(EntryType::Request, json!({}))).await;
+            storage
+                .store(Entry::new(EntryType::Request, json!({})))
+                .await;
         }
 
         let (page1, total) = storage.paginate(None, 0, 10).await;
@@ -277,7 +296,9 @@ mod tests {
         let storage = Storage::new();
 
         for _ in 0..15 {
-            storage.store(Entry::new(EntryType::Request, json!({}))).await;
+            storage
+                .store(Entry::new(EntryType::Request, json!({})))
+                .await;
         }
         for _ in 0..10 {
             storage.store(Entry::new(EntryType::Query, json!({}))).await;
@@ -322,9 +343,13 @@ mod tests {
     async fn test_storage_clear() {
         let storage = Storage::new();
 
-        storage.store(Entry::new(EntryType::Request, json!({}))).await;
+        storage
+            .store(Entry::new(EntryType::Request, json!({})))
+            .await;
         storage.store(Entry::new(EntryType::Query, json!({}))).await;
-        storage.store(Entry::new(EntryType::Exception, json!({}))).await;
+        storage
+            .store(Entry::new(EntryType::Exception, json!({})))
+            .await;
 
         assert_eq!(storage.count(None).await, 3);
 
@@ -350,8 +375,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_entry_with_multiple_tags() {
-        let entry = Entry::new(EntryType::Request, json!({}))
-            .with_tags(vec!["tag1".to_string(), "tag2".to_string(), "tag3".to_string()]);
+        let entry = Entry::new(EntryType::Request, json!({})).with_tags(vec![
+            "tag1".to_string(),
+            "tag2".to_string(),
+            "tag3".to_string(),
+        ]);
 
         assert_eq!(entry.tags.len(), 3);
     }
@@ -368,11 +396,17 @@ mod tests {
         let storage = Storage::new();
 
         // Add entries with slight delays to ensure different timestamps
-        storage.store(Entry::new(EntryType::Request, json!({"order": 1}))).await;
+        storage
+            .store(Entry::new(EntryType::Request, json!({"order": 1})))
+            .await;
         tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
-        storage.store(Entry::new(EntryType::Request, json!({"order": 2}))).await;
+        storage
+            .store(Entry::new(EntryType::Request, json!({"order": 2})))
+            .await;
         tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
-        storage.store(Entry::new(EntryType::Request, json!({"order": 3}))).await;
+        storage
+            .store(Entry::new(EntryType::Request, json!({"order": 3})))
+            .await;
 
         let all = storage.all().await;
         // Should be sorted newest first

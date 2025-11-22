@@ -53,8 +53,8 @@
 use std::path::{Path, PathBuf};
 use thiserror::Error;
 
-pub mod templates;
 pub mod installer;
+pub mod templates;
 
 pub use installer::BreezeInstaller;
 
@@ -150,9 +150,10 @@ impl BreezeScaffold {
         let base_path = base_path.as_ref().to_path_buf();
 
         if !base_path.exists() {
-            return Err(BreezeError::InvalidPath(
-                format!("Base path does not exist: {}", base_path.display())
-            ));
+            return Err(BreezeError::InvalidPath(format!(
+                "Base path does not exist: {}",
+                base_path.display()
+            )));
         }
 
         let installer = BreezeInstaller::new(&base_path)?;
@@ -195,7 +196,9 @@ impl BreezeScaffold {
     /// # }
     /// ```
     pub async fn install_views(&self) -> BreezeResult<()> {
-        self.installer.install_views(&InstallOptions::default()).await
+        self.installer
+            .install_views(&InstallOptions::default())
+            .await
     }
 
     /// Install only controllers
@@ -212,7 +215,9 @@ impl BreezeScaffold {
     /// # }
     /// ```
     pub async fn install_controllers(&self) -> BreezeResult<()> {
-        self.installer.install_controllers(&InstallOptions::default()).await
+        self.installer
+            .install_controllers(&InstallOptions::default())
+            .await
     }
 
     /// Install only routes
@@ -229,7 +234,9 @@ impl BreezeScaffold {
     /// # }
     /// ```
     pub async fn install_routes(&self) -> BreezeResult<()> {
-        self.installer.install_routes(&InstallOptions::default()).await
+        self.installer
+            .install_routes(&InstallOptions::default())
+            .await
     }
 
     /// Install only middleware
@@ -246,7 +253,9 @@ impl BreezeScaffold {
     /// # }
     /// ```
     pub async fn install_middleware(&self) -> BreezeResult<()> {
-        self.installer.install_middleware(&InstallOptions::default()).await
+        self.installer
+            .install_middleware(&InstallOptions::default())
+            .await
     }
 
     /// Get the base path

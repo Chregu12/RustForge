@@ -2,7 +2,7 @@
 //!
 //! Time-based One-Time Password authentication
 
-use base64::{Engine as _, engine::general_purpose::STANDARD};
+use base64::{engine::general_purpose::STANDARD, Engine as _};
 use qrcode::QrCode;
 use rand::Rng;
 use totp_rs::{Algorithm, Secret, TOTP};
@@ -92,9 +92,9 @@ impl TwoFactorService {
         use subtle::ConstantTimeEq;
 
         // Use constant-time comparison to prevent timing attacks
-        recovery_codes.iter().any(|rc| {
-            rc.as_bytes().ct_eq(code.as_bytes()).into()
-        })
+        recovery_codes
+            .iter()
+            .any(|rc| rc.as_bytes().ct_eq(code.as_bytes()).into())
     }
 
     /// Remove a used recovery code
@@ -102,9 +102,10 @@ impl TwoFactorService {
         use subtle::ConstantTimeEq;
 
         // Use constant-time comparison to prevent timing attacks
-        if let Some(pos) = recovery_codes.iter().position(|rc| {
-            rc.as_bytes().ct_eq(code.as_bytes()).into()
-        }) {
+        if let Some(pos) = recovery_codes
+            .iter()
+            .position(|rc| rc.as_bytes().ct_eq(code.as_bytes()).into())
+        {
             recovery_codes.remove(pos);
             true
         } else {
@@ -139,10 +140,7 @@ mod tests {
     #[test]
     fn test_recovery_code_usage() {
         let service = TwoFactorService::new("Test App".to_string());
-        let mut codes = vec![
-            "1234-5678".to_string(),
-            "8765-4321".to_string(),
-        ];
+        let mut codes = vec!["1234-5678".to_string(), "8765-4321".to_string()];
 
         assert!(service.verify_recovery_code(&codes, "1234-5678"));
         assert!(!service.verify_recovery_code(&codes, "9999-9999"));

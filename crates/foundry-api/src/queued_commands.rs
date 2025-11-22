@@ -21,7 +21,6 @@
 /// let queue = CommandQueue::default();
 /// queue.dispatch(queued).await?;
 /// ```
-
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
@@ -112,9 +111,7 @@ impl QueuedCommand {
 
     /// Get delay in seconds
     pub fn delay_seconds(&self) -> u64 {
-        self.delay
-            .map(|d| d.as_secs())
-            .unwrap_or(0)
+        self.delay.map(|d| d.as_secs()).unwrap_or(0)
     }
 
     /// Check if job should be delayed
@@ -132,9 +129,7 @@ pub struct CommandQueue {
 impl CommandQueue {
     /// Create a new command queue
     pub fn new(name: impl Into<String>) -> Self {
-        Self {
-            name: name.into(),
-        }
+        Self { name: name.into() }
     }
 
     /// Get the queue name
@@ -148,7 +143,9 @@ impl CommandQueue {
         // For now, we return the job ID as a success indicator
 
         if command.command.is_empty() {
-            return Err(QueueError::InvalidCommand("Command name is empty".to_string()));
+            return Err(QueueError::InvalidCommand(
+                "Command name is empty".to_string(),
+            ));
         }
 
         if command.max_attempts == 0 {
@@ -275,11 +272,7 @@ pub struct JobDispatch {
 
 impl JobDispatch {
     /// Create a new job dispatch result
-    pub fn new(
-        job_id: String,
-        command: String,
-        queue: String,
-    ) -> Self {
+    pub fn new(job_id: String, command: String, queue: String) -> Self {
         Self {
             job_id,
             command,
@@ -376,8 +369,7 @@ mod tests {
 
     #[test]
     fn test_delay_seconds() {
-        let cmd = QueuedCommand::new("test")
-            .with_delay(Duration::from_secs(120));
+        let cmd = QueuedCommand::new("test").with_delay(Duration::from_secs(120));
 
         assert_eq!(cmd.delay_seconds(), 120);
     }

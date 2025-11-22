@@ -101,19 +101,15 @@ impl RememberMeMiddleware {
                     .get(header::COOKIE)
                     .and_then(|header| header.to_str().ok())
                     .and_then(|cookies| {
-                        cookies
-                            .split(';')
-                            .find_map(|cookie| {
-                                let mut parts = cookie.trim().splitn(2, '=');
-                                match (parts.next(), parts.next()) {
-                                    (Some(name), Some(value))
-                                        if name == RememberMe::COOKIE_NAME =>
-                                    {
-                                        Some(value.to_string())
-                                    }
-                                    _ => None,
+                        cookies.split(';').find_map(|cookie| {
+                            let mut parts = cookie.trim().splitn(2, '=');
+                            match (parts.next(), parts.next()) {
+                                (Some(name), Some(value)) if name == RememberMe::COOKIE_NAME => {
+                                    Some(value.to_string())
                                 }
-                            })
+                                _ => None,
+                            }
+                        })
                     });
 
                 let mut response = if let Some(token) = cookie_value {
@@ -130,9 +126,7 @@ impl RememberMeMiddleware {
                             // Generate new token and set cookie
                             if let Ok(new_token) = remember.rotate_token(&token) {
                                 if let Ok(cookie) = remember.create_cookie(user_id) {
-                                    response
-                                        .headers_mut()
-                                        .insert(header::SET_COOKIE, cookie);
+                                    response.headers_mut().insert(header::SET_COOKIE, cookie);
                                 }
                             }
 
@@ -148,8 +142,7 @@ impl RememberMeMiddleware {
                 };
 
                 response
-            })
-                as std::pin::Pin<Box<dyn std::future::Future<Output = Response> + Send>>
+            }) as std::pin::Pin<Box<dyn std::future::Future<Output = Response> + Send>>
         }
     }
 
@@ -183,19 +176,15 @@ impl RememberMeMiddleware {
                     .get(header::COOKIE)
                     .and_then(|header| header.to_str().ok())
                     .and_then(|cookies| {
-                        cookies
-                            .split(';')
-                            .find_map(|cookie| {
-                                let mut parts = cookie.trim().splitn(2, '=');
-                                match (parts.next(), parts.next()) {
-                                    (Some(name), Some(value))
-                                        if name == RememberMe::COOKIE_NAME =>
-                                    {
-                                        Some(value.to_string())
-                                    }
-                                    _ => None,
+                        cookies.split(';').find_map(|cookie| {
+                            let mut parts = cookie.trim().splitn(2, '=');
+                            match (parts.next(), parts.next()) {
+                                (Some(name), Some(value)) if name == RememberMe::COOKIE_NAME => {
+                                    Some(value.to_string())
                                 }
-                            })
+                                _ => None,
+                            }
+                        })
                     });
 
                 if let Some(token) = cookie_value {
@@ -210,8 +199,7 @@ impl RememberMeMiddleware {
                 }
 
                 next.run(req).await
-            })
-                as std::pin::Pin<Box<dyn std::future::Future<Output = Response> + Send>>
+            }) as std::pin::Pin<Box<dyn std::future::Future<Output = Response> + Send>>
         }
     }
 }

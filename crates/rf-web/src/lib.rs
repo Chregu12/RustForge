@@ -53,7 +53,9 @@ pub mod session;
 pub mod versioning;
 
 // Re-exports for convenience
-pub use csrf::{csrf_field, csrf_meta, csrf_token, CsrfConfig, CsrfLayer, CsrfMiddleware, CsrfToken};
+pub use csrf::{
+    csrf_field, csrf_meta, csrf_token, CsrfConfig, CsrfLayer, CsrfMiddleware, CsrfToken,
+};
 pub use middleware::{compression_layer, cors_layer, timeout_layer, tracing_layer, CorsConfig};
 pub use router::RouterBuilder;
 pub use session::{Session, SessionConfig, SessionDriver, SessionMiddleware};

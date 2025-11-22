@@ -10,12 +10,12 @@
 //! - Migration helpers
 //! - Audit Trail Integration
 
-pub mod traits;
-pub mod scopes;
 pub mod migration;
+pub mod scopes;
+pub mod traits;
 
+pub use scopes::{QueryScopeExt, SoftDeleteScope};
 pub use traits::{SoftDelete, SoftDeleteExt};
-pub use scopes::{SoftDeleteScope, QueryScopeExt};
 
 use chrono::{DateTime, Utc};
 use thiserror::Error;

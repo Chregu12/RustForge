@@ -19,10 +19,10 @@
 //! # }
 //! ```
 
-mod encryptor;
 mod casting;
+mod encryptor;
 
-pub use encryptor::{Encryptor, Cipher, EncryptionError};
 pub use casting::{Encrypted, EncryptedField};
+pub use encryptor::{Cipher, EncryptionError, Encryptor};
 
 pub type Result<T> = std::result::Result<T, EncryptionError>;

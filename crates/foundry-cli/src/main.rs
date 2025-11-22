@@ -6,13 +6,13 @@ use foundry_api::http::HttpServer;
 use foundry_api::invocation::FoundryInvoker;
 use foundry_api::mcp::McpServer;
 use foundry_application::FoundryApp;
+use foundry_console::{info as console_info, success, warning};
 use foundry_infra::{
     AuditRecord, ConfigError, ConfigProvider, DotenvProvider, JsonlAuditLogger, LocalArtifactPort,
     SeaOrmMigrationService, SeaOrmSeedService,
 };
-use foundry_plugins::{CommandResult, CommandStatus, ExecutionOptions, ResponseFormat};
 use foundry_interactive::{ask_with_default, choice, confirm, SelectOption};
-use foundry_console::{success, info as console_info, warning};
+use foundry_plugins::{CommandResult, CommandStatus, ExecutionOptions, ResponseFormat};
 use serde_json::Value;
 use std::fs;
 use std::net::SocketAddr;
@@ -340,7 +340,9 @@ fn main() -> Result<()> {
         cmd.arg("test");
         cmd.args(&args); // Pass remaining args to cargo test
 
-        let status = cmd.status().wrap_err("Fehler beim Ausführen von 'cargo test'")?;
+        let status = cmd
+            .status()
+            .wrap_err("Fehler beim Ausführen von 'cargo test'")?;
 
         if !status.success() {
             bail!("Tests fehlgeschlagen mit Status: {}", status);

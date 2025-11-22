@@ -65,30 +65,42 @@ pub struct SelectOption {
 
 impl Field {
     pub fn text(name: impl Into<String>) -> FieldBuilder {
-        FieldBuilder::new(name, FieldType::Input {
-            input_type: InputType::Text,
-        })
+        FieldBuilder::new(
+            name,
+            FieldType::Input {
+                input_type: InputType::Text,
+            },
+        )
     }
 
     pub fn email(name: impl Into<String>) -> FieldBuilder {
-        let mut builder = FieldBuilder::new(name, FieldType::Input {
-            input_type: InputType::Email,
-        });
+        let mut builder = FieldBuilder::new(
+            name,
+            FieldType::Input {
+                input_type: InputType::Email,
+            },
+        );
         // Automatically add email validation rule
         builder.validation.push(ValidationRule::Email);
         builder
     }
 
     pub fn password(name: impl Into<String>) -> FieldBuilder {
-        FieldBuilder::new(name, FieldType::Input {
-            input_type: InputType::Password,
-        })
+        FieldBuilder::new(
+            name,
+            FieldType::Input {
+                input_type: InputType::Password,
+            },
+        )
     }
 
     pub fn number(name: impl Into<String>) -> FieldBuilder {
-        FieldBuilder::new(name, FieldType::Input {
-            input_type: InputType::Number,
-        })
+        FieldBuilder::new(
+            name,
+            FieldType::Input {
+                input_type: InputType::Number,
+            },
+        )
     }
 
     pub fn textarea(name: impl Into<String>) -> FieldBuilder {

@@ -1,12 +1,12 @@
 //! Failed job handling with retry and pruning capabilities
 
+use anyhow::Result;
 use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use uuid::Uuid;
-use anyhow::Result;
 
 /// Information about a failed job
 #[derive(Debug, Clone, Serialize, Deserialize)]

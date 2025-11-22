@@ -231,7 +231,12 @@ impl SlackAttachment {
         self
     }
 
-    pub fn field(mut self, title: impl Into<String>, value: impl Into<String>, short: bool) -> Self {
+    pub fn field(
+        mut self,
+        title: impl Into<String>,
+        value: impl Into<String>,
+        short: bool,
+    ) -> Self {
         self.fields.push(SlackField {
             title: title.into(),
             value: value.into(),
@@ -275,9 +280,7 @@ mod tests {
 
     #[test]
     fn test_mail_message_to_html() {
-        let msg = MailMessage::new()
-            .greeting("Hello!")
-            .line("Line 1");
+        let msg = MailMessage::new().greeting("Hello!").line("Line 1");
 
         let html = msg.to_html();
         assert!(html.contains("<h1>Hello!</h1>"));
@@ -303,13 +306,12 @@ mod tests {
 
     #[test]
     fn test_slack_message() {
-        let msg = SlackMessage::new("Hello Slack")
-            .attachment(
-                SlackAttachment::new("Attachment text")
-                    .title("Title")
-                    .color("good")
-                    .field("Field 1", "Value 1", true)
-            );
+        let msg = SlackMessage::new("Hello Slack").attachment(
+            SlackAttachment::new("Attachment text")
+                .title("Title")
+                .color("good")
+                .field("Field 1", "Value 1", true),
+        );
 
         assert_eq!(msg.text, "Hello Slack");
         assert_eq!(msg.attachments.len(), 1);

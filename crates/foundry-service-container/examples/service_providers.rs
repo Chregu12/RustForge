@@ -1,5 +1,5 @@
 use foundry_service_container::{
-    async_trait, Container, ProviderRegistry, ServiceProvider, Result,
+    async_trait, Container, ProviderRegistry, Result, ServiceProvider,
 };
 use std::sync::Arc;
 

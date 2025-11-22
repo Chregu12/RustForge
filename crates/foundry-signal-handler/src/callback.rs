@@ -6,7 +6,8 @@ use std::pin::Pin;
 use std::sync::Arc;
 
 /// Type alias for signal callback functions
-pub type SignalCallbackFn = Arc<dyn Fn() -> Pin<Box<dyn Future<Output = SignalResult<()>> + Send>> + Send + Sync>;
+pub type SignalCallbackFn =
+    Arc<dyn Fn() -> Pin<Box<dyn Future<Output = SignalResult<()>> + Send>> + Send + Sync>;
 
 /// Signal callback wrapper
 #[derive(Clone)]
@@ -22,7 +23,9 @@ impl SignalCallback {
         F: Fn() -> Fut + Send + Sync + 'static,
         Fut: Future<Output = SignalResult<()>> + Send + 'static,
     {
-        let callback = Arc::new(move || Box::pin(callback()) as Pin<Box<dyn Future<Output = SignalResult<()>> + Send>>);
+        let callback = Arc::new(move || {
+            Box::pin(callback()) as Pin<Box<dyn Future<Output = SignalResult<()>> + Send>>
+        });
         Self {
             callback,
             name: name.into(),
@@ -43,9 +46,9 @@ impl SignalCallback {
     /// Execute the callback
     pub async fn execute(&self) -> SignalResult<()> {
         tracing::debug!("Executing callback: {}", self.name);
-        (self.callback)().await.map_err(|e| {
-            SignalError::CallbackFailed(format!("{}: {}", self.name, e))
-        })
+        (self.callback)()
+            .await
+            .map_err(|e| SignalError::CallbackFailed(format!("{}: {}", self.name, e)))
     }
 
     /// Get callback name
@@ -98,7 +101,10 @@ impl CallbackCollection {
 
     /// Get callback names
     pub fn callback_names(&self) -> Vec<String> {
-        self.callbacks.iter().map(|cb| cb.name().to_string()).collect()
+        self.callbacks
+            .iter()
+            .map(|cb| cb.name().to_string())
+            .collect()
     }
 }
 

@@ -4,10 +4,7 @@
 
 use handlebars::Handlebars;
 use serde_json::Value;
-use std::{
-    collections::HashMap,
-    sync::Arc,
-};
+use std::{collections::HashMap, sync::Arc};
 use thiserror::Error;
 
 /// i18n errors
@@ -288,7 +285,10 @@ mod tests {
             );
 
         let de_catalog = TranslationCatalog::new("de")
-            .add("welcome", Value::String("Willkommen, {{name}}!".to_string()))
+            .add(
+                "welcome",
+                Value::String("Willkommen, {{name}}!".to_string()),
+            )
             .add("goodbye", Value::String("Auf Wiedersehen!".to_string()));
 
         I18n::new("en")

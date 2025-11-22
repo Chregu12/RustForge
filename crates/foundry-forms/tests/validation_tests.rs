@@ -95,45 +95,35 @@ fn test_required_with_fails() {
 #[test]
 fn test_email_valid() {
     let data = data_with(vec![("email", "user@example.com")]);
-    let result = Validator::new(data)
-        .rule("email", vec![email()])
-        .validate();
+    let result = Validator::new(data).rule("email", vec![email()]).validate();
     assert!(result.is_ok());
 }
 
 #[test]
 fn test_email_invalid() {
     let data = data_with(vec![("email", "not-an-email")]);
-    let result = Validator::new(data)
-        .rule("email", vec![email()])
-        .validate();
+    let result = Validator::new(data).rule("email", vec![email()]).validate();
     assert!(result.is_err());
 }
 
 #[test]
 fn test_email_empty_allowed() {
     let data = data_with(vec![("email", "")]);
-    let result = Validator::new(data)
-        .rule("email", vec![email()])
-        .validate();
+    let result = Validator::new(data).rule("email", vec![email()]).validate();
     assert!(result.is_ok()); // Email rule doesn't enforce required
 }
 
 #[test]
 fn test_url_valid() {
     let data = data_with(vec![("website", "https://example.com")]);
-    let result = Validator::new(data)
-        .rule("website", vec![url()])
-        .validate();
+    let result = Validator::new(data).rule("website", vec![url()]).validate();
     assert!(result.is_ok());
 }
 
 #[test]
 fn test_url_invalid() {
     let data = data_with(vec![("website", "not-a-url")]);
-    let result = Validator::new(data)
-        .rule("website", vec![url()])
-        .validate();
+    let result = Validator::new(data).rule("website", vec![url()]).validate();
     assert!(result.is_err());
 }
 
@@ -144,45 +134,35 @@ fn test_url_invalid() {
 #[test]
 fn test_ip_valid_ipv4() {
     let data = data_with(vec![("ip", "192.168.1.1")]);
-    let result = Validator::new(data)
-        .rule("ip", vec![ip()])
-        .validate();
+    let result = Validator::new(data).rule("ip", vec![ip()]).validate();
     assert!(result.is_ok());
 }
 
 #[test]
 fn test_ip_valid_ipv6() {
     let data = data_with(vec![("ip", "2001:0db8:85a3:0000:0000:8a2e:0370:7334")]);
-    let result = Validator::new(data)
-        .rule("ip", vec![ip()])
-        .validate();
+    let result = Validator::new(data).rule("ip", vec![ip()]).validate();
     assert!(result.is_ok());
 }
 
 #[test]
 fn test_ip_invalid() {
     let data = data_with(vec![("ip", "not-an-ip")]);
-    let result = Validator::new(data)
-        .rule("ip", vec![ip()])
-        .validate();
+    let result = Validator::new(data).rule("ip", vec![ip()]).validate();
     assert!(result.is_err());
 }
 
 #[test]
 fn test_uuid_valid() {
     let data = data_with(vec![("id", "550e8400-e29b-41d4-a716-446655440000")]);
-    let result = Validator::new(data)
-        .rule("id", vec![uuid()])
-        .validate();
+    let result = Validator::new(data).rule("id", vec![uuid()]).validate();
     assert!(result.is_ok());
 }
 
 #[test]
 fn test_uuid_invalid() {
     let data = data_with(vec![("id", "not-a-uuid")]);
-    let result = Validator::new(data)
-        .rule("id", vec![uuid()])
-        .validate();
+    let result = Validator::new(data).rule("id", vec![uuid()]).validate();
     assert!(result.is_err());
 }
 
@@ -256,18 +236,14 @@ fn test_between_fails_too_long() {
 #[test]
 fn test_size_passes() {
     let data = data_with(vec![("code", "ABCD")]);
-    let result = Validator::new(data)
-        .rule("code", vec![size(4)])
-        .validate();
+    let result = Validator::new(data).rule("code", vec![size(4)]).validate();
     assert!(result.is_ok());
 }
 
 #[test]
 fn test_size_fails() {
     let data = data_with(vec![("code", "ABC")]);
-    let result = Validator::new(data)
-        .rule("code", vec![size(4)])
-        .validate();
+    let result = Validator::new(data).rule("code", vec![size(4)]).validate();
     assert!(result.is_err());
 }
 
@@ -278,9 +254,7 @@ fn test_size_fails() {
 #[test]
 fn test_numeric_valid_integer() {
     let data = data_with(vec![("age", "25")]);
-    let result = Validator::new(data)
-        .rule("age", vec![numeric()])
-        .validate();
+    let result = Validator::new(data).rule("age", vec![numeric()]).validate();
     assert!(result.is_ok());
 }
 
@@ -296,9 +270,7 @@ fn test_numeric_valid_float() {
 #[test]
 fn test_numeric_invalid() {
     let data = data_with(vec![("age", "not-a-number")]);
-    let result = Validator::new(data)
-        .rule("age", vec![numeric()])
-        .validate();
+    let result = Validator::new(data).rule("age", vec![numeric()]).validate();
     assert!(result.is_err());
 }
 
@@ -323,18 +295,14 @@ fn test_integer_invalid_float() {
 #[test]
 fn test_min_numeric_passes() {
     let data = data_with(vec![("age", "25")]);
-    let result = Validator::new(data)
-        .rule("age", vec![min(18.0)])
-        .validate();
+    let result = Validator::new(data).rule("age", vec![min(18.0)]).validate();
     assert!(result.is_ok());
 }
 
 #[test]
 fn test_min_numeric_fails() {
     let data = data_with(vec![("age", "15")]);
-    let result = Validator::new(data)
-        .rule("age", vec![min(18.0)])
-        .validate();
+    let result = Validator::new(data).rule("age", vec![min(18.0)]).validate();
     assert!(result.is_err());
 }
 
@@ -426,7 +394,10 @@ fn test_confirmed_fails() {
 
 #[test]
 fn test_same_passes() {
-    let data = data_with(vec![("email", "test@example.com"), ("email_confirm", "test@example.com")]);
+    let data = data_with(vec![
+        ("email", "test@example.com"),
+        ("email_confirm", "test@example.com"),
+    ]);
     let result = Validator::new(data)
         .rule("email_confirm", vec![same("email")])
         .validate();
@@ -435,7 +406,10 @@ fn test_same_passes() {
 
 #[test]
 fn test_same_fails() {
-    let data = data_with(vec![("email", "test@example.com"), ("email_confirm", "different@example.com")]);
+    let data = data_with(vec![
+        ("email", "test@example.com"),
+        ("email_confirm", "different@example.com"),
+    ]);
     let result = Validator::new(data)
         .rule("email_confirm", vec![same("email")])
         .validate();
@@ -444,7 +418,10 @@ fn test_same_fails() {
 
 #[test]
 fn test_different_passes() {
-    let data = data_with(vec![("new_password", "newpass"), ("old_password", "oldpass")]);
+    let data = data_with(vec![
+        ("new_password", "newpass"),
+        ("old_password", "oldpass"),
+    ]);
     let result = Validator::new(data)
         .rule("new_password", vec![different("old_password")])
         .validate();
@@ -453,7 +430,10 @@ fn test_different_passes() {
 
 #[test]
 fn test_different_fails() {
-    let data = data_with(vec![("new_password", "samepass"), ("old_password", "samepass")]);
+    let data = data_with(vec![
+        ("new_password", "samepass"),
+        ("old_password", "samepass"),
+    ]);
     let result = Validator::new(data)
         .rule("new_password", vec![different("old_password")])
         .validate();
@@ -468,7 +448,14 @@ fn test_different_fails() {
 fn test_in_passes() {
     let data = data_with(vec![("status", "active")]);
     let result = Validator::new(data)
-        .rule("status", vec![in_list(vec!["active".to_string(), "inactive".to_string(), "pending".to_string()])])
+        .rule(
+            "status",
+            vec![in_list(vec![
+                "active".to_string(),
+                "inactive".to_string(),
+                "pending".to_string(),
+            ])],
+        )
         .validate();
     assert!(result.is_ok());
 }
@@ -477,7 +464,10 @@ fn test_in_passes() {
 fn test_in_fails() {
     let data = data_with(vec![("status", "invalid")]);
     let result = Validator::new(data)
-        .rule("status", vec![in_list(vec!["active".to_string(), "inactive".to_string()])])
+        .rule(
+            "status",
+            vec![in_list(vec!["active".to_string(), "inactive".to_string()])],
+        )
         .validate();
     assert!(result.is_err());
 }
@@ -486,7 +476,10 @@ fn test_in_fails() {
 fn test_not_in_passes() {
     let data = data_with(vec![("username", "john")]);
     let result = Validator::new(data)
-        .rule("username", vec![not_in(vec!["admin".to_string(), "root".to_string()])])
+        .rule(
+            "username",
+            vec![not_in(vec!["admin".to_string(), "root".to_string()])],
+        )
         .validate();
     assert!(result.is_ok());
 }
@@ -495,7 +488,10 @@ fn test_not_in_passes() {
 fn test_not_in_fails() {
     let data = data_with(vec![("username", "admin")]);
     let result = Validator::new(data)
-        .rule("username", vec![not_in(vec!["admin".to_string(), "root".to_string()])])
+        .rule(
+            "username",
+            vec![not_in(vec!["admin".to_string(), "root".to_string()])],
+        )
         .validate();
     assert!(result.is_err());
 }
@@ -525,18 +521,14 @@ fn test_regex_fails() {
 #[test]
 fn test_alpha_passes() {
     let data = data_with(vec![("name", "JohnDoe")]);
-    let result = Validator::new(data)
-        .rule("name", vec![alpha()])
-        .validate();
+    let result = Validator::new(data).rule("name", vec![alpha()]).validate();
     assert!(result.is_ok());
 }
 
 #[test]
 fn test_alpha_fails() {
     let data = data_with(vec![("name", "John123")]);
-    let result = Validator::new(data)
-        .rule("name", vec![alpha()])
-        .validate();
+    let result = Validator::new(data).rule("name", vec![alpha()]).validate();
     assert!(result.is_err());
 }
 
@@ -667,9 +659,9 @@ fn test_multiple_fields() {
 #[test]
 fn test_multiple_fields_with_errors() {
     let data = data_with(vec![
-        ("name", "Jo"),  // Too short
-        ("email", "invalid"),  // Invalid email
-        ("age", "15"),  // Below minimum
+        ("name", "Jo"),       // Too short
+        ("email", "invalid"), // Invalid email
+        ("age", "15"),        // Below minimum
     ]);
     let result = Validator::new(data)
         .rule("name", vec![required(), min_length(3)])
@@ -690,7 +682,10 @@ fn test_custom_error_messages() {
         .validate();
     assert!(result.is_err());
     let errors = result.unwrap_err();
-    assert_eq!(errors.first("email").unwrap(), "Please provide your email address");
+    assert_eq!(
+        errors.first("email").unwrap(),
+        "Please provide your email address"
+    );
 }
 
 // ============================================================================

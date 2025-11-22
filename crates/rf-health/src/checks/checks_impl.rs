@@ -138,13 +138,14 @@ impl HealthCheck for DiskCheck {
     }
 
     async fn check(&self) -> CheckResult {
-        use sysinfo::{Disks};
+        use sysinfo::Disks;
 
         let disks = Disks::new_with_refreshed_list();
 
         // Find disk containing the path
         let disk = disks.iter().find(|d| {
-            self.path.starts_with(d.mount_point().to_string_lossy().as_ref())
+            self.path
+                .starts_with(d.mount_point().to_string_lossy().as_ref())
         });
 
         match disk {
@@ -263,7 +264,9 @@ impl HealthCheck for RedisCheck {
                 Ok(_) => CheckResult::healthy(self.name()),
                 Err(e) => CheckResult::unhealthy(self.name(), format!("Redis PING failed: {}", e)),
             },
-            Err(e) => CheckResult::unhealthy(self.name(), format!("Redis connection failed: {}", e)),
+            Err(e) => {
+                CheckResult::unhealthy(self.name(), format!("Redis connection failed: {}", e))
+            }
         }
     }
 

@@ -1,2 +1,2 @@
-pub mod product;
 pub mod account;
+pub mod product;

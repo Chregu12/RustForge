@@ -298,9 +298,7 @@ mod tests {
 
         gate.define("edit-posts", |user| {
             let permissions = user.permissions.clone();
-            async move {
-                permissions.iter().any(|p| p == "edit_posts")
-            }
+            async move { permissions.iter().any(|p| p == "edit_posts") }
         });
 
         let editor = TestUser {
@@ -386,15 +384,11 @@ mod tests {
 
         gate.define("verified", |user| {
             let permissions = user.permissions.clone();
-            async move {
-                permissions.iter().any(|p| p == "verified")
-            }
+            async move { permissions.iter().any(|p| p == "verified") }
         });
         gate.define("active", |user| {
             let permissions = user.permissions.clone();
-            async move {
-                permissions.iter().any(|p| p == "active")
-            }
+            async move { permissions.iter().any(|p| p == "active") }
         });
 
         let verified_active = TestUser {

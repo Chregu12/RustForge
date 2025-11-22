@@ -84,7 +84,8 @@ impl Extensions {
     }
 
     pub fn insert<T: 'static + Send + Sync>(&mut self, value: T) {
-        self.data.insert(std::any::TypeId::of::<T>(), Box::new(value));
+        self.data
+            .insert(std::any::TypeId::of::<T>(), Box::new(value));
     }
 
     pub fn get<T: 'static>(&self) -> Option<&T> {
@@ -205,7 +206,9 @@ impl<U, T> AuthorizePolicyMiddleware<U, T> {
 }
 
 #[async_trait]
-impl<U: 'static + Send + Sync, T: 'static + Send + Sync> Middleware for AuthorizePolicyMiddleware<U, T> {
+impl<U: 'static + Send + Sync, T: 'static + Send + Sync> Middleware
+    for AuthorizePolicyMiddleware<U, T>
+{
     async fn handle(&self, request: Request) -> AuthorizationResult<Response> {
         let user = request
             .user::<U>()
@@ -348,7 +351,10 @@ mod tests {
         let result = middleware.handle(request).await;
 
         assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), AuthorizationError::Unauthorized(_)));
+        assert!(matches!(
+            result.unwrap_err(),
+            AuthorizationError::Unauthorized(_)
+        ));
     }
 
     struct TestPost {
@@ -371,10 +377,8 @@ mod tests {
         let mut registry = PolicyRegistry::new();
         registry.register::<TestPost, TestPostPolicy>(TestPostPolicy);
 
-        let middleware = AuthorizePolicyMiddleware::<TestUser, TestPost>::new(
-            Arc::new(registry),
-            "create",
-        );
+        let middleware =
+            AuthorizePolicyMiddleware::<TestUser, TestPost>::new(Arc::new(registry), "create");
 
         let user = TestUser {
             id: 1,
@@ -391,12 +395,14 @@ mod tests {
     #[tokio::test]
     async fn test_require_all_middleware_success() {
         let mut gate = Gate::new();
-        gate.define("read", Arc::new(|user: &TestUser, _| {
-            user.has_permission("read")
-        }));
-        gate.define("write", Arc::new(|user: &TestUser, _| {
-            user.has_permission("write")
-        }));
+        gate.define(
+            "read",
+            Arc::new(|user: &TestUser, _| user.has_permission("read")),
+        );
+        gate.define(
+            "write",
+            Arc::new(|user: &TestUser, _| user.has_permission("write")),
+        );
 
         let middleware = RequireAllMiddleware::new(
             Arc::new(gate),
@@ -418,12 +424,14 @@ mod tests {
     #[tokio::test]
     async fn test_require_all_middleware_failure() {
         let mut gate = Gate::new();
-        gate.define("read", Arc::new(|user: &TestUser, _| {
-            user.has_permission("read")
-        }));
-        gate.define("write", Arc::new(|user: &TestUser, _| {
-            user.has_permission("write")
-        }));
+        gate.define(
+            "read",
+            Arc::new(|user: &TestUser, _| user.has_permission("read")),
+        );
+        gate.define(
+            "write",
+            Arc::new(|user: &TestUser, _| user.has_permission("write")),
+        );
 
         let middleware = RequireAllMiddleware::new(
             Arc::new(gate),
@@ -445,12 +453,14 @@ mod tests {
     #[tokio::test]
     async fn test_require_any_middleware_success() {
         let mut gate = Gate::new();
-        gate.define("read", Arc::new(|user: &TestUser, _| {
-            user.has_permission("read")
-        }));
-        gate.define("write", Arc::new(|user: &TestUser, _| {
-            user.has_permission("write")
-        }));
+        gate.define(
+            "read",
+            Arc::new(|user: &TestUser, _| user.has_permission("read")),
+        );
+        gate.define(
+            "write",
+            Arc::new(|user: &TestUser, _| user.has_permission("write")),
+        );
 
         let middleware = RequireAnyMiddleware::new(
             Arc::new(gate),
@@ -472,12 +482,14 @@ mod tests {
     #[tokio::test]
     async fn test_require_any_middleware_failure() {
         let mut gate = Gate::new();
-        gate.define("read", Arc::new(|user: &TestUser, _| {
-            user.has_permission("read")
-        }));
-        gate.define("write", Arc::new(|user: &TestUser, _| {
-            user.has_permission("write")
-        }));
+        gate.define(
+            "read",
+            Arc::new(|user: &TestUser, _| user.has_permission("read")),
+        );
+        gate.define(
+            "write",
+            Arc::new(|user: &TestUser, _| user.has_permission("write")),
+        );
 
         let middleware = RequireAnyMiddleware::new(
             Arc::new(gate),

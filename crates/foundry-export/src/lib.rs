@@ -65,11 +65,7 @@ impl Exporter {
         }
     }
 
-    pub fn export(
-        &self,
-        data: ExportData,
-        format: ExportFormat,
-    ) -> anyhow::Result<Vec<u8>> {
+    pub fn export(&self, data: ExportData, format: ExportFormat) -> anyhow::Result<Vec<u8>> {
         match format {
             ExportFormat::Pdf => self.pdf.export(&data),
             ExportFormat::Xlsx => self.excel.export(&data),

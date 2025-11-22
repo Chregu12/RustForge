@@ -1,4 +1,4 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion, BenchmarkId, Throughput};
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use std::time::Duration;
 
 // Command execution benchmarks
@@ -31,9 +31,7 @@ fn benchmark_request_handling(c: &mut Criterion) {
         group.throughput(Throughput::Bytes(*size as u64));
         group.bench_with_input(BenchmarkId::from_parameter(size), size, |b, &size| {
             let payload = vec![0u8; size];
-            b.iter(|| {
-                black_box(process_request(&payload))
-            });
+            b.iter(|| black_box(process_request(&payload)));
         });
     }
 
@@ -45,29 +43,21 @@ fn benchmark_authentication(c: &mut Criterion) {
     let mut group = c.benchmark_group("authentication");
 
     group.bench_function("password_hash", |b| {
-        b.iter(|| {
-            black_box(hash_password("secure_password_123"))
-        });
+        b.iter(|| black_box(hash_password("secure_password_123")));
     });
 
     group.bench_function("password_verify", |b| {
         let hashed = hash_password("secure_password_123");
-        b.iter(|| {
-            black_box(verify_password("secure_password_123", &hashed))
-        });
+        b.iter(|| black_box(verify_password("secure_password_123", &hashed)));
     });
 
     group.bench_function("jwt_encode", |b| {
-        b.iter(|| {
-            black_box(encode_jwt_token("user123"))
-        });
+        b.iter(|| black_box(encode_jwt_token("user123")));
     });
 
     group.bench_function("jwt_decode", |b| {
         let token = encode_jwt_token("user123");
-        b.iter(|| {
-            black_box(decode_jwt_token(&token))
-        });
+        b.iter(|| black_box(decode_jwt_token(&token)));
     });
 
     group.finish();
@@ -95,16 +85,12 @@ fn benchmark_json_operations(c: &mut Criterion) {
     };
 
     group.bench_function("serialize", |b| {
-        b.iter(|| {
-            black_box(serde_json::to_string(&test_data).unwrap())
-        });
+        b.iter(|| black_box(serde_json::to_string(&test_data).unwrap()));
     });
 
     let json_str = serde_json::to_string(&test_data).unwrap();
     group.bench_function("deserialize", |b| {
-        b.iter(|| {
-            black_box(serde_json::from_str::<TestData>(&json_str).unwrap())
-        });
+        b.iter(|| black_box(serde_json::from_str::<TestData>(&json_str).unwrap()));
     });
 
     group.finish();
@@ -123,10 +109,7 @@ fn benchmark_cache_operations(c: &mut Criterion) {
         let cache = cache.clone();
         b.iter(|| {
             let mut cache = cache.lock().unwrap();
-            cache.insert(
-                black_box("key".to_string()),
-                black_box("value".to_string())
-            );
+            cache.insert(black_box("key".to_string()), black_box("value".to_string()));
         });
     });
 
@@ -217,9 +200,7 @@ fn benchmark_async_operations(c: &mut Criterion) {
 
     group.bench_function("spawn_task", |b| {
         b.to_async(&runtime).iter(|| async {
-            let handle = tokio::spawn(async {
-                black_box(42)
-            });
+            let handle = tokio::spawn(async { black_box(42) });
             black_box(handle.await.unwrap())
         });
     });
@@ -253,7 +234,7 @@ fn process_request(payload: &[u8]) -> usize {
 
 fn hash_password(password: &str) -> String {
     // Simulate password hashing (simplified for benchmark)
-    use sha2::{Sha256, Digest};
+    use sha2::{Digest, Sha256};
     let mut hasher = Sha256::new();
     hasher.update(password.as_bytes());
     format!("{:x}", hasher.finalize())
@@ -272,7 +253,8 @@ fn decode_jwt_token(token: &str) -> Option<String> {
     // Simplified JWT decoding for benchmark
     let parts: Vec<&str> = token.split('.').collect();
     if parts.len() == 3 {
-        base64::decode(parts[1]).ok()
+        base64::decode(parts[1])
+            .ok()
             .and_then(|v| String::from_utf8(v).ok())
     } else {
         None

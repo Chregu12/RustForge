@@ -95,17 +95,8 @@ impl TinkerCommand {
     /// Get all available command names
     pub fn all_commands() -> Vec<&'static str> {
         vec![
-            "helpers",
-            "models",
-            "routes",
-            "config",
-            "env",
-            "clear",
-            "exit",
-            "quit",
-            "history",
-            "save",
-            "help",
+            "helpers", "models", "routes", "config", "env", "clear", "exit", "quit", "history",
+            "save", "help",
         ]
     }
 

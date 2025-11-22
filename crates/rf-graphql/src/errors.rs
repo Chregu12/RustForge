@@ -165,10 +165,8 @@ mod tests {
     #[test]
     fn test_result_ext_with_message() {
         let result: Result<i32, &str> = Err("Internal error");
-        let graphql_result = result.to_graphql_result_with_message(
-            "Custom message",
-            ErrorCode::InternalServerError,
-        );
+        let graphql_result =
+            result.to_graphql_result_with_message("Custom message", ErrorCode::InternalServerError);
 
         assert!(graphql_result.is_err());
         if let Err(e) = graphql_result {

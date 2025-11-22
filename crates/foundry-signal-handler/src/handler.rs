@@ -96,11 +96,7 @@ impl SignalHandler {
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn on_signal_async<F, Fut>(
-        &mut self,
-        signal: Signal,
-        callback: F,
-    ) -> SignalResult<()>
+    pub async fn on_signal_async<F, Fut>(&mut self, signal: Signal, callback: F) -> SignalResult<()>
     where
         F: Fn() -> Fut + Send + Sync + 'static,
         Fut: std::future::Future<Output = SignalResult<()>> + Send + 'static,
@@ -138,10 +134,7 @@ impl SignalHandler {
 
     /// Start listening for signals
     pub async fn listen(&mut self) -> SignalResult<()> {
-        let signal_nums: Vec<i32> = Signal::all_supported()
-            .iter()
-            .map(|s| s.as_raw())
-            .collect();
+        let signal_nums: Vec<i32> = Signal::all_supported().iter().map(|s| s.as_raw()).collect();
 
         let signals = Signals::new(&signal_nums)
             .map_err(|e| SignalError::RegistrationFailed(e.to_string()))?;
@@ -210,7 +203,9 @@ impl SignalHandler {
 
             Ok(signal)
         } else {
-            Err(SignalError::HandlingFailed("No signal received".to_string()))
+            Err(SignalError::HandlingFailed(
+                "No signal received".to_string(),
+            ))
         }
     }
 
@@ -337,6 +332,10 @@ mod tests {
             .unwrap();
 
         // Verify the callback was registered
-        assert!(handler.callbacks.read().await.contains_key(&Signal::SIGTERM));
+        assert!(handler
+            .callbacks
+            .read()
+            .await
+            .contains_key(&Signal::SIGTERM));
     }
 }

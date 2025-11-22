@@ -67,14 +67,20 @@ impl Package {
     }
 
     /// Publish assets of the given type to the destination
-    pub async fn publish(&self, asset_type: AssetType, dest: impl AsRef<Path>) -> PackageResult<()> {
+    pub async fn publish(
+        &self,
+        asset_type: AssetType,
+        dest: impl AsRef<Path>,
+    ) -> PackageResult<()> {
         let publisher = Publisher::new(self.clone());
         publisher.publish(asset_type, dest).await
     }
 
     /// Publish assets with the given tag
     pub async fn publish_tag(&self, tag: &str, base_dest: impl AsRef<Path>) -> PackageResult<()> {
-        let asset_types = self.tags.get(tag)
+        let asset_types = self
+            .tags
+            .get(tag)
             .ok_or_else(|| PackageError::PublishError(format!("Tag '{}' not found", tag)))?;
 
         for asset_type in asset_types {
@@ -92,10 +98,12 @@ impl Package {
         }
 
         // Package name should be kebab-case
-        let valid = name.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-');
+        let valid = name
+            .chars()
+            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-');
         if !valid {
             return Err(PackageError::InvalidName(
-                "Package name must be lowercase alphanumeric with hyphens".to_string()
+                "Package name must be lowercase alphanumeric with hyphens".to_string(),
             ));
         }
 
@@ -167,7 +175,8 @@ impl PackageBuilder {
 
     /// Add a migration
     pub fn migration(mut self, name: impl AsRef<str>) -> Self {
-        let path = self.base_path
+        let path = self
+            .base_path
             .join("migrations")
             .join(format!("{}.sql", name.as_ref()));
         self.migrations.push(path);
@@ -182,7 +191,8 @@ impl PackageBuilder {
 
     /// Add a custom asset
     pub fn asset(mut self, key: impl Into<String>, path: impl Into<PathBuf>) -> Self {
-        self.assets.insert(key.into(), self.base_path.join(path.into()));
+        self.assets
+            .insert(key.into(), self.base_path.join(path.into()));
         self
     }
 

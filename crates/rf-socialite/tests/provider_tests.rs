@@ -83,7 +83,11 @@ fn test_all_providers_have_default_scopes() {
 
     for provider in providers {
         let scopes = provider.default_scopes();
-        assert!(!scopes.is_empty(), "Provider {:?} should have default scopes", provider);
+        assert!(
+            !scopes.is_empty(),
+            "Provider {:?} should have default scopes",
+            provider
+        );
     }
 }
 
@@ -93,7 +97,11 @@ fn test_custom_scopes() {
         .client_id("test-id")
         .client_secret("test-secret")
         .redirect_url("http://localhost/callback")
-        .scopes(vec!["email".to_string(), "profile".to_string(), "openid".to_string()])
+        .scopes(vec![
+            "email".to_string(),
+            "profile".to_string(),
+            "openid".to_string(),
+        ])
         .build()
         .unwrap();
 
@@ -167,13 +175,19 @@ fn test_provider_names() {
 #[test]
 fn test_provider_urls() {
     // Google
-    assert!(Provider::Google.authorize_url().contains("accounts.google.com"));
-    assert!(Provider::Google.token_url().contains("oauth2.googleapis.com"));
+    assert!(Provider::Google
+        .authorize_url()
+        .contains("accounts.google.com"));
+    assert!(Provider::Google
+        .token_url()
+        .contains("oauth2.googleapis.com"));
     assert!(Provider::Google.user_url().contains("googleapis.com"));
 
     // Facebook
     assert!(Provider::Facebook.authorize_url().contains("facebook.com"));
-    assert!(Provider::Facebook.token_url().contains("graph.facebook.com"));
+    assert!(Provider::Facebook
+        .token_url()
+        .contains("graph.facebook.com"));
     assert!(Provider::Facebook.user_url().contains("graph.facebook.com"));
 
     // GitHub

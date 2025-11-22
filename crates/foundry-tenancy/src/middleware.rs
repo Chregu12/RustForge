@@ -1,12 +1,8 @@
 use crate::tenant::{Tenant, TenantId};
-use axum::{
-    extract::Request,
-    middleware::Next,
-    response::Response,
-};
+use axum::{extract::Request, middleware::Next, response::Response};
+use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use std::collections::HashMap;
 
 /// Tenant middleware for Axum
 #[derive(Clone)]
@@ -52,10 +48,7 @@ impl Default for TenantMiddleware {
 }
 
 /// Middleware function to identify tenant from request
-pub async fn tenant_identifier_middleware(
-    mut request: Request,
-    next: Next,
-) -> Response {
+pub async fn tenant_identifier_middleware(mut request: Request, next: Next) -> Response {
     // Extract tenant from host header or subdomain
     let host = request
         .headers()
@@ -93,8 +86,7 @@ mod tests {
     #[tokio::test]
     async fn test_tenant_middleware() {
         let middleware = TenantMiddleware::new();
-        let tenant = Tenant::new("acme", "Acme Corp")
-            .with_domain("acme.example.com");
+        let tenant = Tenant::new("acme", "Acme Corp").with_domain("acme.example.com");
 
         middleware.register(tenant.clone()).await;
 

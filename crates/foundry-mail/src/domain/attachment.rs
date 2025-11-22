@@ -16,7 +16,11 @@ impl Attachment {
         AttachmentBuilder::default()
     }
 
-    pub fn from_bytes(filename: impl Into<String>, content_type: impl Into<String>, data: Vec<u8>) -> Self {
+    pub fn from_bytes(
+        filename: impl Into<String>,
+        content_type: impl Into<String>,
+        data: Vec<u8>,
+    ) -> Self {
         Self {
             filename: filename.into(),
             content_type: content_type.into(),
@@ -113,7 +117,9 @@ impl AttachmentBuilder {
     pub fn build(self) -> Result<Attachment, AttachmentError> {
         Ok(Attachment {
             filename: self.filename.ok_or(AttachmentError::MissingFilename)?,
-            content_type: self.content_type.ok_or(AttachmentError::MissingContentType)?,
+            content_type: self
+                .content_type
+                .ok_or(AttachmentError::MissingContentType)?,
             data: self.data.ok_or(AttachmentError::MissingData)?,
             inline: self.inline,
             content_id: self.content_id,
@@ -158,8 +164,7 @@ mod tests {
     #[test]
     fn test_attachment_inline() {
         let data = b"image data".to_vec();
-        let attachment = Attachment::from_bytes("image.png", "image/png", data)
-            .as_inline("img-1");
+        let attachment = Attachment::from_bytes("image.png", "image/png", data).as_inline("img-1");
 
         assert!(attachment.inline);
         assert_eq!(attachment.content_id, Some("img-1".to_string()));

@@ -162,7 +162,8 @@ impl AppError {
                 let detail = if ctx.is_development() {
                     format!("{:?}", err)
                 } else {
-                    "An internal error occurred. Please contact support with the trace ID.".to_string()
+                    "An internal error occurred. Please contact support with the trace ID."
+                        .to_string()
                 };
 
                 let mut problem = ProblemDetails::new(500, "Internal Server Error", detail)

@@ -412,7 +412,9 @@ mod tests {
             .await;
 
         assert_eq!(
-            dispatcher.listener_count(ModelEvent::Creating, "User").await,
+            dispatcher
+                .listener_count(ModelEvent::Creating, "User")
+                .await,
             1
         );
 
@@ -423,7 +425,9 @@ mod tests {
         // Forget listener
         dispatcher.forget(ModelEvent::Creating, "User").await;
         assert_eq!(
-            dispatcher.listener_count(ModelEvent::Creating, "User").await,
+            dispatcher
+                .listener_count(ModelEvent::Creating, "User")
+                .await,
             0
         );
     }

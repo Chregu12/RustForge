@@ -5,7 +5,7 @@
 //!
 //! Run with: cargo run --example multi_tenant
 
-use rf_container::{ScopeManager, ScopedContainer, ServiceRegistry, Scope};
+use rf_container::{Scope, ScopeManager, ScopedContainer, ServiceRegistry};
 use std::sync::{Arc, Mutex};
 
 /// Tenant context extracted from request
@@ -257,11 +257,8 @@ async fn main() {
                 );
 
                 // Create application service
-                let product_service = ProductService::new(
-                    Arc::clone(&db),
-                    Arc::clone(&config),
-                    Arc::clone(&cache),
-                );
+                let product_service =
+                    ProductService::new(Arc::clone(&db), Arc::clone(&config), Arc::clone(&cache));
 
                 // List products (will hit DB first time)
                 println!("\n  📦 Listing products:");

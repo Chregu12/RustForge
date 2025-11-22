@@ -1,8 +1,8 @@
+use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use foundry_oauth_server::*;
+use sha2::{Digest, Sha256};
 use uuid::Uuid;
-use sha2::{Sha256, Digest};
-use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 
 // ============================================================================
 // Token Generation Benchmarks
@@ -40,12 +40,7 @@ fn token_generation_benchmarks(c: &mut Criterion) {
 
     // Refresh token generation
     group.bench_function("generate_refresh_token", |b| {
-        b.iter(|| {
-            generator.generate_refresh_token(
-                black_box(Uuid::new_v4()),
-                black_box(2592000),
-            )
-        })
+        b.iter(|| generator.generate_refresh_token(black_box(Uuid::new_v4()), black_box(2592000)))
     });
 
     // Personal access token (long-lived)
@@ -75,46 +70,46 @@ fn token_validation_benchmarks(c: &mut Criterion) {
     let validator = TokenValidator::new(config.jwt_secret.clone(), config.issuer.clone());
 
     // Generate test tokens
-    let access_token = generator.generate_access_token(
-        Uuid::new_v4(),
-        Some(Uuid::new_v4()),
-        vec!["users:read".to_string()],
-        3600,
-    ).unwrap();
+    let access_token = generator
+        .generate_access_token(
+            Uuid::new_v4(),
+            Some(Uuid::new_v4()),
+            vec!["users:read".to_string()],
+            3600,
+        )
+        .unwrap();
 
-    let multi_scope_token = generator.generate_access_token(
-        Uuid::new_v4(),
-        Some(Uuid::new_v4()),
-        vec!["users:read".to_string(), "users:write".to_string(), "api:read".to_string()],
-        3600,
-    ).unwrap();
+    let multi_scope_token = generator
+        .generate_access_token(
+            Uuid::new_v4(),
+            Some(Uuid::new_v4()),
+            vec![
+                "users:read".to_string(),
+                "users:write".to_string(),
+                "api:read".to_string(),
+            ],
+            3600,
+        )
+        .unwrap();
 
     // JWT validation and parsing
     group.bench_function("validate_access_token", |b| {
-        b.iter(|| {
-            validator.validate_access_token(black_box(&access_token.token))
-        })
+        b.iter(|| validator.validate_access_token(black_box(&access_token.token)))
     });
 
     // Validation with multiple scopes
     group.bench_function("validate_token_multiple_scopes", |b| {
-        b.iter(|| {
-            validator.validate_access_token(black_box(&multi_scope_token.token))
-        })
+        b.iter(|| validator.validate_access_token(black_box(&multi_scope_token.token)))
     });
 
     // Token introspection
     group.bench_function("introspect_token", |b| {
-        b.iter(|| {
-            validator.introspect(black_box(&access_token.token))
-        })
+        b.iter(|| validator.introspect(black_box(&access_token.token)))
     });
 
     // Invalid token handling
     group.bench_function("validate_invalid_token", |b| {
-        b.iter(|| {
-            validator.validate_access_token(black_box("invalid.jwt.token"))
-        })
+        b.iter(|| validator.validate_access_token(black_box("invalid.jwt.token")))
     });
 
     group.finish();
@@ -155,7 +150,9 @@ fn pkce_benchmarks(c: &mut Criterion) {
 
             // Constant-time comparison
             use subtle::ConstantTimeEq;
-            computed_challenge.as_bytes().ct_eq(black_box(challenge.as_bytes()))
+            computed_challenge
+                .as_bytes()
+                .ct_eq(black_box(challenge.as_bytes()))
         })
     });
 
@@ -206,30 +203,29 @@ fn client_operations_benchmarks(c: &mut Criterion) {
 
     // Client lookup
     group.bench_function("find_client_by_id", |b| {
-        b.to_async(&runtime).iter(|| async {
-            repo.find(black_box(client_id)).await
-        })
+        b.to_async(&runtime)
+            .iter(|| async { repo.find(black_box(client_id)).await })
     });
 
     // Client authentication (includes Argon2 verification)
     group.bench_function("authenticate_client_with_secret", |b| {
         b.to_async(&runtime).iter(|| async {
-            repo.find_by_credentials(black_box(client_id), black_box(&secret)).await
+            repo.find_by_credentials(black_box(client_id), black_box(&secret))
+                .await
         })
     });
 
     // Failed authentication
     group.bench_function("authenticate_client_wrong_secret", |b| {
         b.to_async(&runtime).iter(|| async {
-            repo.find_by_credentials(black_box(client_id), black_box("wrong_secret")).await
+            repo.find_by_credentials(black_box(client_id), black_box("wrong_secret"))
+                .await
         })
     });
 
     // List all clients
     group.bench_function("list_all_clients", |b| {
-        b.to_async(&runtime).iter(|| async {
-            repo.list().await
-        })
+        b.to_async(&runtime).iter(|| async { repo.list().await })
     });
 
     group.finish();
@@ -246,9 +242,7 @@ fn scope_validation_benchmarks(c: &mut Criterion) {
 
     // Parse single scope
     group.bench_function("validate_single_scope", |b| {
-        b.iter(|| {
-            manager.validate(black_box(&vec!["users:read".to_string()]))
-        })
+        b.iter(|| manager.validate(black_box(&vec!["users:read".to_string()])))
     });
 
     // Parse multiple scopes
@@ -265,9 +259,7 @@ fn scope_validation_benchmarks(c: &mut Criterion) {
 
     // Validate wildcard scope
     group.bench_function("validate_wildcard_scope", |b| {
-        b.iter(|| {
-            manager.validate(black_box(&vec!["*".to_string()]))
-        })
+        b.iter(|| manager.validate(black_box(&vec!["*".to_string()])))
     });
 
     // Scope satisfaction check (simple)
@@ -306,9 +298,7 @@ fn scope_validation_benchmarks(c: &mut Criterion) {
 
     // Filter scopes by pattern
     group.bench_function("filter_scopes_by_pattern", |b| {
-        b.iter(|| {
-            manager.filter(black_box("users:"))
-        })
+        b.iter(|| manager.filter(black_box("users:")))
     });
 
     group.finish();
@@ -383,11 +373,7 @@ fn full_flow_benchmarks(c: &mut Criterion) {
     // Full authorization code flow (without PKCE)
     group.bench_function("full_authorization_code_flow", |b| {
         b.to_async(&runtime).iter(|| async {
-            let grant = grants::AuthorizationCodeGrant::new(
-                token_gen.clone(),
-                3600,
-                2592000,
-            );
+            let grant = grants::AuthorizationCodeGrant::new(token_gen.clone(), 3600, 2592000);
 
             let client = models::Client::new(
                 "Test".to_string(),
@@ -406,21 +392,22 @@ fn full_flow_benchmarks(c: &mut Criterion) {
             let auth_code = grant.create_authorization_code(&client, params).unwrap();
 
             // Step 2: Exchange code for tokens
-            let token_response = grant.exchange_code(&client, &auth_code, None).await.unwrap();
+            let token_response = grant
+                .exchange_code(&client, &auth_code, None)
+                .await
+                .unwrap();
 
             // Step 3: Validate access token
-            validator.validate_access_token(&token_response.access_token).unwrap();
+            validator
+                .validate_access_token(&token_response.access_token)
+                .unwrap();
         })
     });
 
     // Full authorization code flow with PKCE
     group.bench_function("full_authorization_code_flow_with_pkce", |b| {
         b.to_async(&runtime).iter(|| async {
-            let grant = grants::AuthorizationCodeGrant::new(
-                token_gen.clone(),
-                3600,
-                2592000,
-            );
+            let grant = grants::AuthorizationCodeGrant::new(token_gen.clone(), 3600, 2592000);
 
             let client = models::Client::new(
                 "Test".to_string(),
@@ -445,10 +432,15 @@ fn full_flow_benchmarks(c: &mut Criterion) {
             let auth_code = grant.create_authorization_code(&client, params).unwrap();
 
             // Step 2: Exchange code for tokens with verifier
-            let token_response = grant.exchange_code(&client, &auth_code, Some(verifier.to_string())).await.unwrap();
+            let token_response = grant
+                .exchange_code(&client, &auth_code, Some(verifier.to_string()))
+                .await
+                .unwrap();
 
             // Step 3: Validate access token
-            validator.validate_access_token(&token_response.access_token).unwrap();
+            validator
+                .validate_access_token(&token_response.access_token)
+                .unwrap();
         })
     });
 
@@ -463,10 +455,15 @@ fn full_flow_benchmarks(c: &mut Criterion) {
             );
 
             // Issue token
-            let token_response = grant.issue_token(&client, vec!["api:read".to_string()]).await.unwrap();
+            let token_response = grant
+                .issue_token(&client, vec!["api:read".to_string()])
+                .await
+                .unwrap();
 
             // Validate token
-            validator.validate_access_token(&token_response.access_token).unwrap();
+            validator
+                .validate_access_token(&token_response.access_token)
+                .unwrap();
         })
     });
 

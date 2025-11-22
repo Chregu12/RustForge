@@ -6,8 +6,8 @@
 //! - Query with/without trashed records
 //! - Force delete (permanent)
 
-use rf_eloquent::soft_deletes::*;
 use chrono::Utc;
+use rf_eloquent::soft_deletes::*;
 use sea_orm::{entity::prelude::*, ActiveValue, Set};
 
 // ============================================================================
@@ -156,15 +156,13 @@ async fn example_query_scopes() {
 
     // Using SoftDeleteScope
     println!("4. Using SoftDeleteScope:");
-    let scope = SoftDeleteScope::<Entity>::new()
-        .with_trashed();
+    let scope = SoftDeleteScope::<Entity>::new().with_trashed();
 
     println!("   Include trashed? {}", scope.include_trashed);
     println!("   Only trashed? {}", scope.only_trashed);
     println!();
 
-    let scope2 = SoftDeleteScope::<Entity>::new()
-        .only_trashed();
+    let scope2 = SoftDeleteScope::<Entity>::new().only_trashed();
 
     println!("   Only trashed scope:");
     println!("   Include trashed? {}", scope2.include_trashed);
@@ -341,10 +339,16 @@ fn example_helper_functions() {
     println!("   Before: Is deleted? {}", user.is_trashed());
 
     user.deleted_at = set_deleted_at();
-    println!("   After set_deleted_at(): Is deleted? {}", user.is_trashed());
+    println!(
+        "   After set_deleted_at(): Is deleted? {}",
+        user.is_trashed()
+    );
 
     user.deleted_at = clear_deleted_at();
-    println!("   After clear_deleted_at(): Is deleted? {}", user.is_trashed());
+    println!(
+        "   After clear_deleted_at(): Is deleted? {}",
+        user.is_trashed()
+    );
     println!();
 }
 

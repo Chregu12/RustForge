@@ -130,17 +130,13 @@ impl RedisSubscriber {
     }
 
     /// Start subscribing to Redis channels and forward to WebSocket registry
-    pub async fn start<F>(
-        self,
-        channels: Vec<String>,
-        mut callback: F,
-    ) -> BroadcastResult<()>
+    pub async fn start<F>(self, channels: Vec<String>, mut callback: F) -> BroadcastResult<()>
     where
         F: FnMut(String, String) + Send + 'static,
     {
         // Get a dedicated connection for pub/sub
-        let client = redis::Client::open(self.redis_url.clone())
-            .map_err(|e| BroadcastError::Redis(e))?;
+        let client =
+            redis::Client::open(self.redis_url.clone()).map_err(|e| BroadcastError::Redis(e))?;
 
         let conn = client
             .get_async_connection()
@@ -221,12 +217,12 @@ mod tests {
     }
 
     #[tokio::test]
-async fn test_redis_broadcast() {
-    if !redis_available().await {
-        eprintln!("⏭️  Skipping test_redis_broadcast: Redis not available");
-        eprintln!("   Start services with: ./scripts/test-env-up.sh");
-        return;
-    }
+    async fn test_redis_broadcast() {
+        if !redis_available().await {
+            eprintln!("⏭️  Skipping test_redis_broadcast: Redis not available");
+            eprintln!("   Start services with: ./scripts/test-env-up.sh");
+            return;
+        }
         let driver = RedisBroadcastDriver::from_url("redis://localhost:6379").unwrap();
 
         let channels = vec!["test-channel".to_string()];
@@ -237,12 +233,12 @@ async fn test_redis_broadcast() {
     }
 
     #[tokio::test]
-async fn test_redis_subscriber() {
-    if !redis_available().await {
-        eprintln!("⏭️  Skipping test_redis_subscriber: Redis not available");
-        eprintln!("   Start services with: ./scripts/test-env-up.sh");
-        return;
-    }
+    async fn test_redis_subscriber() {
+        if !redis_available().await {
+            eprintln!("⏭️  Skipping test_redis_subscriber: Redis not available");
+            eprintln!("   Start services with: ./scripts/test-env-up.sh");
+            return;
+        }
         let subscriber = RedisSubscriber::new("redis://localhost:6379".to_string());
 
         // This would run indefinitely, so we just test creation

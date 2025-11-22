@@ -20,7 +20,11 @@ mod error_codes {
 
         let mut seen = HashSet::new();
         for code in codes {
-            assert!(seen.insert(code.code()), "Duplicate error code: {}", code.code());
+            assert!(
+                seen.insert(code.code()),
+                "Duplicate error code: {}",
+                code.code()
+            );
         }
     }
 
@@ -41,9 +45,15 @@ mod error_codes {
 
     #[test]
     fn test_error_code_titles() {
-        assert_eq!(ErrorCode::DatabaseConnection.title(), "Database Connection Failed");
+        assert_eq!(
+            ErrorCode::DatabaseConnection.title(),
+            "Database Connection Failed"
+        );
         assert_eq!(ErrorCode::ValidationEmail.title(), "Invalid Email");
-        assert_eq!(ErrorCode::AuthenticationFailed.title(), "Authentication Failed");
+        assert_eq!(
+            ErrorCode::AuthenticationFailed.title(),
+            "Authentication Failed"
+        );
     }
 }
 
@@ -85,8 +95,14 @@ mod error_context {
             .with_value("username", "john")
             .with_value("password", "secret123");
 
-        assert_eq!(ctx.values.get("username").unwrap(), &serde_json::json!("john"));
-        assert_eq!(ctx.values.get("password").unwrap(), &serde_json::json!("***REDACTED***"));
+        assert_eq!(
+            ctx.values.get("username").unwrap(),
+            &serde_json::json!("john")
+        );
+        assert_eq!(
+            ctx.values.get("password").unwrap(),
+            &serde_json::json!("***REDACTED***")
+        );
     }
 
     #[test]
@@ -172,8 +188,7 @@ mod validation_errors {
 
     #[test]
     fn test_validation_error_with_value() {
-        let err = error::ValidationError::new("email", "Invalid format")
-            .with_value("not-an-email");
+        let err = error::ValidationError::new("email", "Invalid format").with_value("not-an-email");
         assert_eq!(err.value, Some("not-an-email".to_string()));
     }
 }
@@ -210,7 +225,9 @@ mod friendly_errors {
         assert!(config.is_some());
 
         let config = config.unwrap();
-        assert!(config.iter().any(|(k, v)| k == "Host" && v == "localhost:5432"));
+        assert!(config
+            .iter()
+            .any(|(k, v)| k == "Host" && v == "localhost:5432"));
         assert!(config.iter().any(|(k, v)| k == "Database" && v == "mydb"));
     }
 
@@ -351,10 +368,9 @@ mod error_reporting {
 
     #[tokio::test]
     async fn test_multi_reporter() {
-        use reporting::{MultiReporter, LoggingReporter};
+        use reporting::{LoggingReporter, MultiReporter};
 
-        let reporter = MultiReporter::new()
-            .add_reporter(Box::new(LoggingReporter::new()));
+        let reporter = MultiReporter::new().add_reporter(Box::new(LoggingReporter::new()));
 
         let db_err = error::DatabaseError::connection("localhost", "db", "user");
         let err = RustForgeError::Database(db_err);
@@ -381,8 +397,7 @@ mod error_pages {
 
     #[test]
     fn test_error_pages_custom_page() {
-        let pages = ErrorPages::new()
-            .set_page(404, "errors/404.blade.php");
+        let pages = ErrorPages::new().set_page(404, "errors/404.blade.php");
 
         let http_err = error::HttpError::not_found("User");
         let err = RustForgeError::Http(http_err);

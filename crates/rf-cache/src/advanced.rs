@@ -14,7 +14,12 @@ pub struct CacheWarmer {
 struct WarmingTask {
     key: String,
     ttl: Duration,
-    task: Box<dyn Fn() -> std::pin::Pin<Box<dyn std::future::Future<Output = CacheResult<Vec<u8>>> + Send>> + Send + Sync>,
+    task: Box<
+        dyn Fn()
+                -> std::pin::Pin<Box<dyn std::future::Future<Output = CacheResult<Vec<u8>>> + Send>>
+            + Send
+            + Sync,
+    >,
 }
 
 impl CacheWarmer {
@@ -39,7 +44,8 @@ impl CacheWarmer {
             Box::pin(async move {
                 let value = fut.await?;
                 serde_json::to_vec(&value).map_err(|e| CacheError::Serialization(e.to_string()))
-            }) as std::pin::Pin<Box<dyn std::future::Future<Output = CacheResult<Vec<u8>>> + Send>>
+            })
+                as std::pin::Pin<Box<dyn std::future::Future<Output = CacheResult<Vec<u8>>> + Send>>
         });
 
         self.tasks.push(WarmingTask { key, ttl, task });
@@ -72,12 +78,7 @@ impl ProbabilisticCache {
     }
 
     /// Remember with probabilistic early expiration
-    pub async fn remember<T, F, Fut>(
-        &self,
-        key: &str,
-        ttl: Duration,
-        f: F,
-    ) -> CacheResult<T>
+    pub async fn remember<T, F, Fut>(&self, key: &str, ttl: Duration, f: F) -> CacheResult<T>
     where
         T: Serialize + DeserializeOwned + Send + Sync + 'static,
         F: FnOnce() -> Fut + Send,

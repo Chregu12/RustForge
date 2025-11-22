@@ -83,12 +83,9 @@ impl ProgressBar {
             String::new()
         };
 
-        print!("\r{} {:>3}% ({}/{}){}",
-            bar,
-            percentage,
-            self.current,
-            self.total,
-            msg
+        print!(
+            "\r{} {:>3}% ({}/{}){}",
+            bar, percentage, self.current, self.total, msg
         );
 
         io::stdout().flush().unwrap_or(());
@@ -103,10 +100,7 @@ impl ProgressBar {
 
         let empty = self.width - filled;
 
-        format!("[{}{}]",
-            "█".repeat(filled),
-            "░".repeat(empty)
-        )
+        format!("[{}{}]", "█".repeat(filled), "░".repeat(empty))
     }
 
     fn render_dots(&self) -> String {
@@ -118,10 +112,7 @@ impl ProgressBar {
 
         let empty = self.width - filled;
 
-        format!("[{}{}]",
-            "●".repeat(filled),
-            "○".repeat(empty)
-        )
+        format!("[{}{}]", "●".repeat(filled), "○".repeat(empty))
     }
 
     fn render_line(&self) -> String {
@@ -133,10 +124,7 @@ impl ProgressBar {
 
         let empty = self.width - filled;
 
-        format!("[{}{}]",
-            "=".repeat(filled),
-            "-".repeat(empty)
-        )
+        format!("[{}{}]", "=".repeat(filled), "-".repeat(empty))
     }
 }
 

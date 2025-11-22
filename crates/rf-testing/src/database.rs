@@ -3,8 +3,8 @@
 //! Provides utilities for testing with databases including test database setup,
 //! migrations, transaction management, and database assertions.
 
-use thiserror::Error;
 use std::collections::HashMap;
+use thiserror::Error;
 
 /// Database testing errors
 #[derive(Debug, Error)]
@@ -50,8 +50,7 @@ pub struct TestDatabaseConfig {
 impl Default for TestDatabaseConfig {
     fn default() -> Self {
         Self {
-            url: std::env::var("DATABASE_URL")
-                .unwrap_or_else(|_| "sqlite::memory:".to_string()),
+            url: std::env::var("DATABASE_URL").unwrap_or_else(|_| "sqlite::memory:".to_string()),
             auto_migrate: true,
             auto_seed: false,
             use_transactions: true,
@@ -213,14 +212,9 @@ macro_rules! test_with_db_cleanup {
                 .await
                 .expect("Failed to create test database");
 
-            $body(&test_db)
-                .await
-                .expect("Test failed");
+            $body(&test_db).await.expect("Test failed");
 
-            test_db
-                .cleanup()
-                .await
-                .expect("Failed to cleanup database");
+            test_db.cleanup().await.expect("Failed to cleanup database");
         }
     };
 }
@@ -236,9 +230,7 @@ pub struct TransactionGuard {
 impl TransactionGuard {
     /// Create a new transaction guard
     pub fn new() -> Self {
-        Self {
-            rolled_back: false,
-        }
+        Self { rolled_back: false }
     }
 
     /// Commit the transaction (prevents rollback on drop)
@@ -438,10 +430,7 @@ pub mod assertions {
         expected: usize,
     ) -> Result<(), DatabaseTestError> {
         // Placeholder implementation
-        println!(
-            "Asserting table '{}' has exactly {} rows",
-            table, expected
-        );
+        println!("Asserting table '{}' has exactly {} rows", table, expected);
 
         // In real implementation:
         // let count = query("SELECT COUNT(*) FROM ?").bind(table).fetch_one();

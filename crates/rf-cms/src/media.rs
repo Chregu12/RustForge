@@ -1,12 +1,12 @@
 //! Media library for file and image management
 
-use std::path::{Path, PathBuf};
-use std::sync::Arc;
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
-use image::{ImageFormat, imageops::FilterType};
+use image::{imageops::FilterType, ImageFormat};
 use serde::{Deserialize, Serialize};
-use sha2::{Sha256, Digest};
+use sha2::{Digest, Sha256};
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use tokio::fs;
 use tokio::io::AsyncWriteExt;
 use uuid::Uuid;
@@ -143,11 +143,7 @@ impl MediaLibrary {
     }
 
     /// Upload a file
-    pub async fn upload(
-        &self,
-        filename: &str,
-        data: Vec<u8>,
-    ) -> CmsResult<MediaFile> {
+    pub async fn upload(&self, filename: &str, data: Vec<u8>) -> CmsResult<MediaFile> {
         let id = Uuid::new_v4().to_string();
 
         // Calculate hash
@@ -220,28 +216,22 @@ impl MediaLibrary {
     }
 
     /// Generate thumbnail
-    pub async fn thumbnail(
-        &self,
-        file_id: &str,
-        width: u32,
-        height: u32,
-    ) -> CmsResult<MediaFile> {
+    pub async fn thumbnail(&self, file_id: &str, width: u32, height: u32) -> CmsResult<MediaFile> {
         // Get original image
         let data = self.get(file_id).await?;
 
         // Load image
-        let img = image::load_from_memory(&data)
-            .map_err(|e| CmsError::ImageError(e.to_string()))?;
+        let img =
+            image::load_from_memory(&data).map_err(|e| CmsError::ImageError(e.to_string()))?;
 
         // Resize
         let thumb = img.resize(width, height, FilterType::Lanczos3);
 
         // Encode as JPEG
         let mut buffer = Vec::new();
-        thumb.write_to(
-            &mut std::io::Cursor::new(&mut buffer),
-            ImageFormat::Jpeg,
-        ).map_err(|e| CmsError::ImageError(e.to_string()))?;
+        thumb
+            .write_to(&mut std::io::Cursor::new(&mut buffer), ImageFormat::Jpeg)
+            .map_err(|e| CmsError::ImageError(e.to_string()))?;
 
         // Upload thumbnail
         let thumb_filename = format!("thumb_{}x{}_{}.jpg", width, height, file_id);
@@ -259,16 +249,15 @@ impl MediaLibrary {
     ) -> CmsResult<MediaFile> {
         let data = self.get(file_id).await?;
 
-        let img = image::load_from_memory(&data)
-            .map_err(|e| CmsError::ImageError(e.to_string()))?;
+        let img =
+            image::load_from_memory(&data).map_err(|e| CmsError::ImageError(e.to_string()))?;
 
         let cropped = img.crop_imm(x, y, width, height);
 
         let mut buffer = Vec::new();
-        cropped.write_to(
-            &mut std::io::Cursor::new(&mut buffer),
-            ImageFormat::Jpeg,
-        ).map_err(|e| CmsError::ImageError(e.to_string()))?;
+        cropped
+            .write_to(&mut std::io::Cursor::new(&mut buffer), ImageFormat::Jpeg)
+            .map_err(|e| CmsError::ImageError(e.to_string()))?;
 
         let crop_filename = format!("crop_{}x{}_{}x{}_{}.jpg", x, y, width, height, file_id);
         self.upload(&crop_filename, buffer).await
@@ -276,8 +265,7 @@ impl MediaLibrary {
 
     /// Get image dimensions
     fn get_image_dimensions(&self, data: &[u8]) -> CmsResult<(u32, u32)> {
-        let img = image::load_from_memory(data)
-            .map_err(|e| CmsError::ImageError(e.to_string()))?;
+        let img = image::load_from_memory(data).map_err(|e| CmsError::ImageError(e.to_string()))?;
 
         Ok((img.width(), img.height()))
     }
@@ -298,8 +286,8 @@ impl MediaLibrary {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tempfile::TempDir;
     use image::DynamicImage;
+    use tempfile::TempDir;
 
     #[tokio::test]
     async fn test_local_storage() {
@@ -342,15 +330,12 @@ mod tests {
         let media = MediaLibrary::new(temp_dir.path());
 
         // Create a small test image (1x1 red pixel)
-        let img = DynamicImage::ImageRgb8(
-            image::RgbImage::from_pixel(1, 1, image::Rgb([255, 0, 0]))
-        );
+        let img =
+            DynamicImage::ImageRgb8(image::RgbImage::from_pixel(1, 1, image::Rgb([255, 0, 0])));
 
         let mut buffer = Vec::new();
-        img.write_to(
-            &mut std::io::Cursor::new(&mut buffer),
-            ImageFormat::Png,
-        ).unwrap();
+        img.write_to(&mut std::io::Cursor::new(&mut buffer), ImageFormat::Png)
+            .unwrap();
 
         let file = media.upload("test.png", buffer).await.unwrap();
 
@@ -365,15 +350,15 @@ mod tests {
         let media = MediaLibrary::new(temp_dir.path());
 
         // Create a 100x100 test image
-        let img = DynamicImage::ImageRgb8(
-            image::RgbImage::from_pixel(100, 100, image::Rgb([0, 255, 0]))
-        );
+        let img = DynamicImage::ImageRgb8(image::RgbImage::from_pixel(
+            100,
+            100,
+            image::Rgb([0, 255, 0]),
+        ));
 
         let mut buffer = Vec::new();
-        img.write_to(
-            &mut std::io::Cursor::new(&mut buffer),
-            ImageFormat::Png,
-        ).unwrap();
+        img.write_to(&mut std::io::Cursor::new(&mut buffer), ImageFormat::Png)
+            .unwrap();
 
         let file = media.upload("original.png", buffer).await.unwrap();
 

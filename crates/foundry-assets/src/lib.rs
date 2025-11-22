@@ -17,7 +17,7 @@ pub mod publisher;
 
 pub use command::AssetPublishCommand;
 pub use hasher::AssetHasher;
-pub use manifest::{AssetManifest, AssetEntry};
+pub use manifest::{AssetEntry, AssetManifest};
 pub use publisher::{AssetPublisher, PublishConfig, PublishResult};
 
 #[cfg(test)]

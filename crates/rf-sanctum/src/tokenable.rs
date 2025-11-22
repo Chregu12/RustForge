@@ -42,11 +42,15 @@ pub trait Tokenable: Send + Sync + Sized {
         db: &DatabaseConnection,
     ) -> Result<NewToken, SanctumError> {
         let expires_at = Utc::now() + Duration::hours(hours);
-        self.create_token(name, abilities, Some(expires_at), db).await
+        self.create_token(name, abilities, Some(expires_at), db)
+            .await
     }
 
     /// Get all tokens for this model
-    async fn tokens(&self, db: &DatabaseConnection) -> Result<Vec<PersonalAccessToken>, SanctumError> {
+    async fn tokens(
+        &self,
+        db: &DatabaseConnection,
+    ) -> Result<Vec<PersonalAccessToken>, SanctumError> {
         let repo = TokenRepository::new(db);
         let models = repo
             .find_by_tokenable(Self::tokenable_type(), self.tokenable_id())
@@ -66,7 +70,11 @@ pub trait Tokenable: Send + Sync + Sized {
     }
 
     /// Revoke a specific token
-    async fn revoke_token(&self, token_id: i64, db: &DatabaseConnection) -> Result<(), SanctumError> {
+    async fn revoke_token(
+        &self,
+        token_id: i64,
+        db: &DatabaseConnection,
+    ) -> Result<(), SanctumError> {
         let repo = TokenRepository::new(db);
         repo.revoke(token_id).await
     }

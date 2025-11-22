@@ -15,7 +15,7 @@ pub use snapshot::Snapshot;
 
 /// Re-export commonly used testing utilities
 pub mod prelude {
-    
+
     pub use super::database::TestDatabase;
     pub use super::factory::{Factory, FactoryBuilder};
     pub use super::fixtures::*;

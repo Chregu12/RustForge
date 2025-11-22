@@ -1,8 +1,8 @@
 //! OAuth2 driver implementation
 
+use crate::pkce::Pkce;
 use crate::providers::Provider;
 use crate::user::{User, UserData};
-use crate::pkce::Pkce;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use url::Url;
@@ -236,11 +236,14 @@ impl DriverBuilder {
     }
 
     pub fn build(self) -> Result<Driver> {
-        let client_id = self.client_id
+        let client_id = self
+            .client_id
             .ok_or_else(|| SocialiteError::InvalidConfig("client_id is required".to_string()))?;
-        let client_secret = self.client_secret
-            .ok_or_else(|| SocialiteError::InvalidConfig("client_secret is required".to_string()))?;
-        let redirect_url = self.redirect_url
+        let client_secret = self.client_secret.ok_or_else(|| {
+            SocialiteError::InvalidConfig("client_secret is required".to_string())
+        })?;
+        let redirect_url = self
+            .redirect_url
             .ok_or_else(|| SocialiteError::InvalidConfig("redirect_url is required".to_string()))?;
 
         Ok(Driver {

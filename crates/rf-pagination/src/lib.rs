@@ -177,11 +177,7 @@ pub struct PaginatedResponse<T> {
 
 impl<T> PaginatedResponse<T> {
     /// Create a new paginated response
-    pub fn new(
-        data: Vec<T>,
-        paginator: Paginator,
-        base_url: Option<&str>,
-    ) -> Self {
+    pub fn new(data: Vec<T>, paginator: Paginator, base_url: Option<&str>) -> Self {
         let meta = PaginationMeta::from(paginator.clone());
         let links = base_url.map(|url| PaginationLinks::new(url, &paginator));
 
@@ -337,11 +333,7 @@ mod tests {
     #[test]
     fn test_paginated_response() {
         let paginator = Paginator::new(3, 10, 1).unwrap();
-        let response = PaginatedResponse::new(
-            vec![1, 2, 3],
-            paginator,
-            Some("/api/items"),
-        );
+        let response = PaginatedResponse::new(vec![1, 2, 3], paginator, Some("/api/items"));
         assert_eq!(response.data.len(), 3);
         assert_eq!(response.meta.total, 3);
         assert!(response.links.is_some());
@@ -355,7 +347,10 @@ mod tests {
 
         let with_cursor = paginator.after("cursor123".to_string());
         assert!(with_cursor.cursor.is_some());
-        assert_eq!(with_cursor.cursor.unwrap().direction, CursorDirection::After);
+        assert_eq!(
+            with_cursor.cursor.unwrap().direction,
+            CursorDirection::After
+        );
     }
 
     #[test]

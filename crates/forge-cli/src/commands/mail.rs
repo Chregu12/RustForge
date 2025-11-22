@@ -21,7 +21,10 @@ use super::ensure_forge_project;
 pub async fn make_mail(name: &str, markdown: bool) -> Result<()> {
     ensure_forge_project()?;
 
-    println!("{}", format!("Generating mailable: {}", name).green().bold());
+    println!(
+        "{}",
+        format!("Generating mailable: {}", name).green().bold()
+    );
 
     let mail_name = name.to_pascal_case();
     let mail_path = if name.contains('/') {
@@ -279,7 +282,10 @@ pub async fn test_mail(to: &str, subject: Option<&str>, markdown: bool) -> Resul
 
     println!("{}", "Sending test email...".green().bold());
     println!("  To: {}", to);
-    println!("  Subject: {}", subject.unwrap_or("Test Email from RustForge"));
+    println!(
+        "  Subject: {}",
+        subject.unwrap_or("Test Email from RustForge")
+    );
 
     // TODO: Load mail config and send actual email
     // For now, just show what would be sent

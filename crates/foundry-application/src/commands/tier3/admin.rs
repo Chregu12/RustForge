@@ -118,10 +118,16 @@ impl AdminResource for {}Resource {{
     }}
 }}
 "#,
-            model_name, model_name, model_name, model_name, model_name.to_lowercase(), model_name
+            model_name,
+            model_name,
+            model_name,
+            model_name,
+            model_name.to_lowercase(),
+            model_name
         );
 
-        ctx.artifacts.write_file(&resource_path, &content, ctx.options.force)?;
+        ctx.artifacts
+            .write_file(&resource_path, &content, ctx.options.force)?;
 
         Ok(CommandResult::success(format!(
             "Admin resource created: {}",
@@ -172,7 +178,8 @@ per_page = 25
 max_per_page = 100
 "##;
 
-        ctx.artifacts.write_file(config_path, config_content, ctx.options.force)?;
+        ctx.artifacts
+            .write_file(config_path, config_content, ctx.options.force)?;
 
         Ok(CommandResult::success("Admin configuration published"))
     }

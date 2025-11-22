@@ -15,7 +15,10 @@ pub struct MakeTranslationCommand {
 
 impl MakeTranslationCommand {
     pub async fn execute(&self) -> anyhow::Result<()> {
-        println!("🌐 Creating translation file: {}/{}", self.namespace, self.locale);
+        println!(
+            "🌐 Creating translation file: {}/{}",
+            self.namespace, self.locale
+        );
 
         let dir = format!("resources/lang/{}", self.locale);
         std::fs::create_dir_all(&dir)?;

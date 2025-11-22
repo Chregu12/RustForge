@@ -57,10 +57,7 @@ impl TestCommand {
     }
 
     /// Führt cargo test aus und sammelt Output
-    fn run_cargo_test(
-        filter: Option<&str>,
-        verbose: bool,
-    ) -> Result<TestRunOutput, CommandError> {
+    fn run_cargo_test(filter: Option<&str>, verbose: bool) -> Result<TestRunOutput, CommandError> {
         let mut cmd = Command::new("cargo");
         cmd.arg("test");
 
@@ -388,7 +385,8 @@ mod tests {
 
     #[test]
     fn test_parse_test_output_failure() {
-        let output = "test result: FAILED. 10 passed; 2 failed; 1 ignored; 0 measured; 0 filtered out";
+        let output =
+            "test result: FAILED. 10 passed; 2 failed; 1 ignored; 0 measured; 0 filtered out";
         let stats = TestCommand::parse_test_output(output, "");
         assert_eq!(stats.passed, 10);
         assert_eq!(stats.failed, 2);

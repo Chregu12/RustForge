@@ -147,8 +147,8 @@ pub mod validators;
 pub use error::{FieldError, ValidationErrors};
 pub use extractor::{ValidatedJson, ValidationRejection};
 pub use form_request::{
-    FormRequest, FormRequestError, FormRequestResult, Validated,
-    ValidationRules, ValidationMessages, RulesBuilder, MessagesBuilder,
+    FormRequest, FormRequestError, FormRequestResult, MessagesBuilder, RulesBuilder, Validated,
+    ValidationMessages, ValidationRules,
 };
 pub use validator::{Rule, RuleResult, ValidatedData, Validator};
 
@@ -165,8 +165,8 @@ pub mod prelude {
         error::{FieldError, ValidationErrors},
         extractor::{ValidatedJson, ValidationRejection},
         form_request::{
-            FormRequest, FormRequestError, FormRequestResult, Validated,
-            ValidationRules, ValidationMessages, RulesBuilder, MessagesBuilder,
+            FormRequest, FormRequestError, FormRequestResult, MessagesBuilder, RulesBuilder,
+            Validated, ValidationMessages, ValidationRules,
         },
         rules,
         validator::{Rule, RuleResult, ValidatedData, Validator},

@@ -1,7 +1,10 @@
 //! OAuth2 server implementation
 
 use crate::{
-    client::Client, error::{OAuth2Error, OAuth2Result}, token::{AccessToken, RefreshToken, TokenResponse}, types::{GrantType, OAuth2Config, Scope}
+    client::Client,
+    error::{OAuth2Error, OAuth2Result},
+    token::{AccessToken, RefreshToken, TokenResponse},
+    types::{GrantType, OAuth2Config, Scope},
 };
 use chrono::{Duration, Utc};
 use std::{collections::HashMap, sync::Arc};
@@ -97,9 +100,9 @@ impl OAuth2Server {
         // Get and remove authorization code
         let auth_code = {
             let mut codes = self.auth_codes.write().await;
-            codes
-                .remove(code)
-                .ok_or_else(|| OAuth2Error::InvalidGrant("Invalid authorization code".to_string()))?
+            codes.remove(code).ok_or_else(|| {
+                OAuth2Error::InvalidGrant("Invalid authorization code".to_string())
+            })?
         };
 
         // Verify code not expired
@@ -121,9 +124,8 @@ impl OAuth2Server {
 
         // Verify PKCE if present
         if let Some(challenge) = auth_code.code_challenge {
-            let verifier = code_verifier.ok_or_else(|| {
-                OAuth2Error::InvalidRequest("Code verifier required".to_string())
-            })?;
+            let verifier = code_verifier
+                .ok_or_else(|| OAuth2Error::InvalidRequest("Code verifier required".to_string()))?;
 
             // Simple verification (in production, use proper PKCE)
             if challenge != verifier {
@@ -250,12 +252,11 @@ impl OAuth2Server {
         let mut refresh_tokens = self.refresh_tokens.write().await;
         refresh_tokens.insert(refresh_token_id.clone(), refresh_token);
 
-        Ok(TokenResponse::bearer(
-            access_token_id,
-            self.config.access_token_ttl,
+        Ok(
+            TokenResponse::bearer(access_token_id, self.config.access_token_ttl)
+                .with_refresh_token(refresh_token_id)
+                .with_scopes(scopes),
         )
-        .with_refresh_token(refresh_token_id)
-        .with_scopes(scopes))
     }
 }
 
@@ -296,11 +297,7 @@ mod tests {
         oauth.register_client(client).await.unwrap();
 
         let response = oauth
-            .client_credentials(
-                "test-client",
-                "secret123",
-                vec!["read".to_string()],
-            )
+            .client_credentials("test-client", "secret123", vec!["read".to_string()])
             .await
             .unwrap();
 

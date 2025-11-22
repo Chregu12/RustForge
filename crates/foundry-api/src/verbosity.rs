@@ -24,7 +24,6 @@
 ///     println!("Detailed information");
 /// }
 /// ```
-
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
@@ -252,12 +251,27 @@ mod tests {
     fn test_verbosity_level_parse() {
         assert_eq!(VerbosityLevel::parse("-q"), Some(VerbosityLevel::Quiet));
         assert_eq!(VerbosityLevel::parse("-v"), Some(VerbosityLevel::Verbose));
-        assert_eq!(VerbosityLevel::parse("-vv"), Some(VerbosityLevel::VeryVerbose));
+        assert_eq!(
+            VerbosityLevel::parse("-vv"),
+            Some(VerbosityLevel::VeryVerbose)
+        );
         assert_eq!(VerbosityLevel::parse("-vvv"), Some(VerbosityLevel::Debug));
-        assert_eq!(VerbosityLevel::parse("--quiet"), Some(VerbosityLevel::Quiet));
-        assert_eq!(VerbosityLevel::parse("--verbose"), Some(VerbosityLevel::Verbose));
-        assert_eq!(VerbosityLevel::parse("--very-verbose"), Some(VerbosityLevel::VeryVerbose));
-        assert_eq!(VerbosityLevel::parse("--debug"), Some(VerbosityLevel::Debug));
+        assert_eq!(
+            VerbosityLevel::parse("--quiet"),
+            Some(VerbosityLevel::Quiet)
+        );
+        assert_eq!(
+            VerbosityLevel::parse("--verbose"),
+            Some(VerbosityLevel::Verbose)
+        );
+        assert_eq!(
+            VerbosityLevel::parse("--very-verbose"),
+            Some(VerbosityLevel::VeryVerbose)
+        );
+        assert_eq!(
+            VerbosityLevel::parse("--debug"),
+            Some(VerbosityLevel::Debug)
+        );
         assert_eq!(VerbosityLevel::parse("invalid"), None);
     }
 
@@ -309,22 +323,13 @@ mod tests {
     #[test]
     fn test_verbosity_format() {
         let verbosity = Verbosity::new(VerbosityLevel::Verbose);
-        assert_eq!(
-            verbosity.format("normal", "verbose", "debug"),
-            "verbose"
-        );
+        assert_eq!(verbosity.format("normal", "verbose", "debug"), "verbose");
 
         let verbosity = Verbosity::new(VerbosityLevel::Normal);
-        assert_eq!(
-            verbosity.format("normal", "verbose", "debug"),
-            "normal"
-        );
+        assert_eq!(verbosity.format("normal", "verbose", "debug"), "normal");
 
         let verbosity = Verbosity::new(VerbosityLevel::Debug);
-        assert_eq!(
-            verbosity.format("normal", "verbose", "debug"),
-            "debug"
-        );
+        assert_eq!(verbosity.format("normal", "verbose", "debug"), "debug");
     }
 
     #[test]

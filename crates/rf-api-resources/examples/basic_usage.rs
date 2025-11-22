@@ -1,6 +1,8 @@
 //! Basic usage example for rf-api-resources
 
-use rf_api_resources::{Collection, PaginatedCollection, PaginationMeta, Resource, ResourceCollection};
+use rf_api_resources::{
+    Collection, PaginatedCollection, PaginationMeta, Resource, ResourceCollection,
+};
 use serde::Serialize;
 
 #[derive(Debug, Clone, Serialize)]
@@ -76,14 +78,12 @@ fn main() {
     println!("{}\n", serde_json::to_string_pretty(&json).unwrap());
 
     // Paginated collection
-    let users = vec![
-        User {
-            id: 1,
-            name: "User 1".to_string(),
-            email: "user1@example.com".to_string(),
-            is_admin: false,
-        },
-    ];
+    let users = vec![User {
+        id: 1,
+        name: "User 1".to_string(),
+        email: "user1@example.com".to_string(),
+        is_admin: false,
+    }];
 
     let resources: Vec<UserResource> = users.into_iter().map(UserResource::from).collect();
     let meta = PaginationMeta::new(1, 10, 25);

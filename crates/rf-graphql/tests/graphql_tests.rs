@@ -512,7 +512,11 @@ async fn test_dataloader() {
         type Value = User;
         type Error = Arc<String>;
 
-        fn load(&self, keys: &[ID]) -> impl std::future::Future<Output = Result<HashMap<ID, Self::Value>, Self::Error>> + Send {
+        fn load(
+            &self,
+            keys: &[ID],
+        ) -> impl std::future::Future<Output = Result<HashMap<ID, Self::Value>, Self::Error>> + Send
+        {
             let keys = keys.to_vec();
             async move {
                 let users: HashMap<ID, User> = keys

@@ -5,8 +5,8 @@
 use crate::clients::ClientRepository;
 use crate::errors::{OAuth2Error, OAuth2Result};
 use crate::grants::{
-    AuthCodeParams, AuthorizationCodeGrant, ClientCredentialsGrant, PasswordGrant, RefreshTokenGrant,
-    TokenResponse,
+    AuthCodeParams, AuthorizationCodeGrant, ClientCredentialsGrant, PasswordGrant,
+    RefreshTokenGrant, TokenResponse,
 };
 use crate::models::{AccessToken, AuthorizationCode, Client, PersonalAccessToken, RefreshToken};
 use crate::scopes::ScopeManager;
@@ -89,7 +89,9 @@ impl<R: ClientRepository> OAuth2Server<R> {
             self.client_repository
                 .find_by_credentials(client_id, secret)
                 .await?
-                .ok_or_else(|| OAuth2Error::InvalidClient("Invalid client credentials".to_string()))?
+                .ok_or_else(|| {
+                    OAuth2Error::InvalidClient("Invalid client credentials".to_string())
+                })?
         } else {
             // Public client
             self.client_repository
@@ -107,7 +109,11 @@ impl<R: ClientRepository> OAuth2Server<R> {
     }
 
     /// Validate scopes against client and scope manager
-    pub fn validate_scopes(&self, client: &Client, requested_scopes: &[String]) -> OAuth2Result<Vec<String>> {
+    pub fn validate_scopes(
+        &self,
+        client: &Client,
+        requested_scopes: &[String],
+    ) -> OAuth2Result<Vec<String>> {
         // Validate scopes exist
         let validated = self
             .scope_manager
@@ -176,7 +182,8 @@ impl<R: ClientRepository> OAuth2Server<R> {
             lifetime: self.config.auth_code_lifetime,
         };
 
-        self.authorization_code_grant.create_authorization_code(client, params)
+        self.authorization_code_grant
+            .create_authorization_code(client, params)
     }
 
     /// Authorization Code Flow: Exchange code for tokens

@@ -156,9 +156,7 @@ mod tests {
             .render("model", &data)
             .map_err(|e| GeneratorError::Template(e.to_string()))?;
 
-        let file_path = config
-            .output_dir
-            .join(format!("{}.rs", data.snake_name));
+        let file_path = config.output_dir.join(format!("{}.rs", data.snake_name));
 
         write_file(&file_path, &content, config.force).await?;
         Ok(file_path)

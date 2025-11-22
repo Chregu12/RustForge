@@ -12,17 +12,22 @@ fn main() {
     println!("=== rf-orm API Examples ===\n");
 
     // 1. Database Connection
-    print_example("1. Database Connection", r#"
+    print_example(
+        "1. Database Connection",
+        r#"
 use rf_orm::prelude::*;
 
 let db = DatabaseManager::connect(DatabaseConfig {
     url: "postgres://user:pass@localhost/db".to_string(),
     ..Default::default()
 }).await?;
-"#);
+"#,
+    );
 
     // 2. Define Entities
-    print_example("2. Define Entity (SeaORM)", r#"
+    print_example(
+        "2. Define Entity (SeaORM)",
+        r#"
 #[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel)]
 #[sea_orm(table_name = "posts")]
 pub struct Model {
@@ -37,10 +42,13 @@ pub struct Model {
 pub enum Relation {}
 
 impl ActiveModelBehavior for ActiveModel {}
-"#);
+"#,
+    );
 
     // 3. Query Builder - Laravel-style
-    print_example("3. Query Builder (Laravel-style)", r#"
+    print_example(
+        "3. Query Builder (Laravel-style)",
+        r#"
 use rf_orm::Model; // Import Model trait
 
 // Fluent query building
@@ -51,45 +59,60 @@ let posts = Post::query(db)
     .limit(10)
     .get()
     .await?;
-"#);
+"#,
+    );
 
     // 4. First Result
-    print_example("4. Get First Result", r#"
+    print_example(
+        "4. Get First Result",
+        r#"
 let post = Post::query(db)
     .where_eq(post::Column::Id, 1)
     .first()
     .await?;
-"#);
+"#,
+    );
 
     // 5. Multiple Where Conditions
-    print_example("5. Multiple Where Conditions", r#"
+    print_example(
+        "5. Multiple Where Conditions",
+        r#"
 let posts = Post::query(db)
     .where_eq(post::Column::Published, true)
     .where_like(post::Column::Title, "%Laravel%")
     .where_in(post::Column::Category, vec!["Tech", "Programming"])
     .await?;
-"#);
+"#,
+    );
 
     // 6. Ordering
-    print_example("6. Ordering Results", r#"
+    print_example(
+        "6. Ordering Results",
+        r#"
 let posts = Post::query(db)
     .order_by_asc(post::Column::Title)
     .order_by_desc(post::Column::CreatedAt)
     .get()
     .await?;
-"#);
+"#,
+    );
 
     // 7. Model Trait Methods
-    print_example("7. Model Trait Helper Methods", r#"
+    print_example(
+        "7. Model Trait Helper Methods",
+        r#"
 // Get all models
 let all_posts = Post::all(&db).await?;
 
 // Use the query builder for more complex queries
 let query = Post::query(db);
-"#);
+"#,
+    );
 
     // 8. Transactions
-    print_example("8. Transaction Support", r#"
+    print_example(
+        "8. Transaction Support",
+        r#"
 use rf_orm::TransactionExt;
 
 // Automatic commit/rollback
@@ -110,10 +133,13 @@ db.transaction(|tx| async move {
     // If any error occurs, transaction will rollback automatically
     Ok(())
 }).await?;
-"#);
+"#,
+    );
 
     // 9. Relationships
-    print_example("9. Relationship Helpers", r#"
+    print_example(
+        "9. Relationship Helpers",
+        r#"
 use rf_orm::RelationshipHelpers;
 
 // BelongsTo - Load related model
@@ -127,10 +153,13 @@ let posts_with_authors = eager_load::<post::Entity, user::Entity>(posts, &db).aw
 for (post, authors) in posts_with_authors {
     println!("{}: {:?}", post.title, authors);
 }
-"#);
+"#,
+    );
 
     // 10. Model Events
-    print_example("10. Model Lifecycle Events", r#"
+    print_example(
+        "10. Model Lifecycle Events",
+        r#"
 use rf_orm::ModelEvents;
 use async_trait::async_trait;
 
@@ -159,10 +188,13 @@ impl ModelEvents for post::ActiveModel {
 
 // Or use the timestamps! macro
 timestamps!(post::ActiveModel, created_at, updated_at);
-"#);
+"#,
+    );
 
     // 11. Advanced SeaORM Access
-    print_example("11. Access Full SeaORM API", r#"
+    print_example(
+        "11. Access Full SeaORM API",
+        r#"
 // Get the underlying Select for advanced operations
 let (select, db) = Post::query(db).into_select();
 
@@ -173,7 +205,8 @@ let posts = select
     .having(/* ... */)
     .all(&db)
     .await?;
-"#);
+"#,
+    );
 
     println!("\n=== Summary ===");
     println!("✓ Query Builder with method chaining");

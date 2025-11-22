@@ -53,10 +53,7 @@ pub async fn get_websocket_manager() -> Option<WebSocketManager> {
 ///
 /// let app = Router::new().route("/ws", get(websocket_handler));
 /// ```
-pub async fn websocket_handler(
-    ws: WebSocketUpgrade,
-    State(_state): State<AppState>,
-) -> Response {
+pub async fn websocket_handler(ws: WebSocketUpgrade, State(_state): State<AppState>) -> Response {
     ws.on_upgrade(|socket| handle_websocket(socket, None))
 }
 
@@ -100,13 +97,13 @@ async fn handle_websocket(socket: WebSocket, auto_subscribe_channel: Option<Stri
 
     // Automatisch Channel abonnieren, falls angegeben
     if let Some(channel) = &auto_subscribe_channel {
-        manager.channel_manager().subscribe(channel, connection_id).await;
+        manager
+            .channel_manager()
+            .subscribe(channel, connection_id)
+            .await;
 
         // Welcome-Nachricht an den Client senden
-        let welcome_msg = WebSocketMessage::system(format!(
-            "Connected to channel: {}",
-            channel
-        ));
+        let welcome_msg = WebSocketMessage::system(format!("Connected to channel: {}", channel));
         if let Err(e) = connection.send(welcome_msg).await {
             error!(connection_id = %connection_id, error = %e, "Failed to send welcome message");
         }
@@ -188,7 +185,8 @@ async fn handle_client_message(
             // System-Commands vom Client verarbeiten
             if let Some(payload) = &message.payload {
                 if let Some(command) = payload.get("command").and_then(|c| c.as_str()) {
-                    handle_system_command(command, payload, connection_id, manager, connection).await?;
+                    handle_system_command(command, payload, connection_id, manager, connection)
+                        .await?;
                 }
             }
         }
@@ -212,9 +210,13 @@ async fn handle_system_command(
         "subscribe" => {
             // Client möchte einen Channel abonnieren
             if let Some(channel) = payload.get("channel").and_then(|c| c.as_str()) {
-                manager.channel_manager().subscribe(channel, connection_id).await;
+                manager
+                    .channel_manager()
+                    .subscribe(channel, connection_id)
+                    .await;
 
-                let response = WebSocketMessage::system(format!("Subscribed to channel: {}", channel));
+                let response =
+                    WebSocketMessage::system(format!("Subscribed to channel: {}", channel));
                 connection.send(response).await?;
 
                 info!(
@@ -227,9 +229,13 @@ async fn handle_system_command(
         "unsubscribe" => {
             // Client möchte einen Channel deabonnieren
             if let Some(channel) = payload.get("channel").and_then(|c| c.as_str()) {
-                manager.channel_manager().unsubscribe(channel, connection_id).await;
+                manager
+                    .channel_manager()
+                    .unsubscribe(channel, connection_id)
+                    .await;
 
-                let response = WebSocketMessage::system(format!("Unsubscribed from channel: {}", channel));
+                let response =
+                    WebSocketMessage::system(format!("Unsubscribed from channel: {}", channel));
                 connection.send(response).await?;
 
                 info!(

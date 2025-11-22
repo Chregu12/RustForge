@@ -76,7 +76,11 @@ async fn test_product_queries() {
     "#;
 
     let response = schema.execute(query).await;
-    assert!(response.errors.is_empty(), "Query failed: {:?}", response.errors);
+    assert!(
+        response.errors.is_empty(),
+        "Query failed: {:?}",
+        response.errors
+    );
 
     let data = response.data.into_json().unwrap();
     let product = &data["createProduct"];
@@ -192,7 +196,11 @@ async fn test_account_queries() {
     "#;
 
     let response = schema.execute(query).await;
-    assert!(response.errors.is_empty(), "Query failed: {:?}", response.errors);
+    assert!(
+        response.errors.is_empty(),
+        "Query failed: {:?}",
+        response.errors
+    );
 
     let data = response.data.into_json().unwrap();
     let account = &data["createAccount"];

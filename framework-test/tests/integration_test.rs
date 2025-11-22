@@ -46,7 +46,10 @@ async fn test_user_has_many_posts_relationship() {
     let posts = user.posts(&state).await.expect("Failed to get posts");
 
     // Verify relationship works (should return demo data)
-    assert!(!posts.is_empty(), "HasMany relationship should return posts");
+    assert!(
+        !posts.is_empty(),
+        "HasMany relationship should return posts"
+    );
     assert_eq!(posts[0].user_id, user.id, "Post should belong to user");
 }
 
@@ -60,10 +63,16 @@ async fn test_user_belongs_to_many_roles_relationship() {
     let roles = user.roles(&state).await.expect("Failed to get roles");
 
     // Verify many-to-many relationship works
-    assert!(!roles.is_empty(), "BelongsToMany relationship should return roles");
+    assert!(
+        !roles.is_empty(),
+        "BelongsToMany relationship should return roles"
+    );
 
     // Test role checking
-    let has_admin = user.has_role(&state, "admin").await.expect("Failed to check role");
+    let has_admin = user
+        .has_role(&state, "admin")
+        .await
+        .expect("Failed to check role");
     assert!(has_admin, "User should have admin role");
 }
 
@@ -74,7 +83,10 @@ async fn test_post_belongs_to_user_relationship() {
     let post = Post::factory(1, 1, "Test Post");
 
     // Test BelongsTo relationship: Post belongs to User
-    let user = post.user(&state).await.expect("Failed to get user")
+    let user = post
+        .user(&state)
+        .await
+        .expect("Failed to get user")
         .expect("User should exist");
 
     assert_eq!(user.id, post.user_id, "User ID should match post's user_id");
@@ -115,7 +127,10 @@ async fn test_comment_morph_to_relationship() {
     let comment = Comment::factory(1, 1, "Post", 1, "Great article!");
 
     // Test MorphTo relationship: Comment morphs to Post or Product
-    let commentable = comment.commentable(&state).await.expect("Failed to get commentable");
+    let commentable = comment
+        .commentable(&state)
+        .await
+        .expect("Failed to get commentable");
 
     assert!(commentable.is_some(), "Comment should have a commentable");
 
@@ -135,7 +150,10 @@ async fn test_image_polymorphic_relationship() {
     let image = Image::factory(1, "User", 1, "https://example.com/avatar.jpg");
 
     // Test MorphTo relationship
-    let imageable = image.imageable(&state).await.expect("Failed to get imageable");
+    let imageable = image
+        .imageable(&state)
+        .await
+        .expect("Failed to get imageable");
 
     assert!(imageable.is_some(), "Image should have an imageable");
 
@@ -160,7 +178,10 @@ async fn test_category_self_referential_relationship() {
     assert!(child_category.is_child(), "Should be a child category");
 
     // Test parent relationship
-    let parent = child_category.parent(&state).await.expect("Failed to get parent");
+    let parent = child_category
+        .parent(&state)
+        .await
+        .expect("Failed to get parent");
     assert!(parent.is_some(), "Child should have a parent");
 }
 
@@ -222,8 +243,14 @@ async fn test_post_lifecycle_methods() {
 
     // Test view count
     let initial_views = post.view_count;
-    post.increment_views(&state).await.expect("Failed to increment views");
-    assert_eq!(post.view_count, initial_views + 1, "View count should increment");
+    post.increment_views(&state)
+        .await
+        .expect("Failed to increment views");
+    assert_eq!(
+        post.view_count,
+        initial_views + 1,
+        "View count should increment"
+    );
 }
 
 #[tokio::test]
@@ -263,24 +290,42 @@ async fn test_all_relationship_types_are_implemented() {
     let _user = post.user(&state).await.expect("BelongsTo not implemented");
 
     // 3. BelongsToMany: User belongs to many Roles
-    let _roles = user.roles(&state).await.expect("BelongsToMany not implemented");
+    let _roles = user
+        .roles(&state)
+        .await
+        .expect("BelongsToMany not implemented");
 
     // 4. HasManyThrough: User has many Comments through Posts
-    let _comments = user.post_comments(&state).await.expect("HasManyThrough not implemented");
+    let _comments = user
+        .post_comments(&state)
+        .await
+        .expect("HasManyThrough not implemented");
 
     // 5. MorphMany: User has many Images (polymorphic)
-    let _images = user.images(&state).await.expect("MorphMany not implemented");
+    let _images = user
+        .images(&state)
+        .await
+        .expect("MorphMany not implemented");
 
     // 6. MorphTo: Comment morphs to Post or Product
     let comment = Comment::factory(1, 1, "Post", 1, "Test");
-    let _commentable = comment.commentable(&state).await.expect("MorphTo not implemented");
+    let _commentable = comment
+        .commentable(&state)
+        .await
+        .expect("MorphTo not implemented");
 
     // 7. MorphOne: Product has one featured Image (polymorphic)
     let product = Product::factory(1, "Test");
-    let _featured = product.featured_image(&state).await.expect("MorphOne not implemented");
+    let _featured = product
+        .featured_image(&state)
+        .await
+        .expect("MorphOne not implemented");
 
     // 8. MorphToMany: Post has many Tags (polymorphic many-to-many)
-    let _tags = post.tags(&state).await.expect("MorphToMany not implemented");
+    let _tags = post
+        .tags(&state)
+        .await
+        .expect("MorphToMany not implemented");
 
     // If we reach here, all 8 relationship types are implemented!
     println!("✅ All 8 Eloquent relationship types are implemented!");

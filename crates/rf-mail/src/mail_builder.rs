@@ -191,7 +191,11 @@ impl MailBuilder {
     /// # }
     /// ```
     #[cfg(feature = "view")]
-    pub async fn tera_view(mut self, template: &str, data: impl Serialize) -> Result<Self, MailError> {
+    pub async fn tera_view(
+        mut self,
+        template: &str,
+        data: impl Serialize,
+    ) -> Result<Self, MailError> {
         let view = rf_view::View::make(template, data);
         let rendered = view.render().await?;
 
@@ -224,8 +228,7 @@ impl MailBuilder {
         layout: &str,
         data: impl Serialize,
     ) -> Result<Self, MailError> {
-        let view = rf_view::View::make(template, data)
-            .layout(layout);
+        let view = rf_view::View::make(template, data).layout(layout);
         let rendered = view.render().await?;
 
         self.html = Some(rendered);
@@ -268,13 +271,9 @@ impl MailBuilder {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn attach_data(
-        mut self,
-        data: Vec<u8>,
-        filename: &str,
-        content_type: &str,
-    ) -> Self {
-        let attachment = Attachment::from_data(data, filename.to_string(), content_type.to_string());
+    pub fn attach_data(mut self, data: Vec<u8>, filename: &str, content_type: &str) -> Self {
+        let attachment =
+            Attachment::from_data(data, filename.to_string(), content_type.to_string());
         self.attachments.push(attachment);
         self
     }
@@ -315,9 +314,9 @@ impl MailBuilder {
             to: self.to,
             cc: self.cc,
             bcc: self.bcc,
-            from: self.from.ok_or_else(|| {
-                MailError::InvalidMessage("From address is required".into())
-            })?,
+            from: self
+                .from
+                .ok_or_else(|| MailError::InvalidMessage("From address is required".into()))?,
             reply_to: self.reply_to,
             subject: self.subject,
             body,
@@ -325,8 +324,7 @@ impl MailBuilder {
         };
 
         // Validate before returning
-        mail.validate()
-            .map_err(|e| MailError::InvalidMessage(e))?;
+        mail.validate().map_err(|e| MailError::InvalidMessage(e))?;
 
         Ok(mail)
     }

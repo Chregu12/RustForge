@@ -41,10 +41,7 @@ impl FileStream {
     }
 
     /// Create a file stream from storage
-    pub async fn from_storage<S: Storage>(
-        storage: &S,
-        path: &str,
-    ) -> StorageResult<Self> {
+    pub async fn from_storage<S: Storage>(storage: &S, path: &str) -> StorageResult<Self> {
         let contents = storage.get(path).await?;
         let stream = futures::stream::once(async move { Ok(Bytes::from(contents)) });
 
@@ -139,10 +136,7 @@ pub fn detect_content_type(path: &str) -> &'static str {
 
 /// Extract file name from path
 pub fn extract_file_name(path: &str) -> String {
-    path.rsplit('/')
-        .next()
-        .unwrap_or(path)
-        .to_string()
+    path.rsplit('/').next().unwrap_or(path).to_string()
 }
 
 #[cfg(test)]
@@ -157,7 +151,10 @@ mod tests {
         assert_eq!(detect_content_type("test.txt"), "text/plain");
         assert_eq!(detect_content_type("test.json"), "application/json");
         assert_eq!(detect_content_type("test.mp4"), "video/mp4");
-        assert_eq!(detect_content_type("test.unknown"), "application/octet-stream");
+        assert_eq!(
+            detect_content_type("test.unknown"),
+            "application/octet-stream"
+        );
     }
 
     #[test]

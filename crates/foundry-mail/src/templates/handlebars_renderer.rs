@@ -67,7 +67,11 @@ impl HandlebarsRenderer {
 
 #[async_trait]
 impl TemplateEngine for HandlebarsRenderer {
-    async fn render(&self, template: &str, context: &HashMap<String, serde_json::Value>) -> Result<String, TemplateEngineError> {
+    async fn render(
+        &self,
+        template: &str,
+        context: &HashMap<String, serde_json::Value>,
+    ) -> Result<String, TemplateEngineError> {
         let data = serde_json::to_value(context)
             .map_err(|e| TemplateEngineError::RenderError(e.to_string()))?;
 
@@ -76,7 +80,11 @@ impl TemplateEngine for HandlebarsRenderer {
             .map_err(|e| TemplateEngineError::RenderError(e.to_string()))
     }
 
-    async fn render_file(&self, path: &str, context: &HashMap<String, serde_json::Value>) -> Result<String, TemplateEngineError> {
+    async fn render_file(
+        &self,
+        path: &str,
+        context: &HashMap<String, serde_json::Value>,
+    ) -> Result<String, TemplateEngineError> {
         let data = serde_json::to_value(context)
             .map_err(|e| TemplateEngineError::RenderError(e.to_string()))?;
 
@@ -95,7 +103,10 @@ mod tests {
         let renderer = HandlebarsRenderer::from_string();
         let template = "Hello {{name}}!";
         let mut context = HashMap::new();
-        context.insert("name".to_string(), serde_json::Value::String("World".to_string()));
+        context.insert(
+            "name".to_string(),
+            serde_json::Value::String("World".to_string()),
+        );
 
         let result = renderer.render(template, &context).await.unwrap();
         assert_eq!(result, "Hello World!");

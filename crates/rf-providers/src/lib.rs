@@ -28,8 +28,8 @@
 //! }
 //! ```
 
-mod provider;
 mod application;
+mod provider;
 
-pub use provider::{ServiceProvider, DeferredProvider};
 pub use application::{Application, Container};
+pub use provider::{DeferredProvider, ServiceProvider};

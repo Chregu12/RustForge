@@ -108,8 +108,7 @@ impl ErrorContext {
             user_id: None,
             path: None,
             method: None,
-            environment: std::env::var("APP_ENV")
-                .unwrap_or_else(|_| "production".to_string()),
+            environment: std::env::var("APP_ENV").unwrap_or_else(|_| "production".to_string()),
             values: HashMap::new(),
             tags: Vec::new(),
         }
@@ -151,7 +150,8 @@ impl ErrorContext {
 
         // Sanitize sensitive fields
         if Self::is_sensitive_key(&key) {
-            self.values.insert(key, serde_json::Value::String("***REDACTED***".to_string()));
+            self.values
+                .insert(key, serde_json::Value::String("***REDACTED***".to_string()));
         } else if let Ok(json_value) = serde_json::to_value(value) {
             self.values.insert(key, Self::sanitize_value(json_value));
         }
@@ -186,13 +186,28 @@ impl ErrorContext {
     /// Check if a key contains sensitive information
     fn is_sensitive_key(key: &str) -> bool {
         let sensitive_keywords = [
-            "password", "passwd", "pwd", "secret", "token", "key",
-            "api_key", "apikey", "auth", "credential", "private",
-            "session", "cookie", "ssn", "credit_card", "cvv"
+            "password",
+            "passwd",
+            "pwd",
+            "secret",
+            "token",
+            "key",
+            "api_key",
+            "apikey",
+            "auth",
+            "credential",
+            "private",
+            "session",
+            "cookie",
+            "ssn",
+            "credit_card",
+            "cvv",
         ];
 
         let key_lower = key.to_lowercase();
-        sensitive_keywords.iter().any(|keyword| key_lower.contains(keyword))
+        sensitive_keywords
+            .iter()
+            .any(|keyword| key_lower.contains(keyword))
     }
 
     /// Sanitize a JSON value by redacting sensitive fields
@@ -212,9 +227,7 @@ impl ErrorContext {
                 serde_json::Value::Object(sanitized)
             }
             serde_json::Value::Array(arr) => {
-                serde_json::Value::Array(
-                    arr.into_iter().map(Self::sanitize_value).collect()
-                )
+                serde_json::Value::Array(arr.into_iter().map(Self::sanitize_value).collect())
             }
             other => other,
         }
@@ -242,8 +255,7 @@ mod tests {
 
     #[test]
     fn test_error_location_with_function() {
-        let loc = ErrorLocation::new("src/main.rs", 42, 10)
-            .with_function("handle_request");
+        let loc = ErrorLocation::new("src/main.rs", 42, 10).with_function("handle_request");
         assert_eq!(loc.function, Some("handle_request".to_string()));
     }
 

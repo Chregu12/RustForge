@@ -1,10 +1,6 @@
 use foundry_console::{
-    Table, TableRow, TableCell, BorderStyle, Colorize,
-    ProgressBar, ProgressStyle,
-    List, ListStyle,
-    Panel, PanelStyle,
-    info, success, warning, error, header, line,
-    bold, dim,
+    bold, dim, error, header, info, line, success, warning, BorderStyle, Colorize, List, ListStyle,
+    Panel, PanelStyle, ProgressBar, ProgressStyle, Table, TableCell, TableRow,
 };
 use std::thread;
 use std::time::Duration;
@@ -80,8 +76,7 @@ fn main() {
 
     // Panels
     header("Panels");
-    Panel::new("This is a simple panel with default styling")
-        .print();
+    Panel::new("This is a simple panel with default styling").print();
     println!();
 
     Panel::new("This is a panel with a title")

@@ -122,7 +122,10 @@ impl Function for OldFunction {
             .read()
             .map_err(|e| tera::Error::msg(format!("Failed to read old input: {}", e)))?;
 
-        Ok(input.get(key).cloned().unwrap_or(Value::String(String::new())))
+        Ok(input
+            .get(key)
+            .cloned()
+            .unwrap_or(Value::String(String::new())))
     }
 }
 

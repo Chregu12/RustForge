@@ -24,7 +24,8 @@ use std::pin::Pin;
 /// ```
 pub fn require_abilities(
     abilities: Vec<&'static str>,
-) -> impl Fn(Request, Next) -> Pin<Box<dyn Future<Output = Result<Response, SanctumError>> + Send>> + Clone {
+) -> impl Fn(Request, Next) -> Pin<Box<dyn Future<Output = Result<Response, SanctumError>> + Send>> + Clone
+{
     move |req: Request, next: Next| {
         let abilities = abilities.clone();
         Box::pin(async move {
@@ -37,9 +38,10 @@ pub fn require_abilities(
             // Check if token has all required abilities
             for ability in &abilities {
                 if !token.can(ability) {
-                    return Err(SanctumError::InsufficientPermissions(
-                        format!("Missing ability: {}", ability)
-                    ));
+                    return Err(SanctumError::InsufficientPermissions(format!(
+                        "Missing ability: {}",
+                        ability
+                    )));
                 }
             }
 
@@ -51,7 +53,8 @@ pub fn require_abilities(
 /// Middleware to require ANY of the specified abilities
 pub fn require_any_ability(
     abilities: Vec<&'static str>,
-) -> impl Fn(Request, Next) -> Pin<Box<dyn Future<Output = Result<Response, SanctumError>> + Send>> + Clone {
+) -> impl Fn(Request, Next) -> Pin<Box<dyn Future<Output = Result<Response, SanctumError>> + Send>> + Clone
+{
     move |req: Request, next: Next| {
         let abilities = abilities.clone();
         Box::pin(async move {
@@ -61,9 +64,10 @@ pub fn require_any_ability(
                 .ok_or(SanctumError::Unauthenticated)?;
 
             if !token.can_any(&abilities) {
-                return Err(SanctumError::InsufficientPermissions(
-                    format!("Missing any of: {}", abilities.join(", "))
-                ));
+                return Err(SanctumError::InsufficientPermissions(format!(
+                    "Missing any of: {}",
+                    abilities.join(", ")
+                )));
             }
 
             Ok(next.run(req).await)

@@ -1,3 +1,3 @@
-//! Database entities
+// Database entities
 
 pub mod user;

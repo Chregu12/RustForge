@@ -170,8 +170,12 @@ impl {} {{
             export_name, export_name, export_name
         );
 
-        ctx.artifacts.write_file(&export_path, &content, ctx.options.force)?;
+        ctx.artifacts
+            .write_file(&export_path, &content, ctx.options.force)?;
 
-        Ok(CommandResult::success(format!("Export created: {}", export_path)))
+        Ok(CommandResult::success(format!(
+            "Export created: {}",
+            export_path
+        )))
     }
 }

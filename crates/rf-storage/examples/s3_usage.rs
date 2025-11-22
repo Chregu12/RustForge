@@ -63,10 +63,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         "email": "john@example.com"
     });
     storage
-        .put(
-            "data/user-1.json",
-            serde_json::to_vec(&user_data)?,
-        )
+        .put("data/user-1.json", serde_json::to_vec(&user_data)?)
         .await?;
     println!("✓ Uploaded: data/user-1.json");
 
@@ -170,7 +167,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("✓ Uploaded via storage manager");
 
     let content = disk.get("manager-test.txt").await?;
-    println!("✓ Downloaded via storage manager: {}\n", String::from_utf8_lossy(&content));
+    println!(
+        "✓ Downloaded via storage manager: {}\n",
+        String::from_utf8_lossy(&content)
+    );
 
     // ===== 9. Error Handling =====
     println!("⚠️  Error handling...");

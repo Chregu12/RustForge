@@ -1,8 +1,6 @@
 //! In-memory broadcaster for development and testing
 
-use crate::{
-    Broadcaster, BroadcastError, Channel, ConnectionId, Event, PresenceInfo, UserId,
-};
+use crate::{BroadcastError, Broadcaster, Channel, ConnectionId, Event, PresenceInfo, UserId};
 use async_trait::async_trait;
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex};

@@ -5,8 +5,8 @@
 use crate::clients::ClientRepository;
 use crate::errors::{OAuth2Error, OAuth2Result};
 use crate::models::Client;
-use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
 use argon2::password_hash::SaltString;
+use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use serde_json;
@@ -47,35 +47,46 @@ impl PostgresClientRepository {
 
     /// Convert database row to Client
     fn row_to_client(&self, row: &sqlx::postgres::PgRow) -> OAuth2Result<Client> {
-        let id: Uuid = row.try_get("id")
+        let id: Uuid = row
+            .try_get("id")
             .map_err(|e| OAuth2Error::InternalError(format!("Failed to get id: {}", e)))?;
 
-        let name: String = row.try_get("name")
+        let name: String = row
+            .try_get("name")
             .map_err(|e| OAuth2Error::InternalError(format!("Failed to get name: {}", e)))?;
 
-        let secret_hash: Option<String> = row.try_get("secret_hash")
+        let secret_hash: Option<String> = row
+            .try_get("secret_hash")
             .map_err(|e| OAuth2Error::InternalError(format!("Failed to get secret_hash: {}", e)))?;
 
-        let redirect_uris_json: String = row.try_get("redirect_uris")
-            .map_err(|e| OAuth2Error::InternalError(format!("Failed to get redirect_uris: {}", e)))?;
+        let redirect_uris_json: String = row.try_get("redirect_uris").map_err(|e| {
+            OAuth2Error::InternalError(format!("Failed to get redirect_uris: {}", e))
+        })?;
 
-        let grants_json: String = row.try_get("grants")
+        let grants_json: String = row
+            .try_get("grants")
             .map_err(|e| OAuth2Error::InternalError(format!("Failed to get grants: {}", e)))?;
 
-        let scopes_json: String = row.try_get("scopes")
+        let scopes_json: String = row
+            .try_get("scopes")
             .map_err(|e| OAuth2Error::InternalError(format!("Failed to get scopes: {}", e)))?;
 
-        let revoked: bool = row.try_get("revoked")
+        let revoked: bool = row
+            .try_get("revoked")
             .map_err(|e| OAuth2Error::InternalError(format!("Failed to get revoked: {}", e)))?;
 
-        let created_at: DateTime<Utc> = row.try_get("created_at")
+        let created_at: DateTime<Utc> = row
+            .try_get("created_at")
             .map_err(|e| OAuth2Error::InternalError(format!("Failed to get created_at: {}", e)))?;
 
-        let updated_at: DateTime<Utc> = row.try_get("updated_at")
+        let updated_at: DateTime<Utc> = row
+            .try_get("updated_at")
             .map_err(|e| OAuth2Error::InternalError(format!("Failed to get updated_at: {}", e)))?;
 
-        let redirect_uris: Vec<String> = serde_json::from_str(&redirect_uris_json)
-            .map_err(|e| OAuth2Error::InternalError(format!("Failed to parse redirect_uris: {}", e)))?;
+        let redirect_uris: Vec<String> =
+            serde_json::from_str(&redirect_uris_json).map_err(|e| {
+                OAuth2Error::InternalError(format!("Failed to parse redirect_uris: {}", e))
+            })?;
 
         let grants: Vec<String> = serde_json::from_str(&grants_json)
             .map_err(|e| OAuth2Error::InternalError(format!("Failed to parse grants: {}", e)))?;
@@ -135,7 +146,8 @@ impl ClientRepository for PostgresClientRepository {
             return Ok(None);
         };
 
-        let secret_hash: Option<String> = row.try_get("secret_hash")
+        let secret_hash: Option<String> = row
+            .try_get("secret_hash")
             .map_err(|e| OAuth2Error::InternalError(format!("Failed to get secret_hash: {}", e)))?;
 
         // Public clients don't have secrets
@@ -165,14 +177,17 @@ impl ClientRepository for PostgresClientRepository {
             None
         };
 
-        let redirect_uris_json = serde_json::to_string(&client.redirect_uris)
-            .map_err(|e| OAuth2Error::InternalError(format!("Failed to serialize redirect_uris: {}", e)))?;
+        let redirect_uris_json = serde_json::to_string(&client.redirect_uris).map_err(|e| {
+            OAuth2Error::InternalError(format!("Failed to serialize redirect_uris: {}", e))
+        })?;
 
-        let grants_json = serde_json::to_string(&client.grants)
-            .map_err(|e| OAuth2Error::InternalError(format!("Failed to serialize grants: {}", e)))?;
+        let grants_json = serde_json::to_string(&client.grants).map_err(|e| {
+            OAuth2Error::InternalError(format!("Failed to serialize grants: {}", e))
+        })?;
 
-        let scopes_json = serde_json::to_string(&client.scopes)
-            .map_err(|e| OAuth2Error::InternalError(format!("Failed to serialize scopes: {}", e)))?;
+        let scopes_json = serde_json::to_string(&client.scopes).map_err(|e| {
+            OAuth2Error::InternalError(format!("Failed to serialize scopes: {}", e))
+        })?;
 
         sqlx::query(
             "INSERT INTO oauth_clients (id, name, secret_hash, redirect_uris, grants, scopes, revoked, created_at, updated_at)
@@ -199,14 +214,17 @@ impl ClientRepository for PostgresClientRepository {
     }
 
     async fn update(&self, client: Client) -> OAuth2Result<Client> {
-        let redirect_uris_json = serde_json::to_string(&client.redirect_uris)
-            .map_err(|e| OAuth2Error::InternalError(format!("Failed to serialize redirect_uris: {}", e)))?;
+        let redirect_uris_json = serde_json::to_string(&client.redirect_uris).map_err(|e| {
+            OAuth2Error::InternalError(format!("Failed to serialize redirect_uris: {}", e))
+        })?;
 
-        let grants_json = serde_json::to_string(&client.grants)
-            .map_err(|e| OAuth2Error::InternalError(format!("Failed to serialize grants: {}", e)))?;
+        let grants_json = serde_json::to_string(&client.grants).map_err(|e| {
+            OAuth2Error::InternalError(format!("Failed to serialize grants: {}", e))
+        })?;
 
-        let scopes_json = serde_json::to_string(&client.scopes)
-            .map_err(|e| OAuth2Error::InternalError(format!("Failed to serialize scopes: {}", e)))?;
+        let scopes_json = serde_json::to_string(&client.scopes).map_err(|e| {
+            OAuth2Error::InternalError(format!("Failed to serialize scopes: {}", e))
+        })?;
 
         let result = sqlx::query(
             "UPDATE oauth_clients
@@ -242,14 +260,15 @@ impl ClientRepository for PostgresClientRepository {
     }
 
     async fn revoke(&self, client_id: Uuid) -> OAuth2Result<()> {
-        let result = sqlx::query(
-            "UPDATE oauth_clients SET revoked = true, updated_at = $2 WHERE id = $1"
-        )
-        .bind(client_id)
-        .bind(Utc::now())
-        .execute(&self.pool)
-        .await
-        .map_err(|e| OAuth2Error::InternalError(format!("Failed to revoke client: {}", e)))?;
+        let result =
+            sqlx::query("UPDATE oauth_clients SET revoked = true, updated_at = $2 WHERE id = $1")
+                .bind(client_id)
+                .bind(Utc::now())
+                .execute(&self.pool)
+                .await
+                .map_err(|e| {
+                    OAuth2Error::InternalError(format!("Failed to revoke client: {}", e))
+                })?;
 
         if result.rows_affected() == 0 {
             return Err(OAuth2Error::InvalidClient("Client not found".to_string()));
@@ -268,9 +287,7 @@ impl ClientRepository for PostgresClientRepository {
         .await
         .map_err(|e| OAuth2Error::InternalError(format!("Failed to list clients: {}", e)))?;
 
-        rows.iter()
-            .map(|row| self.row_to_client(row))
-            .collect()
+        rows.iter().map(|row| self.row_to_client(row)).collect()
     }
 }
 
@@ -285,12 +302,12 @@ mod tests {
     }
 
     #[tokio::test]
-async fn test_store_and_find_client() {
-    if !postgres_available().await {
-        eprintln!("⏭️  Skipping test_store_and_find_client: PostgreSQL not available");
-        eprintln!("   Start services with: ./scripts/test-env-up.sh");
-        return;
-    }
+    async fn test_store_and_find_client() {
+        if !postgres_available().await {
+            eprintln!("⏭️  Skipping test_store_and_find_client: PostgreSQL not available");
+            eprintln!("   Start services with: ./scripts/test-env-up.sh");
+            return;
+        }
         let pool = setup_test_db().await;
         let repo = PostgresClientRepository::new(pool);
 

@@ -57,10 +57,7 @@ impl TinkerHistory {
 
     /// Get all history entries
     pub fn entries(&self) -> Vec<String> {
-        self.history
-            .iter()
-            .map(|entry| entry.to_string())
-            .collect()
+        self.history.iter().map(|entry| entry.to_string()).collect()
     }
 
     /// Get history size

@@ -1,8 +1,6 @@
 //! Router builder for ergonomic application setup
 
-use crate::middleware::{
-    compression_layer, cors_layer, timeout_layer, tracing_layer, CorsConfig,
-};
+use crate::middleware::{compression_layer, cors_layer, timeout_layer, tracing_layer, CorsConfig};
 use axum::{routing::MethodRouter, Router};
 use std::time::Duration;
 
@@ -211,10 +209,7 @@ mod tests {
             .route("/test", get(|| async { "OK" }))
             .build();
 
-        let request = Request::builder()
-            .uri("/test")
-            .body(Body::empty())
-            .unwrap();
+        let request = Request::builder().uri("/test").body(Body::empty()).unwrap();
 
         let response = app.oneshot(request).await.unwrap();
 
@@ -228,10 +223,7 @@ mod tests {
             .with_tracing(true)
             .build();
 
-        let request = Request::builder()
-            .uri("/test")
-            .body(Body::empty())
-            .unwrap();
+        let request = Request::builder().uri("/test").body(Body::empty()).unwrap();
 
         let response = app.oneshot(request).await.unwrap();
 
@@ -276,10 +268,7 @@ mod tests {
             .with_timeout(false)
             .build();
 
-        let request = Request::builder()
-            .uri("/test")
-            .body(Body::empty())
-            .unwrap();
+        let request = Request::builder().uri("/test").body(Body::empty()).unwrap();
 
         let response = app.oneshot(request).await.unwrap();
 
@@ -297,10 +286,7 @@ mod tests {
             .timeout_duration(Duration::from_secs(60))
             .build();
 
-        let request = Request::builder()
-            .uri("/test")
-            .body(Body::empty())
-            .unwrap();
+        let request = Request::builder().uri("/test").body(Body::empty()).unwrap();
 
         let response = app.oneshot(request).await.unwrap();
 

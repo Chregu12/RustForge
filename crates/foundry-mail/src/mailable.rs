@@ -120,7 +120,9 @@ pub async fn build_message<M: Mailable + ?Sized>(mailable: &M) -> Result<Message
         builder = builder.attach(attachment);
     }
 
-    builder.build().map_err(|e| MailableError::Content(e.to_string()))
+    builder
+        .build()
+        .map_err(|e| MailableError::Content(e.to_string()))
 }
 
 /// Template-based mailable

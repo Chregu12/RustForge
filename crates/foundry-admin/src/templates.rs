@@ -23,11 +23,8 @@ impl TemplateEngine {
 
     fn register_default_templates(tera: &mut Tera) {
         // Dashboard template
-        tera.add_raw_template(
-            "dashboard.html",
-            include_str!("templates/dashboard.html"),
-        )
-        .ok();
+        tera.add_raw_template("dashboard.html", include_str!("templates/dashboard.html"))
+            .ok();
 
         // Login template
         tera.add_raw_template("login.html", include_str!("templates/login.html"))
@@ -52,11 +49,7 @@ impl TemplateEngine {
             .ok();
     }
 
-    pub fn render<T: Serialize>(
-        &self,
-        template: &str,
-        context: &T,
-    ) -> anyhow::Result<String> {
+    pub fn render<T: Serialize>(&self, template: &str, context: &T) -> anyhow::Result<String> {
         let mut ctx = Context::from_serialize(context)?;
         ctx.insert("config", &self.config);
         Ok(self.tera.render(template, &ctx)?)

@@ -21,8 +21,8 @@
 //! # }
 //! ```
 
-mod response;
 mod macros;
+mod response;
 
 pub use response::{Response, ResponseBuilder, StreamBody};
 

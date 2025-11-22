@@ -51,8 +51,7 @@ impl TemplateEngine {
     /// # }
     /// ```
     pub fn register_template(&mut self, name: &str, template: &str) -> Result<(), MailError> {
-        self.handlebars
-            .register_template_string(name, template)?;
+        self.handlebars.register_template_string(name, template)?;
         Ok(())
     }
 

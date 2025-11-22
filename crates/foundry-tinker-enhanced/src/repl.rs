@@ -30,8 +30,10 @@ pub struct TinkerReplConfig {
 impl Default for TinkerReplConfig {
     fn default() -> Self {
         Self {
-            history_path: crate::default_history_path().unwrap_or_else(|_| PathBuf::from(".tinker_history")),
-            sessions_dir: crate::default_sessions_path().unwrap_or_else(|_| PathBuf::from(".tinker_sessions")),
+            history_path: crate::default_history_path()
+                .unwrap_or_else(|_| PathBuf::from(".tinker_history")),
+            sessions_dir: crate::default_sessions_path()
+                .unwrap_or_else(|_| PathBuf::from(".tinker_sessions")),
             highlight: true,
             autocomplete: true,
             prompt: "tinker> ".to_string(),
@@ -180,23 +182,36 @@ impl TinkerRepl {
 
     /// Print welcome message
     fn print_welcome(&self) {
-        println!("\n{}", "╔═══════════════════════════════════════════╗".cyan());
+        println!(
+            "\n{}",
+            "╔═══════════════════════════════════════════╗".cyan()
+        );
         println!("{}", "║   Foundry Tinker Enhanced REPL v0.1.0   ║".cyan());
         println!("{}", "╚═══════════════════════════════════════════╝".cyan());
-        println!("\nType {} for available commands, {} to exit\n", "help".green(), "exit".red());
+        println!(
+            "\nType {} for available commands, {} to exit\n",
+            "help".green(),
+            "exit".red()
+        );
     }
 
     /// Print help message
     fn print_help(&self) {
         println!("\n{}\n", "Available Commands:".bold());
-        println!("  {:15} - {}", "helpers", "Show all available helper functions");
+        println!(
+            "  {:15} - {}",
+            "helpers", "Show all available helper functions"
+        );
         println!("  {:15} - {}", "models", "List all available models");
         println!("  {:15} - {}", "routes", "Show all registered routes");
         println!("  {:15} - {}", "config <key>", "Show configuration value");
         println!("  {:15} - {}", "env <key>", "Show environment variable");
         println!("  {:15} - {}", "clear", "Clear the screen");
         println!("  {:15} - {}", "history", "Show command history");
-        println!("  {:15} - {}", "save <name>", "Save current session as script");
+        println!(
+            "  {:15} - {}",
+            "save <name>", "Save current session as script"
+        );
         println!("  {:15} - {}", "help", "Show this help message");
         println!("  {:15} - {}", "exit / quit", "Exit Tinker REPL");
         println!();

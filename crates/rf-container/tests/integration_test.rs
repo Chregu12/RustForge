@@ -2,7 +2,7 @@
 //!
 //! Tests singleton, scoped, and transient services working together.
 
-use rf_container::{ScopeManager, ScopedContainer, ServiceRegistry, Scope};
+use rf_container::{Scope, ScopeManager, ScopedContainer, ServiceRegistry};
 use std::sync::{Arc, Mutex};
 
 #[derive(Clone)]
@@ -46,7 +46,9 @@ async fn test_all_scopes_together() {
     registry.register(Scope::Transient, move || {
         let mut count = transient_counter_clone.lock().unwrap();
         *count += 1;
-        Arc::new(TransientLogger { instance_id: *count })
+        Arc::new(TransientLogger {
+            instance_id: *count,
+        })
     });
 
     let registry = Arc::new(registry);
@@ -191,7 +193,9 @@ async fn test_transient_always_new() {
     registry.register(Scope::Transient, move || {
         let mut count = counter_clone.lock().unwrap();
         *count += 1;
-        Arc::new(TransientLogger { instance_id: *count })
+        Arc::new(TransientLogger {
+            instance_id: *count,
+        })
     });
 
     let registry = Arc::new(registry);

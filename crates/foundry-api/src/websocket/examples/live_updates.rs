@@ -2,10 +2,7 @@
 //!
 //! Beispiel für Live-Daten-Updates über WebSockets.
 
-use crate::websocket::{
-    manager::WebSocketManager,
-    message::WebSocketMessage,
-};
+use crate::websocket::{manager::WebSocketManager, message::WebSocketMessage};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
@@ -219,7 +216,9 @@ impl DashboardService {
             UpdateAction::Updated,
             metrics.to_json(),
         );
-        self.live_updates.send_update_to_channel("dashboard", update).await
+        self.live_updates
+            .send_update_to_channel("dashboard", update)
+            .await
     }
 }
 
@@ -246,7 +245,9 @@ mod tests {
         let service = LiveUpdateService::new(manager);
 
         // Diese sendet an 0 Clients (keine verbunden)
-        let result = service.notify_created("user", "1", json!({"name": "Test"})).await;
+        let result = service
+            .notify_created("user", "1", json!({"name": "Test"}))
+            .await;
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), 0);
     }

@@ -48,8 +48,14 @@ pub fn admin_routes(panel: Arc<AdminPanel>) -> Router {
         .route("/logout", post(routes::logout))
         .route("/resources", get(routes::list_resources))
         .route("/resources/:resource", get(routes::show_resource))
-        .route("/resources/:resource/create", get(routes::create_form).post(routes::store))
-        .route("/resources/:resource/:id", get(routes::show).post(routes::update))
+        .route(
+            "/resources/:resource/create",
+            get(routes::create_form).post(routes::store),
+        )
+        .route(
+            "/resources/:resource/:id",
+            get(routes::show).post(routes::update),
+        )
         .route("/resources/:resource/:id/edit", get(routes::edit_form))
         .route("/resources/:resource/:id/delete", post(routes::delete))
         .route("/users", get(routes::users_index))

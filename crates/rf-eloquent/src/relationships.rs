@@ -104,7 +104,11 @@ pub trait HasRelationships: Sized + Send + Sync {
     /// # Ok(())
     /// # }
     /// ```
-    async fn load_has_one<R>(&self, _db: &DatabaseConnection, _foreign_key: &str) -> RelationshipResult<Option<R>>
+    async fn load_has_one<R>(
+        &self,
+        _db: &DatabaseConnection,
+        _foreign_key: &str,
+    ) -> RelationshipResult<Option<R>>
     where
         R: Send + Sync,
     {
@@ -143,7 +147,11 @@ pub trait HasRelationships: Sized + Send + Sync {
     /// # Ok(())
     /// # }
     /// ```
-    async fn load_has_many<R>(&self, _db: &DatabaseConnection, _foreign_key: &str) -> RelationshipResult<Vec<R>>
+    async fn load_has_many<R>(
+        &self,
+        _db: &DatabaseConnection,
+        _foreign_key: &str,
+    ) -> RelationshipResult<Vec<R>>
     where
         R: Send + Sync,
     {
@@ -182,7 +190,11 @@ pub trait HasRelationships: Sized + Send + Sync {
     /// # Ok(())
     /// # }
     /// ```
-    async fn load_belongs_to<R>(&self, _db: &DatabaseConnection, _foreign_key: &str) -> RelationshipResult<Option<R>>
+    async fn load_belongs_to<R>(
+        &self,
+        _db: &DatabaseConnection,
+        _foreign_key: &str,
+    ) -> RelationshipResult<Option<R>>
     where
         R: Send + Sync,
     {

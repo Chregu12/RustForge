@@ -65,9 +65,15 @@ impl RouteListCommand {
 
     fn format_as_table(routes: &[RouteEntry]) -> String {
         let mut lines = vec![
-            String::from("╭────────┬──────────────────┬──────────────────────────────────┬───────────╮"),
-            String::from("│ METHOD │ PATH             │ HANDLER                          │ NAME      │"),
-            String::from("├────────┼──────────────────┼──────────────────────────────────┼───────────┤"),
+            String::from(
+                "╭────────┬──────────────────┬──────────────────────────────────┬───────────╮",
+            ),
+            String::from(
+                "│ METHOD │ PATH             │ HANDLER                          │ NAME      │",
+            ),
+            String::from(
+                "├────────┼──────────────────┼──────────────────────────────────┼───────────┤",
+            ),
         ];
 
         for route in routes {
@@ -78,7 +84,9 @@ impl RouteListCommand {
             lines.push(line);
         }
 
-        lines.push(String::from("╰────────┴──────────────────┴──────────────────────────────────┴───────────╯"));
+        lines.push(String::from(
+            "╰────────┴──────────────────┴──────────────────────────────────┴───────────╯",
+        ));
         lines.join("\n")
     }
 }
@@ -91,9 +99,10 @@ impl FoundryCommand for RouteListCommand {
 
     async fn execute(&self, ctx: CommandContext) -> Result<CommandResult, CommandError> {
         // Check for --format flag
-        let use_json = ctx.args.iter().any(|arg| {
-            arg == "--format=json" || arg == "--json"
-        });
+        let use_json = ctx
+            .args
+            .iter()
+            .any(|arg| arg == "--format=json" || arg == "--json");
 
         let routes = Self::get_routes();
         let total = routes.len();
@@ -139,9 +148,12 @@ mod tests {
             seeds: std::sync::Arc::new(foundry_infra::SeaOrmSeedService::default()),
             validation: std::sync::Arc::new(foundry_infra::SimpleValidationService::default()),
             storage: std::sync::Arc::new(foundry_infra::FileStorageAdapter::new(
-                std::sync::Arc::new(foundry_storage::manager::StorageManager::new(
-                    foundry_storage::config::StorageConfig::from_env()
-                ).unwrap())
+                std::sync::Arc::new(
+                    foundry_storage::manager::StorageManager::new(
+                        foundry_storage::config::StorageConfig::from_env(),
+                    )
+                    .unwrap(),
+                ),
             )),
             cache: std::sync::Arc::new(foundry_infra::InMemoryCacheStore::default()),
             queue: std::sync::Arc::new(foundry_infra::InMemoryQueue::default()),
@@ -173,9 +185,12 @@ mod tests {
             seeds: std::sync::Arc::new(foundry_infra::SeaOrmSeedService::default()),
             validation: std::sync::Arc::new(foundry_infra::SimpleValidationService::default()),
             storage: std::sync::Arc::new(foundry_infra::FileStorageAdapter::new(
-                std::sync::Arc::new(foundry_storage::manager::StorageManager::new(
-                    foundry_storage::config::StorageConfig::from_env()
-                ).unwrap())
+                std::sync::Arc::new(
+                    foundry_storage::manager::StorageManager::new(
+                        foundry_storage::config::StorageConfig::from_env(),
+                    )
+                    .unwrap(),
+                ),
             )),
             cache: std::sync::Arc::new(foundry_infra::InMemoryCacheStore::default()),
             queue: std::sync::Arc::new(foundry_infra::InMemoryQueue::default()),

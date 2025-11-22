@@ -154,11 +154,7 @@ impl MiddlewareStack {
     }
 
     /// Get middleware handlers for a route
-    pub fn resolve_handlers(
-        &self,
-        route_name: &str,
-        groups: &[String],
-    ) -> Vec<MiddlewareHandler> {
+    pub fn resolve_handlers(&self, route_name: &str, groups: &[String]) -> Vec<MiddlewareHandler> {
         let middleware_names = self.resolve(route_name, groups);
 
         middleware_names
@@ -395,10 +391,7 @@ mod tests {
         stack.add_group("web", vec!["session".to_string()]);
         stack.add_group("admin", vec!["auth".to_string(), "admin".to_string()]);
 
-        let resolved = stack.resolve(
-            "admin.users",
-            &vec!["web".to_string(), "admin".to_string()],
-        );
+        let resolved = stack.resolve("admin.users", &vec!["web".to_string(), "admin".to_string()]);
 
         assert_eq!(resolved.len(), 4);
         assert_eq!(resolved[0], "cors");

@@ -49,7 +49,7 @@ pub use stream::{detect_content_type, extract_file_name, FileStream};
 /// Prelude module for convenient imports
 pub mod prelude {
     pub use crate::{
-        LocalStorage, MemoryStorage, S3Config, S3Storage, Storage, StorageError, StorageManager,
-        StorageResult, FileStream, detect_content_type, extract_file_name,
+        detect_content_type, extract_file_name, FileStream, LocalStorage, MemoryStorage, S3Config,
+        S3Storage, Storage, StorageError, StorageManager, StorageResult,
     };
 }

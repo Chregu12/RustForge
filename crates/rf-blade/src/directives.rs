@@ -50,35 +50,28 @@ impl DirectiveRegistry {
         });
 
         // @json - Output JSON
-        self.register("json", |var| {
-            format!("{{{{ json_encode({}) }}}}", var)
-        });
+        self.register("json", |var| format!("{{{{ json_encode({}) }}}}", var));
 
         // @dd - Dump and die
-        self.register("dd", |var| {
-            format!("{{{{ dd({}) }}}}", var)
-        });
+        self.register("dd", |var| format!("{{{{ dd({}) }}}}", var));
 
         // @dump - Dump variable
-        self.register("dump", |var| {
-            format!("{{{{ dump({}) }}}}", var)
-        });
+        self.register("dump", |var| format!("{{{{ dump({}) }}}}", var));
 
         // @env - Environment check
-        self.register("env", |env| {
-            format!("{{{{ env('{}') }}}}", env)
-        });
+        self.register("env", |env| format!("{{{{ env('{}') }}}}", env));
 
         // @production - Show only in production
-        self.register("production", |_| {
-            "<!-- production -->".to_string()
-        });
+        self.register("production", |_| "<!-- production -->".to_string());
 
         // @error - Display validation error
         self.register("error", |field| {
-            format!(r#"@if($errors->has('{}'))
+            format!(
+                r#"@if($errors->has('{}'))
     <div class="error">{{{{ $errors->first('{}') }}}}</div>
-@endif"#, field, field)
+@endif"#,
+                field, field
+            )
         });
     }
 }

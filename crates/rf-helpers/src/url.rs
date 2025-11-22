@@ -31,12 +31,18 @@ pub fn secure_url(path: &str, base_url: Option<&str>) -> String {
 
 /// Generate a URL to an asset
 pub fn asset(path: &str, base_url: Option<&str>) -> String {
-    url(&format!("/assets/{}", path.trim_start_matches('/')), base_url)
+    url(
+        &format!("/assets/{}", path.trim_start_matches('/')),
+        base_url,
+    )
 }
 
 /// Generate a URL to a secure asset
 pub fn secure_asset(path: &str, base_url: Option<&str>) -> String {
-    secure_url(&format!("/assets/{}", path.trim_start_matches('/')), base_url)
+    secure_url(
+        &format!("/assets/{}", path.trim_start_matches('/')),
+        base_url,
+    )
 }
 
 /// Generate a named route URL (placeholder - requires route registry)
@@ -142,8 +148,14 @@ mod tests {
 
     #[test]
     fn test_asset() {
-        assert_eq!(asset("css/app.css", None), "http://localhost:3000/assets/css/app.css");
-        assert_eq!(asset("/css/app.css", None), "http://localhost:3000/assets/css/app.css");
+        assert_eq!(
+            asset("css/app.css", None),
+            "http://localhost:3000/assets/css/app.css"
+        );
+        assert_eq!(
+            asset("/css/app.css", None),
+            "http://localhost:3000/assets/css/app.css"
+        );
     }
 
     #[test]

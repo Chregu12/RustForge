@@ -19,8 +19,8 @@ mod scope_tests {
     fn test_scope_registry_creation() {
         // Test creating a scope registry
         type TestEntity = (); // Placeholder
-        // let registry = ScopeRegistry::<TestEntity>::new();
-        // assert!(registry.names().is_empty());
+                              // let registry = ScopeRegistry::<TestEntity>::new();
+                              // assert!(registry.names().is_empty());
     }
 
     #[test]

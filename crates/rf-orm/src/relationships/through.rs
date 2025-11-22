@@ -342,8 +342,8 @@ where
         // 2. Extract their IDs
         // 3. Query target models with those IDs
 
-        use sea_orm::Statement;
         use sea_orm::ConnectionTrait;
+        use sea_orm::Statement;
 
         // Build the raw SQL
         let mut sql = format!(
@@ -368,7 +368,11 @@ where
 
         // Add ORDER BY
         if let Some((column, direction)) = &self.order_by {
-            sql.push_str(&format!(" ORDER BY {} {}", column, direction.to_uppercase()));
+            sql.push_str(&format!(
+                " ORDER BY {} {}",
+                column,
+                direction.to_uppercase()
+            ));
         }
 
         // Add LIMIT
@@ -388,10 +392,7 @@ where
             vec![sea_orm::Value::BigInt(Some(self.parent_id))],
         );
 
-        T::find()
-            .from_raw_sql(stmt)
-            .all(self.db)
-            .await
+        T::find().from_raw_sql(stmt).all(self.db).await
     }
 
     /// Count the number of results without retrieving them
@@ -435,8 +436,9 @@ macro_rules! has_many_through {
             pub async fn $method(
                 &self,
                 db: &sea_orm::DatabaseConnection,
-            ) -> $crate::relationships::through::ThroughResult<Vec<<$target as sea_orm::EntityTrait>::Model>>
-            {
+            ) -> $crate::relationships::through::ThroughResult<
+                Vec<<$target as sea_orm::EntityTrait>::Model>,
+            > {
                 $crate::relationships::through::has_many_through::<$target, $intermediate>(
                     db,
                     self.id,
@@ -477,8 +479,9 @@ macro_rules! has_one_through {
             pub async fn $method(
                 &self,
                 db: &sea_orm::DatabaseConnection,
-            ) -> $crate::relationships::through::ThroughResult<Option<<$target as sea_orm::EntityTrait>::Model>>
-            {
+            ) -> $crate::relationships::through::ThroughResult<
+                Option<<$target as sea_orm::EntityTrait>::Model>,
+            > {
                 $crate::relationships::through::has_one_through::<$target, $intermediate>(
                     db,
                     self.id,

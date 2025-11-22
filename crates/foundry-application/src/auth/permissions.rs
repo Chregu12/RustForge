@@ -155,11 +155,7 @@ impl PermissionService {
     }
 
     /// Assign a role to a user
-    pub async fn assign_role_to_user(
-        &self,
-        _user_id: i64,
-        _role_id: i64,
-    ) -> Result<(), AuthError> {
+    pub async fn assign_role_to_user(&self, _user_id: i64, _role_id: i64) -> Result<(), AuthError> {
         // Insert into role_user table
         // In production, use SeaORM
         Ok(())
@@ -373,8 +369,7 @@ mod tests {
 
     #[test]
     fn test_role_creation() {
-        let role = Role::new(1, "Administrator", "admin")
-            .with_description("Full system access");
+        let role = Role::new(1, "Administrator", "admin").with_description("Full system access");
 
         assert_eq!(role.id, 1);
         assert_eq!(role.name, "Administrator");

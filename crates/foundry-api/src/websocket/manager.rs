@@ -180,7 +180,11 @@ impl WebSocketManager {
     /// # Rückgabe
     ///
     /// Die Anzahl der Connections, die die Nachricht erhalten haben
-    pub async fn broadcast(&self, message: WebSocketMessage, options: Option<BroadcastOptions>) -> usize {
+    pub async fn broadcast(
+        &self,
+        message: WebSocketMessage,
+        options: Option<BroadcastOptions>,
+    ) -> usize {
         let options = options.unwrap_or_default();
         let mut sent_count = 0;
 
@@ -240,7 +244,10 @@ impl WebSocketManager {
     }
 
     /// Gibt die Metadaten einer Connection zurück
-    pub async fn get_connection_metadata(&self, connection_id: ConnectionId) -> Option<ConnectionMetadata> {
+    pub async fn get_connection_metadata(
+        &self,
+        connection_id: ConnectionId,
+    ) -> Option<ConnectionMetadata> {
         let metadata = self.metadata.read().await;
         metadata.get(&connection_id).cloned()
     }

@@ -1,9 +1,9 @@
 use async_trait::async_trait;
+use chrono::{DateTime, Utc};
 use foundry_domain::{CommandDescriptor, CommandKind};
 use foundry_plugins::{CommandContext, CommandError, CommandResult, CommandStatus, FoundryCommand};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use chrono::{DateTime, Utc};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 struct FailedJob {
@@ -52,7 +52,10 @@ impl QueueFailedCommand {
         args.iter().any(|arg| arg == "--retry")
     }
 
-    async fn get_failed_jobs(_ctx: &CommandContext, limit: usize) -> Result<Vec<FailedJob>, CommandError> {
+    async fn get_failed_jobs(
+        _ctx: &CommandContext,
+        limit: usize,
+    ) -> Result<Vec<FailedJob>, CommandError> {
         // In a real implementation, this would query the queue store for failed jobs
         // For now, we return mock data to demonstrate the functionality
 
@@ -86,7 +89,10 @@ impl QueueFailedCommand {
         Ok(limited_jobs)
     }
 
-    async fn retry_failed_jobs(_ctx: &CommandContext, jobs: &[FailedJob]) -> Result<usize, CommandError> {
+    async fn retry_failed_jobs(
+        _ctx: &CommandContext,
+        jobs: &[FailedJob],
+    ) -> Result<usize, CommandError> {
         // In a real implementation, this would re-queue the failed jobs
         // For now, we simulate retrying all jobs
         Ok(jobs.len())
@@ -135,9 +141,10 @@ impl FoundryCommand for QueueFailedCommand {
         let retry = Self::has_retry_flag(&ctx.args);
 
         // Check for --format flag
-        let use_json = ctx.args.iter().any(|arg| {
-            arg == "--format=json" || arg == "--json"
-        });
+        let use_json = ctx
+            .args
+            .iter()
+            .any(|arg| arg == "--format=json" || arg == "--json");
 
         // Get failed jobs
         let failed_jobs = Self::get_failed_jobs(&ctx, limit).await?;
@@ -163,7 +170,10 @@ impl FoundryCommand for QueueFailedCommand {
             "No failed jobs found".to_string()
         } else {
             let table = Self::format_as_table(&failed_jobs);
-            format!("{}\n\n{} failed job(s) found (limit: {})", table, total, limit)
+            format!(
+                "{}\n\n{} failed job(s) found (limit: {})",
+                table, total, limit
+            )
         };
 
         let mut data = json!({
@@ -203,9 +213,12 @@ mod tests {
             seeds: std::sync::Arc::new(foundry_infra::SeaOrmSeedService::default()),
             validation: std::sync::Arc::new(foundry_infra::SimpleValidationService::default()),
             storage: std::sync::Arc::new(foundry_infra::FileStorageAdapter::new(
-                std::sync::Arc::new(foundry_storage::manager::StorageManager::new(
-                    foundry_storage::config::StorageConfig::from_env()
-                ).unwrap())
+                std::sync::Arc::new(
+                    foundry_storage::manager::StorageManager::new(
+                        foundry_storage::config::StorageConfig::from_env(),
+                    )
+                    .unwrap(),
+                ),
             )),
             cache: std::sync::Arc::new(foundry_infra::InMemoryCacheStore::default()),
             queue: std::sync::Arc::new(foundry_infra::InMemoryQueue::default()),
@@ -277,7 +290,9 @@ mod tests {
     fn test_has_retry_flag() {
         assert!(!QueueFailedCommand::has_retry_flag(&[]));
         assert!(QueueFailedCommand::has_retry_flag(&["--retry".to_string()]));
-        assert!(!QueueFailedCommand::has_retry_flag(&["--limit=10".to_string()]));
+        assert!(!QueueFailedCommand::has_retry_flag(&[
+            "--limit=10".to_string()
+        ]));
     }
 
     #[tokio::test]

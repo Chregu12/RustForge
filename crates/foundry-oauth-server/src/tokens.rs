@@ -311,8 +311,8 @@ impl TokenGenerator {
     }
 
     fn generate_random_token(&self) -> String {
+        use base64::{engine::general_purpose::STANDARD, Engine as _};
         use rand::Rng;
-        use base64::{Engine as _, engine::general_purpose::STANDARD};
         let random_bytes: Vec<u8> = rand::thread_rng()
             .sample_iter(rand::distributions::Standard)
             .take(64)

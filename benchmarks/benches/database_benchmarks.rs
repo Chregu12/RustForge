@@ -1,4 +1,4 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion, BenchmarkId};
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use std::sync::Arc;
 use tokio::runtime::Runtime;
 
@@ -8,9 +8,8 @@ fn benchmark_database_connections(c: &mut Criterion) {
     let runtime = Runtime::new().unwrap();
 
     group.bench_function("sqlite_in_memory", |b| {
-        b.to_async(&runtime).iter(|| async {
-            black_box(create_sqlite_connection().await)
-        });
+        b.to_async(&runtime)
+            .iter(|| async { black_box(create_sqlite_connection().await) });
     });
 
     group.finish();
@@ -22,26 +21,21 @@ fn benchmark_query_execution(c: &mut Criterion) {
     let runtime = Runtime::new().unwrap();
 
     // Setup test database
-    let db = runtime.block_on(async {
-        setup_test_database().await
-    });
+    let db = runtime.block_on(async { setup_test_database().await });
 
     group.bench_function("simple_select", |b| {
-        b.to_async(&runtime).iter(|| async {
-            black_box(execute_simple_select().await)
-        });
+        b.to_async(&runtime)
+            .iter(|| async { black_box(execute_simple_select().await) });
     });
 
     group.bench_function("complex_join", |b| {
-        b.to_async(&runtime).iter(|| async {
-            black_box(execute_complex_join().await)
-        });
+        b.to_async(&runtime)
+            .iter(|| async { black_box(execute_complex_join().await) });
     });
 
     group.bench_function("aggregation", |b| {
-        b.to_async(&runtime).iter(|| async {
-            black_box(execute_aggregation().await)
-        });
+        b.to_async(&runtime)
+            .iter(|| async { black_box(execute_aggregation().await) });
     });
 
     group.finish();
@@ -53,15 +47,13 @@ fn benchmark_transactions(c: &mut Criterion) {
     let runtime = Runtime::new().unwrap();
 
     group.bench_function("begin_commit", |b| {
-        b.to_async(&runtime).iter(|| async {
-            black_box(execute_transaction().await)
-        });
+        b.to_async(&runtime)
+            .iter(|| async { black_box(execute_transaction().await) });
     });
 
     group.bench_function("begin_rollback", |b| {
-        b.to_async(&runtime).iter(|| async {
-            black_box(execute_rollback().await)
-        });
+        b.to_async(&runtime)
+            .iter(|| async { black_box(execute_rollback().await) });
     });
 
     group.finish();
@@ -73,27 +65,17 @@ fn benchmark_bulk_operations(c: &mut Criterion) {
     let runtime = Runtime::new().unwrap();
 
     for size in [10, 100, 1000].iter() {
-        group.bench_with_input(
-            BenchmarkId::new("bulk_insert", size),
-            size,
-            |b, &size| {
-                b.to_async(&runtime).iter(|| async move {
-                    black_box(bulk_insert(size).await)
-                });
-            }
-        );
+        group.bench_with_input(BenchmarkId::new("bulk_insert", size), size, |b, &size| {
+            b.to_async(&runtime)
+                .iter(|| async move { black_box(bulk_insert(size).await) });
+        });
     }
 
     for size in [10, 100, 1000].iter() {
-        group.bench_with_input(
-            BenchmarkId::new("bulk_update", size),
-            size,
-            |b, &size| {
-                b.to_async(&runtime).iter(|| async move {
-                    black_box(bulk_update(size).await)
-                });
-            }
-        );
+        group.bench_with_input(BenchmarkId::new("bulk_update", size), size, |b, &size| {
+            b.to_async(&runtime)
+                .iter(|| async move { black_box(bulk_update(size).await) });
+        });
     }
 
     group.finish();
@@ -105,15 +87,13 @@ fn benchmark_index_performance(c: &mut Criterion) {
     let runtime = Runtime::new().unwrap();
 
     group.bench_function("indexed_lookup", |b| {
-        b.to_async(&runtime).iter(|| async {
-            black_box(indexed_lookup().await)
-        });
+        b.to_async(&runtime)
+            .iter(|| async { black_box(indexed_lookup().await) });
     });
 
     group.bench_function("non_indexed_lookup", |b| {
-        b.to_async(&runtime).iter(|| async {
-            black_box(non_indexed_lookup().await)
-        });
+        b.to_async(&runtime)
+            .iter(|| async { black_box(non_indexed_lookup().await) });
     });
 
     group.finish();
@@ -125,15 +105,13 @@ fn benchmark_connection_pool(c: &mut Criterion) {
     let runtime = Runtime::new().unwrap();
 
     group.bench_function("acquire_release", |b| {
-        b.to_async(&runtime).iter(|| async {
-            black_box(acquire_and_release_connection().await)
-        });
+        b.to_async(&runtime)
+            .iter(|| async { black_box(acquire_and_release_connection().await) });
     });
 
     group.bench_function("concurrent_queries", |b| {
-        b.to_async(&runtime).iter(|| async {
-            black_box(concurrent_queries().await)
-        });
+        b.to_async(&runtime)
+            .iter(|| async { black_box(concurrent_queries().await) });
     });
 
     group.finish();
@@ -145,9 +123,8 @@ fn benchmark_migrations(c: &mut Criterion) {
     let runtime = Runtime::new().unwrap();
 
     group.bench_function("apply_migration", |b| {
-        b.to_async(&runtime).iter(|| async {
-            black_box(apply_single_migration().await)
-        });
+        b.to_async(&runtime)
+            .iter(|| async { black_box(apply_single_migration().await) });
     });
 
     group.finish();
@@ -173,10 +150,7 @@ async fn execute_simple_select() -> Vec<i32> {
 
 async fn execute_complex_join() -> Vec<(i32, String)> {
     tokio::time::sleep(tokio::time::Duration::from_micros(200)).await;
-    vec![
-        (1, "User 1".to_string()),
-        (2, "User 2".to_string()),
-    ]
+    vec![(1, "User 1".to_string()), (2, "User 2".to_string())]
 }
 
 async fn execute_aggregation() -> i64 {
