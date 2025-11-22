@@ -1,6 +1,6 @@
 //! Memory mailer backend for testing
 
-use crate::{MailError, Mailer, Message};
+use crate::{Mail, MailError, Mailer};
 use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 

@@ -1,6 +1,6 @@
 //! Sendmail transport backend
 
-use crate::{MailError, Mailer, Message};
+use crate::{Mail, MailError, Mailer};
 use async_trait::async_trait;
 use lettre::transport::sendmail::SendmailTransport as LettreTransport;
 use lettre::{Message as LettreMessage, Transport};

@@ -1,6 +1,6 @@
 //! Mock mailer backend for testing
 
-use crate::{MailError, Mailer};
+use crate::{Mail, MailError, Mailer};
 use async_trait::async_trait;
 
 /// Mock mailer for testing

@@ -1,6 +1,6 @@
 //! Log transport - logs emails to file instead of sending
 
-use crate::{MailError, Mailer, Message};
+use crate::{Mail, MailError, Mailer};
 use async_trait::async_trait;
 use std::path::PathBuf;
 use tokio::fs::OpenOptions;
@@ -22,7 +22,7 @@ impl LogMailer {
     }
 
     /// Format a message for logging
-    fn format_message(message: &Message) -> String {
+    fn format_message(mail: &Mail) -> String {
         let mut output = String::new();
 
         output.push_str(&format!(
@@ -89,13 +89,13 @@ impl LogMailer {
         }
 
         output.push_str("\n--- TEXT BODY ---\n");
-        if let Some(text) = &mail.text {
+        if let Some(text) = mail.text() {
             output.push_str(text);
         } else {
             output.push_str("(no text body)");
         }
         output.push_str("\n\n--- HTML BODY ---\n");
-        if let Some(html) = &mail.html {
+        if let Some(html) = mail.html() {
             output.push_str(html);
         } else {
             output.push_str("(no html body)");
@@ -109,7 +109,7 @@ impl LogMailer {
 #[async_trait]
 impl Mailer for LogMailer {
     async fn send(&self, mail: Mail) -> Result<(), MailError> {
-        let formatted = Self::format_message(mail);
+        let formatted = Self::format_message(&mail);
 
         let mut file = OpenOptions::new()
             .create(true)
