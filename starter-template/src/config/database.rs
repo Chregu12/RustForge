@@ -6,6 +6,7 @@
 use sea_orm::{ConnectOptions, Database, DatabaseConnection, DbErr};
 use serde::Deserialize;
 use std::time::Duration;
+use std::path::Path;
 use tracing::log;
 
 #[derive(Debug, Clone, Deserialize)]
@@ -31,7 +32,38 @@ impl Default for DatabaseConfig {
 
 impl DatabaseConfig {
     /// Create a new database connection pool
+    ///
+    /// For SQLite databases, this will automatically create the database file
+    /// if it doesn't exist (Laravel-like behavior)
     pub async fn connect(&self) -> Result<DatabaseConnection, DbErr> {
+        // Auto-create SQLite database file if it doesn't exist (like Laravel)
+        if self.url.starts_with("sqlite:") && !self.url.contains(":memory:") {
+            // Extract file path from sqlite:./path/to/db.sqlite or sqlite://path/to/db.sqlite
+            let file_path = self.url
+                .trim_start_matches("sqlite:")
+                .trim_start_matches("//")
+                .trim_start_matches("./");
+
+            let path = Path::new(file_path);
+
+            // Create parent directories if they don't exist
+            if let Some(parent) = path.parent() {
+                if !parent.as_os_str().is_empty() && !parent.exists() {
+                    std::fs::create_dir_all(parent).map_err(|e| {
+                        DbErr::Conn(format!("Failed to create database directory: {}", e))
+                    })?;
+                }
+            }
+
+            // Create the database file if it doesn't exist (touch)
+            if !path.exists() {
+                std::fs::File::create(path).map_err(|e| {
+                    DbErr::Conn(format!("Failed to create database file: {}", e))
+                })?;
+                tracing::info!("📝 Created SQLite database file: {}", file_path);
+            }
+        }
+
         let mut opt = ConnectOptions::new(&self.url);
         opt.max_connections(self.max_connections)
             .min_connections(self.min_connections)
