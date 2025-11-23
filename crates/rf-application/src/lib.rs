@@ -17,10 +17,11 @@ pub use rf_service_container::{
 };
 
 use commands::BootstrapCommands;
-use rf_infra::{
-    FileStorageAdapter, InMemoryCacheStore, InMemoryEventBus, InMemoryQueue,
-    SimpleValidationService,
-};
+// Temporarily disabled - rf_infra requires API migration
+// use rf_infra::{
+//     FileStorageAdapter, InMemoryCacheStore, InMemoryEventBus, InMemoryQueue,
+//     SimpleValidationService,
+// };
 use rf_plugins::{
     ArtifactPort, CachePort, CommandContext, CommandResult, EventPort, ExecutionOptions,
     MigrationPort, QueuePort, ResponseFormat, SeedPort, StoragePort, ValidationPort,
@@ -28,8 +29,8 @@ use rf_plugins::{
 use serde_json::Value;
 use std::sync::Arc;
 
-use rf_storage::config::StorageConfig;
-use rf_storage::manager::StorageManager;
+// use rf_storage::config::StorageConfig;  // Private module
+// use rf_storage::manager::StorageManager; // Private module
 use tracing::{info, instrument};
 
 #[derive(Clone)]

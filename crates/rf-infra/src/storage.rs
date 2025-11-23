@@ -4,7 +4,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use bytes::Bytes;
 use rf_plugins::{CommandError, StoragePort, StoredFile};
-use rf_storage::manager::StorageManager;
+use rf_storage::{Storage, StorageManager};
 use tokio::sync::RwLock;
 
 #[derive(Clone)]
@@ -17,8 +17,10 @@ impl FileStorageAdapter {
         Self { manager }
     }
 
-    async fn disk(&self, name: &str) -> Result<Arc<rf_storage::Disk>, CommandError> {
-        self.manager.disk(Some(name)).map_err(CommandError::Other)
+    fn disk(&self, name: &str) -> Result<Arc<dyn Storage>, CommandError> {
+        self.manager.disk(name)
+            .map(|d| d.clone())
+            .map_err(|e| CommandError::Other(e.into()))
     }
 }
 
@@ -26,42 +28,40 @@ impl FileStorageAdapter {
 impl StoragePort for FileStorageAdapter {
     async fn put(
         &self,
-        disk: &str,
+        disk_name: &str,
         path: &str,
         contents: Vec<u8>,
     ) -> Result<StoredFile, CommandError> {
-        let disk = self.disk(disk).await?;
-        disk.put(path, Bytes::from(contents.clone()))
+        let disk = self.disk(disk_name)?;
+        disk.put(path, contents.clone())
             .await
-            .map_err(CommandError::Other)?;
+            .map_err(|e| CommandError::Other(e.into()))?;
 
         Ok(StoredFile {
-            disk: disk.name().to_string(),
+            disk: disk_name.to_string(),
             path: path.to_string(),
             size: contents.len() as u64,
-            url: Some(disk.url(path)),
+            url: Some(format!("storage://{}/{}", disk_name, path)),
         })
     }
 
-    async fn get(&self, disk: &str, path: &str) -> Result<Vec<u8>, CommandError> {
-        let disk = self.disk(disk).await?;
-        let bytes = disk.get(path).await.map_err(CommandError::Other)?;
-        Ok(bytes.to_vec())
+    async fn get(&self, disk_name: &str, path: &str) -> Result<Vec<u8>, CommandError> {
+        let disk = self.disk(disk_name)?;
+        disk.get(path).await.map_err(|e| CommandError::Other(e.into()))
     }
 
-    async fn delete(&self, disk: &str, path: &str) -> Result<(), CommandError> {
-        let disk = self.disk(disk).await?;
-        disk.delete(path).await.map_err(CommandError::Other)
+    async fn delete(&self, disk_name: &str, path: &str) -> Result<(), CommandError> {
+        let disk = self.disk(disk_name)?;
+        disk.delete(path).await.map_err(|e| CommandError::Other(e.into()))
     }
 
-    async fn exists(&self, disk: &str, path: &str) -> Result<bool, CommandError> {
-        let disk = self.disk(disk).await?;
-        disk.exists(path).await.map_err(CommandError::Other)
+    async fn exists(&self, disk_name: &str, path: &str) -> Result<bool, CommandError> {
+        let disk = self.disk(disk_name)?;
+        disk.exists(path).await.map_err(|e| CommandError::Other(e.into()))
     }
 
-    async fn url(&self, disk: &str, path: &str) -> Result<String, CommandError> {
-        let disk = self.disk(disk).await?;
-        Ok(disk.url(path))
+    async fn url(&self, disk_name: &str, path: &str) -> Result<String, CommandError> {
+        Ok(format!("storage://{}/{}", disk_name, path))
     }
 }
 
