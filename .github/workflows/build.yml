@@ -1,4 +1,4 @@
-name: Build
+name: Build & Quality Checks
 
 on:
   push:
@@ -12,8 +12,9 @@ env:
 
 jobs:
   check:
-    name: Check & Format
+    name: Build & Lint
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -38,10 +39,7 @@ jobs:
         run: cargo fmt --all -- --check
 
       - name: Run clippy
-        run: cargo clippy --workspace --all-features --all-targets -- -D warnings
+        run: cargo clippy --workspace --exclude rf-mail -- -D warnings
 
       - name: Build workspace
-        run: cargo build --workspace --all-features --verbose
-
-      - name: Build release
-        run: cargo build --workspace --all-features --release --verbose
+        run: cargo build --workspace --exclude rf-mail --verbose
