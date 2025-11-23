@@ -4,6 +4,12 @@ version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
+description = "Laravel-inspired validation system for RustForge - Fluent, expressive validation rules"
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+keywords = ["validation", "validator", "laravel", "form", "input"]
+categories = ["web-programming", "data-structures"]
 
 [features]
 default = []
