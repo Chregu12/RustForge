@@ -24,7 +24,7 @@ impl SendmailMailer {
     }
 
     /// Convert our Message to lettre's Message
-    fn convert_message(message: &Message) -> Result<LettreMessage, MailError> {
+    fn convert_message(mail: &Mail) -> Result<LettreMessage, MailError> {
         use lettre::message::{header, Mailbox, MultiPart, SinglePart};
 
         let from: Mailbox = format!(
@@ -68,7 +68,7 @@ impl SendmailMailer {
         builder = builder.subject(&mail.subject);
 
         // Build body
-        let lettre_msg = match (&mail.html, &mail.text) {
+        let lettre_msg = match (mail.html(), mail.text()) {
             (Some(html), Some(text)) => {
                 // Multipart message
                 builder.multipart(
@@ -76,12 +76,12 @@ impl SendmailMailer {
                         .singlepart(
                             SinglePart::builder()
                                 .header(header::ContentType::TEXT_PLAIN)
-                                .body(text.clone()),
+                                .body(text.to_string()),
                         )
                         .singlepart(
                             SinglePart::builder()
                                 .header(header::ContentType::TEXT_HTML)
-                                .body(html.clone()),
+                                .body(html.to_string()),
                         ),
                 )?
             }
@@ -90,7 +90,7 @@ impl SendmailMailer {
                 builder.singlepart(
                     SinglePart::builder()
                         .header(header::ContentType::TEXT_HTML)
-                        .body(html.clone()),
+                        .body(html.to_string()),
                 )?
             }
             (None, Some(text)) => {
@@ -98,7 +98,7 @@ impl SendmailMailer {
                 builder.singlepart(
                     SinglePart::builder()
                         .header(header::ContentType::TEXT_PLAIN)
-                        .body(text.clone()),
+                        .body(text.to_string()),
                 )?
             }
             (None, None) => {
@@ -121,7 +121,7 @@ impl Default for SendmailMailer {
 #[async_trait]
 impl Mailer for SendmailMailer {
     async fn send(&self, mail: Mail) -> Result<(), MailError> {
-        let lettre_msg = Self::convert_message(mail)?;
+        let lettre_msg = Self::convert_message(&mail)?;
 
         // Sendmail transport doesn't support async, so we use blocking send
         let envelope = lettre_msg.envelope();
@@ -134,8 +134,7 @@ impl Mailer for SendmailMailer {
         tracing::info!(
             "Email sent via sendmail: {} -> {}",
             mail.from.email,
-            message
-                .to
+            mail.to
                 .iter()
                 .map(|a| a.email.as_str())
                 .collect::<Vec<_>>()
@@ -161,6 +160,7 @@ mod tests {
             .build()
             .unwrap();
 
+        let mail: Mail = message.into();
         let lettre_msg = SendmailMailer::convert_message(&mail);
         assert!(lettre_msg.is_ok());
     }

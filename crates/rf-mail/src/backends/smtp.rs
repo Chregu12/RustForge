@@ -82,7 +82,7 @@ impl SmtpMailer {
 #[async_trait]
 impl Mailer for SmtpMailer {
     async fn send(&self, mail: Mail) -> Result<(), MailError> {
-        let lettre_message = convert_to_lettre(mail)?;
+        let lettre_message = convert_to_lettre(&mail)?;
 
         self.transport.send(lettre_message).await?;
 
@@ -97,7 +97,7 @@ impl Mailer for SmtpMailer {
 }
 
 /// Convert our Message to lettre's Message
-fn convert_to_lettre(message: &Message) -> Result<LettreMessage, MailError> {
+fn convert_to_lettre(mail: &Mail) -> Result<LettreMessage, MailError> {
     // Parse from address
     let from: Mailbox = if let Some(name) = &mail.from.name {
         format!("{} <{}>", name, mail.from.email).parse()?
@@ -151,7 +151,7 @@ fn convert_to_lettre(message: &Message) -> Result<LettreMessage, MailError> {
     builder = builder.subject(&mail.subject);
 
     // Build body (multipart if both HTML and text)
-    let lettre_message = match (&mail.html, &mail.text) {
+    let lettre_message = match (mail.html(), mail.text()) {
         (Some(html), Some(text)) => {
             // Multipart: both HTML and text
             builder.multipart(
@@ -159,22 +159,22 @@ fn convert_to_lettre(message: &Message) -> Result<LettreMessage, MailError> {
                     .singlepart(
                         SinglePart::builder()
                             .header(ContentType::TEXT_PLAIN)
-                            .body(text.clone()),
+                            .body(text.to_string()),
                     )
                     .singlepart(
                         SinglePart::builder()
                             .header(ContentType::TEXT_HTML)
-                            .body(html.clone()),
+                            .body(html.to_string()),
                     ),
             )?
         }
         (Some(html), None) => {
             // HTML only
-            builder.body(html.clone())?
+            builder.body(html.to_string())?
         }
         (None, Some(text)) => {
             // Text only
-            builder.body(text.clone())?
+            builder.body(text.to_string())?
         }
         (None, None) => {
             return Err(MailError::InvalidMessage("No body content".into()));

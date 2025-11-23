@@ -1,6 +1,6 @@
 //! Mailer trait and Mailable trait definitions
 
-use crate::{Mail, MailError};
+use crate::{Mail, MailError, Message};
 use async_trait::async_trait;
 
 /// Mailer backend trait
