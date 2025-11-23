@@ -21,12 +21,12 @@ console.workspace = true
 indicatif.workspace = true
 sqlx.workspace = true
 uuid.workspace = true
-foundry-application = { path = "../foundry-application" }
-foundry-plugins = { path = "../foundry-plugins" }
-foundry-api = { path = "../foundry-api" }
-foundry-infra = { path = "../foundry-infra" }
-foundry-interactive = { path = "../foundry-interactive" }
-foundry-console = { path = "../foundry-console" }
+rf-application = { path = "../rf-application" }
+rf-plugins = { path = "../rf-plugins" }
+rf-api = { path = "../rf-api" }
+# rf-infra = { path = "../rf-infra" }
+rf-interactive = { path = "../rf-interactive" }
+rf-console = { path = "../rf-console" }
 
 [dev-dependencies]
 tempfile = "3.8"

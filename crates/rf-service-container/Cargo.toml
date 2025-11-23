@@ -1,0 +1,24 @@
+[package]
+name = "rf-service-container"
+description = "Service Container and Dependency Injection system for Foundry"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+async-trait.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+tokio = { workspace = true, features = ["sync"] }
+serde = { workspace = true }
+serde_json.workspace = true
+rustc-hash.workspace = true
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+
+[[example]]
+name = "basic_usage_foundry_service_container"
+path = "examples/basic_usage.rs"

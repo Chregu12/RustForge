@@ -131,7 +131,7 @@ pub mod sharding;
 
 // Performance optimization modules
 pub mod pool_optimizer;
-pub mod query_cache;
+// pub mod query_cache; // Temporarily disabled - requires rf-cache API migration
 
 #[cfg(test)]
 pub mod testing;

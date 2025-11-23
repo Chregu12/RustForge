@@ -41,8 +41,8 @@
 //! ```
 
 use async_trait::async_trait;
-use foundry_cache::manager::cache_manager::CacheManager;
-use foundry_cache::store::CacheError;
+use rf_cache::manager::cache_manager::CacheManager;
+use rf_cache::store::CacheError;
 use sea_orm::{ConnectionTrait, DatabaseConnection, DbErr, EntityTrait, QuerySelect, Statement};
 use serde::{Deserialize, Serialize};
 use std::collections::hash_map::DefaultHasher;
