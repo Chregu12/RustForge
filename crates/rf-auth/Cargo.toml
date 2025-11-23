@@ -4,6 +4,12 @@ version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
+description = "Authentication system for RustForge - JWT, session-based, and multi-guard authentication"
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+keywords = ["auth", "authentication", "jwt", "security", "laravel"]
+categories = ["authentication", "web-programming"]
 
 [dependencies]
 # Workspace dependencies

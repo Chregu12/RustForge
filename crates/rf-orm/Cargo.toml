@@ -4,6 +4,12 @@ version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
+description = "Eloquent-inspired ORM for RustForge - Simple, elegant database interactions"
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+keywords = ["orm", "database", "eloquent", "seaorm", "laravel"]
+categories = ["database"]
 
 [dependencies]
 # Internal dependencies

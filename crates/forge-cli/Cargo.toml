@@ -1,10 +1,15 @@
 [package]
 name = "forge-cli"
-version = "0.1.0"
+version = "1.0.0"
 edition = "2021"
-authors = ["RustForge Contributors"]
-description = "Laravel-inspired CLI tool for RustForge framework"
-license = "MIT"
+authors = ["chregu12"]
+description = "Laravel-inspired CLI tool for RustForge framework - Code generation, migrations, and more"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/Chregu12/RustForge"
+homepage = "https://github.com/Chregu12/RustForge"
+documentation = "https://github.com/Chregu12/RustForge"
+keywords = ["cli", "laravel", "code-generation", "scaffolding", "framework"]
+categories = ["command-line-utilities", "development-tools"]
 
 [[bin]]
 name = "forge"
