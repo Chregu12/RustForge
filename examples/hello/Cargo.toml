@@ -13,8 +13,8 @@ rf-web = { path = "../../crates/rf-web" }
 rf-config = { path = "../../crates/rf-config" }
 rf-container = { path = "../../crates/rf-container" }
 
-# Web Framework - Pin to 0.7 to match rf-core
-axum = { version = "0.7", features = ["macros", "json", "multipart"] }
+# Web Framework - Pin to 0.8 to match rf-core and rf-web
+axum = { version = "0.8", features = ["macros", "json", "multipart"] }
 tokio = { workspace = true, features = ["full"] }
 tower.workspace = true
 

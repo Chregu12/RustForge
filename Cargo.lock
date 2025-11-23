@@ -4482,7 +4482,7 @@ name = "hello"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "axum 0.7.9",
+ "axum 0.8.6",
  "rf-config",
  "rf-container",
  "rf-core",
