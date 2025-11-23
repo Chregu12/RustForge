@@ -84,54 +84,37 @@ members = [
     # Framework Test
     "benchmarks",
     # "framework-test", # Excluded - incomplete
-    # Legacy crates
+    # Legacy CLI (kept as foundry-cli)
     "crates/foundry-cli",
-    "crates/foundry-application",
-    "crates/foundry-domain",
-    "crates/foundry-infra",
-    "crates/foundry-plugins",
-    "crates/foundry-api",
-    "crates/foundry-storage",
-    "crates/foundry-graphql",
-    "crates/foundry-testing",
-    # Tier 1 Features (NEW)
-    "crates/foundry-interactive",
-    "crates/foundry-console",
-    "crates/foundry-mail",
-    "crates/foundry-cache",
-    "crates/foundry-queue",
-    "crates/foundry-scheduling",
-    "crates/foundry-notifications",
-    "crates/foundry-tenancy",
-    # Tier 2 Features
-    "crates/foundry-service-container",
-    "crates/foundry-resources",
-    # "crates/foundry-soft-deletes", # Excluded - missing chrono imports
-    "crates/foundry-audit",
-    "crates/foundry-search",
-    # "crates/foundry-oauth", # Removed for v1.0.0 - use rf-oauth2-server instead
-    "crates/foundry-oauth-server",
-    "crates/foundry-auth-scaffolding",
-    "crates/foundry-config",
-    "crates/foundry-ratelimit",
-    "crates/foundry-i18n",
-    "crates/foundry-broadcast",
-    # Tier 3 Features
-    "crates/foundry-admin",
-    "crates/foundry-export",
-    "crates/foundry-forms",
-    "crates/foundry-http-client",
-    # Tier 3 Advanced Features
-    "crates/foundry-tinker-enhanced",
-    "crates/foundry-maintenance",
-    "crates/foundry-health",
-    "crates/foundry-env",
-    "crates/foundry-assets",
-    # Critical Infrastructure
-    "crates/foundry-command-executor",
-    "crates/foundry-signal-handler",
-    # Phase 2: Observability
-    "crates/foundry-observability",
+    # All other packages now use rf-* prefix
+    "crates/rf-application",
+    "crates/rf-domain",
+    # "crates/rf-infra", # Temporarily disabled - requires dependency migration
+    "crates/rf-plugins",
+    "crates/rf-api",
+    "crates/rf-interactive",
+    "crates/rf-console",
+    "crates/rf-scheduling",
+    "crates/rf-service-container",
+    "crates/rf-resources",
+    "crates/rf-soft-deletes",
+    # "crates/rf-oauth", # Temporarily disabled - requires dependency migration
+    # "crates/rf-oauth-server", # Temporarily disabled - use rf-oauth2-server
+    "crates/rf-auth-scaffolding",
+    "crates/rf-forms",
+    "crates/rf-http-client",
+    "crates/rf-tinker-enhanced",
+    "crates/rf-maintenance",
+    "crates/rf-env",
+    "crates/rf-assets",
+    "crates/rf-command-executor",
+    "crates/rf-command-events",
+    "crates/rf-command-pipeline",
+    "crates/rf-signal-handler",
+    "crates/rf-observability",
+    "crates/rf-advanced-input",
+    "crates/rf-stub-system",
+    "crates/rf-verbosity",
 ]
 exclude = ["starter-template"]
 resolver = "2"

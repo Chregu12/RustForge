@@ -1,0 +1,11 @@
+[package]
+name = "rf-domain"
+description = "Domain layer for Foundry Core"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+serde.workspace = true
+thiserror.workspace = true

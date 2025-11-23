@@ -8,8 +8,8 @@ edition = "2021"
 rf-orm = { path = "../crates/rf-orm" }
 rf-eloquent = { path = "../crates/rf-eloquent" }
 rf-validation = { path = "../crates/rf-validation" }
-foundry-cache = { path = "../crates/foundry-cache" }
-foundry-queue = { path = "../crates/foundry-queue" }
+rf-cache = { path = "../crates/rf-cache" }
+rf-queue = { path = "../crates/rf-queue" }
 
 # Core dependencies
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
