@@ -21,7 +21,7 @@ console.workspace = true
 indicatif.workspace = true
 sqlx.workspace = true
 uuid.workspace = true
-rf-application = { path = "../rf-application" }
+# rf-application = { path = "../rf-application" }
 rf-plugins = { path = "../rf-plugins" }
 rf-api = { path = "../rf-api" }
 # rf-infra = { path = "../rf-infra" }

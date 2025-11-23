@@ -16,7 +16,7 @@ tracing.workspace = true
 thiserror.workspace = true
 rf-domain = { path = "../rf-domain" }
 rf-plugins = { path = "../rf-plugins" }
-rf-queue = { path = "../rf-queue" }
+rf-jobs = { path = "../rf-jobs" }
 dotenvy.workspace = true
 sea-orm.workspace = true
 url = "2.5"

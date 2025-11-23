@@ -262,10 +262,11 @@ impl BootstrapCommands {
         let app_up = Arc::new(rf_maintenance::AppUpCommand);
         registry.register(app_up)?;
 
-        let health_check = Arc::new(rf_health::HealthCheckCommand);
-        registry.register(health_check)?;
+        // Temporarily disabled - HealthCheckCommand not yet migrated to rf-health
+        // let health_check = Arc::new(rf_health::HealthCheckCommand);
+        // registry.register(health_check)?;
 
-        // Note: DoctorCommand not yet implemented in foundry-health
+        // Note: DoctorCommand not yet implemented in rf-health
         // TODO: Implement DoctorCommand or remove this reference
         // let doctor = Arc::new(rf_health::DoctorCommand);
         // registry.register(doctor)?;

@@ -2,7 +2,7 @@ use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
 use rf_plugins::{CommandError, QueueJob, QueuePort};
-use foundry_queue::{Job, QueueManager};
+use rf_jobs::{Job, QueueManager}; // Using rf-jobs instead of rf-queue
 use tracing::info;
 
 #[derive(Clone, Default)]

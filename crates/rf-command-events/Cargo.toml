@@ -7,7 +7,7 @@ authors.workspace = true
 
 [dependencies]
 async-trait = { workspace = true }
-tokio = { workspace = true }
+tokio = { workspace = true, features = ["sync"] }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 serde = { workspace = true }
