@@ -50,7 +50,9 @@ impl DatabaseConfig {
             if let Some(parent) = path.parent() {
                 if !parent.as_os_str().is_empty() && !parent.exists() {
                     std::fs::create_dir_all(parent).map_err(|e| {
-                        DbErr::Conn(format!("Failed to create database directory: {}", e))
+                        DbErr::Conn(sea_orm::RuntimeErr::Internal(
+                            format!("Failed to create database directory: {}", e)
+                        ))
                     })?;
                 }
             }
@@ -58,7 +60,9 @@ impl DatabaseConfig {
             // Create the database file if it doesn't exist (touch)
             if !path.exists() {
                 std::fs::File::create(path).map_err(|e| {
-                    DbErr::Conn(format!("Failed to create database file: {}", e))
+                    DbErr::Conn(sea_orm::RuntimeErr::Internal(
+                        format!("Failed to create database file: {}", e)
+                    ))
                 })?;
                 tracing::info!("📝 Created SQLite database file: {}", file_path);
             }
