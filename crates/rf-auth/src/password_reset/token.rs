@@ -307,7 +307,7 @@ For security reasons, this link can only be used once.
         };
 
         mailer
-            .send(&message)
+            .send(message.into())
             .await
             .map_err(|e| AuthError::EmailSendFailed(e.to_string()))?;
 

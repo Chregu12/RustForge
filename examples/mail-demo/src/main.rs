@@ -55,12 +55,17 @@ async fn demo_basic_email(mailer: &MemoryMailer) -> Result<(), Box<dyn std::erro
         .text("Hello!\n\nThis is a test email.")
         .build()?;
 
-    mailer.send(&message).await?;
+    // Store message data before converting to Mail
+    let from = message.from.format();
+    let to = message.to[0].format();
+    let subject = message.subject.clone();
+
+    mailer.send(message.into()).await?;
 
     info!("✓ Basic email sent");
-    info!("  From: {}", message.from.format());
-    info!("  To: {}", message.to[0].format());
-    info!("  Subject: {}\n", message.subject);
+    info!("  From: {}", from);
+    info!("  To: {}", to);
+    info!("  Subject: {}\n", subject);
 
     Ok(())
 }
@@ -124,11 +129,14 @@ async fn demo_attachments(mailer: &MemoryMailer) -> Result<(), Box<dyn std::erro
         .attach(Attachment::new("report.pdf", "application/pdf", pdf_data))
         .build()?;
 
-    mailer.send(&message).await?;
+    let attachment_count = message.attachments.len();
+    let attachment_size = message.attachment_size();
+
+    mailer.send(message.into()).await?;
 
     info!("✓ Email with attachment sent");
-    info!("  Attachments: {}", message.attachments.len());
-    info!("  Attachment size: {} bytes\n", message.attachment_size());
+    info!("  Attachments: {}", attachment_count);
+    info!("  Attachment size: {} bytes\n", attachment_size);
 
     Ok(())
 }
@@ -170,7 +178,7 @@ async fn demo_templates(mailer: &MemoryMailer) -> Result<(), Box<dyn std::error:
         .html(html)
         .build()?;
 
-    mailer.send(&message).await?;
+    mailer.send(message.into()).await?;
 
     info!("✓ Template email sent");
     info!("  Template: invoice");
@@ -211,11 +219,14 @@ This Week's Highlights
         )
         .build()?;
 
-    mailer.send(&message).await?;
+    let has_html = message.html.is_some();
+    let has_text = message.text.is_some();
+
+    mailer.send(message.into()).await?;
 
     info!("✓ Multipart email sent");
-    info!("  Has HTML: {}", message.html.is_some());
-    info!("  Has Text: {}\n", message.text.is_some());
+    info!("  Has HTML: {}", has_html);
+    info!("  Has Text: {}\n", has_text);
 
     Ok(())
 }
@@ -244,10 +255,13 @@ async fn demo_batch_sending(mailer: &MemoryMailer) -> Result<(), Box<dyn std::er
         messages.push(message);
     }
 
-    mailer.send_batch(&messages).await?;
+    // Convert Vec<Message> to Vec<Mail>
+    let batch_size = messages.len();
+    let mails: Vec<Mail> = messages.into_iter().map(|m| m.into()).collect();
+    mailer.send_batch(mails).await?;
 
     info!("✓ Batch emails sent");
-    info!("  Batch size: {} emails\n", messages.len());
+    info!("  Batch size: {} emails\n", batch_size);
 
     Ok(())
 }
@@ -268,7 +282,7 @@ async fn demo_testing(mailer: &MemoryMailer) -> Result<(), Box<dyn std::error::E
         .text("Test content")
         .build()?;
 
-    mailer.send(&message).await?;
+    mailer.send(message.into()).await?;
 
     // Test assertions
     assert!(mailer.was_sent_to("testuser@example.com"));

@@ -305,7 +305,7 @@ If you did not create an account, please ignore this email.
         };
 
         mailer
-            .send(&message)
+            .send(message.into())
             .await
             .map_err(|e| AuthError::EmailSendFailed(e.to_string()))?;
 
