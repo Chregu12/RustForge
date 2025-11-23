@@ -1,6 +1,6 @@
 //! Testing utilities for email
 
-use crate::{Mail, MailError, Mailer};
+use crate::{Mail, MailError, Mailer, Message};
 use async_trait::async_trait;
 use parking_lot::Mutex;
 use std::sync::Arc;
@@ -48,7 +48,7 @@ pub fn get_fake() -> Option<Arc<MailFake>> {
 /// Panics if no matching email was found.
 pub fn assert_sent<F>(predicate: F)
 where
-    F: Fn(&Message) -> bool,
+    F: Fn(&Mail) -> bool,
 {
     let fake = get_fake().expect("Mail fake not enabled. Call fake() first.");
     fake.assert_sent(predicate);
@@ -61,7 +61,7 @@ where
 /// Panics if a matching email was found.
 pub fn assert_not_sent<F>(predicate: F)
 where
-    F: Fn(&Message) -> bool,
+    F: Fn(&Mail) -> bool,
 {
     let fake = get_fake().expect("Mail fake not enabled. Call fake() first.");
     fake.assert_not_sent(predicate);
@@ -79,7 +79,7 @@ pub fn assert_sent_count(count: usize) {
 
 /// Mail fake that captures sent emails
 pub struct MailFake {
-    sent: Arc<Mutex<Vec<Message>>>,
+    sent: Arc<Mutex<Vec<Mail>>>,
 }
 
 impl MailFake {
@@ -91,7 +91,7 @@ impl MailFake {
     }
 
     /// Get all sent messages
-    pub fn sent_messages(&self) -> Vec<Message> {
+    pub fn sent_messages(&self) -> Vec<Mail> {
         self.sent.lock().clone()
     }
 
@@ -107,7 +107,7 @@ impl MailFake {
     /// Panics if no matching email was found.
     pub fn assert_sent<F>(&self, predicate: F)
     where
-        F: Fn(&Message) -> bool,
+        F: Fn(&Mail) -> bool,
     {
         let sent = self.sent.lock();
         let found = sent.iter().any(|msg| predicate(msg));
@@ -127,7 +127,7 @@ impl MailFake {
     /// Panics if a matching email was found.
     pub fn assert_not_sent<F>(&self, predicate: F)
     where
-        F: Fn(&Message) -> bool,
+        F: Fn(&Mail) -> bool,
     {
         let sent = self.sent.lock();
         let found = sent.iter().any(|msg| predicate(msg));
@@ -176,7 +176,7 @@ impl MailFake {
     }
 
     /// Get emails sent to a specific address
-    pub fn sent_to(&self, email: &str) -> Vec<Message> {
+    pub fn sent_to(&self, email: &str) -> Vec<Mail> {
         self.sent
             .lock()
             .iter()
@@ -186,7 +186,7 @@ impl MailFake {
     }
 
     /// Get emails with a specific subject
-    pub fn with_subject(&self, subject: &str) -> Vec<Message> {
+    pub fn with_subject(&self, subject: &str) -> Vec<Mail> {
         self.sent
             .lock()
             .iter()

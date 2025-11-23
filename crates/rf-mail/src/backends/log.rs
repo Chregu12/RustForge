@@ -124,8 +124,7 @@ impl Mailer for LogMailer {
             "Email logged to {:?}: {} -> {}",
             self.log_path,
             mail.from.email,
-            mail
-                .to
+            mail.to
                 .iter()
                 .map(|a| a.email.as_str())
                 .collect::<Vec<_>>()

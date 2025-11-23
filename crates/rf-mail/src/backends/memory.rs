@@ -32,7 +32,7 @@ use std::sync::{Arc, Mutex};
 /// ```
 #[derive(Clone)]
 pub struct MemoryMailer {
-    sent: Arc<Mutex<Vec<Message>>>,
+    sent: Arc<Mutex<Vec<Mail>>>,
 }
 
 impl MemoryMailer {
@@ -44,7 +44,7 @@ impl MemoryMailer {
     }
 
     /// Get all sent messages
-    pub fn sent_messages(&self) -> Vec<Message> {
+    pub fn sent_messages(&self) -> Vec<Mail> {
         self.sent.lock().unwrap().clone()
     }
 
@@ -77,7 +77,7 @@ impl MemoryMailer {
     }
 
     /// Get last sent message
-    pub fn last_message(&self) -> Option<Message> {
+    pub fn last_message(&self) -> Option<Mail> {
         self.sent.lock().unwrap().last().cloned()
     }
 }
