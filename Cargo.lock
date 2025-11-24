@@ -4381,6 +4381,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "112b39cec0b298b6c1999fee3e31427f74f676e4cb9879ed1a121b43661a4154"
 
 [[package]]
+name = "macros-demo"
+version = "0.1.0"
+dependencies = [
+ "axum 0.8.6",
+ "rf-macros",
+ "rf-request",
+ "rf-response",
+ "rf-validation",
+ "serde",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
 name = "mail-demo"
 version = "1.0.0"
 dependencies = [
@@ -6950,6 +6964,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "rf-global-helpers"
+version = "0.1.0"
+dependencies = [
+ "argon2",
+ "async-trait",
+ "axum 0.7.9",
+ "bcrypt",
+ "http 1.3.1",
+ "once_cell",
+ "parking_lot",
+ "rf-response",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tower 0.4.13",
+ "uuid",
+]
+
+[[package]]
 name = "rf-graphql"
 version = "1.0.0"
 dependencies = [
@@ -7134,6 +7167,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "rf-macros"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "rf-request",
+ "rf-validation",
+ "serde",
+ "serde_json",
+ "syn 2.0.108",
+ "tokio",
+]
+
+[[package]]
 name = "rf-mail"
 version = "1.0.0"
 dependencies = [
@@ -7191,6 +7238,20 @@ dependencies = [
  "tokio",
  "tokio-test",
  "tower 0.5.2",
+]
+
+[[package]]
+name = "rf-model-macro"
+version = "0.1.0"
+dependencies = [
+ "Inflector",
+ "chrono",
+ "proc-macro2",
+ "quote",
+ "sea-orm 0.12.15",
+ "serde",
+ "serde_json",
+ "syn 2.0.108",
 ]
 
 [[package]]
@@ -7271,6 +7332,7 @@ dependencies = [
  "rf-config",
  "rf-core",
  "rf-metrics",
+ "rf-model-macro",
  "sea-orm 1.1.19",
  "sea-orm-migration",
  "serde",
@@ -7364,6 +7426,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "rf-request"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "axum 0.7.9",
+ "http 1.3.1",
+ "hyper 1.7.0",
+ "rf-validation",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tower 0.4.13",
+]
+
+[[package]]
 name = "rf-requests"
 version = "0.1.0"
 dependencies = [
@@ -7399,6 +7476,26 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
+]
+
+[[package]]
+name = "rf-route-facade"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "axum 0.7.9",
+ "futures",
+ "http 1.3.1",
+ "http-body-util",
+ "hyper 1.7.0",
+ "once_cell",
+ "parking_lot",
+ "rf-routing",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tower 0.4.13",
+ "tower-http 0.5.2",
 ]
 
 [[package]]
