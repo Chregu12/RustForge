@@ -6,9 +6,12 @@ members = [
     "crates/rf-config",
     "crates/rf-container",
     "crates/rf-orm",
+    "crates/rf-model-macro",
     "crates/rf-auth",
     "crates/rf-validation",
     "crates/rf-validation-derive",
+    "crates/rf-macros",
+    "crates/rf-request",
     "crates/rf-jobs",
     "crates/rf-mail",
     "crates/rf-storage",
@@ -56,6 +59,8 @@ members = [
     "crates/rf-requests",
     "crates/rf-collections",
     "crates/rf-routing",
+    "crates/rf-route-facade",
+    "crates/rf-global-helpers",
     # Phase 15: Monitoring & Debugging
     "crates/rf-horizon",
     "crates/rf-telescope",
@@ -81,6 +86,7 @@ members = [
     "examples/jobs-demo",
     "examples/mail-demo",
     "examples/scaffold-demo",
+    "examples/macros-demo",
     # Framework Test
     "benchmarks",
     # "framework-test", # Excluded - incomplete

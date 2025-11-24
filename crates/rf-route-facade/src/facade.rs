@@ -1,0 +1,484 @@
+//! Route facade providing Laravel-style static routing API.
+//!
+//! This module provides the main `Route` struct with static-like methods
+//! for defining routes in a Laravel-style syntax.
+
+use crate::builder::FacadeRouteBuilder;
+use crate::group::GroupBuilder;
+use rf_routing::HttpMethod;
+
+/// The Route facade providing a static-like API for defining routes.
+///
+/// This is the main entry point for defining routes in your application.
+/// It provides methods like `get()`, `post()`, `put()`, etc. that return
+/// a builder for further configuration.
+///
+/// # Examples
+///
+/// ```rust,no_run
+/// use rf_route_facade::Route;
+///
+/// // Simple GET route
+/// Route::get("/users", |_| async { "List users" });
+///
+/// // POST route with middleware and name
+/// Route::post("/users", |_| async { "Create user" })
+///     .name("users.store")
+///     .middleware("auth");
+///
+/// // Route with multiple middleware
+/// Route::put("/users/:id", |_| async { "Update user" })
+///     .name("users.update")
+///     .middleware("auth")
+///     .middleware("validate");
+/// ```
+pub struct Route;
+
+impl Route {
+    /// Register a GET route.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use rf_route_facade::Route;
+    ///
+    /// Route::get("/users", |_| async { "List users" })
+    ///     .name("users.index");
+    /// ```
+    pub fn get(path: impl Into<String>, _handler: impl Into<String>) -> FacadeRouteBuilder {
+        FacadeRouteBuilder::new(path, vec![HttpMethod::Get])
+    }
+
+    /// Register a POST route.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use rf_route_facade::Route;
+    ///
+    /// Route::post("/users", |_| async { "Create user" })
+    ///     .name("users.store")
+    ///     .middleware("auth");
+    /// ```
+    pub fn post(path: impl Into<String>, _handler: impl Into<String>) -> FacadeRouteBuilder {
+        FacadeRouteBuilder::new(path, vec![HttpMethod::Post])
+    }
+
+    /// Register a PUT route.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use rf_route_facade::Route;
+    ///
+    /// Route::put("/users/:id", |_| async { "Update user" })
+    ///     .name("users.update");
+    /// ```
+    pub fn put(path: impl Into<String>, _handler: impl Into<String>) -> FacadeRouteBuilder {
+        FacadeRouteBuilder::new(path, vec![HttpMethod::Put])
+    }
+
+    /// Register a PATCH route.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use rf_route_facade::Route;
+    ///
+    /// Route::patch("/users/:id", |_| async { "Patch user" })
+    ///     .name("users.patch");
+    /// ```
+    pub fn patch(path: impl Into<String>, _handler: impl Into<String>) -> FacadeRouteBuilder {
+        FacadeRouteBuilder::new(path, vec![HttpMethod::Patch])
+    }
+
+    /// Register a DELETE route.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use rf_route_facade::Route;
+    ///
+    /// Route::delete("/users/:id", |_| async { "Delete user" })
+    ///     .name("users.destroy")
+    ///     .middleware("auth");
+    /// ```
+    pub fn delete(path: impl Into<String>, _handler: impl Into<String>) -> FacadeRouteBuilder {
+        FacadeRouteBuilder::new(path, vec![HttpMethod::Delete])
+    }
+
+    /// Register an OPTIONS route.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use rf_route_facade::Route;
+    ///
+    /// Route::options("/users", |_| async { "OPTIONS" });
+    /// ```
+    pub fn options(path: impl Into<String>, _handler: impl Into<String>) -> FacadeRouteBuilder {
+        FacadeRouteBuilder::new(path, vec![HttpMethod::Options])
+    }
+
+    /// Register a route that responds to multiple HTTP methods.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use rf_route_facade::Route;
+    /// use rf_routing::HttpMethod;
+    ///
+    /// Route::match_methods(
+    ///     vec![HttpMethod::Get, HttpMethod::Post],
+    ///     "/users",
+    ///     |_| async { "Handle GET or POST" }
+    /// );
+    /// ```
+    pub fn match_methods(
+        methods: Vec<HttpMethod>,
+        path: impl Into<String>,
+        _handler: impl Into<String>,
+    ) -> FacadeRouteBuilder {
+        FacadeRouteBuilder::new(path, methods)
+    }
+
+    /// Register a route that responds to any HTTP method.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use rf_route_facade::Route;
+    ///
+    /// Route::any("/fallback", |_| async { "Handle any method" });
+    /// ```
+    pub fn any(path: impl Into<String>, _handler: impl Into<String>) -> FacadeRouteBuilder {
+        FacadeRouteBuilder::new(
+            path,
+            vec![
+                HttpMethod::Get,
+                HttpMethod::Post,
+                HttpMethod::Put,
+                HttpMethod::Patch,
+                HttpMethod::Delete,
+                HttpMethod::Options,
+            ],
+        )
+    }
+
+    /// Create a route group for organizing routes with shared configuration.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use rf_route_facade::Route;
+    ///
+    /// Route::group()
+    ///     .prefix("/api")
+    ///     .middleware("auth")
+    ///     .routes(|group| {
+    ///         group.get("/users", |_| async { "List users" });
+    ///         group.post("/users", |_| async { "Create user" });
+    ///     });
+    /// ```
+    pub fn group() -> GroupBuilder {
+        GroupBuilder::new()
+    }
+
+    /// Register RESTful resource routes for a controller.
+    ///
+    /// This generates the standard RESTful routes:
+    /// - GET /resource - index
+    /// - GET /resource/create - create
+    /// - POST /resource - store
+    /// - GET /resource/:id - show
+    /// - GET /resource/:id/edit - edit
+    /// - PUT/PATCH /resource/:id - update
+    /// - DELETE /resource/:id - destroy
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use rf_route_facade::Route;
+    ///
+    /// Route::resource("posts", "PostController");
+    /// ```
+    pub fn resource(resource: impl Into<String>, _controller: impl Into<String>) {
+        let resource = resource.into();
+
+        // Index
+        Self::get(format!("/{}", resource), "index".to_string())
+            .name(format!("{}.index", resource));
+
+        // Create
+        Self::get(format!("/{}/create", resource), "create".to_string())
+            .name(format!("{}.create", resource));
+
+        // Store
+        Self::post(format!("/{}", resource), "store".to_string())
+            .name(format!("{}.store", resource));
+
+        // Show
+        Self::get(format!("/{}/:id", resource), "show".to_string())
+            .name(format!("{}.show", resource));
+
+        // Edit
+        Self::get(format!("/{}/:id/edit", resource), "edit".to_string())
+            .name(format!("{}.edit", resource));
+
+        // Update
+        Self::put(format!("/{}/:id", resource), "update".to_string())
+            .name(format!("{}.update", resource));
+        Self::patch(format!("/{}/:id", resource), "update".to_string())
+            .name(format!("{}.update.patch", resource));
+
+        // Destroy
+        Self::delete(format!("/{}/:id", resource), "destroy".to_string())
+            .name(format!("{}.destroy", resource));
+    }
+
+    /// Register API resource routes (without create/edit).
+    ///
+    /// This generates routes for API usage (no HTML forms):
+    /// - GET /resource - index
+    /// - POST /resource - store
+    /// - GET /resource/:id - show
+    /// - PUT/PATCH /resource/:id - update
+    /// - DELETE /resource/:id - destroy
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use rf_route_facade::Route;
+    ///
+    /// Route::api_resource("posts", "PostController");
+    /// ```
+    pub fn api_resource(resource: impl Into<String>, _controller: impl Into<String>) {
+        let resource = resource.into();
+
+        // Index
+        Self::get(format!("/{}", resource), "index".to_string())
+            .name(format!("{}.index", resource));
+
+        // Store
+        Self::post(format!("/{}", resource), "store".to_string())
+            .name(format!("{}.store", resource));
+
+        // Show
+        Self::get(format!("/{}/:id", resource), "show".to_string())
+            .name(format!("{}.show", resource));
+
+        // Update
+        Self::put(format!("/{}/:id", resource), "update".to_string())
+            .name(format!("{}.update", resource));
+        Self::patch(format!("/{}/:id", resource), "update".to_string())
+            .name(format!("{}.update.patch", resource));
+
+        // Destroy
+        Self::delete(format!("/{}/:id", resource), "destroy".to_string())
+            .name(format!("{}.destroy", resource));
+    }
+
+    /// Register a redirect route.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use rf_route_facade::Route;
+    ///
+    /// Route::redirect("/old-path", "/new-path");
+    /// ```
+    pub fn redirect(from: impl Into<String>, to: impl Into<String>) -> FacadeRouteBuilder {
+        FacadeRouteBuilder::new(from, vec![HttpMethod::Get])
+            .metadata("redirect", to.into())
+    }
+
+    /// Register a permanent redirect route (301).
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use rf_route_facade::Route;
+    ///
+    /// Route::permanent_redirect("/old-path", "/new-path");
+    /// ```
+    pub fn permanent_redirect(
+        from: impl Into<String>,
+        to: impl Into<String>,
+    ) -> FacadeRouteBuilder {
+        FacadeRouteBuilder::new(from, vec![HttpMethod::Get])
+            .metadata("redirect", to.into())
+            .metadata("status", "301")
+    }
+
+    /// Register a view route (renders a view without a controller).
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use rf_route_facade::Route;
+    ///
+    /// Route::view("/about", "about");
+    /// ```
+    pub fn view(path: impl Into<String>, view: impl Into<String>) -> FacadeRouteBuilder {
+        FacadeRouteBuilder::new(path, vec![HttpMethod::Get]).metadata("view", view.into())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::registry::global_router;
+
+    #[test]
+    fn test_route_get() {
+        let builder = Route::get("/users", "handler".to_string());
+        let route = builder.into_route();
+
+        assert_eq!(route.uri, "/users");
+        assert_eq!(route.methods.len(), 1);
+        assert_eq!(route.methods[0], HttpMethod::Get);
+    }
+
+    #[test]
+    fn test_route_post() {
+        let builder = Route::post("/users", "handler".to_string());
+        let route = builder.into_route();
+
+        assert_eq!(route.uri, "/users");
+        assert_eq!(route.methods[0], HttpMethod::Post);
+    }
+
+    #[test]
+    fn test_route_put() {
+        let builder = Route::put("/users/:id", "handler".to_string());
+        let route = builder.into_route();
+
+        assert_eq!(route.methods[0], HttpMethod::Put);
+    }
+
+    #[test]
+    fn test_route_patch() {
+        let builder = Route::patch("/users/:id", "handler".to_string());
+        let route = builder.into_route();
+
+        assert_eq!(route.methods[0], HttpMethod::Patch);
+    }
+
+    #[test]
+    fn test_route_delete() {
+        let builder = Route::delete("/users/:id", "handler".to_string());
+        let route = builder.into_route();
+
+        assert_eq!(route.methods[0], HttpMethod::Delete);
+    }
+
+    #[test]
+    fn test_route_options() {
+        let builder = Route::options("/users", "handler".to_string());
+        let route = builder.into_route();
+
+        assert_eq!(route.methods[0], HttpMethod::Options);
+    }
+
+    #[test]
+    fn test_route_match_methods() {
+        let builder = Route::match_methods(
+            vec![HttpMethod::Get, HttpMethod::Post],
+            "/users",
+            "handler".to_string(),
+        );
+        let route = builder.into_route();
+
+        assert_eq!(route.methods.len(), 2);
+        assert!(route.methods.contains(&HttpMethod::Get));
+        assert!(route.methods.contains(&HttpMethod::Post));
+    }
+
+    #[test]
+    fn test_route_any() {
+        let builder = Route::any("/fallback", "handler".to_string());
+        let route = builder.into_route();
+
+        assert_eq!(route.methods.len(), 6);
+    }
+
+    #[test]
+    fn test_route_with_name() {
+        let builder = Route::get("/users", "handler".to_string()).name("users.index");
+        let route = builder.into_route();
+
+        assert_eq!(route.name, Some("users.index".to_string()));
+    }
+
+    #[test]
+    fn test_route_with_middleware() {
+        let builder = Route::get("/users", "handler".to_string())
+            .middleware("auth")
+            .middleware("throttle");
+        let route = builder.into_route();
+
+        assert_eq!(route.middleware.len(), 2);
+    }
+
+    #[test]
+    fn test_route_redirect() {
+        let builder = Route::redirect("/old", "/new");
+        let route = builder.into_route();
+
+        assert_eq!(route.metadata("redirect"), Some(&"/new".to_string()));
+    }
+
+    #[test]
+    fn test_route_permanent_redirect() {
+        let builder = Route::permanent_redirect("/old", "/new");
+        let route = builder.into_route();
+
+        assert_eq!(route.metadata("redirect"), Some(&"/new".to_string()));
+        assert_eq!(route.metadata("status"), Some(&"301".to_string()));
+    }
+
+    #[test]
+    fn test_route_view() {
+        let builder = Route::view("/about", "about");
+        let route = builder.into_route();
+
+        assert_eq!(route.metadata("view"), Some(&"about".to_string()));
+    }
+
+    #[test]
+    fn test_route_resource() {
+        // Clear any existing routes
+        global_router().clear();
+
+        Route::resource("posts", "PostController");
+
+        let routes = global_router().routes();
+
+        // Should have 8 routes (index, create, store, show, edit, update, patch update, destroy)
+        assert!(routes.len() >= 8);
+
+        // Check some route names
+        let names: Vec<Option<String>> = routes.iter().map(|r| r.name.clone()).collect();
+        assert!(names.contains(&Some("posts.index".to_string())));
+        assert!(names.contains(&Some("posts.store".to_string())));
+        assert!(names.contains(&Some("posts.show".to_string())));
+    }
+
+    #[test]
+    fn test_route_api_resource() {
+        global_router().clear();
+
+        Route::api_resource("users", "UserController");
+
+        let routes = global_router().routes();
+
+        // Should have 6 routes (index, store, show, update, patch update, destroy)
+        // No create or edit routes
+        assert!(routes.len() >= 6);
+
+        let names: Vec<Option<String>> = routes.iter().map(|r| r.name.clone()).collect();
+        assert!(names.contains(&Some("users.index".to_string())));
+        assert!(!names.contains(&Some("users.create".to_string())));
+        assert!(!names.contains(&Some("users.edit".to_string())));
+    }
+}
