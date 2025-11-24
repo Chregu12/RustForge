@@ -183,6 +183,9 @@ pub use sea_orm::{
     PaginatorTrait, QueryFilter, QueryOrder, QuerySelect, QueryTrait, Related, RelationTrait, Set,
 };
 
+// Re-export model macros for Laravel-like syntax
+pub use rf_model_macro::{model, relations};
+
 // Re-export commonly used types
 pub mod prelude {
     pub use super::{
@@ -202,4 +205,6 @@ pub mod prelude {
         DatabaseTransaction, DbErr, EntityTrait, IntoActiveModel, ModelTrait, PaginatorTrait,
         QueryFilter, QueryOrder, QuerySelect, QueryTrait, Related, RelationTrait, Set,
     };
+    // Re-export model macros
+    pub use rf_model_macro::{model, relations};
 }

@@ -1239,13 +1239,13 @@ fn current_timestamp() -> String {
 
 fn model_template(struct_name: &str) -> String {
     format!(
-        "use serde::{{Deserialize, Serialize}};\n\n#[derive(Debug, Clone, Serialize, Deserialize)]\npub struct {struct_name} {{\n    pub id: i64,\n    // TODO: weitere Felder hinzufügen\n}}\n"
+        "use rf_orm::prelude::*;\n\n#[model]\npub struct {struct_name} {{\n    // id, created_at, updated_at are automatically added\n    // TODO: Add your fields here\n    // pub name: String,\n    // pub email: String,\n}}\n"
     )
 }
 
 fn migration_up_sql(table: &str) -> String {
     format!(
-        "CREATE TABLE IF NOT EXISTS {table} (\n    id INTEGER PRIMARY KEY AUTOINCREMENT,\n    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP\n);\n"
+        "CREATE TABLE IF NOT EXISTS {table} (\n    id INTEGER PRIMARY KEY AUTOINCREMENT,\n    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP\n);\n"
     )
 }
 

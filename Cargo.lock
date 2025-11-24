@@ -4209,6 +4209,48 @@ dependencies = [
 ]
 
 [[package]]
+name = "laravel-syntax-complete"
+version = "1.0.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "axum 0.7.9",
+ "chrono",
+ "rf-auth",
+ "rf-core",
+ "rf-global-helpers",
+ "rf-macros",
+ "rf-orm",
+ "rf-request",
+ "rf-response",
+ "rf-route-facade",
+ "rf-validation",
+ "sea-orm 0.12.15",
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+ "tokio",
+ "tower 0.5.2",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
+name = "laravel-syntax-simple"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "rf-global-helpers",
+ "rf-macros",
+ "rf-request",
+ "rf-route-facade",
+ "rf-validation",
+ "serde",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
 name = "lazy_static"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
