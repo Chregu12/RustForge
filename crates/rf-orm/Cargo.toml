@@ -15,6 +15,7 @@ categories = ["database"]
 # Internal dependencies
 rf-core = { path = "../rf-core" }
 rf-config = { path = "../rf-config" }
+rf-model-macro = { path = "../rf-model-macro" }
 # rf-cache = { path = "../rf-cache" } # Temporarily disabled - API migration needed
 rf-metrics = { path = "../rf-metrics", optional = true }
 

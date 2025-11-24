@@ -1,0 +1,20 @@
+[package]
+name = "laravel-syntax-simple"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "simple"
+path = "src/main.rs"
+
+[dependencies]
+rf-macros = { path = "../../crates/rf-macros" }
+rf-route-facade = { path = "../../crates/rf-route-facade" }
+rf-global-helpers = { path = "../../crates/rf-global-helpers" }
+rf-validation = { path = "../../crates/rf-validation" }
+rf-request = { path = "../../crates/rf-request" }
+
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+anyhow = "1"

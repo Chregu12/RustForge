@@ -16,10 +16,38 @@ RustForge brings the elegant developer experience of Laravel to the Rust ecosyst
 - **Performant**: Built on Rust's zero-cost abstractions
 - **Type-Safe**: Compile-time guarantees for reliability
 
+## 🆕 New: Laravel-Style Syntax
+
+RustForge now supports **Laravel-identical syntax** for a familiar developer experience:
+
+```rust
+use rf_route_facade::Route;
+use rf_global_helpers::Hash;
+use rf_macros::rules;
+
+// Laravel-style routes
+Route::post("/users", |req| async {
+    // Validate with pipes
+    req.validate(rules! {
+        email: required | email,
+        password: required | min(8),
+    });
+
+    // Hash passwords
+    let hash = Hash::make(&req.password);
+
+    // Create user
+    User::create(data)
+});
+```
+
+**👉 [Learn more about Laravel Syntax](Laravel-Syntax)**
+
 ## Quick Links
 
 - **[Installation Guide](Installation)** - Get started with RustForge
 - **[Quick Start](Quick-Start)** - Build your first application
+- **[Laravel Syntax](Laravel-Syntax)** - 🆕 Use familiar Laravel syntax!
 - **[Features](Features)** - Explore what RustForge offers
 - **[API Documentation](API-Documentation)** - Detailed API reference
 - **[Examples](Examples)** - Learn by example

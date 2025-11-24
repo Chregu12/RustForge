@@ -87,6 +87,8 @@ members = [
     "examples/mail-demo",
     "examples/scaffold-demo",
     "examples/macros-demo",
+    "examples/laravel-syntax-complete",
+    "examples/laravel-syntax-simple",
     # Framework Test
     "benchmarks",
     # "framework-test", # Excluded - incomplete

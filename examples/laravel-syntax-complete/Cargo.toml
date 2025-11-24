@@ -1,0 +1,48 @@
+[package]
+name = "laravel-syntax-complete"
+version = "1.0.0"
+edition = "2021"
+
+[dependencies]
+# RustForge - Laravel Syntax
+rf-macros = { path = "../../crates/rf-macros" }
+rf-request = { path = "../../crates/rf-request" }
+rf-route-facade = { path = "../../crates/rf-route-facade" }
+rf-global-helpers = { path = "../../crates/rf-global-helpers" }
+
+# RustForge - Core
+rf-core = { path = "../../crates/rf-core" }
+rf-orm = { path = "../../crates/rf-orm" }
+rf-validation = { path = "../../crates/rf-validation" }
+rf-auth = { path = "../../crates/rf-auth" }
+rf-response = { path = "../../crates/rf-response" }
+
+# SeaORM (without sqlx features to avoid libsqlite3-sys conflict)
+sea-orm = { version = "0.12", features = ["macros"], default-features = false }
+
+# Async
+tokio = { version = "1", features = ["full"] }
+async-trait = "0.1"
+
+# Web
+axum = "0.7"
+tower = "0.5"
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Error handling
+anyhow = "1.0"
+thiserror = "1.0"
+
+# Time
+chrono = { version = "0.4", features = ["serde"] }
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = "0.3"
+
+[[bin]]
+name = "blog"
+path = "src/main.rs"
