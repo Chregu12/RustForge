@@ -1,0 +1,12 @@
+[package]
+name = "rf-cache-facade"
+version = "0.1.0"
+edition = "2021"
+description = "Laravel-style Cache facade for RustForge"
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+rf-cache = { path = "../rf-cache" }
+once_cell = "1.19"
+tokio = { version = "1.35", features = ["sync"] }
+serde = { version = "1.0", features = ["derive"] }

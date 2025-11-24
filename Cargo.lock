@@ -2864,6 +2864,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "facades-demo"
+version = "0.1.0"
+dependencies = [
+ "rf-auth-facade",
+ "rf-cache-facade",
+ "rf-config-facade",
+ "rf-db-facade",
+ "rf-event-facade",
+ "rf-log-facade",
+ "rf-mail-facade",
+ "rf-session-facade",
+ "rf-storage-facade",
+ "rf-view-facade",
+ "serde",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
 name = "fake"
 version = "2.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6601,6 +6620,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "rf-auth-facade"
+version = "0.1.0"
+dependencies = [
+ "once_cell",
+ "rf-auth",
+ "serde",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
 name = "rf-auth-scaffolding"
 version = "0.1.0"
 dependencies = [
@@ -6744,6 +6774,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "rf-cache-facade"
+version = "0.1.0"
+dependencies = [
+ "once_cell",
+ "rf-cache",
+ "serde",
+ "tokio",
+]
+
+[[package]]
 name = "rf-cli-gen"
 version = "0.1.0"
 dependencies = [
@@ -6819,6 +6859,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "rf-config-facade"
+version = "0.1.0"
+dependencies = [
+ "once_cell",
+ "rf-config",
+ "tokio",
+]
+
+[[package]]
 name = "rf-console"
 version = "1.0.0"
 dependencies = [
@@ -6849,6 +6898,18 @@ dependencies = [
  "tracing",
  "uuid",
  "validator",
+]
+
+[[package]]
+name = "rf-db-facade"
+version = "0.1.0"
+dependencies = [
+ "once_cell",
+ "parking_lot",
+ "rf-orm",
+ "serde",
+ "serde_json",
+ "tokio",
 ]
 
 [[package]]
@@ -6944,6 +7005,18 @@ dependencies = [
  "tokio-test",
  "tracing",
  "uuid",
+]
+
+[[package]]
+name = "rf-event-facade"
+version = "0.1.0"
+dependencies = [
+ "once_cell",
+ "parking_lot",
+ "rf-events",
+ "serde",
+ "serde_json",
+ "tokio",
 ]
 
 [[package]]
@@ -7195,6 +7268,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "rf-log-facade"
+version = "0.1.0"
+dependencies = [
+ "tracing",
+]
+
+[[package]]
 name = "rf-logging"
 version = "0.1.0"
 dependencies = [
@@ -7247,6 +7327,15 @@ dependencies = [
  "tracing",
  "urlencoding",
  "uuid",
+]
+
+[[package]]
+name = "rf-mail-facade"
+version = "0.1.0"
+dependencies = [
+ "once_cell",
+ "rf-mail",
+ "tokio",
 ]
 
 [[package]]
@@ -7665,6 +7754,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "rf-session-facade"
+version = "0.1.0"
+dependencies = [
+ "once_cell",
+ "serde",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
 name = "rf-signal-handler"
 version = "1.0.0"
 dependencies = [
@@ -7742,6 +7841,16 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "uuid",
+]
+
+[[package]]
+name = "rf-storage-facade"
+version = "0.1.0"
+dependencies = [
+ "once_cell",
+ "parking_lot",
+ "rf-storage",
+ "tokio",
 ]
 
 [[package]]
@@ -7915,6 +8024,16 @@ dependencies = [
  "thiserror 1.0.69",
  "tokio",
  "tracing",
+]
+
+[[package]]
+name = "rf-view-facade"
+version = "0.1.0"
+dependencies = [
+ "once_cell",
+ "rf-view",
+ "serde_json",
+ "tokio",
 ]
 
 [[package]]

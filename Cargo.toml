@@ -61,6 +61,17 @@ members = [
     "crates/rf-routing",
     "crates/rf-route-facade",
     "crates/rf-global-helpers",
+    # Phase 20: Laravel Facades
+    "crates/rf-auth-facade",
+    "crates/rf-db-facade",
+    "crates/rf-cache-facade",
+    "crates/rf-event-facade",
+    "crates/rf-storage-facade",
+    "crates/rf-log-facade",
+    "crates/rf-mail-facade",
+    "crates/rf-session-facade",
+    "crates/rf-config-facade",
+    "crates/rf-view-facade",
     # Phase 15: Monitoring & Debugging
     "crates/rf-horizon",
     "crates/rf-telescope",
@@ -89,6 +100,7 @@ members = [
     "examples/macros-demo",
     "examples/laravel-syntax-complete",
     "examples/laravel-syntax-simple",
+    "examples/facades-demo",
     # Framework Test
     "benchmarks",
     # "framework-test", # Excluded - incomplete
