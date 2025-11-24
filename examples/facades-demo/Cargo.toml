@@ -1,0 +1,22 @@
+[package]
+name = "facades-demo"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+# All 10 Laravel-style Facades
+rf-auth-facade = { path = "../../crates/rf-auth-facade" }
+rf-db-facade = { path = "../../crates/rf-db-facade" }
+rf-cache-facade = { path = "../../crates/rf-cache-facade" }
+rf-event-facade = { path = "../../crates/rf-event-facade" }
+rf-storage-facade = { path = "../../crates/rf-storage-facade" }
+rf-log-facade = { path = "../../crates/rf-log-facade" }
+rf-mail-facade = { path = "../../crates/rf-mail-facade" }
+rf-session-facade = { path = "../../crates/rf-session-facade" }
+rf-config-facade = { path = "../../crates/rf-config-facade" }
+rf-view-facade = { path = "../../crates/rf-view-facade" }
+
+tokio = { version = "1.35", features = ["full"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
