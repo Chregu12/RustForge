@@ -1,0 +1,22 @@
+[package]
+name = "rf-macros"
+version = "0.1.0"
+edition = "2021"
+authors = ["Rust DX Framework Contributors"]
+description = "Procedural macros for Laravel-style syntax in Rust DX Framework"
+license = "MIT"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+syn = { version = "2.0", features = ["full", "extra-traits", "visit-mut"] }
+quote = "1.0"
+proc-macro2 = "1.0"
+
+[dev-dependencies]
+rf-request = { path = "../rf-request" }
+rf-validation = { path = "../rf-validation" }
+tokio = { version = "1.0", features = ["full"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
