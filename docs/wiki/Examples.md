@@ -125,6 +125,7 @@ use rf_http::{Response, Json, Path, Query};
 use rf_db_facade::DB;
 use rf_cache_facade::Cache;
 use rf_auth_facade::Auth;
+use rf_event_facade::Event;
 use std::time::Duration;
 use serde::Deserialize;
 use crate::requests::post_request::*;
@@ -136,20 +137,18 @@ pub struct ListQuery {
     published: Option<bool>,
 }
 
-// Index - Laravel-style!
+// Index - IDENTICAL to Laravel!
 pub async fn index(Query(params): Query<ListQuery>) -> Result<Response, Error> {
     let page = params.page.unwrap_or(1);
     let per_page = params.per_page.unwrap_or(15);
 
-    // Cache key
     let cache_key = format!("posts:page:{}:{}:{}", page, per_page, params.published.unwrap_or(true));
 
-    // Try cache first using Laravel-style Cache facade
     let posts = Cache::remember(&cache_key, Duration::from_secs(300), || async {
         let mut query = DB::table("posts");
 
         if let Some(published) = params.published {
-            query = query.where_clause("published", "=", published.into());
+            query = query.r#where("published", published);  // Laravel-style!
         }
 
         Ok(query
@@ -161,35 +160,31 @@ pub async fn index(Query(params): Query<ListQuery>) -> Result<Response, Error> {
     Ok(Response::json(posts))
 }
 
-// Show - simple and clean
+// Show - clean and simple
 pub async fn show(Path(id): Path<i32>) -> Result<Response, Error> {
     let post = DB::table("posts")
-        .find(id)
-        .await?
+        .find(id).await?                    // Like Laravel's find()!
         .ok_or_else(|| Error::NotFound("Post not found".into()))?;
 
-    // Increment view count (async job)
     Queue::push(IncrementViewsJob { post_id: id }).await?;
 
     Ok(Response::json(post))
 }
 
-// Store - Laravel-like insert
+// Store - IDENTICAL to Laravel!
 pub async fn store(Json(payload): Json<CreatePostRequest>) -> Result<Response, Error> {
     payload.validate()?;
 
     let user_id = Auth::id().await.ok_or(Error::Unauthorized("Not logged in".into()))?;
-    let slug = generate_slug(&payload.title);
 
-    let id = DB::table("posts").insert(json!({
+    // create() returns the record - just like Laravel!
+    let post = DB::table("posts").create(json!({
         "user_id": user_id,
         "title": payload.title,
-        "slug": slug,
+        "slug": generate_slug(&payload.title),
         "content": payload.content,
         "published": payload.published.unwrap_or(false)
     })).await?;
-
-    let post = DB::table("posts").find(id).await?;
 
     // Clear cache
     Cache::tags(&["posts"]).await.flush().await?;
@@ -200,13 +195,12 @@ pub async fn store(Json(payload): Json<CreatePostRequest>) -> Result<Response, E
     Ok(Response::json(post).status(201))
 }
 
-// Update - clean Laravel-style
+// Update - Laravel-style!
 pub async fn update(Path(id): Path<i32>, Json(payload): Json<UpdatePostRequest>) -> Result<Response, Error> {
     payload.validate()?;
 
     let user_id = Auth::id().await.ok_or(Error::Unauthorized("Not logged in".into()))?;
 
-    // Check ownership
     let post = DB::table("posts").find(id).await?
         .ok_or_else(|| Error::NotFound("Post not found".into()))?;
 
@@ -227,23 +221,22 @@ pub async fn update(Path(id): Path<i32>, Json(payload): Json<UpdatePostRequest>)
         update_data["published"] = json!(published);
     }
 
+    // Update with Laravel-style where()
     DB::table("posts")
-        .where_eq("id", id.into())
+        .r#where("id", id)
         .update(update_data).await?;
 
     let post = DB::table("posts").find(id).await?;
 
-    // Clear cache
     Cache::tags(&["posts"]).await.flush().await?;
 
     Ok(Response::json(post))
 }
 
-// Destroy - simple delete
+// Destroy - Laravel-style!
 pub async fn destroy(Path(id): Path<i32>) -> Result<Response, Error> {
     let user_id = Auth::id().await.ok_or(Error::Unauthorized("Not logged in".into()))?;
 
-    // Check ownership
     let post = DB::table("posts").find(id).await?
         .ok_or_else(|| Error::NotFound("Post not found".into()))?;
 
@@ -251,11 +244,11 @@ pub async fn destroy(Path(id): Path<i32>) -> Result<Response, Error> {
         return Err(Error::Forbidden("Not authorized".into()));
     }
 
+    // Delete with Laravel-style where()
     DB::table("posts")
-        .where_eq("id", id.into())
+        .r#where("id", id)
         .delete().await?;
 
-    // Clear cache
     Cache::tags(&["posts"]).await.flush().await?;
 
     Ok(Response::no_content())

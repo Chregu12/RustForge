@@ -80,10 +80,10 @@ use rf_db_facade::DB;
 use rf_http::{Response, Json};
 use rf_validation::Validate;
 
-// Index - almost identical to Laravel!
+// Index - IDENTICAL to Laravel!
 pub async fn index() -> Result<Response, Error> {
     let users = DB::table("users")
-        .where_clause("active", "=", true.into())
+        .r#where("active", true)      // Like Laravel's where()!
         .get().await?;
 
     Ok(Response::json(users))
@@ -99,18 +99,15 @@ pub struct CreateUserRequest {
     pub email: String,
 }
 
-// Store - clean Laravel-like syntax
+// Store - IDENTICAL to Laravel!
 pub async fn store(Json(payload): Json<CreateUserRequest>) -> Result<Response, Error> {
     payload.validate()?;
 
-    let id = DB::table("users").insert(json!({
+    // create() returns the created record - just like Laravel!
+    let user = DB::table("users").create(json!({
         "name": payload.name,
         "email": payload.email
     })).await?;
-
-    let user = DB::table("users")
-        .where_clause("id", "=", id.into())
-        .first().await?;
 
     Ok(Response::json(user).status(201))
 }
