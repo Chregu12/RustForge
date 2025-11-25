@@ -1,11 +1,11 @@
 [package]
-name = "rf-prelude"
+name = "rustforge"
 version = "1.0.0"
 edition = "2021"
-description = "RustForge prelude - import everything with a single use statement"
+description = "RustForge - The Laravel of Rust. Import everything with one line."
 license = "MIT"
 repository = "https://github.com/Chregu12/RustForge"
-keywords = ["rustforge", "prelude", "web", "framework"]
+keywords = ["rustforge", "laravel", "web", "framework", "orm"]
 categories = ["web-programming"]
 
 [dependencies]

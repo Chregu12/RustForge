@@ -19,11 +19,38 @@ RustForge provides an elegant, expressive syntax for building web applications i
 
 ### Models
 
-Define models with the `#[model]` macro:
+Define models with Laravel-like syntax using the `laravel!` macro:
 
 ```rust
 use rf_prelude::*;  // Single import - everything included!
 
+// Laravel-like class syntax!
+laravel! {
+    class User extends Model {
+        protected fillable = [name: String, email: String];
+        protected hidden = [password: String];
+    }
+}
+
+laravel! {
+    class Post extends Model {
+        protected table = "blog_posts";
+        protected fillable = [title: String, body: String, user_id: i64];
+        protected timestamps = true;
+    }
+}
+```
+
+The `laravel!` macro automatically:
+- Creates a struct with the specified fields
+- Adds `id`, `created_at`, `updated_at` fields
+- Implements `Model` trait for static methods
+- Marks `hidden` fields with `#[serde(skip_serializing)]`
+- Generates `FILLABLE` and `HIDDEN` constants
+
+**Alternative syntax** with `#[model]` attribute:
+
+```rust
 #[model]
 pub struct User {
     pub name: String,
@@ -31,21 +58,7 @@ pub struct User {
     #[hidden]
     pub password: String,
 }
-
-// Relations
-#[relations]
-impl User {
-    fn posts() -> HasMany<Post> {
-        self.has_many()
-    }
-}
 ```
-
-The `#[model]` macro automatically:
-- Adds `id`, `created_at`, `updated_at` fields
-- Adds all necessary derives
-- Converts `#[hidden]` to skip serialization
-- Implements Model trait for static methods
 
 ### Querying Data
 
@@ -393,13 +406,12 @@ $admins = User::where('role', 'admin')
 ```rust
 use rf_prelude::*;  // Single import - everything included!
 
-// Define model
-#[model]
-pub struct User {
-    pub name: String,
-    pub email: String,
-    #[hidden]
-    pub password: String,
+// Define model - Laravel-like syntax!
+laravel! {
+    class User extends Model {
+        protected fillable = [name: String, email: String];
+        protected hidden = [password: String];
+    }
 }
 
 // Query (with #[auto_await] - no .await needed!)

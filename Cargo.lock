@@ -7511,26 +7511,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "rf-prelude"
-version = "1.0.0"
-dependencies = [
- "async-trait",
- "rf-auth-facade",
- "rf-cache-facade",
- "rf-db-facade",
- "rf-event-facade",
- "rf-macros",
- "rf-model-macro",
- "rf-request",
- "rf-response",
- "rf-route-facade",
- "rf-storage-facade",
- "rf-validation",
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "rf-providers"
 version = "1.0.0"
 dependencies = [
@@ -8318,6 +8298,26 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cfcb3a22ef46e85b45de6ee7e79d063319ebb6594faafcf1c225ea92ab6e9b92"
 dependencies = [
  "semver",
+]
+
+[[package]]
+name = "rustforge"
+version = "1.0.0"
+dependencies = [
+ "async-trait",
+ "rf-auth-facade",
+ "rf-cache-facade",
+ "rf-db-facade",
+ "rf-event-facade",
+ "rf-macros",
+ "rf-model-macro",
+ "rf-request",
+ "rf-response",
+ "rf-route-facade",
+ "rf-storage-facade",
+ "rf-validation",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
