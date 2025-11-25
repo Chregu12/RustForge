@@ -5,15 +5,24 @@ This guide helps you migrate from other Rust frameworks to RustForge, or get sta
 ## Table of Contents
 
 - [RustForge Syntax Guide](#rustforge-syntax-guide)
-  - [Models](#models)
+  - [The Ultimate Experience: rustforge! Block](#the-ultimate-experience-rustforge-block)
+  - [Models](#models-alternative-manual-imports)
   - [Relationships](#relationships)
   - [Querying Data](#querying-data)
   - [Creating & Updating](#creating--updating)
+  - [The #[auto_await] Macro](#the-auto_await-macro)
   - [Helper Macros](#helper-macros)
   - [Routing](#routing)
+  - [Controllers](#controllers)
   - [Authentication](#authentication)
   - [Caching](#caching)
   - [Validation](#validation)
+- [What's New](#whats-new-in-latest-version)
+  - [New Helper Macros](#new-helper-macros)
+  - [FormRequest Validation](#formrequest---laravel-style-validation)
+  - [Exception Handler](#exception-handler---laravel-style-error-handling)
+  - [Blade Templates](#blade-templates---laravel-style-templating)
+  - [Mailable & Notifications](#mailable--notifications---laravel-style-emails)
 - [From Laravel (PHP)](#from-laravel-php)
 - [From Actix-web](#from-actix-web)
 - [From Rocket](#from-rocket)
@@ -173,8 +182,8 @@ Model!(Profile {
 **Using Relationships:**
 ```rust
 #[auto_await]
-async fn relationship_examples() -> Result<()> {
-    let user = User::find(1);
+async fn show_user(id: i64) -> Response {
+    let user = User::find(id);
 
     // Get all posts for a user (hasMany)
     let posts = user.posts().get();
@@ -182,41 +191,40 @@ async fn relationship_examples() -> Result<()> {
     // Get user's profile (hasOne)
     let profile = user.profile();
 
-    // Get post's author (belongsTo)
-    let post = Post::find(1);
-    let author = post.user();
+    Response::json(json!({ "user": user, "posts": posts, "profile": profile }))
+}
 
-    Ok(())
+async fn show_post(id: i64) -> Response {
+    let post = Post::find(id);
+    let author = post.user();  // belongsTo
+    Response::json(json!({ "post": post, "author": author }))
 }
 ```
 
 **Soft Deletes:**
 ```rust
 #[auto_await]
-async fn soft_delete_examples() -> Result<()> {
-    let mut user = User::find(1);
+async fn delete_user(id: i64) -> Response {
+    let mut user = User::find(id);
+    user.soft_delete();  // Sets deleted_at
+    Response::json(json!({ "message": "User deleted" }))
+}
 
-    // Soft delete (sets deleted_at)
-    user.soft_delete();
+async fn restore_user(id: i64) -> Response {
+    let mut user = User::with_trashed().find(id);
+    user.restore();  // Clears deleted_at
+    Response::json(user)
+}
 
-    // Check if trashed
-    if user.trashed() {
-        println!("User is soft-deleted");
-    }
-
-    // Restore soft-deleted record
-    user.restore();
-
-    // Query including soft-deleted
-    let all_users = User::with_trashed().get();
-
-    // Query only soft-deleted
+async fn get_trashed() -> Response {
     let trashed = User::only_trashed().get();
+    Response::json(trashed)
+}
 
-    // Permanently delete
-    user.force_delete();
-
-    Ok(())
+async fn force_delete(id: i64) -> Response {
+    let user = User::with_trashed().find(id);
+    user.force_delete();  // Permanently removes
+    Response::ok()
 }
 ```
 
@@ -226,18 +234,22 @@ Use the elegant query builder - **exactly like Laravel!**
 
 ```rust
 #[auto_await]
-async fn examples() -> Result<()> {
-    // Find by ID
-    let user = User::find(1);
-    let user = User::findOrFail(1);  // Error if not found
-
+async fn index() -> Response {
     // WHERE - exactly like Laravel!
     let admins = User::where("role", "admin")
         .where("active", true)
         .orderBy("name", "asc")
         .take(10)
         .get();
+    Response::json(admins)
+}
 
+async fn show(id: i64) -> Response {
+    let user = User::findOrFail(id);  // 404 if not found
+    Response::json(user)
+}
+
+async fn search(role: &str) -> Response {
     // OR conditions
     let staff = User::where("role", "admin")
         .orWhere("role", "moderator")
@@ -254,59 +266,30 @@ async fn examples() -> Result<()> {
         .whereMonth("created_at", 11)
         .get();
 
-    // Get all
-    let all_users = User::all();
+    Response::json(users)
+}
 
-    // First matching
-    let user = User::where("email", "john@example.com").first();
-    let user = User::where("email", "john@example.com").firstOrFail();
-
-    // Aggregates
+async fn stats() -> Response {
     let total = User::count();
     let emails = User::where("active", true).pluck("email");
-    let email = User::find(1).value("email");
-
-    // Check existence
     let exists = User::where("email", "test@example.com").exists();
 
-    // Conditional queries
+    Response::json(json!({ "total": total, "emails": emails }))
+}
+
+// Conditional queries
+async fn list_users(is_admin: bool) -> Response {
     let users = User::query()
         .when(is_admin, |q| q.where("role", "admin"))
         .latest()
         .get();
+    Response::json(users)
+}
 
-    // Process large datasets in chunks
-    User::query().chunk(100, |users| {
-        for user in users {
-            // Process each batch
-        }
-        true // Continue processing
-    });
-
-    // Lazy iteration for memory efficiency
-    let mut lazy = User::query().lazy(100);
-    while let Some(user) = lazy.next() {
-        // Process one at a time
-    }
-
-    // Get exactly one record (error if 0 or >1)
-    let user = User::where("email", "unique@example.com").sole();
-
-    // NOT conditions
-    let users = User::whereNotBetween("age", 13, 17)
-        .whereNotLike("email", "%@spam.com")
-        .get();
-
-    // Increment/Decrement
-    User::where("id", 1).increment("login_count", 1);
-    User::where("id", 1).decrement("credits", 10);
-
-    // Debugging
-    User::where("active", true).dump();  // Print query info
-    let sql = User::where("role", "admin").toSql();  // Get SQL string
-    // User::where("active", true).dd();  // Dump and die
-
-    Ok(())
+// Increment/Decrement
+async fn login(id: i64) -> Response {
+    User::where("id", id).increment("login_count", 1);
+    Response::ok()
 }
 ```
 
@@ -314,59 +297,51 @@ async fn examples() -> Result<()> {
 
 ```rust
 #[auto_await]
-async fn crud_examples() -> Result<()> {
-    // Create
+async fn store(data: Json<Value>) -> Response {
     let user = User::create(json!({
-        "name": "John",
-        "email": "john@example.com"
+        "name": data["name"],
+        "email": data["email"]
     }));
+    Response::json(user).status(201)
+}
 
-    // Update by ID (Laravel camelCase!)
-    User::updateById(1, json!({
-        "name": "John Doe"
-    }));
+async fn update(id: i64, data: Json<Value>) -> Response {
+    User::updateById(id, data.0);
+    let user = User::find(id);
+    Response::json(user)
+}
 
-    // Delete
-    User::destroy(1);
+async fn destroy(id: i64) -> Response {
+    User::destroy(id);
+    Response::ok()
+}
 
-    // First or create (Laravel camelCase!)
+// First or create - finds or creates
+async fn find_or_create(email: &str) -> Response {
     let user = User::firstOrCreate(
-        json!({"email": "john@example.com"}),
-        json!({"name": "John", "email": "john@example.com"})
+        json!({"email": email}),
+        json!({"name": "New User", "email": email})
     );
+    Response::json(user)
+}
 
-    // Update or create (Laravel camelCase!)
+// Update or create - upsert single record
+async fn upsert_user(email: &str, name: &str) -> Response {
     let user = User::updateOrCreate(
-        json!({"email": "john@example.com"}),
-        json!({"name": "John Updated"})
+        json!({"email": email}),
+        json!({"name": name})
     );
+    Response::json(user)
+}
 
-    // First or new (not saved)
-    let user = User::firstOrNew(
-        json!({"email": "john@example.com"}),
-        json!({"name": "John"})
-    );
-
-    // Upsert (bulk insert/update)
+// Bulk upsert
+async fn bulk_import(users: Vec<Value>) -> Response {
     User::upsert(
-        vec![
-            json!({"email": "john@ex.com", "name": "John"}),
-            json!({"email": "jane@ex.com", "name": "Jane"}),
-        ],
+        users,
         &["email"],  // Unique columns
         &["name"]    // Columns to update on conflict
     );
-
-    // Touch timestamps
-    User::where("id", 1).touch();
-
-    // Delete by IDs
-    User::destroy(vec![1, 2, 3]);
-
-    // Truncate table
-    User::truncate();  // Careful! Deletes all!
-
-    Ok(())
+    Response::json(json!({ "message": "Import complete" }))
 }
 ```
 
@@ -571,36 +546,28 @@ pub async fn store(Json(payload): Json<CreateUserRequest>) -> Result<Response> {
 
 ```rust
 #[auto_await]
-async fn auth_examples() -> Result<()> {
-    // Login attempt
-    Auth::attempt(json!({
-        "email": "user@example.com",
-        "password": "secret"
-    }));
-
-    // Get current user
-    let user = Auth::user::<User>();
-
-    // Check authentication
-    if Auth::check() {
-        println!("User is logged in");
+async fn login(data: Json<LoginRequest>) -> Response {
+    if Auth::attempt(json!({
+        "email": data.email,
+        "password": data.password
+    })) {
+        Response::json(json!({ "message": "Login successful" }))
+    } else {
+        Response::json(json!({ "error": "Invalid credentials" })).status(401)
     }
+}
 
-    // Check if guest
-    if Auth::guest() {
-        println!("User is not logged in");
+async fn profile() -> Response {
+    if let Some(user) = Auth::user::<User>() {
+        Response::json(user)
+    } else {
+        Response::json(json!({ "error": "Not authenticated" })).status(401)
     }
+}
 
-    // Get user ID
-    let id = Auth::id();
-
-    // Login a user directly
-    Auth::login(user);
-
-    // Logout
+async fn logout() -> Response {
     Auth::logout();
-
-    Ok(())
+    Response::json(json!({ "message": "Logged out" }))
 }
 ```
 
@@ -608,36 +575,22 @@ async fn auth_examples() -> Result<()> {
 
 ```rust
 #[auto_await]
-async fn cache_examples() -> Result<()> {
-    // Store value (TTL in seconds)
-    Cache::put("key", "value", 3600);
-
-    // Get value
-    let value: Option<String> = Cache::get("key");
-
-    // Remember pattern
-    let users = Cache::remember("users", 3600, || async {
-        Ok(User::all().await?)
+async fn get_users() -> Response {
+    // Remember pattern - cache for 1 hour
+    let users = Cache::remember("users:all", 3600, || async {
+        User::all()
     });
+    Response::json(users)
+}
 
-    // Check existence
-    if Cache::has("key") {
-        println!("Key exists");
-    }
+async fn clear_cache() -> Response {
+    Cache::forget("users:all");
+    Response::json(json!({ "message": "Cache cleared" }))
+}
 
-    // Delete key
-    Cache::forget("key");
-
-    // Store forever
-    Cache::forever("permanent_key", "value");
-
-    // Add only if not exists
-    Cache::add("new_key", "value", 60);
-
-    // Clear all cache
-    Cache::flush();
-
-    Ok(())
+async fn cache_stats() -> Response {
+    let has_users = Cache::has("users:all");
+    Response::json(json!({ "cached": has_users }))
 }
 ```
 
@@ -854,9 +807,7 @@ use rustforge::*;
 Model!(User: name, email, hidden password);
 
 #[auto_await]
-async fn queries() -> Result<()> {
-    let users = query!(User::where("active", true).get());
-    let user = User::find(1);
+async fn get_admins() -> Response {
     let admins = query! {
         User::where("role", "admin")
             .where("active", true)
@@ -864,7 +815,7 @@ async fn queries() -> Result<()> {
             .limit(10)
             .get()
     };
-    Ok(())
+    Response::json(admins)
 }
 ```
 
@@ -894,25 +845,22 @@ $user = User::firstOrCreate(
 **RustForge:**
 ```rust
 #[auto_await]
-async fn crud() -> Result<()> {
-    // Create
+async fn store(data: Json<Value>) -> Response {
     let user = User::create(json!({
-        "name": "John",
-        "email": "john@example.com"
+        "name": data["name"],
+        "email": data["email"]
     }));
+    Response::json(user).status(201)
+}
 
-    // Update
-    User::updateById(1, json!({"name": "John Doe"}));
+async fn update(id: i64) -> Response {
+    User::updateById(id, json!({"name": "John Doe"}));
+    Response::ok()
+}
 
-    // Delete
-    User::destroy(1);
-
-    // First or create
-    let user = User::firstOrCreate(
-        json!({"email": "john@example.com"}),
-        json!({"name": "John"})
-    );
-    Ok(())
+async fn destroy(id: i64) -> Response {
+    User::destroy(id);
+    Response::ok()
 }
 ```
 
@@ -922,25 +870,15 @@ async fn crud() -> Result<()> {
 ```php
 Cache::put('key', 'value', 3600);
 $value = Cache::get('key');
-Cache::forget('key');
-
-$users = Cache::remember('users', 3600, function () {
-    return User::all();
-});
+$users = Cache::remember('users', 3600, fn() => User::all());
 ```
 
 **RustForge:**
 ```rust
 #[auto_await]
-async fn caching() -> Result<()> {
-    Cache::put("key", "value", 3600);
-    let value: Option<String> = Cache::get("key");
-    Cache::forget("key");
-
-    let users = Cache::remember("users", 3600, || async {
-        Ok(User::all().await?)
-    });
-    Ok(())
+async fn cached_users() -> Response {
+    let users = Cache::remember("users", 3600, || async { User::all() });
+    Response::json(users)
 }
 ```
 
@@ -951,27 +889,18 @@ async fn caching() -> Result<()> {
 Auth::attempt(['email' => $email, 'password' => $password]);
 $user = Auth::user();
 Auth::logout();
-
-if (Auth::check()) {
-    // User is logged in
-}
 ```
 
 **RustForge:**
 ```rust
 #[auto_await]
-async fn auth() -> Result<()> {
-    Auth::attempt(json!({
-        "email": email,
-        "password": password
-    }));
-    let user = Auth::user::<User>();
-    Auth::logout();
-
-    if Auth::check() {
-        // User is logged in
+async fn login(email: &str, password: &str) -> Response {
+    if Auth::attempt(json!({ "email": email, "password": password })) {
+        let user = Auth::user::<User>();
+        Response::json(user)
+    } else {
+        Response::error(401, "Invalid credentials")
     }
-    Ok(())
 }
 ```
 
@@ -1344,6 +1273,389 @@ Model!(User {
 | `old!` | Old form input | `old!("email")` |
 | `asset!` | Asset URL | `asset!("css/app.css")` |
 | `url!` | Full URL | `url!("/users")` |
+| `now!` | Current datetime | `now!()`, `now!("%Y-%m-%d")` |
+| `bcrypt!` | Password hashing | `bcrypt!(password)`, `bcrypt!(verify: pwd, hash)` |
+| `back!` | Redirect back | `back!()`, `back!("/fallback")` |
+| `view!` | Render view | `view!("welcome")`, `view!("users.index", data)` |
+| `redirect!` | Create redirect | `redirect!("/home")`, `redirect!(route: "users.show", id = 1)` |
+| `session!` | Session access | `session!("key")`, `session!(set: "key", value)` |
+| `auth!` | Auth helpers | `auth!()`, `auth!(check)`, `auth!(logout)` |
+| `csrf!` | CSRF token | `csrf!()`, `csrf!(field)`, `csrf!(meta)` |
+| `cache!` | Cache access | `cache!("key")`, `cache!(put: "key", val, 3600)` |
+| `logger!` | Logging | `logger!(info: "message")`, `logger!(error: msg)` |
+| `event!` | Dispatch event | `event!(UserCreated { user_id: 123 })` |
+| `storage!` | File storage | `storage!("file.txt")`, `storage!(put: "file", data)` |
+
+### FormRequest - Laravel-style Validation
+
+Define form requests with automatic validation, just like Laravel:
+
+```rust
+use rustforge::*;
+
+form_request! {
+    pub struct CreateUserRequest {
+        #[required, email, unique("users", "email")]
+        email: String,
+
+        #[required, min(8)]
+        password: String,
+
+        #[required, min(2), max(100)]
+        name: String,
+    }
+
+    fn authorize(&self) -> bool {
+        // Return true to allow, false for 403
+        auth!(check)
+    }
+
+    fn messages() -> HashMap<&'static str, &'static str> {
+        HashMap::from([
+            ("email.required", "Email is required"),
+            ("email.email", "Please provide a valid email"),
+            ("password.min", "Password must be at least 8 characters"),
+        ])
+    }
+}
+
+// Use in handler - automatic validation!
+async fn store(Validated(req): Validated<CreateUserRequest>) -> Response {
+    let user = User::create(json!({
+        "email": req.email,
+        "password": bcrypt!(req.password),
+        "name": req.name,
+    })).await;
+    Response::json(user).status(201)
+}
+```
+
+**Available Validation Rules:**
+
+| Category | Rules |
+|----------|-------|
+| Basic | `required`, `nullable`, `string`, `integer`, `numeric`, `boolean`, `array` |
+| String | `email`, `url`, `ip`, `uuid`, `alpha`, `alpha_num`, `lowercase`, `uppercase`, `regex("pattern")` |
+| Length | `min(n)`, `max(n)`, `between(min, max)`, `min_length(n)`, `max_length(n)`, `size(n)` |
+| Date | `date`, `date_format("fmt")`, `before("date")`, `after("date")` |
+| Database | `unique("table", "column")`, `exists("table", "column")` |
+| Compare | `same("field")`, `different("field")`, `confirmed` |
+| Conditional | `required_if("field", "value")`, `required_unless("field", "value")`, `required_with("field")`, `required_without("field")` |
+
+### Exception Handler - Laravel-style Error Handling
+
+Define a global exception handler:
+
+```rust
+use rustforge::*;
+
+exception_handler! {
+    // Exceptions that should not be logged
+    dont_report: [
+        ValidationException,
+        AuthenticationException,
+    ];
+
+    // Form fields not flashed to session
+    dont_flash: [
+        "password",
+        "password_confirmation",
+    ];
+
+    // Custom exception rendering
+    fn render(error: &AppError, request: &Request) -> Response {
+        match error {
+            AppError::NotFound { .. } => {
+                if request.wants_json() {
+                    Response::json(json!({ "error": "Not found" })).status(404)
+                } else {
+                    view!("errors.404").status(404)
+                }
+            }
+            _ => Response::error(500, "Server Error")
+        }
+    }
+
+    // Custom exception reporting (logging, Sentry, etc.)
+    fn report(error: &AppError) {
+        logger!(error: "Application error: {:?}", error);
+        // Send to Sentry, Bugsnag, etc.
+    }
+}
+```
+
+**Exception Helper Macros:**
+
+| Macro | Description | Example |
+|-------|-------------|---------|
+| `abort_if!` | Abort if condition true | `abort_if!(user.is_banned(), 403, "Banned")` |
+| `abort_unless!` | Abort unless condition true | `abort_unless!(user.can_edit(&post), 403)` |
+| `report!` | Report without throwing | `report!(error)` |
+| `rescue!` | Rescue with fallback | `rescue!(User::find(id).await, User::default())` |
+
+**Example Usage:**
+
+```rust
+#[auto_await]
+async fn show(id: i64) -> Response {
+    // Abort if user cannot view
+    abort_unless!(auth!(check), 401, "Please login");
+
+    let user = User::find(id);
+    abort_if!(user.is_none(), 404, "User not found");
+
+    // Rescue with fallback
+    let profile = rescue!(user.profile(), Profile::default());
+
+    Response::json(json!({
+        "user": user,
+        "profile": profile
+    }))
+}
+```
+
+### Blade Templates - Laravel-style Templating
+
+Write HTML templates with familiar Blade-like syntax:
+
+```rust
+use rustforge::*;
+
+let user = User::find(1).await;
+let posts = user.posts().get().await;
+
+let html = blade! {
+    <div class="container">
+        @if let Some(user) = user {
+            <h1>Welcome, {{ user.name }}!</h1>
+
+            @if user.is_admin {
+                <span class="badge badge-admin">Admin</span>
+            } @else {
+                <span class="badge">User</span>
+            }
+
+            <h2>Your Posts</h2>
+            <ul>
+            @foreach post in posts {
+                <li>
+                    <a href="/posts/{{ post.id }}">{{ post.title }}</a>
+                </li>
+            }
+            </ul>
+        } @else {
+            <p>Please <a href="/login">log in</a></p>
+        }
+
+        @auth {
+            <a href="/logout" class="btn">Logout</a>
+        }
+
+        @guest {
+            <a href="/login" class="btn">Login</a>
+            <a href="/register" class="btn">Register</a>
+        }
+
+        <form method="POST" action="/posts">
+            @csrf
+            @method("PUT")
+            <input type="text" name="title" />
+            <button type="submit">Submit</button>
+        </form>
+    </div>
+};
+```
+
+**Available Blade Directives:**
+
+| Category | Directive | Description |
+|----------|-----------|-------------|
+| **Control Flow** | `@if condition { }` | Conditional rendering |
+| | `@else { }` | Else branch |
+| | `@else if condition { }` | Else if branch |
+| | `@foreach item in collection { }` | Loop iteration |
+| | `@for expr { }` | For loop |
+| | `@while condition { }` | While loop |
+| | `@match expr { }` | Match expression |
+| **Auth** | `@auth { }` | Content for authenticated users |
+| | `@guest { }` | Content for guests |
+| **Forms** | `@csrf` | CSRF token hidden input |
+| | `@method("PUT")` | HTTP method spoofing |
+| **Output** | `{{ expr }}` | Escaped output |
+| | `{!! expr !!}` | Unescaped/raw HTML output |
+| | `@json(data)` | JSON output |
+| **Include** | `@include("partial")` | Include template |
+| **Utility** | `@isset(var) { }` | Check if variable is set |
+| | `@empty(collection) { }` | Check if collection is empty |
+| | `@env("KEY")` | Environment variable |
+| | `@rust { code }` | Execute Rust code |
+| | `@class([...])` | Conditional CSS classes |
+
+**Additional Template Macros:**
+
+```rust
+// Simple HTML template
+let name = "World";
+let html = html! {
+    <div>Hello, {name}!</div>
+};
+
+// Define template sections
+section!("content") {
+    <h1>Page Content</h1>
+    <p>This goes in the content section</p>
+}
+
+// Push content to a stack (for scripts/styles)
+push!("scripts") {
+    <script src="/js/app.js"></script>
+}
+
+// Render a stack
+let scripts = stack!("scripts");
+```
+
+### Mailable & Notifications - Laravel-style Emails
+
+Define structured emails with envelope, content, and attachments:
+
+```rust
+use rustforge::*;
+
+mailable! {
+    pub struct WelcomeEmail {
+        user: User,
+        activation_url: String,
+    }
+
+    fn envelope(&self) -> Envelope {
+        Envelope::new()
+            .subject("Welcome to RustForge!")
+            .from("hello@rustforge.dev")
+            .reply_to("support@rustforge.dev")
+    }
+
+    fn content(&self) -> Content {
+        Content::view("emails.welcome")
+            .with("user", &self.user)
+            .with("url", &self.activation_url)
+    }
+
+    fn attachments(&self) -> Vec<Attachment> {
+        vec![
+            Attachment::from_path("/docs/getting-started.pdf")
+                .as_("Getting Started Guide.pdf")
+                .with_mime("application/pdf"),
+        ]
+    }
+}
+
+// Send email
+Mail::to("user@example.com")
+    .send(WelcomeEmail {
+        user,
+        activation_url: "https://rustforge.dev/activate/abc123".into(),
+    })
+    .await?;
+
+// Queue for later sending
+Mail::to("user@example.com")
+    .queue(WelcomeEmail { user, activation_url })
+    .delay(Duration::from_secs(60))
+    .await?;
+```
+
+**Simple Attribute Syntax:**
+
+```rust
+#[mail(subject = "Welcome!", view = "emails.welcome")]
+pub struct WelcomeEmail {
+    pub user: User,
+}
+
+// Send
+Mail::to(&user.email).send(WelcomeEmail { user }).await?;
+```
+
+**Notifications - Multi-channel Messaging:**
+
+```rust
+notification! {
+    pub struct OrderShipped {
+        order: Order,
+    }
+
+    fn via(&self) -> Vec<Channel> {
+        vec![Channel::Mail, Channel::Database, Channel::Slack]
+    }
+
+    fn to_mail(&self) -> Mailable {
+        Mailable::new()
+            .subject("Your order has shipped!")
+            .view("emails.order_shipped")
+            .with("order", &self.order)
+    }
+
+    fn to_database(&self) -> Value {
+        json!({
+            "type": "order_shipped",
+            "order_id": self.order.id,
+            "message": format!("Order #{} has shipped!", self.order.id)
+        })
+    }
+
+    fn to_slack(&self) -> SlackMessage {
+        SlackMessage::new()
+            .to("#orders")
+            .content(format!("Order #{} has shipped!", self.order.id))
+    }
+}
+
+// Send notification to a user
+user.notify(OrderShipped { order }).await?;
+
+// Send to multiple users
+Notification::send(users, OrderShipped { order }).await?;
+```
+
+**Markdown Email Content:**
+
+```rust
+let content = markdown! {
+    # Welcome {{ user.name }}!
+
+    Thanks for joining us. Here's what you can do next:
+
+    - Create your first project
+    - Invite team members
+    - Start building
+
+    @component("button", url: "https://app.rustforge.dev")
+        Get Started
+    @endcomponent
+
+    Thanks,
+    The RustForge Team
+};
+```
+
+**Mailable Methods:**
+
+| Method | Description |
+|--------|-------------|
+| `envelope()` | Define email metadata (subject, from, to, cc, bcc, reply_to) |
+| `content()` | Define email content (view or markdown) |
+| `attachments()` | Add file attachments |
+| `headers()` | Custom email headers |
+
+**Notification Channels:**
+
+| Channel | Method | Description |
+|---------|--------|-------------|
+| `Channel::Mail` | `to_mail()` | Send as email |
+| `Channel::Database` | `to_database()` | Store in database |
+| `Channel::Slack` | `to_slack()` | Send to Slack |
+| `Channel::Broadcast` | `to_broadcast()` | WebSocket broadcast |
 
 ---
 

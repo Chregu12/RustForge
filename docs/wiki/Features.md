@@ -8,6 +8,9 @@ RustForge provides 100% Laravel 12 feature parity, bringing the elegant Laravel 
 - [Authentication & Authorization](#authentication--authorization)
 - [HTTP & Routing](#http--routing)
 - [Validation](#validation)
+- [Form Requests](#form-requests)
+- [Exception Handling](#exception-handling)
+- [Blade Templates](#blade-templates)
 - [Caching](#caching)
 - [Queue & Jobs](#queue--jobs)
 - [Events & Listeners](#events--listeners)
@@ -307,6 +310,243 @@ pub async fn create_user(
 
 ---
 
+## Form Requests
+
+Laravel-style form requests with automatic validation and authorization.
+
+### Features
+
+- **Automatic Validation**: Validate on extraction
+- **Authorization Checks**: Control access to actions
+- **Custom Messages**: User-friendly error messages
+- **Validation Rules**: 40+ built-in rules
+- **Field-Level Rules**: Attribute-based validation
+
+### Example
+
+```rust
+use rustforge::*;
+
+// Define a form request
+form_request! {
+    pub struct CreateUserRequest {
+        #[required, email, unique("users", "email")]
+        email: String,
+
+        #[required, min(8)]
+        password: String,
+
+        #[required, min(2), max(100)]
+        name: String,
+    }
+
+    fn authorize(&self) -> bool {
+        auth!(check)  // Only authenticated users
+    }
+
+    fn messages() -> HashMap<&'static str, &'static str> {
+        HashMap::from([
+            ("email.required", "Email is required"),
+            ("email.email", "Please provide a valid email"),
+            ("password.min", "Password must be at least 8 characters"),
+        ])
+    }
+}
+
+// Use in handler - automatic validation!
+async fn store(Validated(req): Validated<CreateUserRequest>) -> Response {
+    let user = User::create(json!({
+        "email": req.email,
+        "password": bcrypt!(req.password),
+        "name": req.name,
+    })).await;
+    Response::json(user).status(201)
+}
+```
+
+### Simple Attribute Syntax
+
+```rust
+#[validated]
+struct CreatePostRequest {
+    #[validate(required, min_length(5))]
+    title: String,
+
+    #[validate(required)]
+    body: String,
+
+    #[validate(required, exists("categories", "id"))]
+    category_id: i64,
+}
+```
+
+### Available Validation Rules
+
+| Category | Rules |
+|----------|-------|
+| Basic | `required`, `nullable`, `string`, `integer`, `numeric`, `boolean`, `array` |
+| String | `email`, `url`, `ip`, `uuid`, `alpha`, `alpha_num`, `lowercase`, `uppercase`, `regex("pattern")` |
+| Length | `min(n)`, `max(n)`, `between(min, max)`, `min_length(n)`, `max_length(n)`, `size(n)` |
+| Date | `date`, `date_format("fmt")`, `before("date")`, `after("date")` |
+| Database | `unique("table", "column")`, `exists("table", "column")` |
+| Compare | `same("field")`, `different("field")`, `confirmed` |
+| Conditional | `required_if`, `required_unless`, `required_with`, `required_without` |
+
+---
+
+## Exception Handling
+
+Laravel-style global exception handler for consistent error responses.
+
+### Features
+
+- **Global Handler**: Centralized error handling
+- **Custom Rendering**: Format errors for JSON/HTML
+- **Selective Reporting**: Control what gets logged
+- **Helper Macros**: `abort_if!`, `abort_unless!`, `rescue!`
+- **Don't Flash**: Protect sensitive form fields
+
+### Example
+
+```rust
+use rustforge::*;
+
+// Define global exception handler
+exception_handler! {
+    // Exceptions that should not be logged
+    dont_report: [
+        ValidationException,
+        AuthenticationException,
+    ];
+
+    // Form fields not flashed to session
+    dont_flash: [
+        "password",
+        "password_confirmation",
+    ];
+
+    // Custom exception rendering
+    fn render(error: &AppError, request: &Request) -> Response {
+        match error {
+            AppError::NotFound { .. } => {
+                if request.wants_json() {
+                    Response::json(json!({ "error": "Not found" })).status(404)
+                } else {
+                    view!("errors.404").status(404)
+                }
+            }
+            _ => Response::error(500, "Server Error")
+        }
+    }
+
+    // Custom exception reporting
+    fn report(error: &AppError) {
+        logger!(error: "Application error: {:?}", error);
+    }
+}
+```
+
+### Helper Macros
+
+```rust
+// Abort if condition is true
+abort_if!(user.is_banned(), 403, "Account banned");
+
+// Abort unless condition is true
+abort_unless!(user.can_edit(&post), 403, "Not authorized");
+
+// Rescue with fallback value
+let user = rescue!(User::find(id).await, User::default());
+
+// Report without throwing
+report!(error);
+```
+
+---
+
+## Blade Templates
+
+Laravel Blade-like templating with familiar directives.
+
+### Features
+
+- **Blade Directives**: `@if`, `@foreach`, `@auth`, `@guest`
+- **Output Escaping**: `{{ }}` escaped, `{!! !!}` raw
+- **Form Helpers**: `@csrf`, `@method`
+- **Sections/Stacks**: Template inheritance
+- **Rust Integration**: `@rust` for inline code
+
+### Example
+
+```rust
+use rustforge::*;
+
+let html = blade! {
+    <div class="container">
+        @if let Some(user) = user {
+            <h1>Welcome, {{ user.name }}!</h1>
+
+            @if user.is_admin {
+                <span class="badge">Admin</span>
+            } @else {
+                <span class="badge">User</span>
+            }
+
+            <ul>
+            @foreach post in posts {
+                <li>{{ post.title }}</li>
+            }
+            </ul>
+        } @else {
+            <p>Please log in</p>
+        }
+
+        @auth {
+            <a href="/logout">Logout</a>
+        }
+
+        @guest {
+            <a href="/login">Login</a>
+        }
+
+        <form method="POST">
+            @csrf
+            @method("PUT")
+            <button type="submit">Submit</button>
+        </form>
+    </div>
+};
+```
+
+### Available Directives
+
+| Category | Directive | Description |
+|----------|-----------|-------------|
+| Control | `@if`, `@else`, `@foreach`, `@for`, `@while`, `@match` | Control flow |
+| Auth | `@auth`, `@guest` | Authentication checks |
+| Forms | `@csrf`, `@method("PUT")` | Form helpers |
+| Output | `{{ expr }}`, `{!! expr !!}`, `@json(data)` | Output with escaping |
+| Include | `@include("partial")` | Include templates |
+| Utility | `@isset`, `@empty`, `@env`, `@rust`, `@class` | Utilities |
+
+### Additional Macros
+
+```rust
+// Simple HTML template
+let html = html! { <div>Hello, {name}!</div> };
+
+// Template sections
+section!("content") { <h1>Content</h1> }
+
+// Push to stack
+push!("scripts") { <script src="/app.js"></script> }
+
+// Render stack
+let scripts = stack!("scripts");
+```
+
+---
+
 ## Caching
 
 High-performance caching layer with multiple drivers.
@@ -523,35 +763,112 @@ Event::dispatch_many(vec![
 
 ## Mail System
 
-Email sending with multiple drivers and templates.
+Email sending with multiple drivers, templates, and Laravel-style Mailables.
 
 ### Features
 
 - **Multiple Drivers**: SMTP, Mailgun, SendGrid, SES
+- **Mailable Classes**: Structured email definitions
 - **Email Templates**: HTML and text templates
 - **Attachments**: Send files with emails
 - **Queue Support**: Queue emails for async sending
 - **Markdown Emails**: Write emails in Markdown
+- **Notifications**: Multi-channel notifications
 - **Testing**: Email testing utilities
 
-### Example
+### Mailable Classes (Laravel-style)
+
+```rust
+use rustforge::*;
+
+// Define a mailable
+mailable! {
+    pub struct WelcomeEmail {
+        user: User,
+        activation_url: String,
+    }
+
+    fn envelope(&self) -> Envelope {
+        Envelope::new()
+            .subject("Welcome to RustForge!")
+            .from("hello@rustforge.dev")
+            .reply_to("support@rustforge.dev")
+    }
+
+    fn content(&self) -> Content {
+        Content::view("emails.welcome")
+            .with("user", &self.user)
+            .with("url", &self.activation_url)
+    }
+
+    fn attachments(&self) -> Vec<Attachment> {
+        vec![
+            Attachment::from_path("/docs/guide.pdf")
+                .as_("Getting Started.pdf"),
+        ]
+    }
+}
+
+// Send email
+Mail::to("user@example.com")
+    .send(WelcomeEmail { user, activation_url })
+    .await?;
+
+// Queue for later
+Mail::to("user@example.com")
+    .queue(WelcomeEmail { user, activation_url })
+    .delay(Duration::from_secs(60))
+    .await?;
+```
+
+### Simple Attribute Syntax
+
+```rust
+#[mail(subject = "Welcome!", view = "emails.welcome")]
+pub struct WelcomeEmail {
+    pub user: User,
+}
+```
+
+### Notifications
+
+```rust
+notification! {
+    pub struct OrderShipped {
+        order: Order,
+    }
+
+    fn via(&self) -> Vec<Channel> {
+        vec![Channel::Mail, Channel::Database, Channel::Slack]
+    }
+
+    fn to_mail(&self) -> Mailable {
+        Mailable::new()
+            .subject("Your order has shipped!")
+            .view("emails.order_shipped")
+    }
+
+    fn to_database(&self) -> Value {
+        json!({
+            "type": "order_shipped",
+            "order_id": self.order.id,
+        })
+    }
+}
+
+// Send notification
+user.notify(OrderShipped { order }).await?;
+```
+
+### Simple Email API
 
 ```rust
 use rf_mail_facade::Mail;
 
-// Simple email with Laravel-style facade
+// Simple email
 Mail::to("user@example.com")
     .subject("Welcome!")
     .body("Welcome to RustForge!")
-    .send()
-    .await?;
-
-// With CC and BCC
-Mail::to("user@example.com")
-    .cc("manager@example.com")
-    .bcc("admin@example.com")
-    .subject("Weekly Report")
-    .body("...")
     .send()
     .await?;
 
@@ -572,19 +889,30 @@ Mail::to("user@example.com")
     .send()
     .await?;
 
-// Queue email for async sending
+// Queue email
 Mail::to("user@example.com")
     .subject("Newsletter")
     .body("...")
     .queue()
     .await?;
+```
 
-// Send to multiple recipients
-Mail::to(&["user1@example.com", "user2@example.com"])
-    .subject("Announcement")
-    .body("...")
-    .send()
-    .await?;
+### Markdown Emails
+
+```rust
+let content = markdown! {
+    # Welcome {{ user.name }}!
+
+    Thanks for joining us.
+
+    - Create projects
+    - Invite team members
+    - Start building
+
+    @component("button", url: "https://app.rustforge.dev")
+        Get Started
+    @endcomponent
+};
 ```
 
 ### Supported Mail Drivers

@@ -328,6 +328,106 @@ let message = __("welcome.message");
 
 ---
 
+## 🆕 New Features
+
+### `rustforge!` Block - The Ultimate Experience
+
+Write Rust exactly like Laravel PHP - no imports, no `#[auto_await]`, no `.await`:
+
+```rust
+rustforge! {
+    Model!(User: name, email, hidden password);
+
+    async fn index() -> Response {
+        let users = User::where("active", true).get();
+        Response::json(users)
+    }
+}
+```
+
+### Blade Templates
+
+```rust
+let html = blade! {
+    @if user.is_admin {
+        <h1>Welcome Admin!</h1>
+    }
+    @foreach post in posts {
+        <li>{{ post.title }}</li>
+    }
+    @auth { <a href="/logout">Logout</a> }
+    @csrf
+};
+```
+
+### Form Requests
+
+```rust
+form_request! {
+    pub struct CreateUserRequest {
+        #[required, email]
+        email: String,
+        #[required, min(8)]
+        password: String,
+    }
+}
+
+async fn store(Validated(req): Validated<CreateUserRequest>) -> Response {
+    // req is already validated!
+}
+```
+
+### Mailable Classes
+
+```rust
+mailable! {
+    pub struct WelcomeEmail { user: User }
+
+    fn envelope(&self) -> Envelope {
+        Envelope::new().subject("Welcome!")
+    }
+
+    fn content(&self) -> Content {
+        Content::view("emails.welcome")
+    }
+}
+
+Mail::to(&email).send(WelcomeEmail { user }).await?;
+```
+
+### Exception Handler
+
+```rust
+exception_handler! {
+    dont_report: [ValidationException];
+
+    fn render(error: &AppError, request: &Request) -> Response {
+        Response::error(500, "Server Error")
+    }
+}
+
+// Helper macros
+abort_if!(user.is_banned(), 403);
+abort_unless!(auth!(check), 401);
+let user = rescue!(User::find(id), User::default());
+```
+
+### Helper Macros
+
+| Macro | Example |
+|-------|---------|
+| `now!` | `now!()`, `now!("%Y-%m-%d")` |
+| `bcrypt!` | `bcrypt!(password)`, `bcrypt!(verify: pwd, hash)` |
+| `view!` | `view!("welcome")`, `view!("users.index", data)` |
+| `redirect!` | `redirect!("/home")` |
+| `session!` | `session!("key")`, `session!(set: "key", val)` |
+| `auth!` | `auth!()`, `auth!(check)` |
+| `csrf!` | `csrf!()`, `csrf!(field)` |
+| `cache!` | `cache!("key")`, `cache!(put: "key", val, 3600)` |
+| `logger!` | `logger!(info: "message")` |
+
+---
+
 ## 🚧 Coming Soon Features
 
 These features are documented but require additional fixes (see [Fixes Report](../LARAVEL_SYNTAX_FIXES_REPORT.md)):
@@ -604,17 +704,22 @@ All Laravel-style syntax features are **zero-cost abstractions**:
 - ✅ `when()`, `unless()`, `tap()` conditionals
 - ✅ Date queries (`whereDate`, `whereYear`, etc.)
 - ✅ OR conditions (`orWhere`, `orWhereIn`, etc.)
+- ✅ Model relationships (`hasMany`, `belongsTo`, etc.)
+- ✅ Soft deletes support
 
-### Phase 3: Advanced Features 🚧 (In Progress)
-- 🚧 `function!` macro (needs fixes)
-- 🚧 Request integration
-- 🚧 Response types
-- 🚧 Controller macro
+### Phase 3: Advanced Features ✅ (Complete)
+- ✅ `rustforge!` block - ultimate Laravel experience
+- ✅ Blade-like templates (`@if`, `@foreach`, `@auth`, `@csrf`)
+- ✅ Form requests with validation (`form_request!`, `#[validated]`)
+- ✅ Exception handler (`exception_handler!`, `abort_if!`, `rescue!`)
+- ✅ Mailable classes (`mailable!`, `#[mail]`)
+- ✅ Notifications (`notification!`)
+- ✅ 20+ helper macros (`now!`, `bcrypt!`, `view!`, `redirect!`, etc.)
 
-### Phase 4: Full Parity 📋 (Planned)
-- 📋 Blade-like templates
-- 📋 Form requests
-- 📋 Resource controllers
+### Phase 4: Enhancements 🚧 (In Progress)
+- 🚧 `function!` macro improvements
+- 🚧 Resource controllers
+- 🚧 Advanced form components
 
 ---
 
