@@ -7,8 +7,14 @@
 //!
 //! Model!(User: name, email, hidden password);
 //!
-//! let users = User::filter("active", true).get().await;
-//! let user = User::find(1).await;
+//! // Use query! macro to write `where` like Laravel!
+//! let users = query!(User::where("active", true).get()).await;
+//! let admins = query! {
+//!     User::where("role", "admin")
+//!         .where("active", true)
+//!         .orderBy("name", "asc")
+//!         .get()
+//! }.await;
 //! ```
 //!
 //! With `#[auto_await]` - no `.await` needed:
@@ -20,7 +26,7 @@
 //!
 //! #[auto_await]
 //! async fn example() -> Result<()> {
-//!     let users = User::filter("active", true).get();
+//!     let users = query!(User::where("active", true).get());
 //!     let user = User::find(1);
 //!     Ok(())
 //! }
@@ -76,6 +82,25 @@ pub use rf_macros::laravel;
 /// ```
 #[allow(non_snake_case)]
 pub use rf_macros::Model;
+
+/// Query macro - use `where` like Laravel!
+///
+/// In Rust, `where` is a reserved keyword. This macro lets you use it anyway:
+///
+/// ```rust
+/// use rustforge::*;
+///
+/// let users = query!(User::where("active", true).get()).await;
+///
+/// let admins = query! {
+///     User::where("role", "admin")
+///         .where("active", true)
+///         .orderBy("name", "asc")
+///         .limit(10)
+///         .get()
+/// }.await;
+/// ```
+pub use rf_macros::query;
 
 /// Auto-await macro - write async code without explicit .await
 ///
