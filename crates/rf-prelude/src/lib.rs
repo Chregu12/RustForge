@@ -40,6 +40,23 @@
 /// ```
 pub use rf_model_macro::model;
 
+/// Laravel-like class syntax for models
+///
+/// ```rust
+/// use rf_prelude::*;
+///
+/// laravel! {
+///     class User extends Model {
+///         protected fillable = [name: String, email: String];
+///         protected hidden = [password: String];
+///     }
+/// }
+///
+/// // Then use Laravel-style queries:
+/// let users = User::where("active", true).get().await?;
+/// ```
+pub use rf_macros::laravel;
+
 /// Auto-await macro - write async code without explicit .await
 ///
 /// ```rust
