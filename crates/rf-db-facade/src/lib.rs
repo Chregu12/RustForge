@@ -6,7 +6,7 @@
 //!
 //! - **Static DB API**: Use `DB::select()`, `DB::insert()`, etc.
 //! - **Query Builder**: Chain methods like Laravel's query builder
-//! - **Model Trait**: Use `User::where()`, `User::find()` like Laravel Eloquent!
+//! - **Model Trait**: Use `User::filter()`, `User::find()` like Laravel Eloquent!
 //! - **Global Connection Pool**: Thread-safe global database state
 //! - **Laravel-Compatible**: Familiar API for Laravel developers
 //!
@@ -21,7 +21,7 @@
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! // Laravel-style Model queries!
-//! let users = User::where("active", true).get().await?;
+//! let users = User::filter("active", true).get().await?;
 //! let user = User::find(1).await?;
 //! let new_user = User::create(serde_json::json!({
 //!     "name": "John",
@@ -29,15 +29,15 @@
 //! })).await?;
 //!
 //! // Chain queries like Laravel!
-//! let admins = User::where("role", "admin")
-//!     .where("active", true)
+//! let admins = User::filter("role", "admin")
+//!     .filter("active", true)
 //!     .order_by("name", "asc")
 //!     .limit(10)
 //!     .get().await?;
 //!
 //! // Or use DB::table() for raw queries
 //! let users = DB::table("users")
-//!     .r#where("active", true)
+//!     .filter("active", true)
 //!     .limit(10)
 //!     .get().await?;
 //! # Ok(())

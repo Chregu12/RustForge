@@ -69,6 +69,19 @@ pub trait Model: Sized {
         QueryBuilder::new(Self::TABLE).r#where(column, value)
     }
 
+    /// Alias for `r#where` - cleaner syntax without r# prefix
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// // Clean and readable!
+    /// User::filter("active", true).get().await?;
+    /// User::filter("role", "admin").filter("active", true).get().await?;
+    /// ```
+    fn filter<V: Into<Value>>(column: impl Into<String>, value: V) -> QueryBuilder {
+        QueryBuilder::new(Self::TABLE).filter(column, value)
+    }
+
     /// Start a query (returns all records if no conditions added)
     ///
     /// # Examples
