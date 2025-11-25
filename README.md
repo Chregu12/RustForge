@@ -8,6 +8,18 @@
 
 RustForge is the most comprehensive full-stack application framework for Rust, combining the performance and safety of Rust with the complete developer experience of Laravel 12.
 
+```rust
+// Write Rust exactly like Laravel PHP!
+rustforge! {
+    Model!(User: name, email, hidden password);
+
+    async fn index() -> Response {
+        let users = User::where("active", true).get();
+        Response::json(users)
+    }
+}
+```
+
 [![Version](https://img.shields.io/badge/version-1.0.0-blue)]()
 [![Build Status](https://img.shields.io/badge/build-passing-brightgreen)]()
 [![Rust Version](https://img.shields.io/badge/rust-1.75%2B-orange)]()
@@ -35,6 +47,7 @@ RustForge is the most comprehensive full-stack application framework for Rust, c
 ## 📖 Table of Contents
 
 - [What is RustForge?](#-what-is-rustforge)
+- [Laravel-Style Syntax](#-laravel-style-syntax)
 - [Why RustForge?](#-why-rustforge)
 - [Key Features](#-key-features)
 - [Quick Start](#-quick-start)
@@ -67,6 +80,107 @@ Laravel's Complete Feature Set  +  Rust's Performance & Safety  =  RustForge
 ```
 
 **👉 Learn more in the [Wiki Home](https://github.com/Chregu12/RustForge/wiki/Home)**
+
+---
+
+## ✨ Laravel-Style Syntax
+
+RustForge brings Laravel's elegant syntax to Rust. Write code exactly like you would in Laravel PHP:
+
+### The `rustforge!` Block
+
+```rust
+rustforge! {
+    Model!(User: name, email, hidden password);
+    Model!(Post: title, body, user_id);
+
+    async fn index() -> Response {
+        let users = User::where("active", true)
+            .orderBy("name", "asc")
+            .get();  // No .await needed!
+        Response::json(users)
+    }
+
+    async fn store(data: Json<Value>) -> Response {
+        let user = User::create(data.0);
+        Response::json(user).status(201)
+    }
+}
+```
+
+**What `rustforge!` does automatically:**
+- ✅ No imports needed - `use rustforge::*;` is automatic
+- ✅ No `#[auto_await]` needed - applied to all async functions
+- ✅ No `.await` needed - added automatically
+- ✅ `where` works like Laravel - no `r#where` or `query!()` needed
+
+### Blade-like Templates
+
+```rust
+let html = blade! {
+    <div class="container">
+        @if let Some(user) = user {
+            <h1>Welcome, {{ user.name }}!</h1>
+        }
+        @foreach post in posts {
+            <li>{{ post.title }}</li>
+        }
+        @auth { <a href="/logout">Logout</a> }
+        @csrf
+    </div>
+};
+```
+
+### Mailable Classes
+
+```rust
+mailable! {
+    pub struct WelcomeEmail { user: User }
+
+    fn envelope(&self) -> Envelope {
+        Envelope::new().subject("Welcome!")
+    }
+
+    fn content(&self) -> Content {
+        Content::view("emails.welcome")
+    }
+}
+
+Mail::to(&email).send(WelcomeEmail { user }).await?;
+```
+
+### Form Requests
+
+```rust
+form_request! {
+    pub struct CreateUserRequest {
+        #[required, email, unique("users", "email")]
+        email: String,
+        #[required, min(8)]
+        password: String,
+    }
+}
+
+async fn store(Validated(req): Validated<CreateUserRequest>) -> Response {
+    // Automatically validated!
+    Response::json(User::create(req))
+}
+```
+
+### 20+ Helper Macros
+
+| Macro | Example |
+|-------|---------|
+| `now!` | `now!()`, `now!("%Y-%m-%d")` |
+| `bcrypt!` | `bcrypt!(password)` |
+| `view!` | `view!("welcome", data)` |
+| `redirect!` | `redirect!("/home")` |
+| `session!` | `session!("key")` |
+| `auth!` | `auth!()`, `auth!(check)` |
+| `cache!` | `cache!("key")` |
+| `abort!` | `abort!(404)` |
+
+**👉 Full syntax guide: [Laravel Syntax Wiki](https://github.com/Chregu12/RustForge/wiki/Laravel-Syntax)**
 
 ---
 
@@ -207,32 +321,45 @@ Your API is now available at `http://localhost:8000`!
 ### Example: Complete Blog API
 
 ```rust
-use rf_orm::prelude::*;
-use rf_http::{Router, Response, Json};
+use rustforge::*;
 
-// Define model
-#[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
-#[sea_orm(table_name = "posts")]
-pub struct Model {
-    #[sea_orm(primary_key)]
-    pub id: i32,
-    pub title: String,
-    pub content: String,
-}
+rustforge! {
+    // Define models - Laravel style!
+    Model!(Post: title, content, user_id);
+    Model!(User: name, email, hidden password);
 
-// API Controller
-pub async fn index(db: Database) -> Result<Response> {
-    let posts = Post::find()
-        .order_by_desc(Post::Column::CreatedAt)
-        .all(&db)
-        .await?;
+    // List all posts
+    async fn index() -> Response {
+        let posts = Post::where("published", true)
+            .orderBy("created_at", "desc")
+            .get();
+        Response::json(posts)
+    }
 
-    Ok(Response::json(posts))
+    // Get single post
+    async fn show(id: i64) -> Response {
+        let post = Post::findOrFail(id);
+        Response::json(post)
+    }
+
+    // Create post
+    async fn store(data: Json<Value>) -> Response {
+        let post = Post::create(data.0);
+        Response::json(post).status(201)
+    }
+
+    // Delete post
+    async fn destroy(id: i64) -> Response {
+        Post::destroy(id);
+        Response::ok()
+    }
 }
 
 // Routes
-let mut router = Router::new();
-router.get("/posts", index);
+Route::get("/posts", index);
+Route::get("/posts/:id", show);
+Route::post("/posts", store);
+Route::delete("/posts/:id", destroy);
 ```
 
 **👉 Complete tutorial: [Quick Start Wiki](https://github.com/Chregu12/RustForge/wiki/Quick-Start)**
@@ -518,5 +645,5 @@ RustForge is built on the shoulders of giants:
 
 **📚 [Read the Full Documentation →](https://github.com/Chregu12/RustForge/wiki)**
 
-*Last Updated: November 23, 2025*
-*RustForge v1.0.0 - Stable Release* 🎉
+*Last Updated: November 25, 2025*
+*RustForge v1.0.0 - Complete Laravel Experience for Rust* 🎉
