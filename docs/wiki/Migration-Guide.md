@@ -74,17 +74,22 @@ class UserController extends Controller
 }
 ```
 
-**RustForge:**
+**RustForge (Laravel-style!):**
 ```rust
-pub async fn index(db: Database) -> Result<Response, Error> {
-    let users = User::find()
-        .filter(User::Column::Active.eq(true))
-        .all(&db)
-        .await?;
+use rf_db_facade::DB;
+use rf_http::{Response, Json};
+use rf_validation::Validate;
+
+// Index - almost identical to Laravel!
+pub async fn index() -> Result<Response, Error> {
+    let users = DB::table("users")
+        .where_clause("active", "=", true.into())
+        .get().await?;
 
     Ok(Response::json(users))
 }
 
+// Validation via derive macro
 #[derive(Debug, Deserialize, Validate)]
 pub struct CreateUserRequest {
     #[validate(length(min = 3))]
@@ -94,19 +99,18 @@ pub struct CreateUserRequest {
     pub email: String,
 }
 
-pub async fn store(
-    Json(payload): Json<CreateUserRequest>,
-    db: Database,
-) -> Result<Response, Error> {
+// Store - clean Laravel-like syntax
+pub async fn store(Json(payload): Json<CreateUserRequest>) -> Result<Response, Error> {
     payload.validate()?;
 
-    let user = User::ActiveModel {
-        name: Set(payload.name),
-        email: Set(payload.email),
-        ..Default::default()
-    };
+    let id = DB::table("users").insert(json!({
+        "name": payload.name,
+        "email": payload.email
+    })).await?;
 
-    let user = user.insert(&db).await?;
+    let user = DB::table("users")
+        .where_clause("id", "=", id.into())
+        .first().await?;
 
     Ok(Response::json(user).status(201))
 }

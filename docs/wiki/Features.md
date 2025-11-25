@@ -27,46 +27,59 @@ RustForge provides 100% Laravel 12 feature parity, bringing the elegant Laravel 
 
 ## ORM & Database
 
-RustForge includes a powerful Eloquent-style ORM built on SeaORM.
+RustForge includes a powerful Laravel-style DB facade and query builder.
 
 ### Features
 
-- **Query Builder**: Fluent, type-safe query builder
-- **Models**: Active Record pattern with relationships
+- **DB Facade**: Laravel-style `DB::table()` query builder
+- **Query Builder**: Fluent, chainable query methods
 - **Migrations**: Version control for your database schema
 - **Seeders**: Populate database with test data
 - **Multiple Databases**: PostgreSQL, MySQL, SQLite support
-- **Relationships**: One-to-one, one-to-many, many-to-many, polymorphic
-- **Soft Deletes**: Safely delete records with recovery option
-- **Query Scopes**: Reusable query constraints
-- **Eager Loading**: N+1 query problem prevention
+- **Transactions**: `DB::transaction()` support
+- **Raw Queries**: `DB::select()`, `DB::insert()`, `DB::update()`, `DB::delete()`
 - **Pagination**: Built-in pagination support
 
 ### Example
 
 ```rust
-use rf_orm::prelude::*;
+use rf_db_facade::DB;
 
-// Query Builder
-let users = User::find()
-    .filter(User::Column::Active.eq(true))
-    .order_by_asc(User::Column::Name)
-    .all(&db)
-    .await?;
+// Laravel-style Query Builder
+let users = DB::table("users")
+    .where_clause("active", "=", true.into())
+    .order_by("name", "asc")
+    .limit(10)
+    .get().await?;
 
-// Relationships
-let user = User::find_by_id(1)
-    .find_with_related(Post::Entity)
-    .all(&db)
-    .await?;
+// Get single record
+let user = DB::table("users")
+    .where_clause("id", "=", 1.into())
+    .first().await?;
 
-// Create/Update
-let user = User::ActiveModel {
-    name: Set("John".to_string()),
-    email: Set("john@example.com".to_string()),
-    ..Default::default()
-};
-user.insert(&db).await?;
+// Insert
+let id = DB::table("users").insert(json!({
+    "name": "John",
+    "email": "john@example.com"
+})).await?;
+
+// Update
+DB::table("users")
+    .where_clause("id", "=", 1.into())
+    .update(json!({"active": true})).await?;
+
+// Delete
+DB::table("users")
+    .where_clause("id", "=", 1.into())
+    .delete().await?;
+
+// Raw queries
+let users = DB::select("SELECT * FROM users WHERE active = ?", &[true.into()]).await?;
+
+// Transactions
+DB::begin_transaction().await?;
+// ... operations
+DB::commit().await?;
 ```
 
 ### Supported Databases
