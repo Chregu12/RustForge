@@ -277,7 +277,8 @@ Create `src/controllers/auth_controller.rs`:
 
 ```rust
 use rf_http::{Request, Response, Json};
-use rf_auth::{JwtAuth, Hash};
+use rf_auth::Hash;
+use rf_auth_facade::Auth;
 use rf_validation::Validate;
 use serde::{Deserialize, Serialize};
 use crate::models::user;
@@ -304,7 +305,7 @@ pub struct LoginRequest {
 
 #[derive(Debug, Serialize)]
 pub struct AuthResponse {
-    pub token: String,
+    pub message: String,
     pub user: user::Model,
 }
 
@@ -338,10 +339,13 @@ pub async fn register(
 
     let user = user.insert(&db).await?;
 
-    // Generate JWT token
-    let token = JwtAuth::generate_token(user.id)?;
+    // Login user using Laravel-style Auth facade
+    Auth::login(user.clone()).await?;
 
-    Ok(Response::json(AuthResponse { token, user }))
+    Ok(Response::json(AuthResponse {
+        message: "Registration successful".to_string(),
+        user
+    }))
 }
 
 pub async fn login(
@@ -363,10 +367,29 @@ pub async fn login(
         return Err(Error::Unauthorized("Invalid credentials".into()));
     }
 
-    // Generate JWT token
-    let token = JwtAuth::generate_token(user.id)?;
+    // Login using Laravel-style Auth facade
+    Auth::login(user.clone()).await?;
 
-    Ok(Response::json(AuthResponse { token, user }))
+    Ok(Response::json(AuthResponse {
+        message: "Login successful".to_string(),
+        user
+    }))
+}
+
+pub async fn logout() -> Result<Response, Error> {
+    // Logout using Laravel-style Auth facade
+    Auth::logout().await;
+
+    Ok(Response::json(json!({ "message": "Logged out successfully" })))
+}
+
+pub async fn me() -> Result<Response, Error> {
+    // Get current user using Auth facade
+    if let Some(user) = Auth::user::<user::Model>().await {
+        Ok(Response::json(user))
+    } else {
+        Err(Error::Unauthorized("Not authenticated".into()))
+    }
 }
 ```
 
@@ -495,7 +518,8 @@ mod models;
 mod controllers;
 
 use rf_core::Application;
-use rf_http::{Router, middleware};
+use rf_route_facade::Route;
+use rf_http::middleware;
 use rf_orm::Database;
 
 #[tokio::main]
@@ -509,27 +533,27 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Connect to database
     let db = Database::connect(&std::env::var("DATABASE_URL")?).await?;
 
-    // Create router
-    let mut router = Router::new();
+    // Public routes using Laravel-style Route facade
+    Route::post("/auth/register", controllers::auth_controller::register);
+    Route::post("/auth/login", controllers::auth_controller::login);
 
-    // Public routes
-    router.post("/auth/register", controllers::auth_controller::register);
-    router.post("/auth/login", controllers::auth_controller::login);
-
-    // Post routes
-    router.get("/posts", controllers::post_controller::index);
-    router.get("/posts/:id", controllers::post_controller::show);
+    // Post routes (public)
+    Route::get("/posts", controllers::post_controller::index);
+    Route::get("/posts/:id", controllers::post_controller::show);
 
     // Protected routes (require authentication)
-    router.group(middleware::auth(), |router| {
-        router.post("/posts", controllers::post_controller::store);
-        router.put("/posts/:id", controllers::post_controller::update);
-        router.delete("/posts/:id", controllers::post_controller::destroy);
+    Route::middleware(&["auth"]).group(|| {
+        Route::post("/auth/logout", controllers::auth_controller::logout);
+        Route::get("/auth/me", controllers::auth_controller::me);
+
+        Route::post("/posts", controllers::post_controller::store);
+        Route::put("/posts/:id", controllers::post_controller::update);
+        Route::delete("/posts/:id", controllers::post_controller::destroy);
     });
 
     // Start server
     println!("Server running at http://localhost:8000");
-    app.serve(router).with_database(db).await?;
+    app.serve(Route::router()).with_database(db).await?;
 
     Ok(())
 }

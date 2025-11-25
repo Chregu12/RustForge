@@ -123,7 +123,8 @@ pub struct UpdatePostRequest {
 ```rust
 use rf_http::{Request, Response, Json, Path, Query};
 use rf_auth::AuthGuard;
-use rf_cache::Cache;
+use rf_cache_facade::Cache;
+use std::time::Duration;
 use serde::Deserialize;
 use crate::models::post;
 use crate::requests::post_request::*;
@@ -146,19 +147,19 @@ pub async fn index(
     let cache_key = format!("posts:page:{}:{}:{}",
         page, per_page, params.published.unwrap_or(true));
 
-    // Try cache first
-    let posts = Cache::remember(&cache_key, 300, || async {
+    // Try cache first using Laravel-style Cache facade
+    let posts = Cache::remember(&cache_key, Duration::from_secs(300), || async {
         let mut query = post::Entity::find();
 
         if let Some(published) = params.published {
             query = query.filter(post::Column::Published.eq(published));
         }
 
-        query
+        Ok(query
             .order_by_desc(post::Column::CreatedAt)
             .paginate(&db, per_page)
             .fetch_page(page - 1)
-            .await
+            .await?)
     }).await?;
 
     Ok(Response::json(posts))
@@ -199,8 +200,8 @@ pub async fn store(
 
     let post = post.insert(&db).await?;
 
-    // Clear cache
-    Cache::tags(&["posts"]).flush().await?;
+    // Clear cache using Laravel-style facade
+    Cache::tags(&["posts"]).await.flush().await?;
 
     // Dispatch event
     EventDispatcher::dispatch(PostCreated {
@@ -246,7 +247,7 @@ pub async fn update(
     let post = post.update(&db).await?;
 
     // Clear cache
-    Cache::tags(&["posts"]).flush().await?;
+    Cache::tags(&["posts"]).await.flush().await?;
 
     Ok(Response::json(post))
 }
@@ -268,7 +269,7 @@ pub async fn destroy(
     post.delete(&db).await?;
 
     // Clear cache
-    Cache::tags(&["posts"]).flush().await?;
+    Cache::tags(&["posts"]).await.flush().await?;
 
     Ok(Response::no_content())
 }
@@ -282,7 +283,8 @@ mod controllers;
 mod requests;
 
 use rf_core::Application;
-use rf_http::{Router, middleware};
+use rf_route_facade::Route;
+use rf_http::middleware;
 use rf_orm::Database;
 
 #[tokio::main]
@@ -292,20 +294,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let app = Application::new();
     let db = Database::connect(&std::env::var("DATABASE_URL")?).await?;
 
-    let mut router = Router::new();
-
-    // Public routes
-    router.get("/posts", controllers::post_controller::index);
-    router.get("/posts/:id", controllers::post_controller::show);
+    // Public routes using Laravel-style Route facade
+    Route::get("/posts", controllers::post_controller::index);
+    Route::get("/posts/:id", controllers::post_controller::show);
 
     // Protected routes
-    router.group(middleware::auth(), |router| {
-        router.post("/posts", controllers::post_controller::store);
-        router.put("/posts/:id", controllers::post_controller::update);
-        router.delete("/posts/:id", controllers::post_controller::destroy);
+    Route::middleware(&["auth"]).group(|| {
+        Route::post("/posts", controllers::post_controller::store);
+        Route::put("/posts/:id", controllers::post_controller::update);
+        Route::delete("/posts/:id", controllers::post_controller::destroy);
     });
 
-    app.serve(router).with_database(db).await?;
+    app.serve(Route::router()).with_database(db).await?;
 
     Ok(())
 }
@@ -315,15 +315,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ## Authentication
 
-Complete authentication system with registration, login, and password reset.
+Complete authentication system with registration, login, and password reset using Laravel-style facades.
 
 ### Auth Controller
 
 ```rust
 use rf_http::{Request, Response, Json};
-use rf_auth::{JwtAuth, Hash};
+use rf_auth::Hash;
+use rf_auth_facade::Auth;
+use rf_mail_facade::Mail;
 use rf_validation::Validate;
-use rf_mail::Mail;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize, Validate)]
@@ -343,7 +344,7 @@ pub struct RegisterRequest {
 
 #[derive(Debug, Serialize)]
 pub struct AuthResponse {
-    pub token: String,
+    pub message: String,
     pub user: User,
 }
 
@@ -377,17 +378,20 @@ pub async fn register(
 
     let user = user.insert(&db).await?;
 
-    // Send verification email
+    // Send verification email using Mail facade
     Mail::to(&user.email)
         .subject("Verify your email")
         .view("emails.verify", json!({ "user": &user }))
         .queue()
         .await?;
 
-    // Generate token
-    let token = JwtAuth::generate_token(user.id)?;
+    // Login using Auth facade (like Laravel!)
+    Auth::login(user.clone()).await?;
 
-    Ok(Response::json(AuthResponse { token, user }).status(201))
+    Ok(Response::json(AuthResponse {
+        message: "Registration successful".to_string(),
+        user
+    }).status(201))
 }
 
 pub async fn login(
@@ -406,9 +410,28 @@ pub async fn login(
         return Err(Error::Unauthorized("Invalid credentials".into()));
     }
 
-    let token = JwtAuth::generate_token(user.id)?;
+    // Login using Laravel-style Auth facade
+    Auth::login(user.clone()).await?;
 
-    Ok(Response::json(AuthResponse { token, user }))
+    Ok(Response::json(AuthResponse {
+        message: "Login successful".to_string(),
+        user
+    }))
+}
+
+pub async fn logout() -> Result<Response, Error> {
+    // Logout using Auth facade
+    Auth::logout().await;
+    Ok(Response::json(json!({ "message": "Logged out successfully" })))
+}
+
+pub async fn me() -> Result<Response, Error> {
+    // Get current user using Auth facade
+    if let Some(user) = Auth::user::<User>().await {
+        Ok(Response::json(user))
+    } else {
+        Err(Error::Unauthorized("Not authenticated".into()))
+    }
 }
 
 pub async fn forgot_password(
@@ -788,10 +811,11 @@ email.queue().await?;
 
 ## Caching Strategy
 
-Implement cache-aside pattern with tags.
+Implement cache-aside pattern with Laravel-style Cache facade.
 
 ```rust
-use rf_cache::Cache;
+use rf_cache_facade::Cache;
+use std::time::Duration;
 
 pub struct PostRepository;
 
@@ -799,7 +823,7 @@ impl PostRepository {
     pub async fn find_by_id(id: i32, db: &Database) -> Result<Option<Post>> {
         let cache_key = format!("post:{}", id);
 
-        // Try cache first
+        // Try cache first using Laravel-style facade
         if let Some(post) = Cache::get::<Post>(&cache_key).await? {
             return Ok(Some(post));
         }
@@ -807,23 +831,23 @@ impl PostRepository {
         // Query database
         let post = Post::find_by_id(id).one(db).await?;
 
-        // Cache result
+        // Cache result with tags
         if let Some(ref post) = post {
-            Cache::tags(&["posts"])
-                .put(&cache_key, post, 3600)
-                .await?;
+            let tagged = Cache::tags(&["posts"]).await;
+            tagged.set(&cache_key, post, Duration::from_secs(3600)).await?;
         }
 
         Ok(post)
     }
 
     pub async fn all_published(db: &Database) -> Result<Vec<Post>> {
-        Cache::remember("posts:published", 300, || async {
-            Post::find()
+        // Use Cache::remember like Laravel
+        Cache::remember("posts:published", Duration::from_secs(300), || async {
+            Ok(Post::find()
                 .filter(Post::Column::Published.eq(true))
                 .order_by_desc(Post::Column::CreatedAt)
                 .all(db)
-                .await
+                .await?)
         }).await
     }
 
@@ -832,7 +856,7 @@ impl PostRepository {
 
         // Invalidate cache
         Cache::forget(&format!("post:{}", id)).await?;
-        Cache::tags(&["posts"]).flush().await?;
+        Cache::tags(&["posts"]).await.flush().await?;
 
         Ok(post)
     }

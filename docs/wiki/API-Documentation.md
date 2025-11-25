@@ -127,33 +127,40 @@ user.delete(&db).await?;
 
 HTTP routing and request/response handling.
 
-#### Router
+#### Router (Laravel-style Route Facade)
 
 ```rust
-use rf_http::{Router, Request, Response, Json};
+use rf_route_facade::Route;
+use rf_http::{Request, Response, Json};
 
-let mut router = Router::new();
-
-// Basic routes
-router.get("/", home);
-router.post("/users", create_user);
-router.put("/users/:id", update_user);
-router.delete("/users/:id", delete_user);
+// Basic routes with Laravel-style facade
+Route::get("/", home);
+Route::post("/users", create_user);
+Route::put("/users/:id", update_user);
+Route::delete("/users/:id", delete_user);
 
 // Route parameters
-router.get("/users/:id", |Path(id): Path<i32>| async move {
+Route::get("/users/:id", |Path(id): Path<i32>| async move {
     // Use id
 });
 
-// Route groups
-router.group(middleware::auth(), |router| {
-    router.get("/profile", get_profile);
-    router.post("/logout", logout);
+// Route groups with middleware
+Route::middleware(&["auth"]).group(|| {
+    Route::get("/profile", get_profile);
+    Route::post("/logout", logout);
 });
 
-// Prefix
-router.prefix("/api/v1", |router| {
-    router.resource("/posts", PostController);
+// Prefix groups
+Route::prefix("/api/v1").group(|| {
+    Route::resource("/posts", PostController);
+});
+
+// Named routes
+Route::get("/dashboard", dashboard).name("dashboard");
+
+// Multiple middleware
+Route::middleware(&["auth", "verified", "admin"]).group(|| {
+    Route::get("/admin", admin_panel);
 });
 ```
 
@@ -230,53 +237,101 @@ Response::json(data)
 
 ### rf-auth
 
-Authentication and authorization.
+Authentication and authorization with Laravel-style Auth facade.
 
-#### JWT Authentication
+#### Auth Facade (Laravel-style)
 
 ```rust
-use rf_auth::{JwtAuth, Hash, AuthGuard};
+use rf_auth_facade::Auth;
+use rf_auth::Hash;
 
-// Generate token
-let token = JwtAuth::generate_token(user.id)?;
+// Login user (like Laravel's Auth::login)
+Auth::login(user).await?;
 
-// Verify token
-let claims = JwtAuth::verify_token(&token)?;
+// Attempt login with credentials (like Laravel's Auth::attempt)
+let credentials = json!({
+    "email": "user@example.com",
+    "password": "secret"
+});
+if Auth::attempt(credentials).await? {
+    println!("Login successful!");
+}
+
+// Check if authenticated
+if Auth::check().await {
+    println!("User is logged in");
+}
+
+// Check if guest
+if Auth::guest().await {
+    println!("User is not logged in");
+}
+
+// Get current user
+if let Some(user) = Auth::user::<User>().await {
+    println!("Welcome, {}", user.name);
+}
+
+// Get user ID
+if let Some(id) = Auth::id().await {
+    println!("User ID: {}", id);
+}
+
+// Login with remember me
+Auth::login_using_id(user_id, true).await?;
+
+// Check if via remember
+if Auth::via_remember().await {
+    println!("Logged in via remember token");
+}
+
+// Logout
+Auth::logout().await;
+
+// Use specific guard
+let api_guard = Auth::guard("api").await;
+if api_guard.check().await {
+    println!("Authenticated on API guard");
+}
+
+// Role checks
+if Auth::has_role("admin").await {
+    println!("User is admin");
+}
+
+if Auth::has_any_role(&["admin", "moderator"]).await {
+    println!("User has elevated privileges");
+}
+```
+
+#### Password Hashing
+
+```rust
+use rf_auth::Hash;
 
 // Hash password
 let hash = Hash::make("password123")?;
 
 // Verify password
 let is_valid = Hash::check("password123", &hash)?;
+```
 
-// Protect routes
-router.get("/profile", |auth: AuthGuard| async move {
-    let user_id = auth.user_id();
-    // ...
+#### Protect Routes
+
+```rust
+use rf_route_facade::Route;
+
+// Protect routes with auth middleware
+Route::middleware(&["auth"]).group(|| {
+    Route::get("/profile", get_profile);
+    Route::post("/logout", logout);
 });
 ```
 
-#### Session Authentication
-
-```rust
-use rf_auth::SessionAuth;
-
-// Login
-SessionAuth::login(&session, user.id).await?;
-
-// Logout
-SessionAuth::logout(&session).await?;
-
-// Get current user
-let user_id = SessionAuth::user(&session).await?;
-```
-
 **Key Types:**
-- `JwtAuth` - JWT token management
-- `SessionAuth` - Session-based auth
+- `Auth` - Laravel-style authentication facade
 - `Hash` - Password hashing
-- `AuthGuard` - Authentication middleware
-- `Policy<T>` - Authorization policies
+- `Guard` - Authentication guard
 
 ---
 
@@ -348,72 +403,72 @@ impl Validator for UniqueEmail {
 
 ### rf-cache
 
-Caching layer with multiple drivers.
+Caching layer with Laravel-style Cache facade.
 
-#### Basic Usage
+#### Basic Usage (Laravel-style)
 
 ```rust
-use rf_cache::{Cache, CacheManager};
+use rf_cache_facade::Cache;
+use std::time::Duration;
 
-// Put value in cache (TTL in seconds)
-Cache::put("key", "value", 3600).await?;
+// Put value in cache
+Cache::put("key", &"value", Duration::from_secs(3600)).await?;
 
 // Get value from cache
 let value: Option<String> = Cache::get("key").await?;
 
-// Remember (cache with closure)
-let users = Cache::remember("users:all", 3600, || async {
-    User::find().all(&db).await
+// Check if key exists
+if Cache::has("key").await? {
+    println!("Key exists");
+}
+
+// Remember (cache with closure) - like Laravel's Cache::remember
+let users = Cache::remember("users:all", Duration::from_secs(3600), || async {
+    Ok(User::find().all(&db).await?)
 }).await?;
 
-// Forever (no expiration)
-Cache::forever("key", "value").await?;
+// Remember forever
+let settings = Cache::remember_forever("settings", || async {
+    Ok(load_settings().await?)
+}).await?;
 
-// Forget (delete)
+// Store forever (no expiration)
+Cache::forever("key", &"value").await?;
+
+// Add only if doesn't exist
+let added = Cache::add("unique_key", &"value", Duration::from_secs(60)).await?;
+
+// Pull: get and delete
+let value: Option<String> = Cache::pull("temp_key").await?;
+
+// Forget (delete single key)
 Cache::forget("key").await?;
 
-// Flush all
+// Flush all cache
 Cache::flush().await?;
+
+// Increment/decrement counters
+Cache::increment("counter", 1).await?;
+Cache::decrement("counter", 1).await?;
 ```
 
 #### Cache Tags
 
 ```rust
-use rf_cache::Cache;
+use rf_cache_facade::Cache;
+use std::time::Duration;
 
-// Tag caches
-Cache::tags(&["users", "posts"])
-    .put("key", "value", 3600)
-    .await?;
+// Create tagged cache
+let tagged = Cache::tags(&["users", "posts"]).await;
+tagged.set("key", &"value", Duration::from_secs(3600)).await?;
 
-// Get with tags
-let value = Cache::tags(&["users"])
-    .get("key")
-    .await?;
-
-// Flush by tag
-Cache::tags(&["users"]).flush().await?;
-```
-
-#### Atomic Locks
-
-```rust
-use rf_cache::Cache;
-
-// Acquire lock
-let lock = Cache::lock("process:payment", 10).await?;
-
-if let Some(lock) = lock {
-    // Process payment
-    // Lock automatically released when dropped
-}
+// Flush all entries with specific tag
+Cache::tags(&["users"]).await.flush().await?;
 ```
 
 **Key Types:**
-- `Cache` - Cache facade
-- `CacheManager` - Cache manager
-- `CacheLock` - Atomic lock
-- `CacheDriver` - Cache driver trait
+- `Cache` - Laravel-style cache facade
+- `TaggedCache` - Tagged cache operations
 
 ---
 
@@ -547,81 +602,55 @@ Mail::to("user@example.com")
 
 ### rf-storage
 
-File storage.
+File storage with Laravel-style Storage facade.
 
-#### File Operations
+#### File Operations (Laravel-style)
 
 ```rust
-use rf_storage::Storage;
+use rf_storage_facade::Storage;
 
-// Put file
-Storage::disk("s3")
-    .put("path/to/file.txt", contents)
-    .await?;
+// Put file (uses default disk)
+Storage::put("path/to/file.txt", contents).await?;
 
 // Get file
-let contents = Storage::disk("s3")
-    .get("path/to/file.txt")
-    .await?;
+let contents = Storage::get("path/to/file.txt").await?;
 
 // Delete file
-Storage::disk("s3")
-    .delete("path/to/file.txt")
-    .await?;
+Storage::delete("path/to/file.txt").await?;
 
 // Check existence
-let exists = Storage::disk("s3")
-    .exists("path/to/file.txt")
-    .await?;
+if Storage::exists("path/to/file.txt").await? {
+    println!("File exists");
+}
+
+// Use specific disk
+Storage::disk("s3").put("uploads/photo.jpg", contents).await?;
+let contents = Storage::disk("s3").get("uploads/photo.jpg").await?;
 
 // Copy file
-Storage::disk("s3")
-    .copy("old.txt", "new.txt")
-    .await?;
+Storage::copy("old.txt", "new.txt").await?;
 
 // Move file
-Storage::disk("s3")
-    .move("old.txt", "new.txt")
-    .await?;
+Storage::move_file("old.txt", "new.txt").await?;
 
-// File size
-let size = Storage::disk("s3")
-    .size("path/to/file.txt")
-    .await?;
-
-// Last modified
-let modified = Storage::disk("s3")
-    .last_modified("path/to/file.txt")
-    .await?;
+// File info
+let size = Storage::size("path/to/file.txt").await?;
+let modified = Storage::last_modified("path/to/file.txt").await?;
 ```
 
 #### Directory Operations
 
 ```rust
-// List files
-let files = Storage::disk("s3")
-    .files("directory/")
-    .await?;
+use rf_storage_facade::Storage;
+
+// List files in directory
+let files = Storage::files("directory/").await?;
 
 // List all files (recursive)
-let all_files = Storage::disk("s3")
-    .all_files("directory/")
-    .await?;
+let all_files = Storage::all_files("directory/").await?;
 
 // List directories
-let dirs = Storage::disk("s3")
-    .directories("directory/")
-    .await?;
-
-// Create directory
-Storage::disk("s3")
-    .make_directory("new/directory")
-    .await?;
-
-// Delete directory
-Storage::disk("s3")
-    .delete_directory("directory/")
-    .await?;
+let dirs = Storage::directories("directory/").await?;
 ```
 
 #### Temporary URLs
@@ -634,8 +663,7 @@ let url = Storage::disk("s3")
 ```
 
 **Key Types:**
-- `Storage` - Storage facade
-- `StorageManager` - Storage manager
+- `Storage` - Laravel-style storage facade
 - `Disk` - Storage disk interface
 
 ---
