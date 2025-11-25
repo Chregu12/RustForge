@@ -44,7 +44,7 @@ pub mod query_builder;
 
 pub use facade::DB;
 pub use manager::{DBManager, GLOBAL_DB};
-pub use query_builder::QueryBuilder;
+pub use query_builder::{QueryBuilder, PaginatedResult};
 
 // Re-export commonly used types
 pub use serde_json::Value;

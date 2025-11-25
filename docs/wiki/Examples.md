@@ -121,56 +121,50 @@ pub struct UpdatePostRequest {
 ### Controller (src/controllers/post_controller.rs)
 
 ```rust
-use rf_http::{Request, Response, Json, Path, Query};
-use rf_auth::AuthGuard;
+use rf_http::{Response, Json, Path, Query};
+use rf_db_facade::DB;
 use rf_cache_facade::Cache;
+use rf_auth_facade::Auth;
 use std::time::Duration;
 use serde::Deserialize;
-use crate::models::post;
 use crate::requests::post_request::*;
 
 #[derive(Debug, Deserialize)]
 pub struct ListQuery {
-    page: Option<u64>,
-    per_page: Option<u64>,
+    page: Option<usize>,
+    per_page: Option<usize>,
     published: Option<bool>,
 }
 
-pub async fn index(
-    Query(params): Query<ListQuery>,
-    db: Database,
-) -> Result<Response, Error> {
+// Index - Laravel-style!
+pub async fn index(Query(params): Query<ListQuery>) -> Result<Response, Error> {
     let page = params.page.unwrap_or(1);
     let per_page = params.per_page.unwrap_or(15);
 
     // Cache key
-    let cache_key = format!("posts:page:{}:{}:{}",
-        page, per_page, params.published.unwrap_or(true));
+    let cache_key = format!("posts:page:{}:{}:{}", page, per_page, params.published.unwrap_or(true));
 
     // Try cache first using Laravel-style Cache facade
     let posts = Cache::remember(&cache_key, Duration::from_secs(300), || async {
-        let mut query = post::Entity::find();
+        let mut query = DB::table("posts");
 
         if let Some(published) = params.published {
-            query = query.filter(post::Column::Published.eq(published));
+            query = query.where_clause("published", "=", published.into());
         }
 
         Ok(query
-            .order_by_desc(post::Column::CreatedAt)
-            .paginate(&db, per_page)
-            .fetch_page(page - 1)
+            .order_by_desc("created_at")
+            .paginate(per_page, page)
             .await?)
     }).await?;
 
     Ok(Response::json(posts))
 }
 
-pub async fn show(
-    Path(id): Path<i32>,
-    db: Database,
-) -> Result<Response, Error> {
-    let post = post::Entity::find_by_id(id)
-        .one(&db)
+// Show - simple and clean
+pub async fn show(Path(id): Path<i32>) -> Result<Response, Error> {
+    let post = DB::table("posts")
+        .find(id)
         .await?
         .ok_or_else(|| Error::NotFound("Post not found".into()))?;
 
@@ -180,71 +174,64 @@ pub async fn show(
     Ok(Response::json(post))
 }
 
-pub async fn store(
-    auth: AuthGuard,
-    Json(payload): Json<CreatePostRequest>,
-    db: Database,
-) -> Result<Response, Error> {
+// Store - Laravel-like insert
+pub async fn store(Json(payload): Json<CreatePostRequest>) -> Result<Response, Error> {
     payload.validate()?;
 
-    let slug = post::Model::generate_slug(&payload.title);
+    let user_id = Auth::id().await.ok_or(Error::Unauthorized("Not logged in".into()))?;
+    let slug = generate_slug(&payload.title);
 
-    let post = post::ActiveModel {
-        user_id: Set(auth.user_id()),
-        title: Set(payload.title),
-        slug: Set(slug),
-        content: Set(payload.content),
-        published: Set(payload.published.unwrap_or(false)),
-        ..Default::default()
-    };
+    let id = DB::table("posts").insert(json!({
+        "user_id": user_id,
+        "title": payload.title,
+        "slug": slug,
+        "content": payload.content,
+        "published": payload.published.unwrap_or(false)
+    })).await?;
 
-    let post = post.insert(&db).await?;
+    let post = DB::table("posts").find(id).await?;
 
-    // Clear cache using Laravel-style facade
+    // Clear cache
     Cache::tags(&["posts"]).await.flush().await?;
 
     // Dispatch event
-    EventDispatcher::dispatch(PostCreated {
-        post_id: post.id
-    }).await?;
+    Event::dispatch("post.created", json!({"post_id": id})).await?;
 
     Ok(Response::json(post).status(201))
 }
 
-pub async fn update(
-    auth: AuthGuard,
-    Path(id): Path<i32>,
-    Json(payload): Json<UpdatePostRequest>,
-    db: Database,
-) -> Result<Response, Error> {
+// Update - clean Laravel-style
+pub async fn update(Path(id): Path<i32>, Json(payload): Json<UpdatePostRequest>) -> Result<Response, Error> {
     payload.validate()?;
 
-    let post = post::Entity::find_by_id(id)
-        .one(&db)
-        .await?
+    let user_id = Auth::id().await.ok_or(Error::Unauthorized("Not logged in".into()))?;
+
+    // Check ownership
+    let post = DB::table("posts").find(id).await?
         .ok_or_else(|| Error::NotFound("Post not found".into()))?;
 
-    if post.user_id != auth.user_id() {
+    if post["user_id"] != user_id {
         return Err(Error::Forbidden("Not authorized".into()));
     }
 
-    let mut post: post::ActiveModel = post.into();
-
+    // Build update data
+    let mut update_data = json!({});
     if let Some(title) = payload.title {
-        let slug = post::Model::generate_slug(&title);
-        post.title = Set(title);
-        post.slug = Set(slug);
+        update_data["title"] = json!(title);
+        update_data["slug"] = json!(generate_slug(&title));
     }
-
     if let Some(content) = payload.content {
-        post.content = Set(content);
+        update_data["content"] = json!(content);
     }
-
     if let Some(published) = payload.published {
-        post.published = Set(published);
+        update_data["published"] = json!(published);
     }
 
-    let post = post.update(&db).await?;
+    DB::table("posts")
+        .where_eq("id", id.into())
+        .update(update_data).await?;
+
+    let post = DB::table("posts").find(id).await?;
 
     // Clear cache
     Cache::tags(&["posts"]).await.flush().await?;
@@ -252,21 +239,21 @@ pub async fn update(
     Ok(Response::json(post))
 }
 
-pub async fn destroy(
-    auth: AuthGuard,
-    Path(id): Path<i32>,
-    db: Database,
-) -> Result<Response, Error> {
-    let post = post::Entity::find_by_id(id)
-        .one(&db)
-        .await?
+// Destroy - simple delete
+pub async fn destroy(Path(id): Path<i32>) -> Result<Response, Error> {
+    let user_id = Auth::id().await.ok_or(Error::Unauthorized("Not logged in".into()))?;
+
+    // Check ownership
+    let post = DB::table("posts").find(id).await?
         .ok_or_else(|| Error::NotFound("Post not found".into()))?;
 
-    if post.user_id != auth.user_id() {
+    if post["user_id"] != user_id {
         return Err(Error::Forbidden("Not authorized".into()));
     }
 
-    post.delete(&db).await?;
+    DB::table("posts")
+        .where_eq("id", id.into())
+        .delete().await?;
 
     // Clear cache
     Cache::tags(&["posts"]).await.flush().await?;

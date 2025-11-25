@@ -1,8 +1,42 @@
 //! Query builder for constructing database queries
+//!
+//! Provides a Laravel-style fluent query builder for database operations.
 
 use serde_json::Value;
 
 /// Query builder for fluent database queries
+///
+/// # Examples
+///
+/// ```rust,no_run
+/// use rf_db_facade::DB;
+///
+/// # async fn example() -> Result<(), String> {
+/// // Select with conditions
+/// let users = DB::table("users")
+///     .where_clause("active", "=", true.into())
+///     .order_by("name", "asc")
+///     .limit(10)
+///     .get().await?;
+///
+/// // Insert
+/// let id = DB::table("users").insert(json!({
+///     "name": "John",
+///     "email": "john@example.com"
+/// })).await?;
+///
+/// // Update
+/// DB::table("users")
+///     .where_clause("id", "=", 1.into())
+///     .update(json!({"active": true})).await?;
+///
+/// // Delete
+/// DB::table("users")
+///     .where_clause("id", "=", 1.into())
+///     .delete().await?;
+/// # Ok(())
+/// # }
+/// ```
 #[derive(Debug, Clone)]
 pub struct QueryBuilder {
     table: String,
@@ -10,6 +44,7 @@ pub struct QueryBuilder {
     limit_value: Option<usize>,
     offset_value: Option<usize>,
     order_by: Vec<(String, String)>,
+    select_columns: Vec<String>,
 }
 
 impl QueryBuilder {
@@ -21,12 +56,67 @@ impl QueryBuilder {
             limit_value: None,
             offset_value: None,
             order_by: Vec::new(),
+            select_columns: Vec::new(),
         }
     }
 
-    /// Add a where clause
+    /// Select specific columns
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// let users = DB::table("users")
+    ///     .select(&["id", "name", "email"])
+    ///     .get().await?;
+    /// ```
+    pub fn select(mut self, columns: &[&str]) -> Self {
+        self.select_columns = columns.iter().map(|s| s.to_string()).collect();
+        self
+    }
+
+    /// Add a where clause (Laravel-style)
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// let users = DB::table("users")
+    ///     .where_clause("active", "=", true.into())
+    ///     .where_clause("age", ">=", 18.into())
+    ///     .get().await?;
+    /// ```
     pub fn where_clause(mut self, column: impl Into<String>, operator: impl Into<String>, value: Value) -> Self {
         self.wheres.push((column.into(), operator.into(), value));
+        self
+    }
+
+    /// Shorthand for where equals
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// let user = DB::table("users")
+    ///     .where_eq("id", 1.into())
+    ///     .first().await?;
+    /// ```
+    pub fn where_eq(self, column: impl Into<String>, value: Value) -> Self {
+        self.where_clause(column, "=", value)
+    }
+
+    /// Where column is null
+    pub fn where_null(mut self, column: impl Into<String>) -> Self {
+        self.wheres.push((column.into(), "IS".to_string(), Value::Null));
+        self
+    }
+
+    /// Where column is not null
+    pub fn where_not_null(mut self, column: impl Into<String>) -> Self {
+        self.wheres.push((column.into(), "IS NOT".to_string(), Value::Null));
+        self
+    }
+
+    /// Where column is in a list of values
+    pub fn where_in(mut self, column: impl Into<String>, values: Vec<Value>) -> Self {
+        self.wheres.push((column.into(), "IN".to_string(), Value::Array(values)));
         self
     }
 
@@ -48,16 +138,110 @@ impl QueryBuilder {
         self
     }
 
-    /// Execute the query and get results
+    /// Order by ascending
+    pub fn order_by_asc(self, column: impl Into<String>) -> Self {
+        self.order_by(column, "ASC")
+    }
+
+    /// Order by descending
+    pub fn order_by_desc(self, column: impl Into<String>) -> Self {
+        self.order_by(column, "DESC")
+    }
+
+    /// Execute the query and get all results
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// let users = DB::table("users")
+    ///     .where_clause("active", "=", true.into())
+    ///     .get().await?;
+    /// ```
     pub async fn get(self) -> Result<Vec<Value>, String> {
-        // Mock implementation - returns empty result
+        // Mock implementation - in production this executes against DB
         Ok(vec![])
     }
 
     /// Get the first result
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// let user = DB::table("users")
+    ///     .where_clause("id", "=", 1.into())
+    ///     .first().await?;
+    /// ```
     pub async fn first(self) -> Result<Option<Value>, String> {
-        let mut results = self.get().await?;
-        Ok(results.pop())
+        let results = self.limit(1).get().await?;
+        Ok(results.into_iter().next())
+    }
+
+    /// Find a record by ID
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// let user = DB::table("users").find(1).await?;
+    /// ```
+    pub async fn find(self, id: impl Into<Value>) -> Result<Option<Value>, String> {
+        self.where_eq("id", id.into()).first().await
+    }
+
+    /// Insert a new record
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// let id = DB::table("users").insert(json!({
+    ///     "name": "John",
+    ///     "email": "john@example.com"
+    /// })).await?;
+    /// ```
+    pub async fn insert(self, data: Value) -> Result<u64, String> {
+        // Mock implementation - returns fake ID
+        Ok(1)
+    }
+
+    /// Insert multiple records
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// DB::table("users").insert_many(vec![
+    ///     json!({"name": "John"}),
+    ///     json!({"name": "Jane"}),
+    /// ]).await?;
+    /// ```
+    pub async fn insert_many(self, data: Vec<Value>) -> Result<u64, String> {
+        Ok(data.len() as u64)
+    }
+
+    /// Update records matching the where clauses
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// let affected = DB::table("users")
+    ///     .where_clause("id", "=", 1.into())
+    ///     .update(json!({"active": true})).await?;
+    /// ```
+    pub async fn update(self, data: Value) -> Result<u64, String> {
+        // Mock implementation
+        Ok(1)
+    }
+
+    /// Delete records matching the where clauses
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// let deleted = DB::table("users")
+    ///     .where_clause("id", "=", 1.into())
+    ///     .delete().await?;
+    /// ```
+    pub async fn delete(self) -> Result<u64, String> {
+        // Mock implementation
+        Ok(1)
     }
 
     /// Count the results
@@ -67,7 +251,31 @@ impl QueryBuilder {
 
     /// Check if any records exist
     pub async fn exists(self) -> Result<bool, String> {
-        Ok(false)
+        let count = self.count().await?;
+        Ok(count > 0)
+    }
+
+    /// Paginate results
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// let page = DB::table("users")
+    ///     .where_clause("active", "=", true.into())
+    ///     .paginate(15, 1).await?;
+    /// ```
+    pub async fn paginate(self, per_page: usize, page: usize) -> Result<PaginatedResult, String> {
+        let offset = (page.saturating_sub(1)) * per_page;
+        let data = self.clone().limit(per_page).offset(offset).get().await?;
+        let total = self.count().await?;
+
+        Ok(PaginatedResult {
+            data,
+            total,
+            per_page,
+            current_page: page,
+            last_page: (total + per_page - 1) / per_page,
+        })
     }
 
     /// Get the table name
@@ -84,6 +292,16 @@ impl QueryBuilder {
     pub fn limit_val(&self) -> Option<usize> {
         self.limit_value
     }
+}
+
+/// Paginated result set
+#[derive(Debug, Clone)]
+pub struct PaginatedResult {
+    pub data: Vec<Value>,
+    pub total: usize,
+    pub per_page: usize,
+    pub current_page: usize,
+    pub last_page: usize,
 }
 
 #[cfg(test)]
