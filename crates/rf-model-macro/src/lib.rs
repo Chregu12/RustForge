@@ -3,10 +3,13 @@ use quote::quote;
 use syn::{parse_macro_input, DeriveInput, Data, Fields};
 use inflector::Inflector;
 
-/// RustForge model macro - Laravel-like syntax for SeaORM models
+/// RustForge model macro - Laravel-like syntax for Eloquent models
 ///
-/// # Example
+/// This macro makes defining models as simple as Laravel:
+///
 /// ```rust
+/// // Laravel:  class User extends Model
+/// // RustForge:
 /// #[model]
 /// pub struct User {
 ///     pub name: String,
@@ -16,6 +19,28 @@ use inflector::Inflector;
 /// }
 /// ```
 ///
+/// Then use Laravel-style static methods:
+///
+/// ```rust
+/// // Find by ID
+/// let user = User::find(1).await?;
+///
+/// // Query with where clause
+/// let admins = User::r#where("role", "admin").get().await?;
+///
+/// // Create new record
+/// let user = User::create(json!({
+///     "name": "John",
+///     "email": "john@example.com"
+/// })).await?;
+///
+/// // Chain queries
+/// let active = User::r#where("active", true)
+///     .order_by("name", "asc")
+///     .limit(10)
+///     .get().await?;
+/// ```
+///
 /// Automatically adds:
 /// - `id: i32` primary key field (if not present)
 /// - `created_at: DateTime<Utc>` (if not present)
@@ -23,6 +48,7 @@ use inflector::Inflector;
 /// - All necessary derives (DeriveEntityModel, Serialize, Deserialize, etc.)
 /// - SeaORM table name (pluralized struct name)
 /// - Converts `#[hidden]` to `#[serde(skip_serializing)]`
+/// - Implements `rf_db_facade::Model` for static query methods
 #[proc_macro_attribute]
 pub fn model(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let input = parse_macro_input!(item as DeriveInput);
@@ -130,6 +156,12 @@ pub fn model(_attr: TokenStream, item: TokenStream) -> TokenStream {
         pub enum Relation {}
 
         impl sea_orm::ActiveModelBehavior for ActiveModel {}
+
+        // Implement rf_db_facade::Model trait for Laravel-style static methods
+        // This enables User::where(), User::find(), User::create(), etc.
+        impl rf_db_facade::Model for #name {
+            const TABLE: &'static str = #table_name;
+        }
     };
 
     TokenStream::from(expanded)

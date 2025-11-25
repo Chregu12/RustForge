@@ -6,32 +6,38 @@
 //!
 //! - **Static DB API**: Use `DB::select()`, `DB::insert()`, etc.
 //! - **Query Builder**: Chain methods like Laravel's query builder
+//! - **Model Trait**: Use `User::where()`, `User::find()` like Laravel Eloquent!
 //! - **Global Connection Pool**: Thread-safe global database state
 //! - **Laravel-Compatible**: Familiar API for Laravel developers
 //!
 //! ## Quick Start
 //!
 //! ```rust,no_run
-//! use rf_db_facade::DB;
+//! use rf_db_facade::{DB, Model, model};
+//!
+//! // Define models using the macro - just like Laravel!
+//! model!(User, "users");
+//! model!(Post, "posts");
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-//! // Execute a select query
-//! let users = DB::select("SELECT * FROM users WHERE active = ?", &[true.into()]).await?;
+//! // Laravel-style Model queries!
+//! let users = User::where("active", true).get().await?;
+//! let user = User::find(1).await?;
+//! let new_user = User::create(serde_json::json!({
+//!     "name": "John",
+//!     "email": "john@example.com"
+//! })).await?;
 //!
-//! // Insert a record
-//! let id = DB::insert("INSERT INTO users (name, email) VALUES (?, ?)",
-//!     &["John".into(), "john@example.com".into()]).await?;
+//! // Chain queries like Laravel!
+//! let admins = User::where("role", "admin")
+//!     .where("active", true)
+//!     .order_by("name", "asc")
+//!     .limit(10)
+//!     .get().await?;
 //!
-//! // Update records
-//! let affected = DB::update("UPDATE users SET active = ? WHERE id = ?",
-//!     &[true.into(), id.into()]).await?;
-//!
-//! // Delete records
-//! let deleted = DB::delete("DELETE FROM users WHERE id = ?", &[id.into()]).await?;
-//!
-//! // Use query builder
+//! // Or use DB::table() for raw queries
 //! let users = DB::table("users")
-//!     .where_clause("active", "=", true.into())
+//!     .r#where("active", true)
 //!     .limit(10)
 //!     .get().await?;
 //! # Ok(())
@@ -40,10 +46,12 @@
 
 pub mod facade;
 pub mod manager;
+pub mod model;
 pub mod query_builder;
 
 pub use facade::DB;
 pub use manager::{DBManager, GLOBAL_DB};
+pub use model::Model;
 pub use query_builder::{QueryBuilder, PaginatedResult};
 
 // Re-export commonly used types

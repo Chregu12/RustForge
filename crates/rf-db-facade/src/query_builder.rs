@@ -156,8 +156,9 @@ impl QueryBuilder {
 
     /// Where column is between two values
     pub fn where_between<V: Into<Value>>(mut self, column: impl Into<String>, min: V, max: V) -> Self {
-        self.wheres.push((column.into(), ">=".to_string(), min.into()));
-        self.wheres.push((column.into(), "<=".to_string(), max.into()));
+        let col = column.into();
+        self.wheres.push((col.clone(), ">=".to_string(), min.into()));
+        self.wheres.push((col, "<=".to_string(), max.into()));
         self
     }
 
