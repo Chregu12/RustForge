@@ -16,32 +16,65 @@ impl AwaitTransformer {
         Self {
             // Common async functions in the framework
             async_functions: vec![
-                // ORM methods
+                // Model methods (rf-db-facade)
                 "find".to_string(),
+                "find_or_fail".to_string(),
                 "all".to_string(),
                 "first".to_string(),
+                "first_or_fail".to_string(),
                 "create".to_string(),
                 "update".to_string(),
+                "update_by_id".to_string(),
                 "delete".to_string(),
+                "destroy".to_string(),
                 "save".to_string(),
                 "insert".to_string(),
                 "get".to_string(),
                 "exists".to_string(),
                 "count".to_string(),
+                "paginate".to_string(),
+                "first_or_create".to_string(),
+                "update_or_create".to_string(),
+                // Cache methods (rf-cache-facade)
+                "put".to_string(),
+                "forget".to_string(),
+                "flush".to_string(),
+                "has".to_string(),
+                "pull".to_string(),
+                "add".to_string(),
+                "forever".to_string(),
+                "remember".to_string(),
+                "remember_forever".to_string(),
+                "increment".to_string(),
+                "decrement".to_string(),
+                "tags".to_string(),
+                // Auth methods (rf-auth-facade)
+                "attempt".to_string(),
+                "login".to_string(),
+                "logout".to_string(),
+                "check".to_string(),
+                "guest".to_string(),
+                "user".to_string(),
+                "id".to_string(),
                 // Request methods
                 "validate".to_string(),
-                // Query builder
-                "where".to_string(),
-                "select".to_string(),
-                "order_by".to_string(),
-                "limit".to_string(),
-                "offset".to_string(),
                 // Database
                 "execute".to_string(),
                 "fetch".to_string(),
                 "fetch_one".to_string(),
                 "fetch_all".to_string(),
                 "fetch_optional".to_string(),
+                "begin_transaction".to_string(),
+                "commit".to_string(),
+                "rollback".to_string(),
+                // Storage
+                "store".to_string(),
+                "download".to_string(),
+                // Mail
+                "send".to_string(),
+                // Queue
+                "push".to_string(),
+                "dispatch".to_string(),
             ],
         }
     }
