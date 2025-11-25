@@ -45,9 +45,9 @@ RustForge includes a powerful Laravel-style DB facade and query builder.
 ```rust
 use rf_db_facade::DB;
 
-// Query - IDENTICAL to Laravel!
+// Query
 let users = DB::table("users")
-    .r#where("active", true)       // Same as Laravel's where()!
+    .r#where("active", true)
     .order_by("name", "asc")
     .limit(10)
     .get().await?;
@@ -55,7 +55,7 @@ let users = DB::table("users")
 // Find by ID
 let user = DB::table("users").find(1).await?;
 
-// Create - returns the record like Laravel!
+// Create (returns the record)
 let user = DB::table("users").create(json!({
     "name": "John",
     "email": "john@example.com"
@@ -74,7 +74,7 @@ DB::table("users")
 // Advanced queries
 let users = DB::table("users")
     .r#where("active", true)
-    .where_op("age", ">=", 18)     // Custom operator
+    .where_op("age", ">=", 18)
     .where_in("role", vec!["admin", "mod"])
     .where_like("name", "John%")
     .order_by_desc("created_at")

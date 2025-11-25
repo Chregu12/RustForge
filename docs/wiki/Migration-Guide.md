@@ -74,22 +74,20 @@ class UserController extends Controller
 }
 ```
 
-**RustForge (Laravel-style!):**
+**RustForge:**
 ```rust
 use rf_db_facade::DB;
 use rf_http::{Response, Json};
 use rf_validation::Validate;
 
-// Index - IDENTICAL to Laravel!
 pub async fn index() -> Result<Response, Error> {
     let users = DB::table("users")
-        .r#where("active", true)      // Like Laravel's where()!
+        .r#where("active", true)
         .get().await?;
 
     Ok(Response::json(users))
 }
 
-// Validation via derive macro
 #[derive(Debug, Deserialize, Validate)]
 pub struct CreateUserRequest {
     #[validate(length(min = 3))]
@@ -99,11 +97,9 @@ pub struct CreateUserRequest {
     pub email: String,
 }
 
-// Store - IDENTICAL to Laravel!
 pub async fn store(Json(payload): Json<CreateUserRequest>) -> Result<Response, Error> {
     payload.validate()?;
 
-    // create() returns the created record - just like Laravel!
     let user = DB::table("users").create(json!({
         "name": payload.name,
         "email": payload.email
@@ -112,6 +108,15 @@ pub async fn store(Json(payload): Json<CreateUserRequest>) -> Result<Response, E
     Ok(Response::json(user).status(201))
 }
 ```
+
+### Unterschiede zu Laravel
+
+| Aspekt | Laravel | RustForge | Grund |
+|--------|---------|-----------|-------|
+| Query | `User::where()` | `DB::table("users").r#where()` | Rust hat keine Magic Methods |
+| Async | implizit | `.await?` | Rust ist explizit async |
+| Validation | Inline Rules | Derive Macro | Compile-time Prüfung |
+| Response | `response()->json()` | `Response::json()` | Ähnlich |
 
 ### Models
 
