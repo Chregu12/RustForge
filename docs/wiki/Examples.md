@@ -137,7 +137,6 @@ pub struct ListQuery {
     published: Option<bool>,
 }
 
-// Index - IDENTICAL to Laravel!
 pub async fn index(Query(params): Query<ListQuery>) -> Result<Response, Error> {
     let page = params.page.unwrap_or(1);
     let per_page = params.per_page.unwrap_or(15);
@@ -148,7 +147,7 @@ pub async fn index(Query(params): Query<ListQuery>) -> Result<Response, Error> {
         let mut query = DB::table("posts");
 
         if let Some(published) = params.published {
-            query = query.r#where("published", published);  // Laravel-style!
+            query = query.r#where("published", published);
         }
 
         Ok(query
@@ -160,10 +159,9 @@ pub async fn index(Query(params): Query<ListQuery>) -> Result<Response, Error> {
     Ok(Response::json(posts))
 }
 
-// Show - clean and simple
 pub async fn show(Path(id): Path<i32>) -> Result<Response, Error> {
     let post = DB::table("posts")
-        .find(id).await?                    // Like Laravel's find()!
+        .find(id).await?
         .ok_or_else(|| Error::NotFound("Post not found".into()))?;
 
     Queue::push(IncrementViewsJob { post_id: id }).await?;
@@ -171,13 +169,11 @@ pub async fn show(Path(id): Path<i32>) -> Result<Response, Error> {
     Ok(Response::json(post))
 }
 
-// Store - IDENTICAL to Laravel!
 pub async fn store(Json(payload): Json<CreatePostRequest>) -> Result<Response, Error> {
     payload.validate()?;
 
     let user_id = Auth::id().await.ok_or(Error::Unauthorized("Not logged in".into()))?;
 
-    // create() returns the record - just like Laravel!
     let post = DB::table("posts").create(json!({
         "user_id": user_id,
         "title": payload.title,
@@ -195,7 +191,6 @@ pub async fn store(Json(payload): Json<CreatePostRequest>) -> Result<Response, E
     Ok(Response::json(post).status(201))
 }
 
-// Update - Laravel-style!
 pub async fn update(Path(id): Path<i32>, Json(payload): Json<UpdatePostRequest>) -> Result<Response, Error> {
     payload.validate()?;
 
@@ -208,7 +203,6 @@ pub async fn update(Path(id): Path<i32>, Json(payload): Json<UpdatePostRequest>)
         return Err(Error::Forbidden("Not authorized".into()));
     }
 
-    // Build update data
     let mut update_data = json!({});
     if let Some(title) = payload.title {
         update_data["title"] = json!(title);
@@ -221,7 +215,6 @@ pub async fn update(Path(id): Path<i32>, Json(payload): Json<UpdatePostRequest>)
         update_data["published"] = json!(published);
     }
 
-    // Update with Laravel-style where()
     DB::table("posts")
         .r#where("id", id)
         .update(update_data).await?;
@@ -233,7 +226,6 @@ pub async fn update(Path(id): Path<i32>, Json(payload): Json<UpdatePostRequest>)
     Ok(Response::json(post))
 }
 
-// Destroy - Laravel-style!
 pub async fn destroy(Path(id): Path<i32>) -> Result<Response, Error> {
     let user_id = Auth::id().await.ok_or(Error::Unauthorized("Not logged in".into()))?;
 
@@ -244,7 +236,6 @@ pub async fn destroy(Path(id): Path<i32>) -> Result<Response, Error> {
         return Err(Error::Forbidden("Not authorized".into()));
     }
 
-    // Delete with Laravel-style where()
     DB::table("posts")
         .r#where("id", id)
         .delete().await?;
