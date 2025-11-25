@@ -37,12 +37,15 @@ Route::middleware('auth')->group(function () {
 });
 ```
 
-**RustForge:**
+**RustForge (Laravel-style!):**
 ```rust
-router.get("/users", user_controller::index);
-router.post("/users", user_controller::store);
-router.group(middleware::auth(), |router| {
-    router.get("/profile", profile_controller::show);
+use rf_route_facade::Route;
+
+// Almost identical syntax to Laravel!
+Route::get("/users", user_controller::index);
+Route::post("/users", user_controller::store);
+Route::middleware(&["auth"]).group(|| {
+    Route::get("/profile", profile_controller::show);
 });
 ```
 
@@ -210,11 +213,27 @@ Auth::user();
 Auth::logout();
 ```
 
-**RustForge:**
+**RustForge (Laravel-style!):**
 ```rust
-let token = JwtAuth::generate_token(user.id)?;
-let user_id = auth.user_id(); // In handler with AuthGuard
-SessionAuth::logout(&session).await?;
+use rf_auth_facade::Auth;
+
+// Identical to Laravel!
+Auth::attempt(json!({
+    "email": "user@example.com",
+    "password": "secret"
+})).await?;
+
+// Get current user
+let user = Auth::user::<User>().await;
+
+// Logout
+Auth::logout().await;
+
+// Additional Laravel-style methods
+Auth::check().await;      // Check if authenticated
+Auth::guest().await;      // Check if guest
+Auth::id().await;         // Get user ID
+Auth::login(user).await?; // Login a user
 ```
 
 ### Validation
@@ -295,13 +314,23 @@ Cache::remember('users', 3600, function () {
 });
 ```
 
-**RustForge:**
+**RustForge (Laravel-style!):**
 ```rust
-Cache::put("key", "value", 3600).await?;
-let value = Cache::get::<String>("key").await?;
-let users = Cache::remember("users", 3600, || async {
-    User::find().all(&db).await
+use rf_cache_facade::Cache;
+use std::time::Duration;
+
+// Similar to Laravel
+Cache::put("key", &"value", Duration::from_secs(3600)).await?;
+let value: Option<String> = Cache::get("key").await?;
+let users = Cache::remember("users", Duration::from_secs(3600), || async {
+    Ok(User::find().all(&db).await?)
 }).await?;
+
+// Additional methods
+Cache::has("key").await?;           // Check existence
+Cache::forget("key").await?;        // Delete key
+Cache::forever("key", &"value").await?;  // Store forever
+Cache::flush().await?;              // Clear all
 ```
 
 ### CLI Commands
@@ -358,17 +387,16 @@ HttpServer::new(|| {
 
 **RustForge:**
 ```rust
-let mut router = Router::new();
+use rf_route_facade::Route;
 
-router.get("/", index);
-router.post("/users", create_user);
+Route::get("/", index);
+Route::post("/users", create_user);
 
-router.prefix("/api", |router| {
-    router.use_middleware(middleware::auth());
-    router.get("/profile", get_profile);
+Route::prefix("/api").middleware(&["auth"]).group(|| {
+    Route::get("/profile", get_profile);
 });
 
-app.serve(router).await?;
+app.serve(Route::router()).await?;
 ```
 
 ### Handlers
@@ -460,6 +488,8 @@ fn rocket() -> _ {
 
 **RustForge:**
 ```rust
+use rf_route_facade::Route;
+
 async fn index() -> &'static str {
     "Hello, world!"
 }
@@ -470,11 +500,10 @@ async fn create_user(Json(user): Json<CreateUserRequest>) -> Result<Response> {
 
 #[tokio::main]
 async fn main() {
-    let mut router = Router::new();
-    router.get("/", index);
-    router.post("/users", create_user);
+    Route::get("/", index);
+    Route::post("/users", create_user);
 
-    app.serve(router).await?;
+    app.serve(Route::router()).await?;
 }
 ```
 
@@ -521,10 +550,11 @@ let app = Router::new()
 
 **RustForge:**
 ```rust
-let mut router = Router::new();
-router.get("/", index);
-router.post("/users", create_user);
-router.use_middleware(middleware::auth());
+use rf_route_facade::Route;
+
+Route::get("/", index);
+Route::post("/users", create_user);
+Route::use_middleware(middleware::auth());
 // Database injected automatically
 ```
 

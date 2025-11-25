@@ -99,16 +99,44 @@ Complete authentication system with multiple strategies.
 ### Example
 
 ```rust
-use rf_auth::{Auth, JwtAuth, Hash};
+use rf_auth_facade::Auth;
+use rf_auth::Hash;
 
 // Register user
 let password_hash = Hash::make("password123")?;
 let user = User::create(email, name, password_hash).await?;
 
-// Login
-let token = JwtAuth::generate_token(user.id)?;
+// Login with Laravel-style Auth facade
+Auth::login(user).await?;
 
-// Protect routes
+// Or attempt login with credentials (like Laravel's Auth::attempt)
+let credentials = json!({
+    "email": "user@example.com",
+    "password": "secret"
+});
+if Auth::attempt(credentials).await? {
+    println!("Login successful!");
+}
+
+// Check authentication
+if Auth::check().await {
+    println!("User is authenticated");
+}
+
+// Get current user
+if let Some(user) = Auth::user::<User>().await {
+    println!("Welcome, {}", user.name);
+}
+
+// Get user ID
+if let Some(id) = Auth::id().await {
+    println!("User ID: {}", id);
+}
+
+// Logout
+Auth::logout().await;
+
+// Protect routes with middleware
 router.group(middleware::auth(), |router| {
     router.get("/profile", get_profile);
 });
@@ -149,26 +177,38 @@ Expressive routing system with middleware support.
 ### Example
 
 ```rust
-use rf_http::{Router, Request, Response, middleware};
+use rf_route_facade::Route;
+use rf_http::{Request, Response, middleware};
 
-let mut router = Router::new();
-
-// Basic routes
-router.get("/", home);
-router.post("/users", create_user);
-router.put("/users/:id", update_user);
-router.delete("/users/:id", delete_user);
+// Laravel-style Route facade
+Route::get("/", home);
+Route::post("/users", create_user);
+Route::put("/users/:id", update_user);
+Route::delete("/users/:id", delete_user);
 
 // Route groups with middleware
-router.group(middleware::auth(), |router| {
-    router.prefix("/api/v1", |router| {
-        router.resource("/posts", PostController);
+Route::middleware(&["auth"]).group(|| {
+    Route::prefix("/api/v1").group(|| {
+        Route::get("/posts", list_posts);
+        Route::post("/posts", create_post);
+        Route::get("/posts/:id", show_post);
     });
 });
 
-// Middleware
-router.use_middleware(middleware::cors());
-router.use_middleware(middleware::rate_limit(60, 60));
+// Resource routes (like Laravel)
+Route::resource("/users", UserController);
+
+// Named routes
+Route::get("/profile", profile).name("profile");
+
+// Route with multiple middleware
+Route::middleware(&["auth", "verified"]).group(|| {
+    Route::get("/dashboard", dashboard);
+});
+
+// Apply global middleware
+Route::use_middleware(middleware::cors());
+Route::use_middleware(middleware::rate_limit(60, 60));
 ```
 
 ### Available Middleware
@@ -264,32 +304,53 @@ High-performance caching layer with multiple drivers.
 ### Example
 
 ```rust
-use rf_cache::{Cache, CacheManager};
+use rf_cache_facade::Cache;
+use std::time::Duration;
 
-// Simple caching
-Cache::put("key", "value", 3600).await?;
-let value: String = Cache::get("key").await?;
+// Simple caching with Laravel-style facade
+Cache::put("key", &"value", Duration::from_secs(3600)).await?;
+let value: Option<String> = Cache::get("key").await?;
 
-// Cache with closure
-let users = Cache::remember("users:all", 3600, || async {
-    User::find().all(&db).await
+// Check if key exists
+if Cache::has("key").await? {
+    println!("Key exists");
+}
+
+// Cache with closure (like Laravel's Cache::remember)
+let users = Cache::remember("users:all", Duration::from_secs(3600), || async {
+    Ok(User::find().all(&db).await?)
 }).await?;
 
+// Store forever
+Cache::forever("config", &"value").await?;
+
+// Remember forever
+let settings = Cache::remember_forever("settings", || async {
+    Ok(load_settings().await?)
+}).await?;
+
+// Pull: get and delete
+let value: Option<String> = Cache::pull("temp_key").await?;
+
+// Add only if doesn't exist
+let added = Cache::add("unique_key", &"value", Duration::from_secs(60)).await?;
+
+// Increment/decrement
+Cache::increment("counter", 1).await?;
+Cache::decrement("counter", 1).await?;
+
 // Cache tags
-Cache::tags(&["users", "posts"])
-    .put("key", "value", 3600)
-    .await?;
+let tagged = Cache::tags(&["users", "posts"]).await;
+tagged.set("key", &"value", Duration::from_secs(3600)).await?;
 
-Cache::tags(&["users"]).flush().await?;
+// Flush tagged cache
+Cache::tags(&["users"]).await.flush().await?;
 
-// Atomic locks
-Cache::lock("payment:process", 10)
-    .get()
-    .await?
-    .run(|| async {
-        // Process payment safely
-    })
-    .await?;
+// Remove single key
+Cache::forget("key").await?;
+
+// Flush all cache
+Cache::flush().await?;
 ```
 
 ### Supported Cache Drivers
@@ -394,7 +455,7 @@ Event-driven architecture with synchronous and asynchronous listeners.
 ### Example
 
 ```rust
-use rf_events::{Event, EventDispatcher};
+use rf_event_facade::Event;
 use serde::{Serialize, Deserialize};
 
 // Define event
@@ -404,31 +465,38 @@ pub struct UserRegistered {
     pub email: String,
 }
 
-impl Event for UserRegistered {
-    fn name(&self) -> &str {
-        "user.registered"
-    }
-}
+// Register listeners (typically in bootstrap)
+Event::listen("user.registered", |event: UserRegistered| async move {
+    // Send welcome email
+    Mail::to(&event.email)
+        .subject("Welcome!")
+        .send()
+        .await?;
+    Ok(())
+}).await;
 
-// Define listener
-pub struct SendWelcomeEmail;
+Event::listen("user.registered", |event: UserRegistered| async move {
+    // Log the registration
+    Log::info(&format!("New user registered: {}", event.email)).await;
+    Ok(())
+}).await;
 
-#[async_trait]
-impl EventListener<UserRegistered> for SendWelcomeEmail {
-    async fn handle(&self, event: &UserRegistered) -> Result<(), Error> {
-        Mail::to(&event.email)
-            .subject("Welcome!")
-            .send()
-            .await?;
-        Ok(())
-    }
-}
-
-// Dispatch event
-EventDispatcher::dispatch(UserRegistered {
+// Dispatch event (like Laravel's Event::dispatch)
+Event::dispatch("user.registered", UserRegistered {
     user_id: 1,
     email: "user@example.com".to_string(),
 }).await?;
+
+// Check if event has listeners
+if Event::has_listeners("user.registered").await {
+    println!("Event has listeners");
+}
+
+// Dispatch multiple events
+Event::dispatch_many(vec![
+    ("user.created", json!({"id": 1})),
+    ("notification.send", json!({"type": "welcome"})),
+]).await?;
 ```
 
 ---
@@ -449,12 +517,21 @@ Email sending with multiple drivers and templates.
 ### Example
 
 ```rust
-use rf_mail::{Mail, Mailable};
+use rf_mail_facade::Mail;
 
-// Simple email
+// Simple email with Laravel-style facade
 Mail::to("user@example.com")
     .subject("Welcome!")
     .body("Welcome to RustForge!")
+    .send()
+    .await?;
+
+// With CC and BCC
+Mail::to("user@example.com")
+    .cc("manager@example.com")
+    .bcc("admin@example.com")
+    .subject("Weekly Report")
+    .body("...")
     .send()
     .await?;
 
@@ -475,11 +552,18 @@ Mail::to("user@example.com")
     .send()
     .await?;
 
-// Queue email
+// Queue email for async sending
 Mail::to("user@example.com")
     .subject("Newsletter")
     .body("...")
     .queue()
+    .await?;
+
+// Send to multiple recipients
+Mail::to(&["user1@example.com", "user2@example.com"])
+    .subject("Announcement")
+    .body("...")
+    .send()
     .await?;
 ```
 
@@ -510,32 +594,45 @@ Unified file storage interface for local and cloud storage.
 ### Example
 
 ```rust
-use rf_storage::{Storage, StorageManager};
+use rf_storage_facade::Storage;
 
-// Store file
-Storage::disk("s3")
-    .put("uploads/photo.jpg", file_contents)
-    .await?;
+// Store file with Laravel-style facade
+Storage::put("uploads/photo.jpg", file_contents).await?;
 
 // Get file
-let contents = Storage::disk("s3")
-    .get("uploads/photo.jpg")
-    .await?;
+let contents = Storage::get("uploads/photo.jpg").await?;
 
 // Delete file
-Storage::disk("s3")
-    .delete("uploads/photo.jpg")
-    .await?;
+Storage::delete("uploads/photo.jpg").await?;
+
+// Check if file exists
+if Storage::exists("uploads/photo.jpg").await? {
+    println!("File exists");
+}
+
+// Use specific disk
+Storage::disk("s3").put("uploads/photo.jpg", file_contents).await?;
+let contents = Storage::disk("s3").get("uploads/photo.jpg").await?;
 
 // Generate temporary URL (1 hour)
 let url = Storage::disk("s3")
     .temporary_url("uploads/photo.jpg", 3600)
     .await?;
 
-// List files
-let files = Storage::disk("s3")
-    .files("uploads/")
-    .await?;
+// List files in directory
+let files = Storage::files("uploads/").await?;
+let all_files = Storage::all_files("uploads/").await?; // recursive
+
+// List directories
+let dirs = Storage::directories("uploads/").await?;
+
+// Copy and move
+Storage::copy("old/path.jpg", "new/path.jpg").await?;
+Storage::move_file("old/path.jpg", "new/path.jpg").await?;
+
+// Get file info
+let size = Storage::size("uploads/photo.jpg").await?;
+let modified = Storage::last_modified("uploads/photo.jpg").await?;
 ```
 
 ### Supported Storage Drivers
