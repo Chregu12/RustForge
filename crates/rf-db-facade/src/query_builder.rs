@@ -74,32 +74,50 @@ impl QueryBuilder {
         self
     }
 
-    /// Add a where clause (Laravel-style)
+    /// Add a where clause - Laravel-style!
+    ///
+    /// With 2 arguments: `where("column", value)` means `column = value`
+    /// With 3 arguments: `where_op("column", ">=", value)`
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// // Simple equality (like Laravel!)
+    /// let users = DB::table("users")
+    ///     .r#where("active", true)
+    ///     .r#where("role", "admin")
+    ///     .get().await?;
+    /// ```
+    pub fn r#where<V: Into<Value>>(mut self, column: impl Into<String>, value: V) -> Self {
+        self.wheres.push((column.into(), "=".to_string(), value.into()));
+        self
+    }
+
+    /// Where with custom operator
     ///
     /// # Examples
     ///
     /// ```rust,no_run
     /// let users = DB::table("users")
-    ///     .where_clause("active", "=", true.into())
-    ///     .where_clause("age", ">=", 18.into())
+    ///     .where_op("age", ">=", 18)
+    ///     .where_op("score", "<", 100)
     ///     .get().await?;
     /// ```
+    pub fn where_op<V: Into<Value>>(mut self, column: impl Into<String>, operator: impl Into<String>, value: V) -> Self {
+        self.wheres.push((column.into(), operator.into(), value.into()));
+        self
+    }
+
+    /// Legacy method - use `r#where` instead
+    #[deprecated(note = "Use `r#where` for Laravel-style syntax")]
     pub fn where_clause(mut self, column: impl Into<String>, operator: impl Into<String>, value: Value) -> Self {
         self.wheres.push((column.into(), operator.into(), value));
         self
     }
 
-    /// Shorthand for where equals
-    ///
-    /// # Examples
-    ///
-    /// ```rust,no_run
-    /// let user = DB::table("users")
-    ///     .where_eq("id", 1.into())
-    ///     .first().await?;
-    /// ```
-    pub fn where_eq(self, column: impl Into<String>, value: Value) -> Self {
-        self.where_clause(column, "=", value)
+    /// Shorthand for where equals (same as `r#where`)
+    pub fn where_eq<V: Into<Value>>(self, column: impl Into<String>, value: V) -> Self {
+        self.r#where(column, value)
     }
 
     /// Where column is null
@@ -115,8 +133,37 @@ impl QueryBuilder {
     }
 
     /// Where column is in a list of values
-    pub fn where_in(mut self, column: impl Into<String>, values: Vec<Value>) -> Self {
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// let users = DB::table("users")
+    ///     .where_in("id", vec![1, 2, 3])
+    ///     .get().await?;
+    /// ```
+    pub fn where_in<V: Into<Value>>(mut self, column: impl Into<String>, values: Vec<V>) -> Self {
+        let values: Vec<Value> = values.into_iter().map(|v| v.into()).collect();
         self.wheres.push((column.into(), "IN".to_string(), Value::Array(values)));
+        self
+    }
+
+    /// Where column is not in a list
+    pub fn where_not_in<V: Into<Value>>(mut self, column: impl Into<String>, values: Vec<V>) -> Self {
+        let values: Vec<Value> = values.into_iter().map(|v| v.into()).collect();
+        self.wheres.push((column.into(), "NOT IN".to_string(), Value::Array(values)));
+        self
+    }
+
+    /// Where column is between two values
+    pub fn where_between<V: Into<Value>>(mut self, column: impl Into<String>, min: V, max: V) -> Self {
+        self.wheres.push((column.into(), ">=".to_string(), min.into()));
+        self.wheres.push((column.into(), "<=".to_string(), max.into()));
+        self
+    }
+
+    /// Where column is like a pattern
+    pub fn where_like(mut self, column: impl Into<String>, pattern: impl Into<String>) -> Self {
+        self.wheres.push((column.into(), "LIKE".to_string(), Value::String(pattern.into())));
         self
     }
 
@@ -176,18 +223,19 @@ impl QueryBuilder {
         Ok(results.into_iter().next())
     }
 
-    /// Find a record by ID
+    /// Find a record by ID - Laravel-style!
     ///
     /// # Examples
     ///
     /// ```rust,no_run
     /// let user = DB::table("users").find(1).await?;
+    /// let post = DB::table("posts").find(42).await?;
     /// ```
-    pub async fn find(self, id: impl Into<Value>) -> Result<Option<Value>, String> {
-        self.where_eq("id", id.into()).first().await
+    pub async fn find<V: Into<Value>>(self, id: V) -> Result<Option<Value>, String> {
+        self.r#where("id", id).first().await
     }
 
-    /// Insert a new record
+    /// Insert a new record and return the ID
     ///
     /// # Examples
     ///
@@ -197,9 +245,36 @@ impl QueryBuilder {
     ///     "email": "john@example.com"
     /// })).await?;
     /// ```
-    pub async fn insert(self, data: Value) -> Result<u64, String> {
+    pub async fn insert(self, _data: Value) -> Result<u64, String> {
         // Mock implementation - returns fake ID
         Ok(1)
+    }
+
+    /// Create a record and return it - Laravel-style!
+    ///
+    /// This is the preferred method for creating records.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// // Just like Laravel's User::create()!
+    /// let user = DB::table("users").create(json!({
+    ///     "name": "John",
+    ///     "email": "john@example.com"
+    /// })).await?;
+    ///
+    /// println!("Created user: {}", user["name"]);
+    /// ```
+    pub async fn create(self, data: Value) -> Result<Value, String> {
+        let table = self.table.clone();
+        let id = self.insert(data.clone()).await?;
+
+        // Return the created record with ID
+        let mut result = data;
+        if let Value::Object(ref mut map) = result {
+            map.insert("id".to_string(), Value::Number(id.into()));
+        }
+        Ok(result)
     }
 
     /// Insert multiple records

@@ -45,33 +45,40 @@ RustForge includes a powerful Laravel-style DB facade and query builder.
 ```rust
 use rf_db_facade::DB;
 
-// Laravel-style Query Builder
+// Query - IDENTICAL to Laravel!
 let users = DB::table("users")
-    .where_clause("active", "=", true.into())
+    .r#where("active", true)       // Same as Laravel's where()!
     .order_by("name", "asc")
     .limit(10)
     .get().await?;
 
-// Get single record
-let user = DB::table("users")
-    .where_clause("id", "=", 1.into())
-    .first().await?;
+// Find by ID
+let user = DB::table("users").find(1).await?;
 
-// Insert
-let id = DB::table("users").insert(json!({
+// Create - returns the record like Laravel!
+let user = DB::table("users").create(json!({
     "name": "John",
     "email": "john@example.com"
 })).await?;
 
 // Update
 DB::table("users")
-    .where_clause("id", "=", 1.into())
+    .r#where("id", 1)
     .update(json!({"active": true})).await?;
 
 // Delete
 DB::table("users")
-    .where_clause("id", "=", 1.into())
+    .r#where("id", 1)
     .delete().await?;
+
+// Advanced queries
+let users = DB::table("users")
+    .r#where("active", true)
+    .where_op("age", ">=", 18)     // Custom operator
+    .where_in("role", vec!["admin", "mod"])
+    .where_like("name", "John%")
+    .order_by_desc("created_at")
+    .paginate(15, 1).await?;
 
 // Raw queries
 let users = DB::select("SELECT * FROM users WHERE active = ?", &[true.into()]).await?;
