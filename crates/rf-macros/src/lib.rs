@@ -49,6 +49,7 @@ mod helpers;
 mod laravel_syntax;
 mod query_macro;
 mod rules_macro;
+mod rustforge_block;
 mod simple_model;
 
 use await_transformer::AwaitTransformer;
@@ -590,4 +591,96 @@ pub fn asset(input: TokenStream) -> TokenStream {
 #[proc_macro]
 pub fn url(input: TokenStream) -> TokenStream {
     helpers::url_impl(input)
+}
+
+// =============================================================================
+// Ultimate Laravel Experience - rustforge! block
+// =============================================================================
+
+/// The ultimate Laravel-like experience in Rust!
+///
+/// Write Rust exactly like Laravel PHP:
+/// - No `use rustforge::*;` needed - automatic!
+/// - No `#[auto_await]` needed - automatic!
+/// - No `.await` needed - automatic!
+/// - Use `#[sync]` to opt-out for specific functions
+///
+/// # Example
+///
+/// ```ignore
+/// rustforge! {
+///     Model!(User: name, email, hidden password);
+///     Model!(Post: title, body, user_id);
+///
+///     // Routes
+///     fn routes() {
+///         Route::get("/", index);
+///         Route::get("/users", users_index);
+///         Route::post("/users", users_store);
+///     }
+///
+///     // Handlers - no .await needed!
+///     async fn index() -> Response {
+///         Response::text("Welcome to RustForge!")
+///     }
+///
+///     async fn users_index() -> Response {
+///         let users = User::where("active", true)
+///             .orderBy("name", "asc")
+///             .get();  // No .await!
+///         Response::json(users)
+///     }
+///
+///     async fn users_store(data: Json<Value>) -> Response {
+///         let user = User::create(data.0);  // No .await!
+///         Response::json(user).status(201)
+///     }
+///
+///     // Opt-out with #[sync] for non-async helpers
+///     #[sync]
+///     fn format_name(name: &str) -> String {
+///         name.to_uppercase()
+///     }
+/// }
+/// ```
+///
+/// This expands to:
+/// ```ignore
+/// use rustforge::*;
+///
+/// Model!(User: name, email, hidden password);
+/// Model!(Post: title, body, user_id);
+///
+/// fn routes() { ... }
+///
+/// #[auto_await]
+/// async fn index() -> Response { ... }
+///
+/// #[auto_await]
+/// async fn users_index() -> Response { ... }
+///
+/// fn format_name(name: &str) -> String { ... }
+/// ```
+#[proc_macro]
+pub fn rustforge(input: TokenStream) -> TokenStream {
+    rustforge_block::rustforge_block_impl(input)
+}
+
+/// Marker attribute for opting out of auto_await inside rustforge! blocks
+///
+/// Use this when you have a synchronous function that shouldn't have
+/// auto_await applied:
+///
+/// ```ignore
+/// rustforge! {
+///     #[sync]
+///     fn helper() -> String {
+///         "I'm synchronous!".to_string()
+///     }
+/// }
+/// ```
+#[proc_macro_attribute]
+pub fn sync(_attr: TokenStream, item: TokenStream) -> TokenStream {
+    // This is just a marker - the actual handling is in rustforge! macro
+    item
 }

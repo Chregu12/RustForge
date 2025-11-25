@@ -26,9 +26,70 @@ This guide helps you migrate from other Rust frameworks to RustForge, or get sta
 
 RustForge provides an elegant, expressive syntax for building web applications in Rust.
 
-### Models
+### The Ultimate Experience: `rustforge!` Block
 
-RustForge bietet 3 Syntax-Optionen - von minimal bis Laravel-ähnlich:
+**Write Rust exactly like Laravel PHP** - no imports, no `#[auto_await]`, no `.await`!
+
+```rust
+// That's it! No imports needed!
+rustforge! {
+    Model!(User: name, email, hidden password);
+    Model!(Post: title, body, user_id);
+
+    // Define routes
+    fn routes() {
+        Route::get("/", index);
+        Route::get("/users", users_index);
+        Route::post("/users", users_store);
+        Route::get("/users/:id", users_show);
+    }
+
+    // Handlers - NO .await needed!
+    async fn index() -> Response {
+        Response::text("Welcome to RustForge!")
+    }
+
+    async fn users_index() -> Response {
+        // Exactly like Laravel!
+        let users = User::where("active", true)
+            .orderBy("name", "asc")
+            .take(10)
+            .get();  // No .await!
+
+        Response::json(users)
+    }
+
+    async fn users_show(id: i64) -> Response {
+        let user = User::findOrFail(id);  // No .await!
+        Response::json(user)
+    }
+
+    async fn users_store(data: Json<Value>) -> Response {
+        let user = User::create(data.0);  // No .await!
+        Response::json(user).status(201)
+    }
+
+    // Use #[sync] to opt-out for synchronous helpers
+    #[sync]
+    fn format_name(name: &str) -> String {
+        name.to_uppercase()
+    }
+}
+```
+
+**What `rustforge!` does automatically:**
+- ✅ Adds `use rustforge::*;` - no manual imports
+- ✅ Applies `#[auto_await]` to all async functions
+- ✅ Transforms `where` to `r#where` automatically
+- ✅ Adds `.await` to all async calls automatically
+
+**Use `#[sync]` to opt-out** for functions that shouldn't have auto_await applied.
+
+---
+
+### Models (Alternative: Manual Imports)
+
+If you prefer explicit imports, RustForge bietet 3 Syntax-Optionen - von minimal bis Laravel-ähnlich:
 
 ```rust
 use rustforge::*;
@@ -656,6 +717,65 @@ Queue::push(SendEmailJob {
 
 RustForge provides a familiar API for Laravel developers, with the performance benefits of Rust.
 
+### Side-by-Side Comparison
+
+**Laravel (PHP):**
+```php
+<?php
+use App\Models\User;
+
+class UserController extends Controller
+{
+    public function index()
+    {
+        $users = User::where('active', true)
+            ->orderBy('name', 'asc')
+            ->take(10)
+            ->get();
+
+        return response()->json($users);
+    }
+
+    public function show($id)
+    {
+        $user = User::findOrFail($id);
+        return response()->json($user);
+    }
+
+    public function store(Request $request)
+    {
+        $user = User::create($request->all());
+        return response()->json($user, 201);
+    }
+}
+```
+
+**RustForge (Rust) - Almost identical!**
+```rust
+rustforge! {
+    Model!(User: name, email, hidden password);
+
+    async fn index() -> Response {
+        let users = User::where("active", true)
+            .orderBy("name", "asc")
+            .take(10)
+            .get();
+
+        Response::json(users)
+    }
+
+    async fn show(id: i64) -> Response {
+        let user = User::findOrFail(id);
+        Response::json(user)
+    }
+
+    async fn store(data: Json<Value>) -> Response {
+        let user = User::create(data.0);
+        Response::json(user).status(201)
+    }
+}
+```
+
 ### Key Differences
 
 | Laravel (PHP) | RustForge (Rust) | Notes |
@@ -665,6 +785,9 @@ RustForge provides a familiar API for Laravel developers, with the performance b
 | `.env` config | `.env` config | Same approach |
 | Eloquent ORM | Model trait | Similar API, better performance |
 | Artisan CLI | Forge CLI | Similar commands |
+| `$array` | `json!({...})` | JSON literals |
+| `->` | `.` | Method chaining |
+| No async/await | Async by default | Better concurrency |
 
 ### Routing
 
@@ -1119,6 +1242,31 @@ use rf_queue::Queue;
 ---
 
 ## What's New in Latest Version
+
+### `rustforge!` Block - The Ultimate Laravel Experience
+
+Write Rust exactly like Laravel PHP with zero boilerplate:
+
+```rust
+rustforge! {
+    Model!(User: name, email, hidden password);
+
+    async fn index() -> Response {
+        let users = User::where("active", true).get();
+        Response::json(users)
+    }
+}
+```
+
+**Benefits:**
+| Feature | Before | After (with `rustforge!`) |
+|---------|--------|---------------------------|
+| Imports | `use rustforge::*;` | Automatic |
+| Auto-await | `#[auto_await]` | Automatic |
+| Await calls | `.await` everywhere | Automatic |
+| `where` keyword | `query!()` or `r#where` | Just `where()` |
+
+**Opt-out:** Use `#[sync]` for functions that shouldn't have auto_await.
 
 ### Model Relationships
 
