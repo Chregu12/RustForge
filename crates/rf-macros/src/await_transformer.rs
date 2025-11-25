@@ -16,7 +16,7 @@ impl AwaitTransformer {
         Self {
             // Common async functions in the framework
             async_functions: vec![
-                // Model methods (rf-db-facade)
+                // Model methods (rf-db-facade) - snake_case
                 "find".to_string(),
                 "find_or_fail".to_string(),
                 "all".to_string(),
@@ -29,12 +29,22 @@ impl AwaitTransformer {
                 "destroy".to_string(),
                 "save".to_string(),
                 "insert".to_string(),
+                "insert_many".to_string(),
                 "get".to_string(),
                 "exists".to_string(),
                 "count".to_string(),
                 "paginate".to_string(),
                 "first_or_create".to_string(),
                 "update_or_create".to_string(),
+                "pluck".to_string(),
+                "value".to_string(),
+                // Model methods - Laravel camelCase aliases
+                "findOrFail".to_string(),
+                "firstOrFail".to_string(),
+                "firstOrCreate".to_string(),
+                "updateOrCreate".to_string(),
+                "updateById".to_string(),
+                "insertMany".to_string(),
                 // Cache methods (rf-cache-facade)
                 "put".to_string(),
                 "forget".to_string(),

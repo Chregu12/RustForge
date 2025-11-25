@@ -1,35 +1,35 @@
 //! # RustForge - The Laravel of Rust
 //!
-//! Import everything you need with a single line:
+//! Write Rust exactly like Laravel PHP!
 //!
 //! ```rust,ignore
 //! use rustforge::*;
 //!
 //! Model!(User: name, email, hidden password);
 //!
-//! // Use query! macro to write `where` like Laravel!
-//! let users = query!(User::where("active", true).get()).await;
-//! let admins = query! {
-//!     User::where("role", "admin")
-//!         .where("active", true)
-//!         .orderBy("name", "asc")
-//!         .get()
-//! }.await;
-//! ```
+//! #[auto_await]  // <- Once at top, applies to entire module!
+//! mod app {
+//!     use super::*;
 //!
-//! With `#[auto_await]` - no `.await` needed:
+//!     pub async fn index() -> Response {
+//!         let users = User::where("active", true)
+//!             .orderBy("name", "asc")
+//!             .get();
+//!         Response::json(users)
+//!     }
 //!
-//! ```rust,ignore
-//! use rustforge::*;
+//!     pub async fn show(id: i64) -> Response {
+//!         let user = User::findOrFail(id);
+//!         Response::json(user)
+//!     }
 //!
-//! Model!(User: name, email, hidden password);
-//!
-//! #[auto_await]
-//! async fn example() -> Result<()> {
-//!     let users = query!(User::where("active", true).get());
-//!     let user = User::find(1);
-//!     Ok(())
+//!     pub async fn store(data: Json<Value>) -> Response {
+//!         let user = User::create(data.0);
+//!         Response::json(user)
+//!     }
 //! }
+//!
+//! pub use app::*;  // Re-export everything
 //! ```
 
 // ============================================================================
@@ -123,6 +123,116 @@ pub use rf_macros::function;
 
 /// Validation rules macro
 pub use rf_macros::rules;
+
+// ============================================================================
+// Laravel Helper Macros
+// ============================================================================
+
+/// Create a Laravel-style collection
+///
+/// ```rust,ignore
+/// use rustforge::*;
+///
+/// let numbers = collect![1, 2, 3, 4, 5];
+/// let doubled = numbers.map(|x| x * 2);
+/// ```
+pub use rf_macros::collect;
+
+/// Get configuration value
+///
+/// ```rust,ignore
+/// use rustforge::*;
+///
+/// let db_host = config!("database.host");
+/// let timeout = config!("cache.timeout", 3600);
+/// ```
+pub use rf_macros::config;
+
+/// Get environment variable
+///
+/// ```rust,ignore
+/// use rustforge::*;
+///
+/// let env = env_var!("APP_ENV");
+/// let debug = env_var!("DEBUG", "false");
+/// ```
+pub use rf_macros::env_var;
+
+/// Generate named route URL
+///
+/// ```rust,ignore
+/// use rustforge::*;
+///
+/// let url = route!("users.show", id = 123);
+/// ```
+pub use rf_macros::route;
+
+/// Create HTTP responses easily
+///
+/// ```rust,ignore
+/// use rustforge::*;
+///
+/// response!(json: data)
+/// response!(redirect: "/home")
+/// response!(view: "welcome", data)
+/// ```
+pub use rf_macros::response;
+
+/// Abort with HTTP error
+///
+/// ```rust,ignore
+/// use rustforge::*;
+///
+/// abort!(404);
+/// abort!(403, "Forbidden");
+/// ```
+pub use rf_macros::abort;
+
+/// Dump and die - debug helper
+///
+/// ```rust,ignore
+/// use rustforge::*;
+///
+/// dd!(user, request);  // Prints and exits
+/// ```
+pub use rf_macros::dd;
+
+/// Dump without stopping - debug helper
+///
+/// ```rust,ignore
+/// use rustforge::*;
+///
+/// dump!(user, config);  // Prints and continues
+/// ```
+pub use rf_macros::dump;
+
+/// Get old form input value
+///
+/// ```rust,ignore
+/// use rustforge::*;
+///
+/// let email = old!("email");
+/// let name = old!("name", "Default");
+/// ```
+pub use rf_macros::old;
+
+/// Generate asset URL
+///
+/// ```rust,ignore
+/// use rustforge::*;
+///
+/// let css = asset!("css/app.css");
+/// ```
+pub use rf_macros::asset;
+
+/// Generate full URL
+///
+/// ```rust,ignore
+/// use rustforge::*;
+///
+/// let url = url!("/users/123");
+/// ```
+pub use rf_macros::url;
 
 // ============================================================================
 // Facades - Static API like Laravel

@@ -45,6 +45,7 @@ extern crate proc_macro;
 mod await_transformer;
 mod controller_macro;
 mod function_macro;
+mod helpers;
 mod laravel_syntax;
 mod query_macro;
 mod rules_macro;
@@ -172,22 +173,112 @@ pub fn controller(attr: TokenStream, item: TokenStream) -> TokenStream {
 /// - `attempt`, `login`, `logout`, `check`, `user`
 ///
 /// **And more:** `send`, `push`, `dispatch`, `execute`, etc.
+///
+/// ## `where` Keyword Support
+///
+/// This macro also transforms `where` to `r#where` automatically,
+/// so you can write Laravel-style queries without the `query!` macro.
+///
+/// ## Usage
+///
+/// **On a module (recommended)** - applies to ALL async functions:
+/// ```ignore
+/// #[auto_await]
+/// mod handlers {
+///     async fn index() {
+///         let users = User::where("active", true).get();
+///     }
+///
+///     async fn show(id: i64) {
+///         let user = User::findOrFail(id);
+///     }
+/// }
+/// ```
+///
+/// **On a single function:**
+/// ```ignore
+/// #[auto_await]
+/// async fn example() {
+///     let users = User::where("active", true).get();
+/// }
+/// ```
 #[proc_macro_attribute]
 pub fn auto_await(_attr: TokenStream, item: TokenStream) -> TokenStream {
-    let mut function = parse_macro_input!(item as ItemFn);
+    // First: Transform `where` to `r#where` at token level
+    let transformed_tokens = transform_where_tokens(item.clone());
 
-    // Create the transformer
-    let mut transformer = AwaitTransformer::new();
-
-    // Transform all statements in the function body
-    for stmt in &mut function.block.stmts {
-        transformer.visit_stmt_mut(stmt);
+    // Try to parse as module first
+    if let Ok(mut module) = syn::parse::<syn::ItemMod>(transformed_tokens.clone()) {
+        if let Some((brace, items)) = &mut module.content {
+            for item in items.iter_mut() {
+                if let syn::Item::Fn(func) = item {
+                    transform_function(func);
+                }
+            }
+        }
+        return TokenStream::from(quote! { #module });
     }
 
-    // Return the transformed function
+    // Try to parse as impl block
+    if let Ok(mut impl_block) = syn::parse::<syn::ItemImpl>(transformed_tokens.clone()) {
+        for item in &mut impl_block.items {
+            if let syn::ImplItem::Fn(method) = item {
+                transform_impl_method(method);
+            }
+        }
+        return TokenStream::from(quote! { #impl_block });
+    }
+
+    // Otherwise parse as function
+    let transformed_tokens = transform_where_tokens(item);
+    let mut function = parse_macro_input!(transformed_tokens as ItemFn);
+    transform_function(&mut function);
+
     TokenStream::from(quote! {
         #function
     })
+}
+
+/// Transform a function by adding .await to async calls
+fn transform_function(function: &mut ItemFn) {
+    let mut transformer = AwaitTransformer::new();
+    for stmt in &mut function.block.stmts {
+        transformer.visit_stmt_mut(stmt);
+    }
+}
+
+/// Transform an impl method by adding .await to async calls
+fn transform_impl_method(method: &mut syn::ImplItemFn) {
+    let mut transformer = AwaitTransformer::new();
+    for stmt in &mut method.block.stmts {
+        transformer.visit_stmt_mut(stmt);
+    }
+}
+
+/// Transform `where` identifiers to `r#where` in token stream
+fn transform_where_tokens(input: TokenStream) -> TokenStream {
+    use proc_macro2::{TokenStream as TokenStream2, TokenTree, Ident};
+
+    let input2: TokenStream2 = input.into();
+
+    fn transform(stream: TokenStream2) -> TokenStream2 {
+        stream.into_iter().map(|token| {
+            match token {
+                TokenTree::Ident(ident) if ident.to_string() == "where" => {
+                    // Check if it's likely a method call (preceded by . or ::)
+                    // We transform all `where` to `r#where` - Rust will error if misused
+                    TokenTree::Ident(Ident::new_raw("where", ident.span()))
+                }
+                TokenTree::Group(group) => {
+                    let transformed = transform(group.stream());
+                    TokenTree::Group(proc_macro2::Group::new(group.delimiter(), transformed))
+                }
+                other => other
+            }
+        }).collect()
+    }
+
+    TokenStream::from(transform(input2))
 }
 
 /// Define models using Laravel-like PHP syntax.
@@ -311,4 +402,192 @@ pub fn Model(input: TokenStream) -> TokenStream {
 #[proc_macro]
 pub fn query(input: TokenStream) -> TokenStream {
     query_macro::query_impl(input)
+}
+
+// =============================================================================
+// Laravel-style Helper Macros
+// =============================================================================
+
+/// Create a Laravel-style collection.
+///
+/// # Example
+///
+/// ```ignore
+/// use rf_macros::collect;
+///
+/// let numbers = collect![1, 2, 3, 4, 5];
+/// let doubled = numbers.map(|x| x * 2);
+/// let sum = numbers.sum();
+/// let filtered = numbers.filter(|x| x > 2);
+/// ```
+#[proc_macro]
+pub fn collect(input: TokenStream) -> TokenStream {
+    helpers::collect_impl(input)
+}
+
+/// Get a configuration value.
+///
+/// # Example
+///
+/// ```ignore
+/// use rf_macros::config;
+///
+/// let db_host = config!("database.host");
+/// let timeout = config!("cache.timeout", 3600);
+/// ```
+#[proc_macro]
+pub fn config(input: TokenStream) -> TokenStream {
+    helpers::config_impl(input)
+}
+
+/// Get an environment variable with optional default.
+///
+/// Note: This is named `env_var` to avoid conflict with std::env!
+///
+/// # Example
+///
+/// ```ignore
+/// use rf_macros::env_var;
+///
+/// let app_env = env_var!("APP_ENV");
+/// let debug = env_var!("APP_DEBUG", "false");
+/// ```
+#[proc_macro]
+pub fn env_var(input: TokenStream) -> TokenStream {
+    helpers::env_helper_impl(input)
+}
+
+/// Generate a URL for a named route.
+///
+/// # Example
+///
+/// ```ignore
+/// use rf_macros::route;
+///
+/// let url = route!("users.show", id = 123);
+/// let home = route!("home");
+/// ```
+#[proc_macro]
+pub fn route(input: TokenStream) -> TokenStream {
+    helpers::route_impl(input)
+}
+
+/// Create various HTTP responses easily.
+///
+/// # Example
+///
+/// ```ignore
+/// use rf_macros::response;
+///
+/// // JSON response
+/// response!(json: data)
+///
+/// // Text response
+/// response!(text: "Hello World")
+///
+/// // Redirect
+/// response!(redirect: "/home")
+///
+/// // View with data
+/// response!(view: "users.index", users_data)
+///
+/// // Status code only
+/// response!(status: 204)
+///
+/// // File download
+/// response!(download: "/path/to/file.pdf")
+/// ```
+#[proc_macro]
+pub fn response(input: TokenStream) -> TokenStream {
+    helpers::response_impl(input)
+}
+
+/// Abort with an HTTP error code and optional message.
+///
+/// # Example
+///
+/// ```ignore
+/// use rf_macros::abort;
+///
+/// abort!(404);
+/// abort!(403, "Forbidden");
+/// abort!(500, "Server Error");
+/// ```
+#[proc_macro]
+pub fn abort(input: TokenStream) -> TokenStream {
+    helpers::abort_impl(input)
+}
+
+/// Dump values and die (for debugging).
+///
+/// # Example
+///
+/// ```ignore
+/// use rf_macros::dd;
+///
+/// dd!(user, request, "some value");
+/// // Prints debug info and exits
+/// ```
+#[proc_macro]
+pub fn dd(input: TokenStream) -> TokenStream {
+    helpers::dd_impl(input)
+}
+
+/// Dump values without stopping execution.
+///
+/// # Example
+///
+/// ```ignore
+/// use rf_macros::dump;
+///
+/// dump!(user, config);
+/// // Prints debug info and continues
+/// ```
+#[proc_macro]
+pub fn dump(input: TokenStream) -> TokenStream {
+    helpers::dump_impl(input)
+}
+
+/// Get old form input value (for repopulating forms after validation errors).
+///
+/// # Example
+///
+/// ```ignore
+/// use rf_macros::old;
+///
+/// let email = old!("email");
+/// let name = old!("name", "Default Name");
+/// ```
+#[proc_macro]
+pub fn old(input: TokenStream) -> TokenStream {
+    helpers::old_impl(input)
+}
+
+/// Generate an asset URL.
+///
+/// # Example
+///
+/// ```ignore
+/// use rf_macros::asset;
+///
+/// let css = asset!("css/app.css");
+/// let js = asset!("js/app.js");
+/// ```
+#[proc_macro]
+pub fn asset(input: TokenStream) -> TokenStream {
+    helpers::asset_impl(input)
+}
+
+/// Generate a full URL for a path.
+///
+/// # Example
+///
+/// ```ignore
+/// use rf_macros::url;
+///
+/// let full_url = url!("/users/123");
+/// ```
+#[proc_macro]
+pub fn url(input: TokenStream) -> TokenStream {
+    helpers::url_impl(input)
 }

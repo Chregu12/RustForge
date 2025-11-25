@@ -4,7 +4,7 @@ use crate::await_transformer::AwaitTransformer;
 use proc_macro::TokenStream;
 use quote::quote;
 use syn::{
-    parse_macro_input, visit_mut::VisitMut, Attribute, ImplItem, ImplItemFn, ItemImpl, Signature,
+    parse_macro_input, visit_mut::VisitMut, ImplItem, ImplItemFn, ItemImpl,
     Visibility,
 };
 

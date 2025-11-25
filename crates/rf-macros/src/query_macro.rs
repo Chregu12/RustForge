@@ -16,7 +16,7 @@
 //! ```
 
 use proc_macro::TokenStream;
-use proc_macro2::{TokenStream as TokenStream2, TokenTree, Ident, Span};
+use proc_macro2::{TokenStream as TokenStream2, TokenTree, Ident};
 use quote::quote;
 
 pub fn query_impl(input: TokenStream) -> TokenStream {

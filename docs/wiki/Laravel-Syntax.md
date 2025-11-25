@@ -111,7 +111,203 @@ Route::redirect("/old", "/new");
 Route::view("/about", "about");
 ```
 
-### 5. Global Helper Functions
+### 5. Eloquent-Style Models & Query Builder
+
+**New!** Full Laravel-style query syntax with camelCase methods:
+
+```rust
+use rustforge::*;
+
+// Define a model (3 options)
+Model!(User: name, email, hidden password);
+
+// Or with types
+Model!(User {
+    name: String,
+    email: String,
+    hidden password: String,
+});
+
+// Or Laravel-style class syntax
+laravel! {
+    class User extends Model {
+        protected fillable = [name: String, email: String];
+        protected hidden = [password: String];
+    }
+}
+```
+
+**The `#[auto_await]` Macro - Write EXACTLY like Laravel!**
+
+The `#[auto_await]` macro does TWO things automatically:
+1. **Transforms `where` to `r#where`** - so you can use `where()` like in Laravel
+2. **Adds `.await` automatically** - no need to write `.await` after async calls
+
+**Recommended file structure - `#[auto_await]` once at top:**
+
+```rust
+// main.rs or lib.rs
+use rustforge::*;
+
+Model!(User: name, email, hidden password);
+Model!(Post: title, body, user_id);
+
+#[auto_await]  // <- Once here, applies to EVERYTHING below!
+mod app {
+    use super::*;
+
+    // Routes
+    pub fn routes() {
+        Route::get("/users", index);
+        Route::get("/users/:id", show);
+        Route::post("/users", store);
+        Route::delete("/users/:id", destroy);
+    }
+
+    // Handlers - no .await, no query! needed!
+    pub async fn index() -> Response {
+        let users = User::where("active", true)
+            .orderBy("name", "asc")
+            .get();
+        Response::json(users)
+    }
+
+    pub async fn show(id: i64) -> Response {
+        let user = User::findOrFail(id);
+        Response::json(user)
+    }
+
+    pub async fn store(data: Json<Value>) -> Response {
+        let user = User::create(data.0);
+        Response::json(user)
+    }
+
+    pub async fn destroy(id: i64) -> Response {
+        User::destroy(id);
+        Response::ok()
+    }
+}
+
+pub use app::*;  // Re-export everything
+```
+
+**Query Builder - All Laravel Methods:**
+
+**All Available Methods:**
+
+| Method | Description |
+|--------|-------------|
+| `where(col, val)` | Basic equality (with `#[auto_await]` - no macro needed!) |
+| `filter(col, val)` | Alias for where (works everywhere) |
+| `whereIn(col, vec)` | Column in list |
+| `whereNotIn(col, vec)` | Column not in list |
+| `whereBetween(col, min, max)` | Column between values |
+| `whereNull(col)` | Column is NULL |
+| `whereNotNull(col)` | Column is NOT NULL |
+| `whereLike(col, pattern)` | LIKE pattern matching |
+| `orWhere(col, val)` | OR condition |
+| `orWhereNull(col)` | OR IS NULL |
+| `orWhereNotNull(col)` | OR IS NOT NULL |
+| `orWhereIn(col, vec)` | OR IN list |
+| `whereDate(col, date)` | Compare date only |
+| `whereYear(col, year)` | Compare year |
+| `whereMonth(col, month)` | Compare month |
+| `whereDay(col, day)` | Compare day |
+| `whereTime(col, op, time)` | Compare time |
+| `whereColumn(a, op, b)` | Compare two columns |
+| `orderBy(col, dir)` | Order by column |
+| `orderByAsc(col)` | Order ascending |
+| `orderByDesc(col)` | Order descending |
+| `latest()` | Order by created_at DESC |
+| `oldest()` | Order by created_at ASC |
+| `inRandomOrder()` | Random order |
+| `take(n)` | Alias for limit |
+| `skip(n)` | Alias for offset |
+| `limit(n)` | Limit results |
+| `offset(n)` | Offset results |
+| `groupBy(col)` | Group by column |
+| `having(col, op, val)` | Having clause |
+| `select(&[cols])` | Select columns |
+| `distinct()` | Distinct rows |
+
+**Retrieval Methods:**
+
+```rust
+// Get all results
+let users = User::all().await?;
+
+// Find by ID
+let user = User::find(1).await?;
+let user = User::findOrFail(1).await?;  // Error if not found
+
+// First result
+let user = User::filter("email", email).first().await?;
+let user = User::filter("email", email).firstOrFail().await?;
+
+// Pluck single column
+let emails = User::filter("active", true).pluck("email").await?;
+
+// Get single value
+let email = User::find(1).value("email").await?;
+
+// Count
+let count = User::filter("active", true).count().await?;
+
+// Exists check
+let exists = User::filter("email", email).exists().await?;
+
+// Paginate
+let page = User::query().paginate(15, 1).await?;
+```
+
+**CRUD Operations:**
+
+```rust
+// Create
+let user = User::create(json!({
+    "name": "John",
+    "email": "john@example.com"
+})).await?;
+
+// Update
+User::updateById(1, json!({"name": "John Doe"})).await?;
+
+// Delete
+User::destroy(1).await?;
+
+// First or create
+let user = User::firstOrCreate(
+    json!({"email": "john@example.com"}),
+    json!({"name": "John", "email": "john@example.com"})
+).await?;
+
+// Update or create
+let user = User::updateOrCreate(
+    json!({"email": "john@example.com"}),
+    json!({"name": "Updated Name"})
+).await?;
+```
+
+**Conditional Queries:**
+
+```rust
+// when() - apply condition if true
+let users = User::query()
+    .when(is_admin, |q| q.filter("role", "admin"))
+    .get().await?;
+
+// unless() - apply condition if false
+let users = User::query()
+    .unless(show_all, |q| q.filter("active", true))
+    .get().await?;
+
+// tap() - execute callback without modifying
+let users = User::query()
+    .tap(|q| println!("Query: {:?}", q))
+    .get().await?;
+```
+
+### 6. Global Helper Functions
 
 ```rust
 use rf_global_helpers::{redirect, back, event, __};
@@ -400,14 +596,22 @@ All Laravel-style syntax features are **zero-cost abstractions**:
 - ✅ Route facade
 - ✅ Global helpers
 
-### Phase 2: Advanced Features 🚧 (In Progress)
+### Phase 2: Eloquent-Style Queries ✅ (Complete)
+- ✅ Model definition macros (`Model!`, `laravel!`, `#[model]`)
+- ✅ All Laravel query methods (camelCase)
+- ✅ `query!` macro for using `where` keyword
+- ✅ `#[auto_await]` for implicit await
+- ✅ `when()`, `unless()`, `tap()` conditionals
+- ✅ Date queries (`whereDate`, `whereYear`, etc.)
+- ✅ OR conditions (`orWhere`, `orWhereIn`, etc.)
+
+### Phase 3: Advanced Features 🚧 (In Progress)
 - 🚧 `function!` macro (needs fixes)
 - 🚧 Request integration
 - 🚧 Response types
 - 🚧 Controller macro
 
-### Phase 3: Full Parity 📋 (Planned)
-- 📋 Eloquent-style queries with auto-await
+### Phase 4: Full Parity 📋 (Planned)
 - 📋 Blade-like templates
 - 📋 Form requests
 - 📋 Resource controllers
@@ -478,4 +682,4 @@ Want to help complete the Laravel syntax implementation? See:
 
 ---
 
-*Last updated: November 24, 2025*
+*Last updated: November 25, 2025*
