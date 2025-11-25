@@ -43,6 +43,20 @@ impl ValidationErrors {
     pub fn field_errors(&self) -> &HashMap<String, Vec<FieldError>> {
         &self.errors
     }
+
+    /// Create from internal validator errors
+    pub fn from_validator_errors(errors: HashMap<String, Vec<String>>) -> Self {
+        let mut validation_errors = Self::new();
+        for (field, messages) in errors {
+            for message in messages {
+                validation_errors.add(
+                    field.clone(),
+                    FieldError::new("validation", message),
+                );
+            }
+        }
+        validation_errors
+    }
 }
 
 impl Default for ValidationErrors {

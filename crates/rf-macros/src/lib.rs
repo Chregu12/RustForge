@@ -43,10 +43,14 @@
 extern crate proc_macro;
 
 mod await_transformer;
+mod blade_macro;
 mod controller_macro;
+mod exception_handler;
+mod form_request_macro;
 mod function_macro;
 mod helpers;
 mod laravel_syntax;
+mod mailable_macro;
 mod query_macro;
 mod rules_macro;
 mod rustforge_block;
@@ -594,6 +598,196 @@ pub fn url(input: TokenStream) -> TokenStream {
 }
 
 // =============================================================================
+// Additional Laravel Helper Macros
+// =============================================================================
+
+/// Get the current datetime
+///
+/// # Example
+///
+/// ```ignore
+/// use rf_macros::now;
+///
+/// let current = now!();
+/// let formatted = now!("%Y-%m-%d");
+/// ```
+#[proc_macro]
+pub fn now(input: TokenStream) -> TokenStream {
+    helpers::now_impl(input)
+}
+
+/// Hash or verify passwords with bcrypt
+///
+/// # Example
+///
+/// ```ignore
+/// use rf_macros::bcrypt;
+///
+/// let hashed = bcrypt!(password);
+/// let hashed = bcrypt!(password, 12);  // custom cost
+/// let valid = bcrypt!(verify: password, hash);
+/// ```
+#[proc_macro]
+pub fn bcrypt(input: TokenStream) -> TokenStream {
+    helpers::bcrypt_impl(input)
+}
+
+/// Redirect back to the previous URL
+///
+/// # Example
+///
+/// ```ignore
+/// use rf_macros::back;
+///
+/// return back!();
+/// return back!("/fallback");
+/// ```
+#[proc_macro]
+pub fn back(input: TokenStream) -> TokenStream {
+    helpers::back_impl(input)
+}
+
+/// Render a view template
+///
+/// # Example
+///
+/// ```ignore
+/// use rf_macros::view;
+///
+/// return view!("welcome");
+/// return view!("users.index", users);
+/// ```
+#[proc_macro]
+pub fn view(input: TokenStream) -> TokenStream {
+    helpers::view_impl(input)
+}
+
+/// Create a redirect response
+///
+/// # Example
+///
+/// ```ignore
+/// use rf_macros::redirect;
+///
+/// return redirect!("/home");
+/// return redirect!("/users/{}", user_id);
+/// return redirect!(route: "users.show", id = 1);
+/// ```
+#[proc_macro]
+pub fn redirect(input: TokenStream) -> TokenStream {
+    helpers::redirect_impl(input)
+}
+
+/// Session management
+///
+/// # Example
+///
+/// ```ignore
+/// use rf_macros::session;
+///
+/// let value = session!("key");
+/// session!(set: "key", value);
+/// session!(flash: "message", "Success!");
+/// ```
+#[proc_macro]
+pub fn session(input: TokenStream) -> TokenStream {
+    helpers::session_impl(input)
+}
+
+/// Authentication helpers
+///
+/// # Example
+///
+/// ```ignore
+/// use rf_macros::auth;
+///
+/// let user = auth!();
+/// if auth!(check) { ... }
+/// auth!(logout);
+/// ```
+#[proc_macro]
+pub fn auth(input: TokenStream) -> TokenStream {
+    helpers::auth_impl(input)
+}
+
+/// CSRF token helper
+///
+/// # Example
+///
+/// ```ignore
+/// use rf_macros::csrf;
+///
+/// let token = csrf!();
+/// let field = csrf!(field);
+/// let meta = csrf!(meta);
+/// ```
+#[proc_macro]
+pub fn csrf(input: TokenStream) -> TokenStream {
+    helpers::csrf_impl(input)
+}
+
+/// Cache operations
+///
+/// # Example
+///
+/// ```ignore
+/// use rf_macros::cache;
+///
+/// let value = cache!("key");
+/// cache!(put: "key", value, 3600);
+/// cache!(forget: "key");
+/// ```
+#[proc_macro]
+pub fn cache(input: TokenStream) -> TokenStream {
+    helpers::cache_impl(input)
+}
+
+/// Logging helper
+///
+/// # Example
+///
+/// ```ignore
+/// use rf_macros::logger;
+///
+/// logger!(info: "User logged in");
+/// logger!(error: "Failed: {}", msg);
+/// ```
+#[proc_macro]
+pub fn logger(input: TokenStream) -> TokenStream {
+    helpers::logger_impl(input)
+}
+
+/// Event dispatching
+///
+/// # Example
+///
+/// ```ignore
+/// use rf_macros::event;
+///
+/// event!(UserCreated { user_id: 123 });
+/// ```
+#[proc_macro]
+pub fn event(input: TokenStream) -> TokenStream {
+    helpers::event_impl(input)
+}
+
+/// File storage operations
+///
+/// # Example
+///
+/// ```ignore
+/// use rf_macros::storage;
+///
+/// let contents = storage!("file.txt");
+/// storage!(put: "file.txt", data);
+/// storage!(delete: "file.txt");
+/// ```
+#[proc_macro]
+pub fn storage(input: TokenStream) -> TokenStream {
+    helpers::storage_impl(input)
+}
+
+// =============================================================================
 // Ultimate Laravel Experience - rustforge! block
 // =============================================================================
 
@@ -683,4 +877,522 @@ pub fn rustforge(input: TokenStream) -> TokenStream {
 pub fn sync(_attr: TokenStream, item: TokenStream) -> TokenStream {
     // This is just a marker - the actual handling is in rustforge! macro
     item
+}
+
+// =============================================================================
+// Laravel-style Form Request Validation
+// =============================================================================
+
+/// Define a form request with automatic validation - Laravel style!
+///
+/// This macro creates a validated form request struct with automatic
+/// validation rules, custom messages, and authorization checks.
+///
+/// # Example - Block Syntax
+///
+/// ```ignore
+/// use rustforge::*;
+///
+/// form_request! {
+///     pub struct CreateUserRequest {
+///         #[required, email, unique("users", "email")]
+///         email: String,
+///
+///         #[required, min(8)]
+///         password: String,
+///
+///         #[required, min(2), max(100)]
+///         name: String,
+///     }
+///
+///     fn authorize(&self) -> bool {
+///         // Return true to allow, false to reject with 403
+///         Auth::check()
+///     }
+///
+///     fn messages() -> HashMap<&'static str, &'static str> {
+///         HashMap::from([
+///             ("email.required", "Email address is required"),
+///             ("email.email", "Please provide a valid email address"),
+///             ("password.min", "Password must be at least 8 characters"),
+///         ])
+///     }
+/// }
+///
+/// // Use in a handler with automatic validation:
+/// async fn create_user(
+///     Validated(request): Validated<CreateUserRequest>,
+/// ) -> Response {
+///     // request is already validated!
+///     let user = User::create(json!({
+///         "email": request.email,
+///         "password": bcrypt!(request.password),
+///         "name": request.name,
+///     })).await;
+///     Response::json(user).status(201)
+/// }
+/// ```
+///
+/// # Available Validation Rules
+///
+/// ## Basic Rules
+/// - `required` - Field must not be empty
+/// - `nullable` - Field can be null/empty
+/// - `string` - Must be a string
+/// - `integer` - Must be an integer
+/// - `numeric` - Must be numeric
+/// - `boolean` - Must be true/false
+/// - `array` - Must be an array
+///
+/// ## String Rules
+/// - `email` - Valid email format
+/// - `url` - Valid URL format
+/// - `ip` - Valid IP address
+/// - `uuid` - Valid UUID
+/// - `alpha` - Only letters
+/// - `alpha_num` - Letters and numbers
+/// - `lowercase` - Must be lowercase
+/// - `uppercase` - Must be uppercase
+/// - `regex("pattern")` - Must match regex
+///
+/// ## Length/Size Rules
+/// - `min(n)` - Minimum value/length
+/// - `max(n)` - Maximum value/length
+/// - `between(min, max)` - Value between range
+/// - `min_length(n)` - Minimum string length
+/// - `max_length(n)` - Maximum string length
+/// - `size(n)` - Exact size
+///
+/// ## Date Rules
+/// - `date` - Valid date
+/// - `date_format("format")` - Specific date format
+/// - `before("date")` - Before date
+/// - `after("date")` - After date
+///
+/// ## Database Rules
+/// - `unique("table", "column")` - Must be unique in database
+/// - `exists("table", "column")` - Must exist in database
+///
+/// ## Comparison Rules
+/// - `same("field")` - Must match another field
+/// - `different("field")` - Must differ from another field
+/// - `confirmed` - Must have matching {field}_confirmation
+///
+/// ## Conditional Rules
+/// - `required_if("field", "value")` - Required if other field equals value
+/// - `required_unless("field", "value")` - Required unless other field equals value
+/// - `required_with("field")` - Required if other field is present
+/// - `required_without("field")` - Required if other field is absent
+#[proc_macro]
+pub fn form_request(input: TokenStream) -> TokenStream {
+    form_request_macro::form_request_impl(input)
+}
+
+/// Attribute macro for simpler form request validation
+///
+/// Apply to a struct to automatically implement FormRequest trait.
+///
+/// # Example
+///
+/// ```ignore
+/// #[validated]
+/// struct CreatePostRequest {
+///     #[validate(required, min_length(5))]
+///     title: String,
+///
+///     #[validate(required)]
+///     body: String,
+///
+///     #[validate(required, exists("categories", "id"))]
+///     category_id: i64,
+/// }
+///
+/// async fn create_post(
+///     Validated(req): Validated<CreatePostRequest>,
+/// ) -> Response {
+///     let post = Post::create(json!({
+///         "title": req.title,
+///         "body": req.body,
+///         "category_id": req.category_id,
+///     })).await;
+///     Response::json(post).status(201)
+/// }
+/// ```
+#[proc_macro_attribute]
+pub fn validated(attr: TokenStream, item: TokenStream) -> TokenStream {
+    form_request_macro::form_request_attr_impl(attr, item)
+}
+
+// =============================================================================
+// Laravel-style Exception Handling
+// =============================================================================
+
+/// Define a global exception handler - Laravel style!
+///
+/// This macro creates an exception handler that controls how errors are
+/// reported (logged) and rendered (HTTP responses).
+///
+/// # Example
+///
+/// ```ignore
+/// use rustforge::*;
+///
+/// exception_handler! {
+///     // Exceptions that should not be logged
+///     dont_report: [
+///         ValidationException,
+///         AuthenticationException,
+///     ];
+///
+///     // Form fields not flashed to session
+///     dont_flash: [
+///         "password",
+///         "password_confirmation",
+///     ];
+///
+///     // Custom exception rendering
+///     fn render(error: &AppError, request: &Request) -> Response {
+///         match error {
+///             AppError::NotFound { .. } => {
+///                 if request.wants_json() {
+///                     Response::json(json!({ "error": "Not found" })).status(404)
+///                 } else {
+///                     Response::view("errors.404", json!({})).status(404)
+///                 }
+///             }
+///             _ => Response::error(500, "Server Error")
+///         }
+///     }
+///
+///     // Custom exception reporting
+///     fn report(error: &AppError) {
+///         tracing::error!("Application error: {:?}", error);
+///         // Send to Sentry, Bugsnag, etc.
+///     }
+/// }
+/// ```
+#[proc_macro]
+pub fn exception_handler(input: TokenStream) -> TokenStream {
+    exception_handler::exception_handler_impl(input)
+}
+
+/// Wrap a handler with exception handling
+///
+/// ```ignore
+/// #[handle_exceptions]
+/// async fn my_handler(req: Request) -> Response {
+///     let user = User::findOrFail(id).await?;
+///     Response::json(user)
+/// }
+/// ```
+#[proc_macro_attribute]
+pub fn handle_exceptions(attr: TokenStream, item: TokenStream) -> TokenStream {
+    exception_handler::handle_exceptions_impl(attr, item)
+}
+
+/// Abort if condition is true
+///
+/// ```ignore
+/// abort_if!(user.is_banned(), 403, "Account is banned");
+/// abort_if!(post.is_deleted(), 404);
+/// ```
+#[proc_macro]
+pub fn abort_if(input: TokenStream) -> TokenStream {
+    exception_handler::abort_if_impl(input)
+}
+
+/// Abort unless condition is true
+///
+/// ```ignore
+/// abort_unless!(user.can_edit(&post), 403, "Not authorized");
+/// abort_unless!(auth!(check), 401);
+/// ```
+#[proc_macro]
+pub fn abort_unless(input: TokenStream) -> TokenStream {
+    exception_handler::abort_unless_impl(input)
+}
+
+/// Report an exception without throwing
+///
+/// ```ignore
+/// report!(error);
+/// ```
+#[proc_macro]
+pub fn report(input: TokenStream) -> TokenStream {
+    exception_handler::report_impl(input)
+}
+
+/// Rescue from errors with a fallback value
+///
+/// ```ignore
+/// let user = rescue!(User::find(id).await, User::default());
+/// let config = rescue!(Config::load(), Config::default());
+/// ```
+#[proc_macro]
+pub fn rescue(input: TokenStream) -> TokenStream {
+    exception_handler::rescue_impl(input)
+}
+
+// =============================================================================
+// Blade-like Template Macros
+// =============================================================================
+
+/// Blade-like template macro with Laravel directives
+///
+/// Write HTML templates with familiar Blade syntax:
+///
+/// # Example
+///
+/// ```ignore
+/// use rustforge::*;
+///
+/// let user = User::find(1).await;
+///
+/// let html = blade! {
+///     <div class="container">
+///         @if let Some(user) = user {
+///             <h1>Welcome, {{ user.name }}!</h1>
+///
+///             @if user.is_admin {
+///                 <span class="badge">Admin</span>
+///             } @else {
+///                 <span class="badge">User</span>
+///             }
+///
+///             <ul>
+///             @foreach post in user.posts {
+///                 <li>{{ post.title }}</li>
+///             }
+///             </ul>
+///         } @else {
+///             <p>Please log in</p>
+///         }
+///
+///         @auth {
+///             <a href="/logout">Logout</a>
+///         }
+///
+///         @guest {
+///             <a href="/login">Login</a>
+///         }
+///
+///         @csrf
+///     </div>
+/// };
+/// ```
+///
+/// # Available Directives
+///
+/// ## Control Flow
+/// - `@if condition { ... }` - Conditional rendering
+/// - `@else { ... }` - Else branch
+/// - `@else if condition { ... }` - Else if branch
+/// - `@foreach item in collection { ... }` - Loop iteration
+/// - `@for expr { ... }` - For loop
+/// - `@while condition { ... }` - While loop
+/// - `@match expr { ... }` - Match expression
+///
+/// ## Authentication
+/// - `@auth { ... }` - Content for authenticated users
+/// - `@guest { ... }` - Content for guests
+///
+/// ## Forms
+/// - `@csrf` - CSRF token hidden input
+/// - `@method("PUT")` - HTTP method spoofing
+///
+/// ## Content
+/// - `{{ expr }}` - Escaped output
+/// - `{!! expr !!}` - Unescaped output (raw HTML)
+/// - `@json(data)` - JSON output
+/// - `@include("partial")` - Include template
+///
+/// ## Utilities
+/// - `@isset(var) { ... }` - Check if set
+/// - `@empty(collection) { ... }` - Check if empty
+/// - `@env("KEY")` - Environment variable
+/// - `@rust { code }` - Execute Rust code
+#[proc_macro]
+pub fn blade(input: TokenStream) -> TokenStream {
+    blade_macro::blade_impl(input)
+}
+
+/// Simple HTML template macro
+///
+/// ```ignore
+/// let name = "World";
+/// let html = html! {
+///     <div>Hello, {name}!</div>
+/// };
+/// ```
+#[proc_macro]
+pub fn html(input: TokenStream) -> TokenStream {
+    blade_macro::html_impl(input)
+}
+
+/// Define a template section
+///
+/// ```ignore
+/// section!("content") {
+///     <h1>Page Content</h1>
+/// }
+/// ```
+#[proc_macro]
+pub fn section(input: TokenStream) -> TokenStream {
+    blade_macro::section_impl(input)
+}
+
+/// Push content to a stack
+///
+/// ```ignore
+/// push!("scripts") {
+///     <script src="/js/app.js"></script>
+/// }
+/// ```
+#[proc_macro]
+pub fn push(input: TokenStream) -> TokenStream {
+    blade_macro::push_impl(input)
+}
+
+/// Render a stack
+///
+/// ```ignore
+/// let scripts = stack!("scripts");
+/// ```
+#[proc_macro]
+pub fn stack(input: TokenStream) -> TokenStream {
+    blade_macro::stack_impl(input)
+}
+
+// =============================================================================
+// Laravel-style Email System (Mailable)
+// =============================================================================
+
+/// Define a mailable email - Laravel style!
+///
+/// Create structured emails with envelope, content, and attachments:
+///
+/// # Example
+///
+/// ```ignore
+/// use rustforge::*;
+///
+/// mailable! {
+///     pub struct WelcomeEmail {
+///         user: User,
+///         activation_url: String,
+///     }
+///
+///     fn envelope(&self) -> Envelope {
+///         Envelope::new()
+///             .subject("Welcome to RustForge!")
+///             .from("hello@rustforge.dev")
+///             .reply_to("support@rustforge.dev")
+///     }
+///
+///     fn content(&self) -> Content {
+///         Content::view("emails.welcome")
+///             .with("user", &self.user)
+///             .with("url", &self.activation_url)
+///     }
+///
+///     fn attachments(&self) -> Vec<Attachment> {
+///         vec![
+///             Attachment::from_path("/docs/getting-started.pdf")
+///                 .as_("Getting Started Guide.pdf")
+///                 .with_mime("application/pdf"),
+///         ]
+///     }
+/// }
+///
+/// // Send email
+/// Mail::to("user@example.com")
+///     .send(WelcomeEmail {
+///         user,
+///         activation_url: "https://rustforge.dev/activate/abc123".into(),
+///     })
+///     .await?;
+///
+/// // Queue for later
+/// Mail::to("user@example.com")
+///     .queue(WelcomeEmail { user, activation_url })
+///     .delay(Duration::from_secs(60))
+///     .await?;
+/// ```
+#[proc_macro]
+pub fn mailable(input: TokenStream) -> TokenStream {
+    mailable_macro::mailable_impl(input)
+}
+
+/// Attribute macro for simpler mailable definition
+///
+/// ```ignore
+/// #[mail(subject = "Welcome!", view = "emails.welcome")]
+/// pub struct WelcomeEmail {
+///     pub user: User,
+/// }
+/// ```
+#[proc_macro_attribute]
+pub fn mail(attr: TokenStream, item: TokenStream) -> TokenStream {
+    mailable_macro::mailable_attr_impl(attr, item)
+}
+
+/// Define a notification - Laravel style!
+///
+/// Notifications can be sent via multiple channels (mail, database, Slack, etc.)
+///
+/// # Example
+///
+/// ```ignore
+/// notification! {
+///     pub struct OrderShipped {
+///         order: Order,
+///     }
+///
+///     fn via(&self) -> Vec<Channel> {
+///         vec![Channel::Mail, Channel::Database]
+///     }
+///
+///     fn to_mail(&self) -> Mailable {
+///         Mailable::new()
+///             .subject("Your order has shipped!")
+///             .view("emails.order_shipped")
+///             .with("order", &self.order)
+///     }
+///
+///     fn to_database(&self) -> Value {
+///         json!({
+///             "type": "order_shipped",
+///             "order_id": self.order.id,
+///             "message": format!("Order #{} has shipped!", self.order.id)
+///         })
+///     }
+/// }
+///
+/// // Send notification to user
+/// user.notify(OrderShipped { order }).await?;
+///
+/// // Send to multiple users
+/// Notification::send(users, OrderShipped { order }).await?;
+/// ```
+#[proc_macro]
+pub fn notification(input: TokenStream) -> TokenStream {
+    mailable_macro::notification_impl(input)
+}
+
+/// Markdown email content helper
+///
+/// ```ignore
+/// let content = markdown! {
+///     # Welcome {{ user.name }}!
+///
+///     Thanks for joining. Here's what to do next:
+///
+///     - Create your first project
+///     - Invite team members
+///     - Start building
+/// };
+/// ```
+#[proc_macro]
+pub fn markdown(input: TokenStream) -> TokenStream {
+    mailable_macro::markdown_impl(input)
 }

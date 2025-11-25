@@ -16,32 +16,45 @@ RustForge brings the elegant developer experience of Laravel to the Rust ecosyst
 - **Performant**: Built on Rust's zero-cost abstractions
 - **Type-Safe**: Compile-time guarantees for reliability
 
-## 🆕 New: Laravel-Style Syntax
+## 🆕 New: Ultimate Laravel Experience
 
-RustForge now supports **Laravel-identical syntax** for a familiar developer experience:
+RustForge now supports **Laravel-identical syntax** with the `rustforge!` block - write Rust exactly like Laravel PHP:
 
 ```rust
-use rf_route_facade::Route;
-use rf_global_helpers::Hash;
-use rf_macros::rules;
+// That's it! No imports needed!
+rustforge! {
+    Model!(User: name, email, hidden password);
 
-// Laravel-style routes
-Route::post("/users", |req| async {
-    // Validate with pipes
-    req.validate(rules! {
-        email: required | email,
-        password: required | min(8),
-    });
+    async fn index() -> Response {
+        let users = User::where("active", true)
+            .orderBy("name", "asc")
+            .get();  // No .await needed!
+        Response::json(users)
+    }
 
-    // Hash passwords
-    let hash = Hash::make(&req.password);
-
-    // Create user
-    User::create(data)
-});
+    async fn store(data: Json<Value>) -> Response {
+        let user = User::create(data.0);
+        Response::json(user).status(201)
+    }
+}
 ```
 
+**✨ What's automatic:**
+- ✅ `use rustforge::*;` - no manual imports
+- ✅ `#[auto_await]` applied to all async functions
+- ✅ `.await` added to async calls automatically
+- ✅ `where` keyword works like Laravel
+
 **👉 [Learn more about Laravel Syntax](Laravel-Syntax)**
+
+## 🆕 New Features in Latest Version
+
+- **Blade Templates** - `@if`, `@foreach`, `@auth`, `@csrf` and more
+- **Mailable Classes** - Structured emails with envelope, content, attachments
+- **Notifications** - Multi-channel (Mail, Database, Slack)
+- **Form Requests** - Automatic validation with rules
+- **Exception Handler** - Global error handling
+- **20+ Helper Macros** - `now!`, `bcrypt!`, `view!`, `redirect!`, etc.
 
 ## Quick Links
 
@@ -87,9 +100,19 @@ Route::post("/users", |req| async {
 - Job retry and failure handling
 - Scheduled tasks
 
+### Templates & Views
+- Blade-like templating (`@if`, `@foreach`, `@auth`)
+- Template sections and stacks
+- HTML escaping and raw output
+
+### Mail & Notifications
+- Mailable classes with structured emails
+- Multi-channel notifications (Mail, DB, Slack)
+- Markdown email support
+- Queue support for async sending
+
 ### Additional Features
 - Event system with listeners
-- Mail system with templates
 - File storage (Local, S3)
 - Broadcasting (WebSockets)
 - GraphQL support

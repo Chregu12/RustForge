@@ -288,6 +288,106 @@ pub use rf_macros::asset;
 pub use rf_macros::url;
 
 // ============================================================================
+// Additional Laravel Helper Macros
+// ============================================================================
+
+/// Get current datetime
+///
+/// ```rust,ignore
+/// let current = now!();
+/// let formatted = now!("%Y-%m-%d");
+/// ```
+pub use rf_macros::now;
+
+/// Hash passwords with bcrypt
+///
+/// ```rust,ignore
+/// let hashed = bcrypt!(password);
+/// let valid = bcrypt!(verify: password, hash);
+/// ```
+pub use rf_macros::bcrypt;
+
+/// Redirect back to previous URL
+///
+/// ```rust,ignore
+/// return back!();
+/// return back!("/fallback");
+/// ```
+pub use rf_macros::back;
+
+/// Render a view
+///
+/// ```rust,ignore
+/// return view!("welcome");
+/// return view!("users.index", users);
+/// ```
+pub use rf_macros::view;
+
+/// Create redirect response
+///
+/// ```rust,ignore
+/// return redirect!("/home");
+/// return redirect!(route: "users.show", id = 1);
+/// ```
+pub use rf_macros::redirect;
+
+/// Session management
+///
+/// ```rust,ignore
+/// let value = session!("key");
+/// session!(set: "key", value);
+/// session!(flash: "message", "Success!");
+/// ```
+pub use rf_macros::session;
+
+/// Authentication helpers
+///
+/// ```rust,ignore
+/// let user = auth!();
+/// if auth!(check) { ... }
+/// ```
+pub use rf_macros::auth;
+
+/// CSRF token
+///
+/// ```rust,ignore
+/// let token = csrf!();
+/// csrf!(field)  // Hidden input HTML
+/// ```
+pub use rf_macros::csrf;
+
+/// Cache operations
+///
+/// ```rust,ignore
+/// let value = cache!("key");
+/// cache!(put: "key", value, 3600);
+/// ```
+pub use rf_macros::cache;
+
+/// Logging
+///
+/// ```rust,ignore
+/// logger!(info: "User logged in");
+/// logger!(error: "Failed: {}", msg);
+/// ```
+pub use rf_macros::logger;
+
+/// Event dispatching
+///
+/// ```rust,ignore
+/// event!(UserCreated { user_id: 123 });
+/// ```
+pub use rf_macros::event;
+
+/// File storage
+///
+/// ```rust,ignore
+/// let contents = storage!("file.txt");
+/// storage!(put: "file.txt", data);
+/// ```
+pub use rf_macros::storage;
+
+// ============================================================================
 // Facades - Static API like Laravel
 // ============================================================================
 
@@ -355,6 +455,264 @@ pub use rf_response::Response;
 // ============================================================================
 
 pub use rf_validation::Validate;
+
+// ============================================================================
+// Form Request - Laravel-style Validation
+// ============================================================================
+
+/// Define a form request with automatic validation - Laravel style!
+///
+/// ```rust,ignore
+/// use rustforge::*;
+///
+/// form_request! {
+///     pub struct CreateUserRequest {
+///         #[required, email, unique("users", "email")]
+///         email: String,
+///
+///         #[required, min(8)]
+///         password: String,
+///
+///         #[required, min(2), max(100)]
+///         name: String,
+///     }
+///
+///     fn authorize(&self) -> bool {
+///         Auth::check()
+///     }
+/// }
+///
+/// async fn create_user(Validated(req): Validated<CreateUserRequest>) -> Response {
+///     let user = User::create(json!({
+///         "email": req.email,
+///         "name": req.name,
+///     })).await;
+///     Response::json(user)
+/// }
+/// ```
+pub use rf_macros::form_request;
+
+/// Attribute macro for simpler form request validation
+///
+/// ```rust,ignore
+/// #[validated]
+/// struct CreatePostRequest {
+///     #[validate(required, min_length(5))]
+///     title: String,
+///
+///     #[validate(required)]
+///     body: String,
+/// }
+/// ```
+pub use rf_macros::validated;
+
+/// Validated extractor - automatically validates form requests
+///
+/// ```rust,ignore
+/// async fn store(Validated(request): Validated<CreateUserRequest>) -> Response {
+///     // request is already validated!
+///     Response::json(request)
+/// }
+/// ```
+pub use rf_validation::Validated;
+
+/// Form request trait
+pub use rf_validation::FormRequest;
+
+/// Form request error type
+pub use rf_validation::FormRequestError;
+
+/// Form request result type
+pub use rf_validation::FormRequestResult;
+
+// ============================================================================
+// Exception Handling
+// ============================================================================
+
+/// Define a global exception handler
+///
+/// ```rust,ignore
+/// exception_handler! {
+///     dont_report: [ValidationException];
+///     dont_flash: ["password"];
+///
+///     fn render(error: &AppError, request: &Request) -> Response {
+///         Response::error(500, "Server Error")
+///     }
+/// }
+/// ```
+pub use rf_macros::exception_handler;
+
+/// Wrap a handler with exception handling
+pub use rf_macros::handle_exceptions;
+
+/// Abort if condition is true
+///
+/// ```rust,ignore
+/// abort_if!(user.is_banned(), 403, "Account banned");
+/// ```
+pub use rf_macros::abort_if;
+
+/// Abort unless condition is true
+///
+/// ```rust,ignore
+/// abort_unless!(user.has_permission(), 403);
+/// ```
+pub use rf_macros::abort_unless;
+
+/// Report an exception without throwing
+pub use rf_macros::report;
+
+/// Rescue from errors with a fallback value
+///
+/// ```rust,ignore
+/// let user = rescue!(User::find(id).await, User::default());
+/// ```
+pub use rf_macros::rescue;
+
+// ============================================================================
+// Blade-like Template Macros
+// ============================================================================
+
+/// Blade-like template macro with Laravel directives
+///
+/// ```rust,ignore
+/// use rustforge::*;
+///
+/// let html = blade! {
+///     <div class="container">
+///         @if let Some(user) = user {
+///             <h1>Welcome, {{ user.name }}!</h1>
+///         } @else {
+///             <p>Please log in</p>
+///         }
+///
+///         @foreach post in posts {
+///             <li>{{ post.title }}</li>
+///         }
+///
+///         @auth {
+///             <a href="/logout">Logout</a>
+///         }
+///
+///         @csrf
+///     </div>
+/// };
+/// ```
+pub use rf_macros::blade;
+
+/// Simple HTML template macro
+///
+/// ```rust,ignore
+/// let name = "World";
+/// let html = html! {
+///     <div>Hello, {name}!</div>
+/// };
+/// ```
+pub use rf_macros::html;
+
+/// Define a template section
+///
+/// ```rust,ignore
+/// section!("content") {
+///     <h1>Page Content</h1>
+/// }
+/// ```
+pub use rf_macros::section;
+
+/// Push content to a stack
+///
+/// ```rust,ignore
+/// push!("scripts") {
+///     <script src="/js/app.js"></script>
+/// }
+/// ```
+pub use rf_macros::push;
+
+/// Render a stack
+///
+/// ```rust,ignore
+/// let scripts = stack!("scripts");
+/// ```
+pub use rf_macros::stack;
+
+// ============================================================================
+// Laravel-style Email System (Mailable)
+// ============================================================================
+
+/// Define a mailable email - Laravel style!
+///
+/// ```rust,ignore
+/// use rustforge::*;
+///
+/// mailable! {
+///     pub struct WelcomeEmail {
+///         user: User,
+///     }
+///
+///     fn envelope(&self) -> Envelope {
+///         Envelope::new()
+///             .subject("Welcome to RustForge!")
+///             .from("hello@rustforge.dev")
+///     }
+///
+///     fn content(&self) -> Content {
+///         Content::view("emails.welcome")
+///             .with("user", &self.user)
+///     }
+/// }
+///
+/// // Send email
+/// Mail::to("user@example.com")
+///     .send(WelcomeEmail { user })
+///     .await?;
+/// ```
+pub use rf_macros::mailable;
+
+/// Attribute macro for simpler mailable definition
+///
+/// ```rust,ignore
+/// #[mail(subject = "Welcome!", view = "emails.welcome")]
+/// pub struct WelcomeEmail {
+///     pub user: User,
+/// }
+/// ```
+pub use rf_macros::mail;
+
+/// Define a notification - Laravel style!
+///
+/// ```rust,ignore
+/// notification! {
+///     pub struct OrderShipped {
+///         order: Order,
+///     }
+///
+///     fn via(&self) -> Vec<Channel> {
+///         vec![Channel::Mail, Channel::Database]
+///     }
+///
+///     fn to_mail(&self) -> Mailable {
+///         Mailable::new()
+///             .subject("Your order has shipped!")
+///             .view("emails.order_shipped")
+///     }
+/// }
+///
+/// // Send notification
+/// user.notify(OrderShipped { order }).await?;
+/// ```
+pub use rf_macros::notification;
+
+/// Markdown email content helper
+///
+/// ```rust,ignore
+/// let content = markdown! {
+///     # Welcome {{ user.name }}!
+///
+///     Thanks for joining us.
+/// };
+/// ```
+pub use rf_macros::markdown;
 
 // ============================================================================
 // Common Re-exports
