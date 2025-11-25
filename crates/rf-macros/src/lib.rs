@@ -8,6 +8,23 @@
 //! - `function!`: Converts function syntax to async closures with automatic `.await` insertion
 //! - `rules!`: Creates validation rules with pipe syntax
 //! - `#[controller]`: Marks structs as controllers and auto-converts methods
+//! - `laravel!`: Define models with PHP-like syntax
+//!
+//! ## Example: Laravel-like syntax
+//!
+//! ```rust,ignore
+//! use rf_macros::laravel;
+//!
+//! laravel! {
+//!     class User extends Model {
+//!         protected fillable = [name: String, email: String];
+//!         protected hidden = [password: String];
+//!     }
+//! }
+//!
+//! // Then use Laravel-style queries:
+//! let users = User::where("active", true).get().await?;
+//! ```
 //!
 //! ## Example: auto_await
 //!
@@ -28,6 +45,7 @@ extern crate proc_macro;
 mod await_transformer;
 mod controller_macro;
 mod function_macro;
+mod laravel_syntax;
 mod rules_macro;
 
 use await_transformer::AwaitTransformer;
@@ -168,4 +186,54 @@ pub fn auto_await(_attr: TokenStream, item: TokenStream) -> TokenStream {
     TokenStream::from(quote! {
         #function
     })
+}
+
+/// Define models using Laravel-like PHP syntax.
+///
+/// This macro allows you to write models that look almost identical to Laravel:
+///
+/// # Example
+///
+/// ```ignore
+/// use rf_macros::laravel;
+///
+/// laravel! {
+///     class User extends Model {
+///         protected fillable = [name: String, email: String];
+///         protected hidden = [password: String];
+///     }
+/// }
+///
+/// laravel! {
+///     class Post extends Model {
+///         protected table = "blog_posts";
+///         protected fillable = [title: String, body: String, author_id: i64];
+///         protected timestamps = true;
+///     }
+/// }
+/// ```
+///
+/// ## Generated Code
+///
+/// The macro generates:
+/// - A struct with the specified fields
+/// - `impl Model for YourModel` with the table name
+/// - `FILLABLE` and `HIDDEN` constants
+/// - Default implementation
+///
+/// ## Then use Laravel-style queries:
+///
+/// ```ignore
+/// // All these work!
+/// let users = User::where("active", true).get().await?;
+/// let user = User::find(1).await?;
+/// let admins = User::where("role", "admin")
+///     .where("active", true)
+///     .order_by("name", "asc")
+///     .limit(10)
+///     .get().await?;
+/// ```
+#[proc_macro]
+pub fn laravel(input: TokenStream) -> TokenStream {
+    laravel_syntax::laravel_impl(input)
 }
