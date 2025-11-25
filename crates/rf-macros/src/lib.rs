@@ -47,6 +47,7 @@ mod controller_macro;
 mod function_macro;
 mod laravel_syntax;
 mod rules_macro;
+mod simple_model;
 
 use await_transformer::AwaitTransformer;
 use proc_macro::TokenStream;
@@ -236,4 +237,46 @@ pub fn auto_await(_attr: TokenStream, item: TokenStream) -> TokenStream {
 #[proc_macro]
 pub fn laravel(input: TokenStream) -> TokenStream {
     laravel_syntax::laravel_impl(input)
+}
+
+/// Ultra-simple model definition macro.
+///
+/// # Minimal Syntax
+///
+/// ```ignore
+/// // All fields default to String type
+/// Model!(User: name, email, hidden password);
+/// ```
+///
+/// # Full Syntax
+///
+/// ```ignore
+/// Model!(User {
+///     name: String,
+///     email: String,
+///     hidden password: String,
+///     age: i32,
+/// });
+/// ```
+///
+/// # With Custom Table
+///
+/// ```ignore
+/// Model!(Post {
+///     table = "blog_posts",
+///     title: String,
+///     body: String,
+/// });
+/// ```
+///
+/// # Generated Code
+///
+/// The macro generates:
+/// - Struct with `id`, `created_at`, `updated_at` fields
+/// - `impl Model` with table name
+/// - `FILLABLE` and `HIDDEN` constants
+/// - `Default` implementation
+#[proc_macro]
+pub fn Model(input: TokenStream) -> TokenStream {
+    simple_model::simple_model_impl(input)
 }

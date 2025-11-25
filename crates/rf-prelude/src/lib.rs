@@ -51,11 +51,26 @@ pub use rf_model_macro::model;
 ///         protected hidden = [password: String];
 ///     }
 /// }
-///
-/// // Then use Laravel-style queries:
-/// let users = User::where("active", true).get().await?;
 /// ```
 pub use rf_macros::laravel;
+
+/// Ultra-simple model macro - the cleanest syntax!
+///
+/// ```rust
+/// use rf_prelude::*;
+///
+/// // Minimal - all fields are String by default
+/// Model!(User: name, email, hidden password);
+///
+/// // Or with explicit types
+/// Model!(Post {
+///     title: String,
+///     body: String,
+///     user_id: i64,
+/// });
+/// ```
+#[allow(non_snake_case)]
+pub use rf_macros::Model;
 
 /// Auto-await macro - write async code without explicit .await
 ///
