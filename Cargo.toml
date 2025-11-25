@@ -72,8 +72,8 @@ members = [
     "crates/rf-session-facade",
     "crates/rf-config-facade",
     "crates/rf-view-facade",
-    # Prelude - single import for everything
-    "crates/rf-prelude",
+    # RustForge - single import for everything
+    "crates/rustforge",
     # Phase 15: Monitoring & Debugging
     "crates/rf-horizon",
     "crates/rf-telescope",

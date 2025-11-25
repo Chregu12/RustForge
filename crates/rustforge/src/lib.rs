@@ -1,34 +1,39 @@
-//! # RustForge Prelude
+//! # RustForge - The Laravel of Rust
 //!
-//! Import everything you need with a single use statement:
+//! Import everything you need with a single line:
 //!
-//! ```rust
-//! use rf_prelude::*;
+//! ```rust,ignore
+//! use rustforge::*;
 //!
-//! #[model]
-//! pub struct User {
-//!     pub name: String,
-//!     pub email: String,
-//!     #[hidden]
-//!     pub password: String,
-//! }
+//! Model!(User: name, email, hidden password);
+//!
+//! let users = User::filter("active", true).get().await;
+//! let user = User::find(1).await;
+//! ```
+//!
+//! With `#[auto_await]` - no `.await` needed:
+//!
+//! ```rust,ignore
+//! use rustforge::*;
+//!
+//! Model!(User: name, email, hidden password);
 //!
 //! #[auto_await]
-//! async fn example() -> Result<(), Error> {
+//! async fn example() -> Result<()> {
 //!     let users = User::filter("active", true).get();
-//!     let cached = Cache::get("stats");
+//!     let user = User::find(1);
 //!     Ok(())
 //! }
 //! ```
 
 // ============================================================================
-// Macros - These are automatically available after `use rf_prelude::*;`
+// Macros - These are automatically available after `use rustforge::*;`
 // ============================================================================
 
 /// Model macro - define models like Laravel's Eloquent
 ///
 /// ```rust
-/// use rf_prelude::*;
+/// use rustforge::*;
 ///
 /// #[model]
 /// pub struct User {
@@ -43,7 +48,7 @@ pub use rf_model_macro::model;
 /// Laravel-like class syntax for models
 ///
 /// ```rust
-/// use rf_prelude::*;
+/// use rustforge::*;
 ///
 /// laravel! {
 ///     class User extends Model {
@@ -57,7 +62,7 @@ pub use rf_macros::laravel;
 /// Ultra-simple model macro - the cleanest syntax!
 ///
 /// ```rust
-/// use rf_prelude::*;
+/// use rustforge::*;
 ///
 /// // Minimal - all fields are String by default
 /// Model!(User: name, email, hidden password);
@@ -75,7 +80,7 @@ pub use rf_macros::Model;
 /// Auto-await macro - write async code without explicit .await
 ///
 /// ```rust
-/// use rf_prelude::*;
+/// use rustforge::*;
 ///
 /// #[auto_await]
 /// async fn handler() -> Result<Response, Error> {
