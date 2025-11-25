@@ -46,6 +46,7 @@ mod await_transformer;
 mod controller_macro;
 mod function_macro;
 mod laravel_syntax;
+mod query_macro;
 mod rules_macro;
 mod simple_model;
 
@@ -279,4 +280,35 @@ pub fn laravel(input: TokenStream) -> TokenStream {
 #[proc_macro]
 pub fn Model(input: TokenStream) -> TokenStream {
     simple_model::simple_model_impl(input)
+}
+
+/// Query macro that allows using `where` without the r# prefix.
+///
+/// In Rust, `where` is a reserved keyword. This macro transforms
+/// `where` to `r#where` internally, so you can write Laravel-like code:
+///
+/// # Example
+///
+/// ```ignore
+/// use rustforge::*;
+///
+/// // With query! macro - use `where` like Laravel!
+/// let users = query!(User::where("active", true).get()).await;
+///
+/// let admins = query! {
+///     User::where("role", "admin")
+///         .where("active", true)
+///         .orderBy("name", "asc")
+///         .limit(10)
+///         .get()
+/// }.await;
+/// ```
+///
+/// This is equivalent to:
+/// ```ignore
+/// let users = User::r#where("active", true).get().await;
+/// ```
+#[proc_macro]
+pub fn query(input: TokenStream) -> TokenStream {
+    query_macro::query_impl(input)
 }
