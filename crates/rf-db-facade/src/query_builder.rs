@@ -201,6 +201,12 @@ impl QueryBuilder {
         self
     }
 
+    /// Laravel-style orderBy (camelCase alias)
+    #[allow(non_snake_case)]
+    pub fn orderBy(self, column: impl Into<String>, direction: impl Into<String>) -> Self {
+        self.order_by(column, direction)
+    }
+
     /// Order by ascending
     pub fn order_by_asc(self, column: impl Into<String>) -> Self {
         self.order_by(column, "ASC")

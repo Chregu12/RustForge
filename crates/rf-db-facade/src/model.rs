@@ -271,6 +271,34 @@ pub trait Model: Sized {
         }
         QueryBuilder::new(Self::TABLE).create(merged).await
     }
+
+    // =========================================================================
+    // Laravel-style camelCase aliases
+    // =========================================================================
+
+    /// Laravel-style alias for `first_or_create`
+    #[allow(non_snake_case)]
+    async fn firstOrCreate(search: Value, create_data: Value) -> Result<Value, String> {
+        Self::first_or_create(search, create_data).await
+    }
+
+    /// Laravel-style alias for `update_or_create`
+    #[allow(non_snake_case)]
+    async fn updateOrCreate(search: Value, update_data: Value) -> Result<Value, String> {
+        Self::update_or_create(search, update_data).await
+    }
+
+    /// Laravel-style alias for `find_or_fail`
+    #[allow(non_snake_case)]
+    async fn findOrFail<V: Into<Value>>(id: V) -> Result<Value, String> {
+        Self::find_or_fail(id).await
+    }
+
+    /// Laravel-style alias for `update_by_id`
+    #[allow(non_snake_case)]
+    async fn updateById<V: Into<Value>>(id: V, data: Value) -> Result<u64, String> {
+        Self::update_by_id(id, data).await
+    }
 }
 
 /// Macro for quickly defining a model
