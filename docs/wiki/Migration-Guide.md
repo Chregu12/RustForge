@@ -74,16 +74,14 @@ class UserController extends Controller
 }
 ```
 
-**RustForge:**
+**RustForge (Laravel-style!):**
 ```rust
-use rf_db_facade::DB;
 use rf_http::{Response, Json};
 use rf_validation::Validate;
 
 pub async fn index() -> Result<Response, Error> {
-    let users = DB::table("users")
-        .r#where("active", true)
-        .get().await?;
+    // Same as Laravel: User::where('active', true)->get()
+    let users = User::r#where("active", true).get().await?;
 
     Ok(Response::json(users))
 }
@@ -100,7 +98,8 @@ pub struct CreateUserRequest {
 pub async fn store(Json(payload): Json<CreateUserRequest>) -> Result<Response, Error> {
     payload.validate()?;
 
-    let user = DB::table("users").create(json!({
+    // Same as Laravel: User::create($validated)
+    let user = User::create(json!({
         "name": payload.name,
         "email": payload.email
     })).await?;
@@ -113,10 +112,11 @@ pub async fn store(Json(payload): Json<CreateUserRequest>) -> Result<Response, E
 
 | Aspekt | Laravel | RustForge | Grund |
 |--------|---------|-----------|-------|
-| Query | `User::where()` | `DB::table("users").r#where()` | Rust hat keine Magic Methods |
+| Query | `User::where()` | `User::r#where()` | `where` ist Rust-Keyword, daher `r#where` |
 | Async | implizit | `.await?` | Rust ist explizit async |
 | Validation | Inline Rules | Derive Macro | Compile-time Prüfung |
 | Response | `response()->json()` | `Response::json()` | Ähnlich |
+| Models | `class User extends Model` | `#[model] struct User` | Macros statt Vererbung |
 
 ### Models
 
@@ -135,33 +135,33 @@ class User extends Model
 }
 ```
 
-**RustForge:**
+**RustForge (Laravel-style with #[model]):**
 ```rust
-#[derive(Clone, Debug, PartialEq, DeriveEntityModel, Serialize, Deserialize)]
-#[sea_orm(table_name = "users")]
-pub struct Model {
-    #[sea_orm(primary_key)]
-    pub id: i32,
+use rf_model_macro::model;
 
+// Almost as simple as Laravel!
+#[model]
+pub struct User {
     pub name: String,
     pub email: String,
-
-    #[serde(skip_serializing)]
+    #[hidden]
     pub password: String,
 }
 
-#[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
-pub enum Relation {
-    #[sea_orm(has_many = "super::post::Entity")]
-    Posts,
-}
-
-impl Related<super::post::Entity> for Entity {
-    fn to() -> RelationDef {
-        Relation::Posts.def()
+// Relations
+#[relations]
+impl User {
+    fn posts() -> HasMany<Post> {
+        self.has_many()
     }
 }
 ```
+
+The `#[model]` macro automatically:
+- Adds `id`, `created_at`, `updated_at` fields
+- Adds all SeaORM derives
+- Converts `#[hidden]` to `#[serde(skip_serializing)]`
+- Implements Model trait for static methods
 
 ### Migrations
 
@@ -323,20 +323,20 @@ Cache::remember('users', 3600, function () {
 **RustForge (Laravel-style!):**
 ```rust
 use rf_cache_facade::Cache;
-use std::time::Duration;
 
-// Similar to Laravel
-Cache::put("key", &"value", Duration::from_secs(3600)).await?;
+// Identical to Laravel - just pass seconds!
+Cache::put("key", "value", 3600).await?;
 let value: Option<String> = Cache::get("key").await?;
-let users = Cache::remember("users", Duration::from_secs(3600), || async {
-    Ok(User::find().all(&db).await?)
+let users = Cache::remember("users", 3600, || async {
+    Ok(User::all().await?)
 }).await?;
 
 // Additional methods
 Cache::has("key").await?;           // Check existence
 Cache::forget("key").await?;        // Delete key
-Cache::forever("key", &"value").await?;  // Store forever
+Cache::forever("key", "value").await?;  // Store forever
 Cache::flush().await?;              // Clear all
+Cache::add("key", "value", 60).await?;  // Add only if not exists
 ```
 
 ### CLI Commands

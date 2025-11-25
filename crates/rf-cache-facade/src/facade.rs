@@ -5,17 +5,61 @@ use rf_cache::{CacheResult, TaggedCache};
 use serde::{de::DeserializeOwned, Serialize};
 use std::time::Duration;
 
+/// Trait for values that can be converted to a TTL duration.
+///
+/// This allows accepting both `u64` (seconds) and `Duration`.
+///
+/// # Examples
+///
+/// ```rust
+/// // Both work:
+/// Cache::put("key", &"value", 3600).await?;           // seconds
+/// Cache::put("key", &"value", Duration::from_secs(3600)).await?;  // Duration
+/// ```
+pub trait IntoTtl {
+    fn into_duration(self) -> Duration;
+}
+
+impl IntoTtl for u64 {
+    fn into_duration(self) -> Duration {
+        Duration::from_secs(self)
+    }
+}
+
+impl IntoTtl for i64 {
+    fn into_duration(self) -> Duration {
+        Duration::from_secs(self.max(0) as u64)
+    }
+}
+
+impl IntoTtl for u32 {
+    fn into_duration(self) -> Duration {
+        Duration::from_secs(self as u64)
+    }
+}
+
+impl IntoTtl for i32 {
+    fn into_duration(self) -> Duration {
+        Duration::from_secs(self.max(0) as u64)
+    }
+}
+
+impl IntoTtl for Duration {
+    fn into_duration(self) -> Duration {
+        self
+    }
+}
+
 /// The Cache facade providing a static-like API for caching.
 ///
 /// # Examples
 ///
 /// ```rust,no_run
 /// use rf_cache_facade::Cache;
-/// use std::time::Duration;
 ///
 /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-/// // Put a value
-/// Cache::put("key", &"value", Duration::from_secs(3600)).await?;
+/// // Put a value - Laravel style with seconds!
+/// Cache::put("key", "value", 3600).await?;
 ///
 /// // Get a value
 /// if let Some(value) = Cache::get::<String>("key").await? {
@@ -23,7 +67,7 @@ use std::time::Duration;
 /// }
 ///
 /// // Remember pattern
-/// let value = Cache::remember("expensive", Duration::from_secs(60), || async {
+/// let value = Cache::remember("expensive", 60, || async {
 ///     Ok::<_, String>("computed".to_string())
 /// }).await?;
 /// # Ok(())
@@ -53,24 +97,30 @@ impl Cache {
 
     /// Put a value in cache with TTL
     ///
+    /// Accepts seconds as integer or Duration.
+    ///
     /// # Examples
     ///
     /// ```rust,no_run
     /// use rf_cache_facade::Cache;
-    /// use std::time::Duration;
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// Cache::put("key", &"value", Duration::from_secs(3600)).await?;
+    /// // Laravel style - just pass seconds!
+    /// Cache::put("key", "value", 3600).await?;
+    ///
+    /// // Also works with Duration
+    /// use std::time::Duration;
+    /// Cache::put("key", "value", Duration::from_secs(3600)).await?;
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn put<T: Serialize + Sync>(
+    pub async fn put<T: Serialize + Sync, TTL: IntoTtl>(
         key: &str,
-        value: &T,
-        ttl: Duration,
+        value: T,
+        ttl: TTL,
     ) -> CacheResult<()> {
         let manager = GLOBAL_CACHE.read().await;
-        manager.put(key, value, ttl).await
+        manager.put(key, &value, ttl.into_duration()).await
     }
 
     /// Store a value forever (very long TTL)
@@ -81,13 +131,13 @@ impl Cache {
     /// use rf_cache_facade::Cache;
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// Cache::forever("key", &"value").await?;
+    /// Cache::forever("key", "value").await?;
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn forever<T: Serialize + Sync>(key: &str, value: &T) -> CacheResult<()> {
+    pub async fn forever<T: Serialize + Sync>(key: &str, value: T) -> CacheResult<()> {
         let manager = GLOBAL_CACHE.read().await;
-        manager.forever(key, value).await
+        manager.forever(key, &value).await
     }
 
     /// Remove a value from cache
@@ -145,22 +195,24 @@ impl Cache {
 
     /// Remember pattern: get from cache or compute and store
     ///
+    /// Accepts seconds as integer or Duration.
+    ///
     /// # Examples
     ///
     /// ```rust,no_run
     /// use rf_cache_facade::Cache;
-    /// use std::time::Duration;
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let value = Cache::remember("key", Duration::from_secs(60), || async {
+    /// // Laravel style - just pass seconds!
+    /// let users = Cache::remember("users", 3600, || async {
     ///     Ok::<_, String>("computed".to_string())
     /// }).await?;
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn remember<T, F, Fut>(
+    pub async fn remember<T, F, Fut, TTL: IntoTtl>(
         key: &str,
-        ttl: Duration,
+        ttl: TTL,
         f: F,
     ) -> CacheResult<T>
     where
@@ -169,7 +221,7 @@ impl Cache {
         Fut: std::future::Future<Output = CacheResult<T>> + Send,
     {
         let manager = GLOBAL_CACHE.read().await;
-        manager.remember(key, ttl, f).await
+        manager.remember(key, ttl.into_duration(), f).await
     }
 
     /// Remember forever: get from cache or compute and store forever
@@ -225,25 +277,23 @@ impl Cache {
     ///
     /// ```rust,no_run
     /// use rf_cache_facade::Cache;
-    /// use std::time::Duration;
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let added = Cache::add("key", &"value", Duration::from_secs(60)).await?;
+    /// // Laravel style
+    /// let added = Cache::add("key", "value", 60).await?;
     /// if added {
     ///     println!("Value was added");
-    /// } else {
-    ///     println!("Key already exists");
     /// }
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn add<T: Serialize + Sync>(
+    pub async fn add<T: Serialize + Sync, TTL: IntoTtl>(
         key: &str,
-        value: &T,
-        ttl: Duration,
+        value: T,
+        ttl: TTL,
     ) -> CacheResult<bool> {
         let manager = GLOBAL_CACHE.read().await;
-        manager.add(key, value, ttl).await
+        manager.add(key, &value, ttl.into_duration()).await
     }
 
     /// Create a tagged cache
@@ -289,9 +339,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_cache_put_get() {
-        Cache::put("test_key", &"test_value", Duration::from_secs(60))
-            .await
-            .unwrap();
+        // Laravel-style: just pass seconds!
+        Cache::put("test_key", "test_value", 60).await.unwrap();
 
         let value: Option<String> = Cache::get("test_key").await.unwrap();
         assert!(value.is_some());
@@ -301,9 +350,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_cache_has() {
-        Cache::put("exists", &"value", Duration::from_secs(60))
-            .await
-            .unwrap();
+        // Laravel-style: just pass seconds!
+        Cache::put("exists", "value", 60).await.unwrap();
 
         assert!(Cache::has("exists").await.unwrap());
         assert!(!Cache::has("not_exists").await.unwrap());
@@ -313,7 +361,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_cache_remember() {
-        let value = Cache::remember("remember_key", Duration::from_secs(60), || async {
+        // Laravel-style: just pass seconds!
+        let value = Cache::remember("remember_key", 60, || async {
             Ok::<_, rf_cache::CacheError>("computed".to_string())
         })
         .await
@@ -326,9 +375,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_cache_pull() {
-        Cache::put("pull_key", &"value", Duration::from_secs(60))
-            .await
-            .unwrap();
+        // Laravel-style: just pass seconds!
+        Cache::put("pull_key", "value", 60).await.unwrap();
 
         let value: Option<String> = Cache::pull("pull_key").await.unwrap();
         assert_eq!(value, Some("value".to_string()));
@@ -341,14 +389,11 @@ mod tests {
     async fn test_cache_add() {
         Cache::forget("add_key").await.ok();
 
-        let added = Cache::add("add_key", &"value1", Duration::from_secs(60))
-            .await
-            .unwrap();
+        // Laravel-style: just pass seconds!
+        let added = Cache::add("add_key", "value1", 60).await.unwrap();
         assert!(added);
 
-        let added = Cache::add("add_key", &"value2", Duration::from_secs(60))
-            .await
-            .unwrap();
+        let added = Cache::add("add_key", "value2", 60).await.unwrap();
         assert!(!added);
 
         Cache::forget("add_key").await.unwrap();
