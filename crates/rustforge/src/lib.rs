@@ -2,6 +2,41 @@
 //!
 //! Write Rust exactly like Laravel PHP!
 //!
+//! ## Ultimate Experience with `rustforge!` block
+//!
+//! ```rust,ignore
+//! // No imports needed! No #[auto_await] needed! No .await needed!
+//! rustforge! {
+//!     Model!(User: name, email, hidden password);
+//!     Model!(Post: title, body, user_id);
+//!
+//!     async fn index() -> Response {
+//!         let users = User::where("active", true)
+//!             .orderBy("name", "asc")
+//!             .get();  // No .await!
+//!         Response::json(users)
+//!     }
+//!
+//!     async fn show(id: i64) -> Response {
+//!         let user = User::findOrFail(id);  // No .await!
+//!         Response::json(user)
+//!     }
+//!
+//!     async fn store(data: Json<Value>) -> Response {
+//!         let user = User::create(data.0);  // No .await!
+//!         Response::json(user)
+//!     }
+//!
+//!     // Use #[sync] to opt-out of auto_await
+//!     #[sync]
+//!     fn helper() -> String {
+//!         "synchronous".to_string()
+//!     }
+//! }
+//! ```
+//!
+//! ## Alternative: Manual imports
+//!
 //! ```rust,ignore
 //! use rustforge::*;
 //!
@@ -17,19 +52,9 @@
 //!             .get();
 //!         Response::json(users)
 //!     }
-//!
-//!     pub async fn show(id: i64) -> Response {
-//!         let user = User::findOrFail(id);
-//!         Response::json(user)
-//!     }
-//!
-//!     pub async fn store(data: Json<Value>) -> Response {
-//!         let user = User::create(data.0);
-//!         Response::json(user)
-//!     }
 //! }
 //!
-//! pub use app::*;  // Re-export everything
+//! pub use app::*;
 //! ```
 
 // ============================================================================
@@ -123,6 +148,34 @@ pub use rf_macros::function;
 
 /// Validation rules macro
 pub use rf_macros::rules;
+
+/// The ultimate Laravel experience - everything automatic!
+///
+/// No imports needed, no #[auto_await] needed, no .await needed!
+///
+/// ```rust,ignore
+/// rustforge! {
+///     Model!(User: name, email, hidden password);
+///
+///     async fn index() -> Response {
+///         let users = User::where("active", true).get();
+///         Response::json(users)
+///     }
+/// }
+/// ```
+pub use rf_macros::rustforge;
+
+/// Opt-out of auto_await inside rustforge! blocks
+///
+/// ```rust,ignore
+/// rustforge! {
+///     #[sync]
+///     fn helper() -> String {
+///         "synchronous".to_string()
+///     }
+/// }
+/// ```
+pub use rf_macros::sync;
 
 // ============================================================================
 // Laravel Helper Macros
