@@ -1,0 +1,32 @@
+[package]
+name = "rf-prelude"
+version = "1.0.0"
+edition = "2021"
+description = "RustForge prelude - import everything with a single use statement"
+license = "MIT"
+repository = "https://github.com/Chregu12/RustForge"
+keywords = ["rustforge", "prelude", "web", "framework"]
+categories = ["web-programming"]
+
+[dependencies]
+# Macros
+rf-macros = { path = "../rf-macros" }
+rf-model-macro = { path = "../rf-model-macro" }
+
+# Facades
+rf-auth-facade = { path = "../rf-auth-facade" }
+rf-cache-facade = { path = "../rf-cache-facade" }
+rf-db-facade = { path = "../rf-db-facade" }
+rf-event-facade = { path = "../rf-event-facade" }
+rf-storage-facade = { path = "../rf-storage-facade" }
+rf-route-facade = { path = "../rf-route-facade" }
+
+# Core
+rf-request = { path = "../rf-request" }
+rf-response = { path = "../rf-response" }
+rf-validation = { path = "../rf-validation" }
+
+# Utilities
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+async-trait = "0.1"

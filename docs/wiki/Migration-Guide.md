@@ -1,9 +1,10 @@
 # Migration Guide
 
-This guide helps you migrate from Laravel, Actix-web, Rocket, or other frameworks to RustForge.
+This guide helps you migrate from other Rust frameworks to RustForge, or get started with RustForge's elegant syntax.
 
 ## Table of Contents
 
+- [RustForge Syntax Guide](#rustforge-syntax-guide)
 - [From Laravel (PHP)](#from-laravel-php)
 - [From Actix-web](#from-actix-web)
 - [From Rocket](#from-rocket)
@@ -12,134 +13,17 @@ This guide helps you migrate from Laravel, Actix-web, Rocket, or other framework
 
 ---
 
-## From Laravel (PHP)
+## RustForge Syntax Guide
 
-RustForge is heavily inspired by Laravel, so the transition should feel familiar.
-
-### Key Differences
-
-| Laravel (PHP) | RustForge (Rust) | Notes |
-|---------------|------------------|-------|
-| Dynamically typed | Statically typed | Type safety at compile time |
-| Runtime errors | Compile-time errors | Catch bugs before deployment |
-| `.env` config | `.env` config | Same approach |
-| Eloquent ORM | SeaORM-based | Similar API, better performance |
-| Artisan CLI | Forge CLI | Similar commands |
-
-### Routing
-
-**Laravel:**
-```php
-Route::get('/users', [UserController::class, 'index']);
-Route::post('/users', [UserController::class, 'store']);
-Route::middleware('auth')->group(function () {
-    Route::get('/profile', [ProfileController::class, 'show']);
-});
-```
-
-**RustForge (Laravel-style!):**
-```rust
-use rf_route_facade::Route;
-
-// Almost identical syntax to Laravel!
-Route::get("/users", user_controller::index);
-Route::post("/users", user_controller::store);
-Route::middleware(&["auth"]).group(|| {
-    Route::get("/profile", profile_controller::show);
-});
-```
-
-### Controllers
-
-**Laravel:**
-```php
-class UserController extends Controller
-{
-    public function index(Request $request)
-    {
-        $users = User::where('active', true)->get();
-        return response()->json($users);
-    }
-
-    public function store(Request $request)
-    {
-        $validated = $request->validate([
-            'name' => 'required|min:3',
-            'email' => 'required|email',
-        ]);
-
-        $user = User::create($validated);
-        return response()->json($user, 201);
-    }
-}
-```
-
-**RustForge (Laravel-style!):**
-```rust
-use rf_http::{Response, Json};
-use rf_validation::Validate;
-
-pub async fn index() -> Result<Response, Error> {
-    // Same as Laravel: User::where('active', true)->get()
-    let users = User::r#where("active", true).get().await?;
-
-    Ok(Response::json(users))
-}
-
-#[derive(Debug, Deserialize, Validate)]
-pub struct CreateUserRequest {
-    #[validate(length(min = 3))]
-    pub name: String,
-
-    #[validate(email)]
-    pub email: String,
-}
-
-pub async fn store(Json(payload): Json<CreateUserRequest>) -> Result<Response, Error> {
-    payload.validate()?;
-
-    // Same as Laravel: User::create($validated)
-    let user = User::create(json!({
-        "name": payload.name,
-        "email": payload.email
-    })).await?;
-
-    Ok(Response::json(user).status(201))
-}
-```
-
-### Unterschiede zu Laravel
-
-| Aspekt | Laravel | RustForge | Grund |
-|--------|---------|-----------|-------|
-| Query | `User::where()` | `User::r#where()` | `where` ist Rust-Keyword, daher `r#where` |
-| Async | implizit | `.await?` | Rust ist explizit async |
-| Validation | Inline Rules | Derive Macro | Compile-time Prüfung |
-| Response | `response()->json()` | `Response::json()` | Ähnlich |
-| Models | `class User extends Model` | `#[model] struct User` | Macros statt Vererbung |
+RustForge provides an elegant, expressive syntax for building web applications in Rust.
 
 ### Models
 
-**Laravel:**
-```php
-class User extends Model
-{
-    protected $fillable = ['name', 'email', 'password'];
+Define models with the `#[model]` macro:
 
-    protected $hidden = ['password'];
-
-    public function posts()
-    {
-        return $this->hasMany(Post::class);
-    }
-}
-```
-
-**RustForge (Laravel-style with #[model]):**
 ```rust
-use rf_model_macro::model;
+use rf_prelude::*;  // Single import - everything included!
 
-// Almost as simple as Laravel!
 #[model]
 pub struct User {
     pub name: String,
@@ -159,101 +43,226 @@ impl User {
 
 The `#[model]` macro automatically:
 - Adds `id`, `created_at`, `updated_at` fields
-- Adds all SeaORM derives
-- Converts `#[hidden]` to `#[serde(skip_serializing)]`
+- Adds all necessary derives
+- Converts `#[hidden]` to skip serialization
 - Implements Model trait for static methods
 
-### Migrations
+### Querying Data
 
-**Laravel:**
-```php
-Schema::create('users', function (Blueprint $table) {
-    $table->id();
-    $table->string('email')->unique();
-    $table->string('name');
-    $table->string('password');
-    $table->timestamps();
+Use the elegant query builder:
+
+```rust
+#[auto_await]
+async fn examples() -> Result<()> {
+    // Find by ID
+    let user = User::find(1);
+
+    // Filter records
+    let admins = User::filter("role", "admin")
+        .filter("active", true)
+        .order_by("name", "asc")
+        .limit(10)
+        .get();
+
+    // Get all
+    let all_users = User::all();
+
+    // First matching
+    let user = User::filter("email", "john@example.com").first();
+
+    // Count
+    let total = User::count();
+
+    // Check existence
+    let exists = User::filter("email", "test@example.com").exists();
+
+    Ok(())
+}
+```
+
+### Creating & Updating
+
+```rust
+#[auto_await]
+async fn crud_examples() -> Result<()> {
+    // Create
+    let user = User::create(json!({
+        "name": "John",
+        "email": "john@example.com"
+    }));
+
+    // Update by ID
+    User::update_by_id(1, json!({
+        "name": "John Doe"
+    }));
+
+    // Delete
+    User::destroy(1);
+
+    // First or create
+    let user = User::first_or_create(
+        json!({"email": "john@example.com"}),
+        json!({"name": "John", "email": "john@example.com"})
+    );
+
+    // Update or create
+    let user = User::update_or_create(
+        json!({"email": "john@example.com"}),
+        json!({"name": "John Updated"})
+    );
+
+    Ok(())
+}
+```
+
+### Auto-Await Macro
+
+Use `#[auto_await]` to write cleaner code without explicit `.await`:
+
+```rust
+// Without auto_await (verbose)
+async fn verbose() -> Result<()> {
+    let users = User::filter("active", true).get().await?;
+    let cached = Cache::get("stats").await?;
+    Ok(())
+}
+
+// With auto_await (clean)
+#[auto_await]
+async fn clean() -> Result<()> {
+    let users = User::filter("active", true).get();
+    let cached = Cache::get("stats");
+    Ok(())
+}
+```
+
+### Routing
+
+```rust
+Route::get("/users", user_controller::index);
+Route::post("/users", user_controller::store);
+Route::put("/users/{id}", user_controller::update);
+Route::delete("/users/{id}", user_controller::destroy);
+
+// Grouped routes with middleware
+Route::middleware(&["auth"]).group(|| {
+    Route::get("/profile", profile_controller::show);
+    Route::put("/profile", profile_controller::update);
+});
+
+// Prefixed routes
+Route::prefix("/api/v1").group(|| {
+    Route::get("/users", api::users::index);
 });
 ```
 
-**RustForge:**
+### Controllers
+
 ```rust
-manager
-    .create_table(
-        Table::create()
-            .table(Users::Table)
-            .if_not_exists()
-            .col(
-                ColumnDef::new(Users::Id)
-                    .integer()
-                    .not_null()
-                    .auto_increment()
-                    .primary_key(),
-            )
-            .col(ColumnDef::new(Users::Email).string().not_null().unique_key())
-            .col(ColumnDef::new(Users::Name).string().not_null())
-            .col(ColumnDef::new(Users::Password).string().not_null())
-            .col(
-                ColumnDef::new(Users::CreatedAt)
-                    .timestamp()
-                    .not_null()
-                    .default(Expr::current_timestamp()),
-            )
-            .col(
-                ColumnDef::new(Users::UpdatedAt)
-                    .timestamp()
-                    .not_null()
-                    .default(Expr::current_timestamp()),
-            )
-            .to_owned(),
-    )
-    .await
+#[derive(Debug, Deserialize, Validate)]
+pub struct CreateUserRequest {
+    #[validate(length(min = 3))]
+    pub name: String,
+
+    #[validate(email)]
+    pub email: String,
+}
+
+#[auto_await]
+pub async fn index() -> Result<Response> {
+    let users = User::filter("active", true).get();
+    Ok(Response::json(users))
+}
+
+#[auto_await]
+pub async fn store(Json(payload): Json<CreateUserRequest>) -> Result<Response> {
+    payload.validate()?;
+
+    let user = User::create(json!({
+        "name": payload.name,
+        "email": payload.email
+    }));
+
+    Ok(Response::json(user).status(201))
+}
 ```
 
 ### Authentication
 
-**Laravel:**
-```php
-Auth::attempt($credentials);
-Auth::user();
-Auth::logout();
+```rust
+#[auto_await]
+async fn auth_examples() -> Result<()> {
+    // Login attempt
+    Auth::attempt(json!({
+        "email": "user@example.com",
+        "password": "secret"
+    }));
+
+    // Get current user
+    let user = Auth::user::<User>();
+
+    // Check authentication
+    if Auth::check() {
+        println!("User is logged in");
+    }
+
+    // Check if guest
+    if Auth::guest() {
+        println!("User is not logged in");
+    }
+
+    // Get user ID
+    let id = Auth::id();
+
+    // Login a user directly
+    Auth::login(user);
+
+    // Logout
+    Auth::logout();
+
+    Ok(())
+}
 ```
 
-**RustForge (Laravel-style!):**
+### Caching
+
 ```rust
-use rf_auth_facade::Auth;
+#[auto_await]
+async fn cache_examples() -> Result<()> {
+    // Store value (TTL in seconds)
+    Cache::put("key", "value", 3600);
 
-// Identical to Laravel!
-Auth::attempt(json!({
-    "email": "user@example.com",
-    "password": "secret"
-})).await?;
+    // Get value
+    let value: Option<String> = Cache::get("key");
 
-// Get current user
-let user = Auth::user::<User>().await;
+    // Remember pattern
+    let users = Cache::remember("users", 3600, || async {
+        Ok(User::all().await?)
+    });
 
-// Logout
-Auth::logout().await;
+    // Check existence
+    if Cache::has("key") {
+        println!("Key exists");
+    }
 
-// Additional Laravel-style methods
-Auth::check().await;      // Check if authenticated
-Auth::guest().await;      // Check if guest
-Auth::id().await;         // Get user ID
-Auth::login(user).await?; // Login a user
+    // Delete key
+    Cache::forget("key");
+
+    // Store forever
+    Cache::forever("permanent_key", "value");
+
+    // Add only if not exists
+    Cache::add("new_key", "value", 60);
+
+    // Clear all cache
+    Cache::flush();
+
+    Ok(())
+}
 ```
 
 ### Validation
 
-**Laravel:**
-```php
-$request->validate([
-    'email' => 'required|email|unique:users',
-    'name' => 'required|min:3|max:50',
-    'age' => 'required|integer|min:18',
-]);
-```
-
-**RustForge:**
 ```rust
 #[derive(Debug, Deserialize, Validate)]
 pub struct CreateUserRequest {
@@ -265,40 +274,35 @@ pub struct CreateUserRequest {
 
     #[validate(range(min = 18))]
     pub age: u8,
+
+    #[validate(length(min = 8))]
+    pub password: String,
+}
+
+// Use in handler
+pub async fn store(Json(payload): Json<CreateUserRequest>) -> Result<Response> {
+    payload.validate()?;  // Returns error if validation fails
+    // ... create user
 }
 ```
 
-### Queues & Jobs
+### Jobs & Queues
 
-**Laravel:**
-```php
-class SendEmailJob implements ShouldQueue
-{
-    public function handle()
-    {
-        Mail::to($this->user)->send(new WelcomeMail());
-    }
-}
-
-SendEmailJob::dispatch($user);
-```
-
-**RustForge:**
 ```rust
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SendEmailJob {
     pub user_id: i32,
+    pub template: String,
 }
 
 #[async_trait]
 impl Job for SendEmailJob {
     async fn handle(&self, ctx: &JobContext) -> Result<(), Error> {
-        let user = User::find_by_id(self.user_id)
-            .one(ctx.db())
-            .await?
-            .unwrap();
+        let user = User::find(self.user_id).await?;
 
         Mail::to(&user.email)
+            .template(&self.template)
             .send()
             .await?;
 
@@ -306,7 +310,158 @@ impl Job for SendEmailJob {
     }
 }
 
-Queue::push(SendEmailJob { user_id: 1 }).await?;
+// Dispatch job
+Queue::push(SendEmailJob {
+    user_id: 1,
+    template: "welcome".to_string()
+}).await?;
+```
+
+### CLI Commands
+
+| Command | Description |
+|---------|-------------|
+| `forge make:model User` | Create model |
+| `forge make:controller UserController` | Create controller |
+| `forge make:migration create_users` | Create migration |
+| `forge migrate` | Run migrations |
+| `forge migrate:rollback` | Rollback migration |
+| `forge db:seed` | Seed database |
+| `forge queue:work` | Start queue worker |
+| `forge cache:clear` | Clear cache |
+| `forge route:list` | List routes |
+
+---
+
+## From Laravel (PHP)
+
+RustForge provides a familiar API for Laravel developers, with the performance benefits of Rust.
+
+### Key Differences
+
+| Laravel (PHP) | RustForge (Rust) | Notes |
+|---------------|------------------|-------|
+| Dynamically typed | Statically typed | Type safety at compile time |
+| Runtime errors | Compile-time errors | Catch bugs before deployment |
+| `.env` config | `.env` config | Same approach |
+| Eloquent ORM | Model trait | Similar API, better performance |
+| Artisan CLI | Forge CLI | Similar commands |
+
+### Routing
+
+**Laravel:**
+```php
+Route::get('/users', [UserController::class, 'index']);
+Route::post('/users', [UserController::class, 'store']);
+Route::middleware('auth')->group(function () {
+    Route::get('/profile', [ProfileController::class, 'show']);
+});
+```
+
+**RustForge:**
+```rust
+use rf_route_facade::Route;
+
+Route::get("/users", user_controller::index);
+Route::post("/users", user_controller::store);
+Route::middleware(&["auth"]).group(|| {
+    Route::get("/profile", profile_controller::show);
+});
+```
+
+### Models & Queries
+
+**Laravel:**
+```php
+// Define model
+class User extends Model {
+    protected $fillable = ['name', 'email'];
+    protected $hidden = ['password'];
+}
+
+// Query
+$users = User::where('active', true)->get();
+$user = User::find(1);
+$admins = User::where('role', 'admin')
+    ->where('active', true)
+    ->orderBy('name')
+    ->limit(10)
+    ->get();
+```
+
+**RustForge:**
+```rust
+use rf_prelude::*;  // Single import - everything included!
+
+// Define model
+#[model]
+pub struct User {
+    pub name: String,
+    pub email: String,
+    #[hidden]
+    pub password: String,
+}
+
+// Query (with #[auto_await] - no .await needed!)
+#[auto_await]
+async fn queries() -> Result<()> {
+    let users = User::filter("active", true).get();
+    let user = User::find(1);
+    let admins = User::filter("role", "admin")
+        .filter("active", true)
+        .order_by("name", "asc")
+        .limit(10)
+        .get();
+    Ok(())
+}
+```
+
+### CRUD Operations
+
+**Laravel:**
+```php
+// Create
+$user = User::create([
+    'name' => 'John',
+    'email' => 'john@example.com'
+]);
+
+// Update
+User::where('id', 1)->update(['name' => 'John Doe']);
+
+// Delete
+User::destroy(1);
+
+// First or create
+$user = User::firstOrCreate(
+    ['email' => 'john@example.com'],
+    ['name' => 'John']
+);
+```
+
+**RustForge:**
+```rust
+#[auto_await]
+async fn crud() -> Result<()> {
+    // Create
+    let user = User::create(json!({
+        "name": "John",
+        "email": "john@example.com"
+    }));
+
+    // Update
+    User::update_by_id(1, json!({"name": "John Doe"}));
+
+    // Delete
+    User::destroy(1);
+
+    // First or create
+    let user = User::first_or_create(
+        json!({"email": "john@example.com"}),
+        json!({"name": "John"})
+    );
+    Ok(())
+}
 ```
 
 ### Caching
@@ -315,56 +470,66 @@ Queue::push(SendEmailJob { user_id: 1 }).await?;
 ```php
 Cache::put('key', 'value', 3600);
 $value = Cache::get('key');
-Cache::remember('users', 3600, function () {
+Cache::forget('key');
+
+$users = Cache::remember('users', 3600, function () {
     return User::all();
 });
 ```
 
-**RustForge (Laravel-style!):**
+**RustForge:**
 ```rust
-use rf_cache_facade::Cache;
+#[auto_await]
+async fn caching() -> Result<()> {
+    Cache::put("key", "value", 3600);
+    let value: Option<String> = Cache::get("key");
+    Cache::forget("key");
 
-// Identical to Laravel - just pass seconds!
-Cache::put("key", "value", 3600).await?;
-let value: Option<String> = Cache::get("key").await?;
-let users = Cache::remember("users", 3600, || async {
-    Ok(User::all().await?)
-}).await?;
-
-// Additional methods
-Cache::has("key").await?;           // Check existence
-Cache::forget("key").await?;        // Delete key
-Cache::forever("key", "value").await?;  // Store forever
-Cache::flush().await?;              // Clear all
-Cache::add("key", "value", 60).await?;  // Add only if not exists
+    let users = Cache::remember("users", 3600, || async {
+        Ok(User::all().await?)
+    });
+    Ok(())
+}
 ```
 
-### CLI Commands
+### Authentication
 
-| Laravel Artisan | RustForge Forge | Description |
-|----------------|-----------------|-------------|
-| `php artisan make:model User` | `forge make:model User` | Create model |
-| `php artisan make:controller UserController` | `forge make:controller UserController` | Create controller |
-| `php artisan make:migration create_users` | `forge make:migration create_users` | Create migration |
-| `php artisan migrate` | `forge migrate` | Run migrations |
-| `php artisan migrate:rollback` | `forge migrate:rollback` | Rollback migration |
-| `php artisan db:seed` | `forge db:seed` | Seed database |
-| `php artisan queue:work` | `forge queue:work` | Start queue worker |
-| `php artisan cache:clear` | `forge cache:clear` | Clear cache |
-| `php artisan route:list` | `forge route:list` | List routes |
+**Laravel:**
+```php
+Auth::attempt(['email' => $email, 'password' => $password]);
+$user = Auth::user();
+Auth::logout();
 
-### Migration Checklist
+if (Auth::check()) {
+    // User is logged in
+}
+```
 
-- [ ] Install RustForge and dependencies
-- [ ] Convert `.env` file (mostly compatible)
-- [ ] Convert routes to RustForge syntax
-- [ ] Convert models (add SeaORM derives)
-- [ ] Convert controllers (add async/await)
-- [ ] Convert migrations
-- [ ] Update validation rules
-- [ ] Convert jobs to Job trait
-- [ ] Test all endpoints
-- [ ] Update tests
+**RustForge:**
+```rust
+#[auto_await]
+async fn auth() -> Result<()> {
+    Auth::attempt(json!({
+        "email": email,
+        "password": password
+    }));
+    let user = Auth::user::<User>();
+    Auth::logout();
+
+    if Auth::check() {
+        // User is logged in
+    }
+    Ok(())
+}
+```
+
+### Key Benefits
+
+- **100x faster**: Rust's performance vs PHP
+- **Type safety**: Catch errors at compile time
+- **Memory safety**: No null pointer exceptions
+- **Same familiar API**: Easy transition from Laravel
+- **`#[auto_await]`**: Write code almost like PHP (no manual `.await`)
 
 ---
 
@@ -449,7 +614,6 @@ pub struct AuthMiddleware;
 #[async_trait]
 impl Middleware for AuthMiddleware {
     async fn handle(&self, req: Request, next: Next) -> Result<Response> {
-        // Simple implementation
         let token = req.headers().get("Authorization");
         // Verify token
         next.run(req).await
@@ -457,12 +621,11 @@ impl Middleware for AuthMiddleware {
 }
 ```
 
-### Key Benefits of Migrating
+### Key Benefits
 
 - **Higher-level API**: Less boilerplate
 - **Better ORM**: Integrated ORM instead of manual SQL
 - **Built-in features**: Auth, caching, queues out of the box
-- **Laravel-like syntax**: More intuitive for web developers
 - **Same performance**: Still built on Tokio
 
 ---
@@ -513,27 +676,10 @@ async fn main() {
 }
 ```
 
-### State Management
-
-**Rocket:**
-```rust
-#[get("/")]
-fn index(db: &State<Database>) -> String {
-    // Use db
-}
-```
-
-**RustForge:**
-```rust
-async fn index(db: Database) -> Result<Response> {
-    // Use db (injected automatically)
-}
-```
-
 ### Key Benefits
 
 - **Async by default**: Better performance for I/O-heavy apps
-- **No macros needed**: Cleaner syntax
+- **No route macros needed**: Cleaner syntax
 - **Better ecosystem**: More middleware and plugins
 - **ORM included**: No need for Diesel or SeaORM separately
 
@@ -562,28 +708,6 @@ Route::get("/", index);
 Route::post("/users", create_user);
 Route::use_middleware(middleware::auth());
 // Database injected automatically
-```
-
-### Extractors
-
-**Axum:**
-```rust
-async fn create_user(
-    Extension(db): Extension<Database>,
-    Json(payload): Json<CreateUserRequest>,
-) -> Result<Json<User>, StatusCode> {
-    // ...
-}
-```
-
-**RustForge:**
-```rust
-async fn create_user(
-    Json(payload): Json<CreateUserRequest>,
-    db: Database,
-) -> Result<Response, Error> {
-    // ...
-}
 ```
 
 ### Key Benefits
@@ -618,8 +742,6 @@ use rf_auth::JwtAuth;
 
 #### Storage API
 
-The Storage API has been updated:
-
 ```rust
 // Old (0.x)
 let disk = storage_manager.disk(Some("s3"))?;
@@ -632,8 +754,6 @@ Storage::disk("s3")
 ```
 
 #### Queue API
-
-Queue now uses `rf-jobs` instead of `foundry-queue`:
 
 ```rust
 // Old (0.x)
@@ -651,12 +771,10 @@ use rf_queue::Queue;
    # In Cargo.toml
    rf-core = "1.0.0"  # was foundry-core
    rf-orm = "1.0.0"   # was foundry-orm
-   # etc.
    ```
 
 2. **Update Imports**:
    ```bash
-   # Use find and replace
    find . -name "*.rs" -exec sed -i 's/foundry_/rf_/g' {} +
    ```
 
