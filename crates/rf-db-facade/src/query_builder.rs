@@ -93,6 +93,21 @@ impl QueryBuilder {
         self
     }
 
+    /// Alias for `r#where` - more readable without the r# prefix
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// // Clean syntax without r# prefix!
+    /// let users = DB::table("users")
+    ///     .filter("active", true)
+    ///     .filter("role", "admin")
+    ///     .get().await?;
+    /// ```
+    pub fn filter<V: Into<Value>>(self, column: impl Into<String>, value: V) -> Self {
+        self.r#where(column, value)
+    }
+
     /// Where with custom operator
     ///
     /// # Examples
