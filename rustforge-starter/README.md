@@ -1,6 +1,8 @@
 # My RustForge Application
 
-A modern web application built with [RustForge](https://github.com/rustforge/rustforge) - The Laravel experience for Rust.
+[![App CI](https://github.com/YOUR_USERNAME/YOUR_REPO/actions/workflows/app-ci.yml/badge.svg)](https://github.com/YOUR_USERNAME/YOUR_REPO/actions/workflows/app-ci.yml)
+
+A modern web application built with [RustForge](https://github.com/Chregu12/RustForge) - The Laravel experience for Rust.
 
 ## About
 
@@ -78,11 +80,45 @@ forge serve              # Start development server
 forge tinker            # Interactive REPL
 ```
 
+## CI/CD
+
+This project comes with pre-configured GitHub Actions workflows:
+
+### Continuous Integration (`.github/workflows/app-ci.yml`)
+- **Runs on**: Every push and pull request to `main`, `master`, `develop`
+- **Steps**:
+  - Code formatting check (`cargo fmt`)
+  - Linting with clippy
+  - Build verification
+  - Unit tests
+
+### Docker Release (`.github/workflows/release-docker.yml`)
+- **Runs on**: Version tags (`v*.*.*`)
+- **Steps**:
+  - Builds Docker image
+  - Pushes to GitHub Container Registry (ghcr.io)
+  - Creates GitHub Release
+
+### Enable Database Tests
+Uncomment the `db-tests` job in `app-ci.yml` to enable PostgreSQL integration tests.
+
+### Deploying
+
+1. Create a version tag:
+   ```bash
+   git tag v1.0.0
+   git push origin v1.0.0
+   ```
+
+2. The workflow will:
+   - Build and push Docker image to `ghcr.io/your-username/your-repo:1.0.0`
+   - Create a GitHub Release with auto-generated notes
+
 ## Learning RustForge
 
-- [Documentation](https://rustforge.dev/docs)
-- [Quick Start Guide](https://rustforge.dev/docs/quickstart)
-- [API Reference](https://docs.rs/rustforge)
+- [Documentation](https://github.com/Chregu12/RustForge/wiki)
+- [Quick Start Guide](https://github.com/Chregu12/RustForge/wiki/Quick-Start)
+- [API Reference](https://github.com/Chregu12/RustForge/wiki/API-Documentation)
 
 ## Contributing
 
