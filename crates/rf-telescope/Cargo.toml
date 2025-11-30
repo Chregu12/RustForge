@@ -21,6 +21,6 @@ regex = { workspace = true }
 [dev-dependencies]
 tokio = { workspace = true, features = ["test-util"] }
 
-[[example]]
-name = "basic_usage_rf_telescope"
-path = "examples/basic_usage.rs"
+# [[example]]
+# name = "basic_usage_rf_telescope"
+# path = "examples/basic_usage.rs"

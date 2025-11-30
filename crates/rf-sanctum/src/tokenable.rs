@@ -1,6 +1,6 @@
 //! Tokenable trait for models that can have tokens
 
-use crate::{models, repository::TokenRepository, NewToken, PersonalAccessToken, SanctumError};
+use crate::{repository::TokenRepository, NewToken, PersonalAccessToken, SanctumError};
 use async_trait::async_trait;
 use chrono::{DateTime, Duration, Utc};
 use sea_orm::DatabaseConnection;
@@ -13,6 +13,18 @@ pub trait Tokenable: Send + Sync + Sized {
 
     /// Get the tokenable ID
     fn tokenable_id(&self) -> i64;
+
+    /// Get the current access token (must be set in request context)
+    /// This is typically set by the authentication middleware
+    fn current_access_token(&self) -> Option<&PersonalAccessToken> {
+        None // Default implementation - override if needed
+    }
+
+    /// Set the current access token (internal use)
+    fn set_current_access_token(&mut self, _token: PersonalAccessToken) {
+        // Default implementation does nothing
+        // Override if you want to store the token in your model
+    }
 
     /// Create a new personal access token
     async fn create_token(
@@ -29,6 +41,29 @@ pub trait Tokenable: Send + Sync + Sized {
             name,
             abilities.iter().map(|s| s.to_string()).collect(),
             expires_at,
+        )
+        .await
+    }
+
+    /// Create a token with device information
+    async fn create_token_with_device(
+        &self,
+        name: &str,
+        abilities: Vec<&str>,
+        expires_at: Option<DateTime<Utc>>,
+        user_agent: Option<String>,
+        ip_address: Option<String>,
+        db: &DatabaseConnection,
+    ) -> Result<NewToken, SanctumError> {
+        let repo = TokenRepository::new(db);
+        repo.create_with_device(
+            Self::tokenable_type(),
+            self.tokenable_id(),
+            name,
+            abilities.iter().map(|s| s.to_string()).collect(),
+            expires_at,
+            user_agent,
+            ip_address,
         )
         .await
     }

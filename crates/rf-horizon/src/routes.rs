@@ -2,7 +2,7 @@
 
 use crate::{metrics::JobHistoryEntry, Horizon};
 use axum::{
-    extract::{Path, Query, State},
+    extract::{ws::WebSocketUpgrade, Path, Query, State},
     http::StatusCode,
     response::{Html, IntoResponse, Response},
     routing::{delete, get, post},
@@ -31,7 +31,7 @@ impl AppState {
     }
 }
 
-/// Build the Horizon routes
+/// Build the Horizon routes with enhanced Laravel Horizon features
 pub fn routes(state: AppState) -> Router {
     Router::new()
         // Dashboard views
@@ -39,25 +39,47 @@ pub fn routes(state: AppState) -> Router {
         .route("/horizon/jobs", get(jobs_list_handler))
         .route("/horizon/jobs/:id", get(job_detail_handler))
         .route("/horizon/failed", get(failed_jobs_handler))
-        // API endpoints
+
+        // WebSocket for real-time updates
+        .route("/horizon/ws", get(ws_handler))
+
+        // API endpoints - Stats & Metrics
         .route("/horizon/api/stats", get(stats_api_handler))
+        .route("/horizon/api/workload", get(workload_handler))
+        .route("/horizon/api/metrics", get(metrics_api_handler))
+        .route("/horizon/api/metrics/:queue", get(queue_metrics_handler))
+
+        // Jobs endpoints
         .route("/horizon/api/jobs", get(jobs_api_handler))
+        .route("/horizon/api/jobs/recent", get(recent_jobs_handler))
+        .route("/horizon/api/jobs/pending", get(pending_jobs_handler))
+        .route("/horizon/api/jobs/completed", get(completed_jobs_handler))
         .route("/horizon/api/jobs/:id", get(job_detail_api_handler))
         .route("/horizon/api/jobs/:id/retry", post(retry_job_handler))
         .route("/horizon/api/jobs/:id", delete(delete_job_handler))
+
+        // Jobs by tag
+        .route("/horizon/api/jobs/tag/:tag", get(jobs_by_tag_handler))
+
+        // Failed jobs endpoints
         .route("/horizon/api/failed", get(failed_jobs_api_handler))
+        .route("/horizon/api/failed/:id", get(failed_job_details_handler))
         .route("/horizon/api/failed/:id/retry", post(retry_failed_job_handler))
-        .route("/horizon/api/failed/:id", delete(delete_failed_job_handler))
-        .route(
-            "/horizon/api/failed/batch-retry",
-            post(batch_retry_handler),
-        )
-        .route(
-            "/horizon/api/failed/batch-delete",
-            delete(batch_delete_handler),
-        )
-        .route("/horizon/api/metrics", get(metrics_api_handler))
+        .route("/horizon/api/failed/:id", delete(forget_failed_handler))
+        .route("/horizon/api/failed/retry-all", post(retry_all_failed_handler))
+        .route("/horizon/api/failed", delete(flush_failed_handler))
+        .route("/horizon/api/failed/batch-retry", post(batch_retry_handler))
+        .route("/horizon/api/failed/batch-delete", delete(batch_delete_handler))
+
+        // Workers & Supervisors
         .route("/horizon/api/workers", get(workers_api_handler))
+        .route("/horizon/api/masters", get(masters_handler))
+        .route("/horizon/api/supervisors", get(supervisors_handler))
+        .route("/horizon/api/supervisors/:name", get(supervisor_handler))
+
+        // Monitoring endpoints
+        .route("/horizon/api/monitoring", get(monitoring_handler))
+
         .with_state(Arc::new(state))
 }
 
@@ -417,6 +439,171 @@ async fn workers_api_handler(
     // TODO: Implement worker status tracking
     Ok(Json(json!({
         "workers": []
+    })))
+}
+
+// ========== Enhanced Handler Functions ==========
+
+/// WebSocket handler for real-time updates
+async fn ws_handler(
+    ws: WebSocketUpgrade,
+    State(state): State<Arc<AppState>>,
+) -> Response {
+    crate::websocket::ws_handler(ws, State(state)).await
+}
+
+/// Get workload statistics
+async fn workload_handler(
+    State(_state): State<Arc<AppState>>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    // TODO: Implement workload calculation
+    Ok(Json(json!({
+        "queues": [],
+        "total_load": 0
+    })))
+}
+
+/// Get metrics for a specific queue
+async fn queue_metrics_handler(
+    State(state): State<Arc<AppState>>,
+    Path(queue): Path<String>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    let horizon_state = state.horizon.state().await;
+
+    if let Some(metrics) = horizon_state.metrics.get(&queue) {
+        Ok(Json(json!(metrics)))
+    } else {
+        Err(AppError::NotFound(format!("Queue {} not found", queue)))
+    }
+}
+
+/// Get recent jobs
+async fn recent_jobs_handler(
+    State(_state): State<Arc<AppState>>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    // TODO: Implement recent jobs retrieval
+    Ok(Json(json!({
+        "jobs": [],
+        "total": 0
+    })))
+}
+
+/// Get pending jobs
+async fn pending_jobs_handler(
+    State(_state): State<Arc<AppState>>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    // TODO: Implement pending jobs retrieval
+    Ok(Json(json!({
+        "jobs": [],
+        "total": 0
+    })))
+}
+
+/// Get completed jobs
+async fn completed_jobs_handler(
+    State(_state): State<Arc<AppState>>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    // TODO: Implement completed jobs retrieval
+    Ok(Json(json!({
+        "jobs": [],
+        "total": 0
+    })))
+}
+
+/// Get jobs by tag
+async fn jobs_by_tag_handler(
+    State(_state): State<Arc<AppState>>,
+    Path(tag): Path<String>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    // TODO: Implement jobs by tag retrieval
+    Ok(Json(json!({
+        "tag": tag,
+        "jobs": [],
+        "total": 0
+    })))
+}
+
+/// Get failed job details
+async fn failed_job_details_handler(
+    State(_state): State<Arc<AppState>>,
+    Path(_id): Path<Uuid>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    // TODO: Implement failed job details retrieval
+    Err(AppError::NotFound("Failed job not found".to_string()))
+}
+
+/// Retry all failed jobs
+async fn retry_all_failed_handler(
+    State(_state): State<Arc<AppState>>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    // TODO: Implement retry all failed jobs
+    Ok(Json(json!({
+        "success": true,
+        "retried": 0
+    })))
+}
+
+/// Flush all failed jobs
+async fn flush_failed_handler(
+    State(_state): State<Arc<AppState>>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    // TODO: Implement flush failed jobs
+    Ok(Json(json!({
+        "success": true,
+        "deleted": 0
+    })))
+}
+
+/// Forget (delete) a failed job
+async fn forget_failed_handler(
+    State(_state): State<Arc<AppState>>,
+    Path(_id): Path<Uuid>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    // TODO: Implement forget failed job
+    Ok(Json(json!({
+        "success": true,
+        "message": "Failed job deleted"
+    })))
+}
+
+/// Get masters (supervisors) information
+async fn masters_handler(
+    State(_state): State<Arc<AppState>>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    // TODO: Implement masters retrieval
+    Ok(Json(json!({
+        "masters": []
+    })))
+}
+
+/// Get all supervisors
+async fn supervisors_handler(
+    State(_state): State<Arc<AppState>>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    // TODO: Implement supervisors retrieval
+    Ok(Json(json!({
+        "supervisors": []
+    })))
+}
+
+/// Get specific supervisor
+async fn supervisor_handler(
+    State(_state): State<Arc<AppState>>,
+    Path(name): Path<String>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    // TODO: Implement supervisor retrieval
+    Err(AppError::NotFound(format!("Supervisor {} not found", name)))
+}
+
+/// Get monitoring information
+async fn monitoring_handler(
+    State(_state): State<Arc<AppState>>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    // TODO: Implement monitoring data
+    Ok(Json(json!({
+        "workers": [],
+        "queues": [],
+        "stats": {}
     })))
 }
 

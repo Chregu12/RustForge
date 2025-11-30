@@ -11,6 +11,6 @@ rand = "0.8"
 [dev-dependencies]
 tokio = { version = "1.0", features = ["full"] }
 
-[[example]]
-name = "basic_usage_rf_collections"
-path = "examples/basic_usage.rs"
+# [[example]]
+# name = "basic_usage_rf_collections"
+# path = "examples/basic_usage.rs"

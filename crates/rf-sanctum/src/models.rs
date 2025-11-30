@@ -20,6 +20,8 @@ pub struct Model {
     pub expires_at: Option<DateTime<Utc>>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+    pub user_agent: Option<String>,      // Device/browser user agent
+    pub last_used_ip: Option<String>,    // Last IP address used
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
@@ -79,6 +81,15 @@ impl Model {
         active.update(db).await?;
         Ok(())
     }
+
+    /// Update last_used_at and last_used_ip
+    pub async fn touch_with_ip<C: ConnectionTrait>(&self, db: &C, ip: Option<String>) -> Result<(), DbErr> {
+        let mut active: ActiveModel = self.clone().into();
+        active.last_used_at = Set(Some(Utc::now()));
+        active.last_used_ip = Set(ip);
+        active.update(db).await?;
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -99,6 +110,8 @@ mod tests {
             expires_at: None,
             created_at: Utc::now(),
             updated_at: Utc::now(),
+            user_agent: None,
+            last_used_ip: None,
         };
 
         assert!(token.can("read:posts"));
@@ -119,6 +132,8 @@ mod tests {
             expires_at: None,
             created_at: Utc::now(),
             updated_at: Utc::now(),
+            user_agent: None,
+            last_used_ip: None,
         };
 
         assert!(token.can("anything"));

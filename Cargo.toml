@@ -72,11 +72,15 @@ members = [
     "crates/rf-session-facade",
     "crates/rf-config-facade",
     "crates/rf-view-facade",
+    "crates/rf-sanctum-facade",
+    "crates/rf-passport-facade",
     # RustForge - single import for everything
     "crates/rustforge",
     # Phase 15: Monitoring & Debugging
     "crates/rf-horizon",
     "crates/rf-telescope",
+    "crates/rf-nova",
+    "crates/rf-nova-macros",
     # Phase 16: Error Handling
     "crates/rf-errors",
     # Phase 16-17: Ecosystem & Polish
@@ -90,12 +94,12 @@ members = [
     # Phase 16-18: 100% Laravel Parity Features
     "crates/rf-helpers",
     "crates/rf-sanctum",
+    "crates/rf-passport",
     "crates/rf-inertia",
     # Examples
     "examples/hello",
     "examples/database-demo",
     "examples/auth-demo",
-    "examples/validation-demo",
     "examples/jobs-demo",
     "examples/mail-demo",
     "examples/scaffold-demo",

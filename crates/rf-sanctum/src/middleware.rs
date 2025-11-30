@@ -2,11 +2,9 @@
 
 use crate::{PersonalAccessToken, SanctumError};
 use axum::{
-    body::Body,
     extract::Request,
-    http::StatusCode,
     middleware::Next,
-    response::{IntoResponse, Response},
+    response::Response,
 };
 use std::future::Future;
 use std::pin::Pin;

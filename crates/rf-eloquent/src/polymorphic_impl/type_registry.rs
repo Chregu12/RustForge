@@ -34,7 +34,7 @@ pub trait TypeResolver: Send + Sync {
         &self,
         type_name: &str,
         id: i64,
-        db: &DatabaseConnection,
+        db: Arc<DatabaseConnection>,
     ) -> PolymorphicResult<Box<dyn Any + Send + Sync>>;
 
     /// Check if a type is registered
@@ -121,7 +121,7 @@ impl TypeResolver for TypeRegistry {
         &self,
         type_name: &str,
         id: i64,
-        db: &DatabaseConnection,
+        db: Arc<DatabaseConnection>,
     ) -> PolymorphicResult<Box<dyn Any + Send + Sync>> {
         let resolvers = self.resolvers.read().await;
         let resolver = resolvers
@@ -132,7 +132,7 @@ impl TypeResolver for TypeRegistry {
         let resolver = Arc::clone(resolver);
         drop(resolvers); // Release the read lock
 
-        resolver(id, Arc::new(db.clone())).await
+        resolver(id, db).await
     }
 
     fn has_type(&self, type_name: &str) -> bool {
@@ -209,9 +209,9 @@ mod tests {
     #[tokio::test]
     async fn test_type_registry_resolve_not_registered() {
         let registry = TypeRegistry::new();
-        let db = DatabaseConnection::default();
+        let db = Arc::new(DatabaseConnection::default());
 
-        let result = registry.resolve("UnknownType", 1, &db).await;
+        let result = registry.resolve("UnknownType", 1, db).await;
         assert!(result.is_err());
         assert!(matches!(
             result.unwrap_err(),
@@ -232,8 +232,8 @@ mod tests {
             })
             .await;
 
-        let db = DatabaseConnection::default();
-        let result = registry.resolve("TestModel", 42, &db).await;
+        let db = Arc::new(DatabaseConnection::default());
+        let result = registry.resolve("TestModel", 42, db).await;
         assert!(result.is_ok());
 
         let model = result.unwrap();

@@ -23,6 +23,9 @@ pub enum SanctumError {
     #[error("Insufficient permissions: {0}")]
     InsufficientPermissions(String),
 
+    #[error("Database not configured")]
+    DatabaseNotConfigured,
+
     #[error("Database error: {0}")]
     DatabaseError(#[from] sea_orm::DbErr),
 }
@@ -35,6 +38,10 @@ impl IntoResponse for SanctumError {
             SanctumError::InvalidToken => (StatusCode::UNAUTHORIZED, self.to_string()),
             SanctumError::TokenExpired => (StatusCode::UNAUTHORIZED, self.to_string()),
             SanctumError::InsufficientPermissions(_) => (StatusCode::FORBIDDEN, self.to_string()),
+            SanctumError::DatabaseNotConfigured => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Database not configured".to_string(),
+            ),
             SanctumError::DatabaseError(_) => (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "Internal error".to_string(),

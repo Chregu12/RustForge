@@ -1,22 +1,25 @@
-//! Laravel-style Models using #[model] macro
+//! Laravel-style Models (Demo without actual DB connection)
+//!
+//! In a real application, you would use #[model] macro which requires:
+//! - Models in separate modules to avoid Relation enum conflicts
+//! - rf-db-facade dependency for static query methods
 
-use rf_orm::prelude::*;
 use serde::{Deserialize, Serialize};
 
 // ==========================================
 // USER MODEL
 // ==========================================
 
-#[model]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct User {
-    // id, created_at, updated_at automatically added
+    pub id: i32,
     pub name: String,
     pub email: String,
-
-    #[hidden]
+    #[serde(skip_serializing)]
     pub password: String,
-
     pub is_admin: bool,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+    pub updated_at: chrono::DateTime<chrono::Utc>,
 }
 
 impl User {
@@ -27,7 +30,7 @@ impl User {
     }
 
     /// Check if user is admin
-    pub fn is_admin(&self) -> bool {
+    pub fn is_administrator(&self) -> bool {
         self.is_admin
     }
 }
@@ -36,14 +39,16 @@ impl User {
 // POST MODEL
 // ==========================================
 
-#[model]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Post {
-    // id, created_at, updated_at automatically added
+    pub id: i32,
     pub title: String,
     pub content: String,
     pub published: bool,
     pub user_id: i32,
     pub views: i32,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+    pub updated_at: chrono::DateTime<chrono::Utc>,
 }
 
 impl Post {
@@ -69,12 +74,14 @@ impl Post {
 // COMMENT MODEL
 // ==========================================
 
-#[model]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Comment {
-    // id, created_at, updated_at automatically added
+    pub id: i32,
     pub content: String,
     pub user_id: i32,
     pub post_id: i32,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+    pub updated_at: chrono::DateTime<chrono::Utc>,
 }
 
 impl Comment {
@@ -113,7 +120,7 @@ impl User {
         Some(Self::create(()))
     }
 
-    pub fn where(_field: &str, _value: &str) -> QueryBuilder {
+    pub fn r#where(_field: &str, _value: &str) -> QueryBuilder {
         QueryBuilder
     }
 
@@ -144,7 +151,7 @@ impl Post {
         Self::create(())
     }
 
-    pub fn where(_field: &str, _value: i32) -> QueryBuilder {
+    pub fn r#where(_field: &str, _value: i32) -> QueryBuilder {
         QueryBuilder
     }
 

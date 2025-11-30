@@ -100,7 +100,7 @@ where
     /// ```
     pub async fn get(
         &self,
-        db: &DatabaseConnection,
+        db: Arc<DatabaseConnection>,
         morph_type: &str,
         morph_id: i64,
     ) -> PolymorphicResult<Option<T>> {
@@ -125,7 +125,7 @@ where
     /// to dynamically resolve the correct model.
     pub async fn get_dynamic(
         &self,
-        db: &DatabaseConnection,
+        db: Arc<DatabaseConnection>,
         morph_type: &str,
         morph_id: i64,
     ) -> PolymorphicResult<Box<dyn Any + Send + Sync>> {
@@ -204,9 +204,9 @@ mod tests {
             .await;
 
         let morph_to = MorphTo::<i64>::new(1, "testable");
-        let db = DatabaseConnection::default();
+        let db = Arc::new(DatabaseConnection::default());
 
-        let result = morph_to.get_dynamic(&db, "DynamicModel", 21).await;
+        let result = morph_to.get_dynamic(db, "DynamicModel", 21).await;
         assert!(result.is_ok());
 
         let value = result.unwrap().downcast::<i64>().unwrap();

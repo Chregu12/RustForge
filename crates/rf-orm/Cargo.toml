@@ -48,10 +48,10 @@ parking_lot = "0.12"
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt", "test-util"] }
 
-[[example]]
-name = "basic_usage_rf_orm"
-path = "examples/basic_usage.rs"
-
+# [[example]]
+# name = "basic_usage_rf_orm"
+# path = "examples/basic_usage.rs"
+# 
 [features]
 default = []
 # Migration support (separate feature to avoid build time increase)

@@ -5,20 +5,7 @@ edition = "2021"
 
 [dependencies]
 # RustForge - Laravel Syntax
-rf-macros = { path = "../../crates/rf-macros" }
-rf-request = { path = "../../crates/rf-request" }
-rf-route-facade = { path = "../../crates/rf-route-facade" }
 rf-global-helpers = { path = "../../crates/rf-global-helpers" }
-
-# RustForge - Core
-rf-core = { path = "../../crates/rf-core" }
-rf-orm = { path = "../../crates/rf-orm" }
-rf-validation = { path = "../../crates/rf-validation" }
-rf-auth = { path = "../../crates/rf-auth" }
-rf-response = { path = "../../crates/rf-response" }
-
-# SeaORM (without sqlx features to avoid libsqlite3-sys conflict)
-sea-orm = { version = "0.12", features = ["macros"], default-features = false }
 
 # Async
 tokio = { version = "1", features = ["full"] }

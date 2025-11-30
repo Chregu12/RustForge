@@ -31,6 +31,6 @@ tracing = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt", "test-util", "rt-multi-thread"] }
 tokio-test = "0.4"
 
-[[example]]
-name = "basic_usage_rf_authorization"
-path = "examples/basic_usage.rs"
+# [[example]]
+# name = "basic_usage_rf_authorization"
+# path = "examples/basic_usage.rs"

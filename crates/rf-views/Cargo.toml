@@ -40,6 +40,6 @@ globset = "0.4"
 tokio = { workspace = true, features = ["test-util"] }
 tempfile = "3.8"
 
-[[example]]
-name = "basic_rf_views"
-path = "examples/basic.rs"
+# [[example]]
+# name = "basic_rf_views"
+# path = "examples/basic.rs"

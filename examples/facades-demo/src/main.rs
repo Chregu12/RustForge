@@ -83,10 +83,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("📌 4. DB Facade - Database Operations");
     println!("   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
 
-    let users = DB::select("SELECT * FROM users").await?;
+    let users = DB::select("SELECT * FROM users", &[]).await?;
     println!("   ✓ DB::select() returned {} rows", users.len());
 
-    let inserted_id = DB::insert("INSERT INTO users...").await?;
+    let inserted_id = DB::insert("INSERT INTO users...", &[]).await?;
     println!("   ✓ DB::insert() returned id: {}", inserted_id);
     println!();
 
@@ -141,7 +141,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Storage::put("test.txt", b"Hello from RustForge!".to_vec()).await?;
     println!("   ✓ Storage::put() succeeded");
 
-    let exists = Storage::exists("test.txt").await?;
+    let exists = Storage::exists("test.txt").await;
     println!("   ✓ Storage::exists() = {}", exists);
 
     let size = Storage::size("test.txt").await?;
@@ -154,12 +154,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("📌 10. View Facade - Template Rendering");
     println!("   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
 
-    let view_data = json!({
-        "title": "Welcome to RustForge",
-        "user": user.name
-    });
+    let mut view_data = std::collections::HashMap::new();
+    view_data.insert("title".to_string(), json!("Welcome to RustForge"));
+    view_data.insert("user".to_string(), json!(user.name));
 
-    let view = View::make("welcome", view_data);
+    let _view = View::make("welcome", view_data);
     println!("   ✓ View::make() succeeded");
     println!("   ✓ View system ready");
     println!();

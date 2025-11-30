@@ -20,11 +20,21 @@ rf-db-facade = { path = "../rf-db-facade" }
 rf-event-facade = { path = "../rf-event-facade" }
 rf-storage-facade = { path = "../rf-storage-facade" }
 rf-route-facade = { path = "../rf-route-facade" }
+rf-sanctum-facade = { path = "../rf-sanctum-facade" }
+rf-passport-facade = { path = "../rf-passport-facade" }
 
 # Core
 rf-request = { path = "../rf-request" }
 rf-response = { path = "../rf-response" }
 rf-validation = { path = "../rf-validation" }
+
+# Authentication - Laravel Sanctum & Passport
+rf-sanctum = { path = "../rf-sanctum" }
+rf-passport = { path = "../rf-passport" }
+
+# Admin & Monitoring - Laravel Nova & Horizon
+rf-nova = { path = "../rf-nova" }
+rf-horizon = { path = "../rf-horizon" }
 
 # Utilities
 serde = { version = "1.0", features = ["derive"] }

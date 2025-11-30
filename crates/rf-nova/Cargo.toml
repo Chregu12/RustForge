@@ -1,0 +1,67 @@
+[package]
+name = "rf-nova"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Laravel Nova-inspired admin panel framework for RustForge - Beautiful, customizable admin dashboards"
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+keywords = ["admin", "dashboard", "nova", "laravel", "crud"]
+categories = ["web-programming"]
+
+[dependencies]
+# Internal dependencies
+rf-core = { path = "../rf-core" }
+rf-orm = { path = "../rf-orm" }
+rf-authorization = { path = "../rf-authorization" }
+rf-validation = { path = "../rf-validation" }
+rf-nova-macros = { path = "../rf-nova-macros" }
+
+# Web framework
+axum.workspace = true
+tower.workspace = true
+tower-http = { version = "0.5", features = ["trace", "cors", "compression-gzip"] }
+
+# Database
+sea-orm.workspace = true
+
+# Async
+tokio.workspace = true
+async-trait.workspace = true
+futures.workspace = true
+
+# Serialization
+serde.workspace = true
+serde_json.workspace = true
+
+# Error handling
+thiserror.workspace = true
+anyhow.workspace = true
+
+# Time
+chrono.workspace = true
+
+# Utilities
+uuid.workspace = true
+regex.workspace = true
+
+# CSV export
+csv = "1.3"
+
+# Logging
+tracing.workspace = true
+
+# HTTP
+http = "1.0"
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt", "test-util"] }
+
+# [[example]]
+# name = "basic_admin"
+# path = "examples/basic_admin.rs"
+# 
+[features]
+default = []

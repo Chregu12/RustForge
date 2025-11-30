@@ -1,12 +1,8 @@
 //! Sanctum authentication extractor for Axum
 
-use crate::{models, repository::TokenRepository, PersonalAccessToken, SanctumError};
+use crate::{repository::TokenRepository, PersonalAccessToken, SanctumError};
 use async_trait::async_trait;
-use axum::{
-    extract::FromRequestParts,
-    http::{request::Parts, StatusCode},
-    response::{IntoResponse, Response},
-};
+use axum::extract::FromRequestParts;
 use sea_orm::DatabaseConnection;
 
 /// Extractor for Sanctum-authenticated users
@@ -71,8 +67,15 @@ where
             return Err(SanctumError::TokenExpired);
         }
 
-        // Update last_used_at
-        repo.touch(token_model.id).await?;
+        // Extract IP address for device tracking
+        let ip = extract_client_ip(parts);
+
+        // Update last_used_at and IP
+        if ip.is_some() {
+            repo.touch_with_ip(token_model.id, ip.clone()).await?;
+        } else {
+            repo.touch(token_model.id).await?;
+        }
 
         // Load user
         let user = T::load_from_token(token_model.tokenable_id, db).await?;
@@ -85,6 +88,32 @@ where
 
         Ok(SanctumAuth(user, token))
     }
+}
+
+/// Extract client IP address from request headers
+fn extract_client_ip(parts: &axum::http::request::Parts) -> Option<String> {
+    // Try X-Forwarded-For first (proxy/load balancer)
+    if let Some(xff) = parts.headers.get("X-Forwarded-For") {
+        if let Ok(value) = xff.to_str() {
+            // Take the first IP in the list
+            if let Some(ip) = value.split(',').next() {
+                return Some(ip.trim().to_string());
+            }
+        }
+    }
+
+    // Try X-Real-IP
+    if let Some(xri) = parts.headers.get("X-Real-IP") {
+        if let Ok(value) = xri.to_str() {
+            return Some(value.to_string());
+        }
+    }
+
+    // Try to get from connection info (requires extension)
+    parts
+        .extensions
+        .get::<std::net::SocketAddr>()
+        .map(|addr| addr.ip().to_string())
 }
 
 #[cfg(test)]

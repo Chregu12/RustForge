@@ -4,14 +4,19 @@
 //!
 //! ## Features
 //!
-//! - Real-time queue monitoring
-//! - Job batching with progress tracking
-//! - Job chaining
-//! - Advanced failed job handling
-//! - Queue metrics and statistics
-//! - Web-based dashboard with filtering, search, and pagination
-//! - Job retry and deletion capabilities
-//! - Batch operations for failed jobs
+//! - **Real-time WebSocket Dashboard** - Live updates of queue metrics and job status
+//! - **Job Tagging System** - Tag jobs by user, model, or custom attributes for easy filtering
+//! - **Queue Balancing** - Auto-balance workers across queues based on workload
+//! - **Historical Metrics** - Store snapshots for time-series analysis and graphing
+//! - **Worker Monitoring** - Track individual worker processes, CPU, and memory usage
+//! - **Supervisor Management** - Manage worker supervisors with scaling and control
+//! - **Recent Jobs Store** - Track recently completed and failed jobs
+//! - **Job Batching** - Batch jobs with progress tracking
+//! - **Job Chaining** - Chain multiple jobs together
+//! - **Advanced Failed Job Handling** - Retry all, retry by tag, flush failed jobs
+//! - **Queue Metrics** - Comprehensive statistics and throughput tracking
+//! - **Web-based Dashboard** - Full-featured dashboard with filtering, search, and pagination
+//! - **Horizon Facade** - Static access to Horizon functionality
 //!
 //! ## Example
 //!
@@ -38,21 +43,37 @@
 //! }
 //! ```
 
+pub mod balancer;
 pub mod batching;
 pub mod chaining;
 pub mod collector;
 pub mod dashboard;
+pub mod facade;
 pub mod failed_jobs;
 pub mod metrics;
+pub mod recent_jobs;
 pub mod routes;
+pub mod snapshots;
+pub mod supervisor;
+pub mod tags;
+pub mod websocket;
+pub mod workers;
 
+pub use balancer::{BalanceStrategy, QueueBalancer, QueueInfo};
 pub use batching::{Batch, BatchProgress, BatchStatus};
 pub use chaining::Chain;
 pub use collector::{AggregateStats, MetricsCollector};
 pub use dashboard::Dashboard;
-pub use failed_jobs::{FailedJob, FailedJobHandler};
+pub use facade::{HorizonFacade, HorizonStatus};
+pub use failed_jobs::{FailedJob, FailedJobDetails, FailedJobHandler, RetryStrategy};
 pub use metrics::{JobHistoryEntry, JobHistoryStatus, QueueMetrics, WorkerInfo, WorkerStatus};
+pub use recent_jobs::{JobStatus, RecentJob, RecentJobsStats, RecentJobsStore};
 pub use routes::{routes, AppState};
+pub use snapshots::{MetricSnapshot, QueueDataPoint, QueueSnapshot, QueueStats, SnapshotStore};
+pub use supervisor::{Supervisor, SupervisorManager, SupervisorStatus};
+pub use tags::{JobTags, TagRegistry, TaggedJob};
+pub use websocket::ws_handler;
+pub use workers::{CurrentJob, WorkerProcess, WorkerProcessStatus, WorkerRegistry};
 
 use anyhow::Result;
 use rf_jobs::QueueManager;

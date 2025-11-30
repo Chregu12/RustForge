@@ -8,6 +8,20 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use uuid::Uuid;
 
+/// Detailed failed job information
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FailedJobDetails {
+    pub id: String,
+    pub uuid: String,
+    pub connection: String,
+    pub queue: String,
+    pub name: String,
+    pub payload: serde_json::Value,
+    pub exception: String,
+    pub failed_at: DateTime<Utc>,
+    pub tags: Vec<String>,
+}
+
 /// Information about a failed job
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FailedJob {
@@ -168,7 +182,7 @@ impl FailedJobHandler {
     }
 
     /// Retry all failed jobs for a queue
-    pub async fn retry_all(&self, queue_name: &str) -> Result<usize> {
+    pub async fn retry_all_for_queue(&self, queue_name: &str) -> Result<usize> {
         let job_ids: Vec<String> = {
             let jobs = self.failed_jobs.read().await;
             jobs.values()
@@ -185,6 +199,60 @@ impl FailedJobHandler {
         }
 
         Ok(retried)
+    }
+
+    /// Retry all failed jobs (across all queues)
+    pub async fn retry_all(&self) -> Result<u64> {
+        let job_ids: Vec<String> = {
+            let jobs = self.failed_jobs.read().await;
+            jobs.keys().cloned().collect()
+        };
+
+        let mut retried = 0u64;
+        for job_id in job_ids {
+            if self.retry(job_id.as_str()).await.is_ok() {
+                retried += 1;
+            }
+        }
+
+        Ok(retried)
+    }
+
+    /// Retry failed jobs by tag
+    pub async fn retry_by_tag(&self, tag: &str) -> Result<u64> {
+        // For now, we don't have tags on FailedJob struct
+        // This would need to be enhanced to support tags
+        // For compatibility, return 0
+        Ok(0)
+    }
+
+    /// Flush (delete) all failed jobs
+    pub async fn flush(&self) -> Result<u64> {
+        let count = self.count().await as u64;
+        self.clear().await;
+        Ok(count)
+    }
+
+    /// Get a specific failed job with full details
+    pub async fn get_details(&self, job_id: &str) -> Option<FailedJobDetails> {
+        let job = self.find(job_id).await?;
+
+        Some(FailedJobDetails {
+            id: job.id.clone(),
+            uuid: job.id.clone(), // Using id as uuid for now
+            connection: "default".to_string(),
+            queue: job.queue.clone(),
+            name: job.job_name.clone(),
+            payload: serde_json::from_str(&job.payload).unwrap_or(serde_json::Value::Null),
+            exception: job.exception.clone(),
+            failed_at: job.failed_at,
+            tags: Vec::new(), // Would need to add tags to FailedJob
+        })
+    }
+
+    /// Forget (delete) a specific failed job
+    pub async fn forget(&self, job_id: &str) -> Result<()> {
+        self.delete(job_id).await
     }
 
     /// Delete a specific failed job
@@ -292,6 +360,24 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_retry_all_for_queue() {
+        let handler = FailedJobHandler::new();
+
+        handler
+            .record(FailedJob::new("emails", "Job1", "{}", "Error"))
+            .await;
+        handler
+            .record(FailedJob::new("emails", "Job2", "{}", "Error"))
+            .await;
+        handler
+            .record(FailedJob::new("default", "Job3", "{}", "Error"))
+            .await;
+
+        let retried = handler.retry_all_for_queue("emails").await.unwrap();
+        assert_eq!(retried, 2);
+    }
+
+    #[tokio::test]
     async fn test_retry_all() {
         let handler = FailedJobHandler::new();
 
@@ -305,8 +391,26 @@ mod tests {
             .record(FailedJob::new("default", "Job3", "{}", "Error"))
             .await;
 
-        let retried = handler.retry_all("emails").await.unwrap();
-        assert_eq!(retried, 2);
+        let retried = handler.retry_all().await.unwrap();
+        assert_eq!(retried, 3);
+    }
+
+    #[tokio::test]
+    async fn test_flush() {
+        let handler = FailedJobHandler::new();
+
+        handler
+            .record(FailedJob::new("emails", "Job1", "{}", "Error"))
+            .await;
+        handler
+            .record(FailedJob::new("emails", "Job2", "{}", "Error"))
+            .await;
+
+        assert_eq!(handler.count().await, 2);
+
+        let flushed = handler.flush().await.unwrap();
+        assert_eq!(flushed, 2);
+        assert_eq!(handler.count().await, 0);
     }
 
     #[tokio::test]

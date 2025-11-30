@@ -1,9 +1,8 @@
 //! Personal Access Token model
 
-use chrono::{DateTime, Duration, Utc};
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use std::fmt;
 
 /// Personal Access Token stored in database
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -18,6 +17,8 @@ pub struct PersonalAccessToken {
     pub expires_at: Option<DateTime<Utc>>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+    pub user_agent: Option<String>,      // Device/browser user agent
+    pub last_used_ip: Option<String>,    // Last IP address used
 }
 
 /// New token with plaintext value (only returned once)
@@ -93,6 +94,52 @@ impl PersonalAccessToken {
             expires_at: model.expires_at,
             created_at: model.created_at,
             updated_at: model.updated_at,
+            user_agent: model.user_agent,
+            last_used_ip: model.last_used_ip,
+        }
+    }
+
+    /// Get device name from user agent
+    pub fn device_name(&self) -> Option<String> {
+        self.user_agent.as_ref().and_then(|ua| {
+            // Simple device detection from user agent
+            if ua.contains("Mobile") || ua.contains("Android") || ua.contains("iPhone") {
+                Some("Mobile Device".to_string())
+            } else if ua.contains("iPad") || ua.contains("Tablet") {
+                Some("Tablet".to_string())
+            } else if ua.contains("Windows") || ua.contains("Macintosh") || ua.contains("Linux") {
+                Some("Desktop".to_string())
+            } else {
+                Some("Unknown Device".to_string())
+            }
+        })
+    }
+
+    /// Get browser name from user agent
+    pub fn browser_name(&self) -> Option<String> {
+        self.user_agent.as_ref().and_then(|ua| {
+            if ua.contains("Chrome") && !ua.contains("Edg") {
+                Some("Chrome".to_string())
+            } else if ua.contains("Safari") && !ua.contains("Chrome") {
+                Some("Safari".to_string())
+            } else if ua.contains("Firefox") {
+                Some("Firefox".to_string())
+            } else if ua.contains("Edg") {
+                Some("Edge".to_string())
+            } else {
+                Some("Unknown Browser".to_string())
+            }
+        })
+    }
+
+    /// Check if token was recently used (within last N minutes)
+    pub fn is_recently_used(&self, minutes: i64) -> bool {
+        if let Some(last_used) = self.last_used_at {
+            let now = Utc::now();
+            let diff = now - last_used;
+            diff.num_minutes() <= minutes
+        } else {
+            false
         }
     }
 }
@@ -127,6 +174,8 @@ mod tests {
             expires_at: None,
             created_at: Utc::now(),
             updated_at: Utc::now(),
+            user_agent: None,
+            last_used_ip: None,
         };
 
         assert!(token.can("read:posts"));
@@ -149,10 +198,52 @@ mod tests {
             expires_at: None,
             created_at: Utc::now(),
             updated_at: Utc::now(),
+            user_agent: None,
+            last_used_ip: None,
         };
 
         assert!(token.can("anything"));
         assert!(token.can("read:posts"));
         assert!(token.can("delete:everything"));
+    }
+
+    #[test]
+    fn test_device_detection() {
+        let token = PersonalAccessToken {
+            id: 1,
+            tokenable_type: "User".to_string(),
+            tokenable_id: 123,
+            name: "test".to_string(),
+            token: "hash".to_string(),
+            abilities: vec![],
+            last_used_at: None,
+            expires_at: None,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+            user_agent: Some("Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X)".to_string()),
+            last_used_ip: Some("192.168.1.1".to_string()),
+        };
+
+        assert_eq!(token.device_name(), Some("Mobile Device".to_string()));
+    }
+
+    #[test]
+    fn test_browser_detection() {
+        let token = PersonalAccessToken {
+            id: 1,
+            tokenable_type: "User".to_string(),
+            tokenable_id: 123,
+            name: "test".to_string(),
+            token: "hash".to_string(),
+            abilities: vec![],
+            last_used_at: None,
+            expires_at: None,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+            user_agent: Some("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36".to_string()),
+            last_used_ip: None,
+        };
+
+        assert_eq!(token.browser_name(), Some("Chrome".to_string()));
     }
 }

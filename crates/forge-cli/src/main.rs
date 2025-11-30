@@ -89,15 +89,16 @@ enum Commands {
     /// Show command aliases
     Aliases,
 
-    /// Show enhanced help for a command
-    Help {
+    /// Show enhanced documentation for a command
+    #[command(name = "docs")]
+    Docs {
         #[command(subcommand)]
-        command: Option<HelpCommands>,
+        command: Option<DocsCommands>,
     },
 }
 
 #[derive(Subcommand)]
-enum HelpCommands {
+enum DocsCommands {
     /// Show help for make:model
     MakeModel,
     /// Show help for make:controller
@@ -571,14 +572,14 @@ async fn main() -> Result<()> {
         Commands::Aliases => {
             aliases::display_aliases(&config.aliases);
         }
-        Commands::Help { command } => match command {
-            Some(HelpCommands::MakeModel) => {
+        Commands::Docs { command } => match command {
+            Some(DocsCommands::MakeModel) => {
                 help::make_model_help().display();
             }
-            Some(HelpCommands::MakeController) => {
+            Some(DocsCommands::MakeController) => {
                 help::make_controller_help().display();
             }
-            Some(HelpCommands::Migrate) => {
+            Some(DocsCommands::Migrate) => {
                 help::migrate_help().display();
             }
             None => {

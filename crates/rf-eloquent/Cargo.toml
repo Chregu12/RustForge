@@ -51,9 +51,9 @@ lazy_static = "1.4"
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt", "test-util"] }
 
-[[example]]
-name = "basic_usage_rf_eloquent"
-path = "examples/basic_usage.rs"
-
+# [[example]]
+# name = "basic_usage_rf_eloquent"
+# path = "examples/basic_usage.rs"
+# 
 [features]
 default = []

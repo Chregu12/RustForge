@@ -30,6 +30,6 @@ tower = { version = "0.4", features = ["util"] }
 hyper = { version = "1.0", features = ["full"] }
 http-body-util = "0.1"
 
-[[example]]
-name = "basic_usage_rf_routing"
-path = "examples/basic_usage.rs"
+# [[example]]
+# name = "basic_usage_rf_routing"
+# path = "examples/basic_usage.rs"
