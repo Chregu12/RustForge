@@ -1,5 +1,5 @@
 # RustForge Framework CI
-# Verifies the main rustforge crate builds successfully
+# Comprehensive build and test pipeline
 
 name: CI
 
@@ -16,10 +16,12 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build:
-    name: Build RustForge
+  # ===========================================
+  # Build Core Crates
+  # ===========================================
+  build-core:
+    name: Build Core
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -30,8 +32,95 @@ jobs:
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
 
-      - name: Build rustforge crate
+      - name: Build rustforge (main crate)
         run: cargo build -p rustforge
 
-      - name: Build check passed
-        run: echo "✅ RustForge builds successfully!"
+      - name: Build rf-core
+        run: cargo build -p rf-core
+
+      - name: Build rf-web
+        run: cargo build -p rf-web
+
+      - name: Build rf-auth
+        run: cargo build -p rf-auth
+
+  # ===========================================
+  # Build ORM & Database Crates
+  # ===========================================
+  build-database:
+    name: Build Database
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build rf-orm
+        run: cargo build -p rf-orm
+
+      - name: Build rf-eloquent
+        run: cargo build -p rf-eloquent
+
+      - name: Build rf-db-facade
+        run: cargo build -p rf-db-facade
+
+  # ===========================================
+  # Build Laravel-Style Features
+  # ===========================================
+  build-laravel:
+    name: Build Laravel Features
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build rf-sanctum
+        run: cargo build -p rf-sanctum
+
+      - name: Build rf-passport
+        run: cargo build -p rf-passport
+
+      - name: Build rf-nova
+        run: cargo build -p rf-nova
+
+      - name: Build rf-horizon
+        run: cargo build -p rf-horizon
+
+  # ===========================================
+  # Build Facades
+  # ===========================================
+  build-facades:
+    name: Build Facades
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build rf-auth-facade
+        run: cargo build -p rf-auth-facade
+
+      - name: Build rf-cache-facade
+        run: cargo build -p rf-cache-facade
+
+      - name: Build rf-route-facade
+        run: cargo build -p rf-route-facade
+
+      - name: Build rf-mail-facade
+        run: cargo build -p rf-mail-facade
