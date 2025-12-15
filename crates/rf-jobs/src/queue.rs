@@ -442,6 +442,19 @@ mod tests {
         }
     }
 
+    /// Check if Redis is available for testing
+    async fn redis_available() -> bool {
+        match redis::Client::open("redis://localhost:6379") {
+            Ok(client) => {
+                match client.get_multiplexed_async_connection().await {
+                    Ok(_) => true,
+                    Err(_) => false,
+                }
+            }
+            Err(_) => false,
+        }
+    }
+
     // Note: These tests require Redis to be running
     // They are marked with #[ignore] by default
 

@@ -1,6 +1,6 @@
 //! Testing utilities for email
 
-use crate::{Mail, MailError, Mailer, Message};
+use crate::{Mail, MailError, Mailer};
 use async_trait::async_trait;
 use parking_lot::Mutex;
 use std::sync::Arc;
@@ -237,7 +237,7 @@ impl Mailer for FakeMailer {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{Address, MessageBuilder};
+    use crate::{Address, Mail, MessageBuilder};
 
     #[tokio::test]
     async fn test_mail_fake() {
@@ -251,7 +251,8 @@ mod tests {
             .build()
             .unwrap();
 
-        fake.send(&mail).await.unwrap();
+        let mail: Mail = message.into();
+        fake.send(mail).await.unwrap();
 
         assert_eq!(fake.sent_messages().len(), 1);
         fake.assert_sent_count(1);
@@ -270,7 +271,8 @@ mod tests {
             .build()
             .unwrap();
 
-        fake.send(&mail).await.unwrap();
+        let mail: Mail = message.into();
+        fake.send(mail).await.unwrap();
 
         fake.assert_sent(|msg| msg.subject.contains("Welcome"));
         fake.assert_not_sent(|msg| msg.subject.contains("Password"));
@@ -288,7 +290,8 @@ mod tests {
             .build()
             .unwrap();
 
-        fake.send(&mail).await.unwrap();
+        let mail: Mail = message.into();
+        fake.send(mail).await.unwrap();
 
         let sent = fake.sent_to("user@example.com");
         assert_eq!(sent.len(), 1);
@@ -300,7 +303,7 @@ mod tests {
     #[test]
     fn test_global_fake() {
         // Enable faking
-        let fake = fake();
+        let _fake = fake();
 
         // Check it's enabled
         assert!(get_fake().is_some());

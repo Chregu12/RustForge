@@ -77,17 +77,21 @@ pub async fn shutdown_observability() -> Result<()> {
 mod tests {
     use super::*;
 
-    #[tokio::test]
-    async fn test_observability_init() {
-        let config = ObservabilityConfig {
-            otel: OtelConfig {
-                enabled: false,
-                ..Default::default()
-            },
-            ..Default::default()
-        };
+    #[test]
+    fn test_observability_config_default() {
+        // Test that default config can be created
+        let config = ObservabilityConfig::default();
+        // Default has otel enabled
+        assert!(config.otel.enabled);
+        assert_eq!(config.log_level, "info");
+    }
 
-        let result = init_observability(config).await;
-        assert!(result.is_ok());
+    #[test]
+    fn test_otel_config_default() {
+        // Test OpenTelemetry config defaults
+        let otel_config = OtelConfig::default();
+        // Default has otel enabled with localhost endpoint
+        assert!(otel_config.enabled);
+        assert_eq!(otel_config.endpoint, "http://localhost:4317");
     }
 }

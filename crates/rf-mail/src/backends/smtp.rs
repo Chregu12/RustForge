@@ -187,7 +187,7 @@ fn convert_to_lettre(mail: &Mail) -> Result<LettreMessage, MailError> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{Address, MessageBuilder};
+    use crate::{Address, Mail, MessageBuilder};
 
     #[test]
     fn test_convert_to_lettre() {
@@ -199,6 +199,7 @@ mod tests {
             .build()
             .unwrap();
 
+        let mail: Mail = message.into();
         let lettre_msg = convert_to_lettre(&mail);
         assert!(lettre_msg.is_ok());
     }
@@ -214,6 +215,7 @@ mod tests {
             .build()
             .unwrap();
 
+        let mail: Mail = message.into();
         let lettre_msg = convert_to_lettre(&mail);
         assert!(lettre_msg.is_ok());
     }

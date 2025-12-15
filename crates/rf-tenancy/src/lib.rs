@@ -289,13 +289,7 @@ impl TenantLayer {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use axum::{
-        body::Body,
-        http::{Request, StatusCode},
-        routing::get,
-        Router,
-    };
-    use tower::ServiceExt;
+    use axum::http::Request;
 
     #[tokio::test]
     async fn test_tenant_creation() {
@@ -351,10 +345,12 @@ mod tests {
 
         let identifier = HeaderIdentifier::new("X-Tenant-Id", resolver);
 
-        let mut parts = Parts::default();
-        parts
-            .headers
-            .insert("X-Tenant-Id", "tenant-123".parse().unwrap());
+        // Create Parts from a Request
+        let request = Request::builder()
+            .header("X-Tenant-Id", "tenant-123")
+            .body(())
+            .unwrap();
+        let (parts, _body) = request.into_parts();
 
         let tenant = identifier.identify(&parts).await.unwrap();
         assert_eq!(tenant.id(), "tenant-123");
@@ -365,7 +361,9 @@ mod tests {
         let resolver = InMemoryTenantResolver::new();
         let identifier = HeaderIdentifier::new("X-Tenant-Id", resolver);
 
-        let parts = Parts::default();
+        // Create Parts from a Request (no headers)
+        let request = Request::builder().body(()).unwrap();
+        let (parts, _body) = request.into_parts();
 
         let result = identifier.identify(&parts).await;
         assert!(result.is_err());

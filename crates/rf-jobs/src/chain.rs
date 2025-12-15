@@ -328,7 +328,7 @@ impl QueueManager {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::JobContext;
+    use crate::{JobContext, JobResult};
     use async_trait::async_trait;
     use serde::{Deserialize, Serialize};
 

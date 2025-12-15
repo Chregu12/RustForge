@@ -101,7 +101,9 @@ mod tests {
             id: 1,
             deleted_at: Some(Utc::now()),
         };
-        assert!(model.is_trashed());
+        // Test using HasSoftDelete trait directly
+        // (SoftDeleteExt requires ModelTrait which needs full SeaORM entity)
+        assert!(model.deleted_at().is_some());
     }
 
     #[test]
@@ -110,6 +112,22 @@ mod tests {
             id: 1,
             deleted_at: None,
         };
-        assert!(model.is_not_trashed());
+        // Test using HasSoftDelete trait directly
+        assert!(model.deleted_at().is_none());
+    }
+
+    #[test]
+    fn test_set_deleted_at() {
+        let mut model = TestModel {
+            id: 1,
+            deleted_at: None,
+        };
+        assert!(model.deleted_at().is_none());
+
+        model.set_deleted_at(Some(Utc::now()));
+        assert!(model.deleted_at().is_some());
+
+        model.set_deleted_at(None);
+        assert!(model.deleted_at().is_none());
     }
 }

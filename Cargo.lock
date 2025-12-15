@@ -7001,6 +7001,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
+ "tokio",
 ]
 
 [[package]]
@@ -8457,34 +8458,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "rustforge-test-project"
-version = "0.1.0"
-dependencies = [
- "axum 0.8.7",
- "chrono",
- "rf-auth",
- "rf-blade",
- "rf-cache",
- "rf-config",
- "rf-core",
- "rf-encryption",
- "rf-helpers",
- "rf-logging",
- "rf-mail",
- "rf-queue",
- "rf-route-facade",
- "rf-routing",
- "rf-storage",
- "rf-testing",
- "rf-validation",
- "rustforge",
- "serde",
- "serde_json",
- "tokio",
- "tokio-test",
-]
-
-[[package]]
 name = "rustix"
 version = "0.38.44"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9888,6 +9861,10 @@ name = "termtree"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8f50febec83f5ee1df3015341d8bd429f2d1cc62bcba7ea2076759d315084683"
+
+[[package]]
+name = "test-project"
+version = "0.1.0"
 
 [[package]]
 name = "thiserror"

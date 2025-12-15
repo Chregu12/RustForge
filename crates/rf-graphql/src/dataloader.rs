@@ -29,6 +29,8 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use async_graphql::dataloader::Loader;
+    use std::sync::Arc;
 
     #[derive(Debug, Clone, PartialEq)]
     struct User {

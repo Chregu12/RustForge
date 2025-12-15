@@ -241,6 +241,19 @@ mod tests {
         }
     }
 
+    /// Check if Redis is available for testing
+    async fn redis_available() -> bool {
+        match redis::Client::open("redis://localhost:6379") {
+            Ok(client) => {
+                match client.get_multiplexed_async_connection().await {
+                    Ok(_) => true,
+                    Err(_) => false,
+                }
+            }
+            Err(_) => false,
+        }
+    }
+
     #[test]
     fn test_schedule_parsing() {
         // Valid cron expressions (cron crate uses 6 fields: sec min hour day month dayofweek)

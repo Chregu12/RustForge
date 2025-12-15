@@ -194,6 +194,7 @@ pub fn serialize_job_delayed<J: Job>(job: J, delay: Duration) -> Result<Serializ
 mod tests {
     use super::*;
     use crate::context::JobContext;
+    use crate::JobResult;
     use async_trait::async_trait;
 
     #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
