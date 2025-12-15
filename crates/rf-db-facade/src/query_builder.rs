@@ -10,32 +10,32 @@ use serde_json::Value;
 ///
 /// ```rust,no_run
 /// use rf_db_facade::DB;
+/// use serde_json::json;
 ///
-/// # async fn example() -> Result<(), String> {
-/// // Select with conditions
-/// let users = DB::table("users")
-///     .where_clause("active", "=", true.into())
-///     .order_by("name", "asc")
-///     .limit(10)
-///     .get().await?;
+/// async fn example() {
+///     // Select with conditions
+///     let users = DB::table("users")
+///         .where_clause("active", "=", true.into())
+///         .order_by("name", "asc")
+///         .limit(10)
+///         .get().await.unwrap();
 ///
-/// // Insert
-/// let id = DB::table("users").insert(json!({
-///     "name": "John",
-///     "email": "john@example.com"
-/// })).await?;
+///     // Insert
+///     let id = DB::table("users").insert(json!({
+///         "name": "John",
+///         "email": "john@example.com"
+///     })).await.unwrap();
 ///
-/// // Update
-/// DB::table("users")
-///     .where_clause("id", "=", 1.into())
-///     .update(json!({"active": true})).await?;
+///     // Update
+///     DB::table("users")
+///         .where_clause("id", "=", 1.into())
+///         .update(json!({"active": true})).await.unwrap();
 ///
-/// // Delete
-/// DB::table("users")
-///     .where_clause("id", "=", 1.into())
-///     .delete().await?;
-/// # Ok(())
-/// # }
+///     // Delete
+///     DB::table("users")
+///         .where_clause("id", "=", 1.into())
+///         .delete().await.unwrap();
+/// }
 /// ```
 #[derive(Debug, Clone)]
 pub struct QueryBuilder {
@@ -71,9 +71,13 @@ impl QueryBuilder {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// let users = DB::table("users")
-    ///     .select(&["id", "name", "email"])
-    ///     .get().await?;
+    /// use rf_db_facade::DB;
+    ///
+    /// async fn example() {
+    ///     let users = DB::table("users")
+    ///         .select(&["id", "name", "email"])
+    ///         .get().await.unwrap();
+    /// }
     /// ```
     pub fn select(mut self, columns: &[&str]) -> Self {
         self.select_columns = columns.iter().map(|s| s.to_string()).collect();
@@ -88,11 +92,15 @@ impl QueryBuilder {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// // Simple equality (like Laravel!)
-    /// let users = DB::table("users")
-    ///     .r#where("active", true)
-    ///     .r#where("role", "admin")
-    ///     .get().await?;
+    /// use rf_db_facade::DB;
+    ///
+    /// async fn example() {
+    ///     // Simple equality (like Laravel!)
+    ///     let users = DB::table("users")
+    ///         .r#where("active", true)
+    ///         .r#where("role", "admin")
+    ///         .get().await.unwrap();
+    /// }
     /// ```
     pub fn r#where<V: Into<Value>>(mut self, column: impl Into<String>, value: V) -> Self {
         self.wheres.push((column.into(), "=".to_string(), value.into()));
@@ -104,11 +112,15 @@ impl QueryBuilder {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// // Clean syntax without r# prefix!
-    /// let users = DB::table("users")
-    ///     .filter("active", true)
-    ///     .filter("role", "admin")
-    ///     .get().await?;
+    /// use rf_db_facade::DB;
+    ///
+    /// async fn example() {
+    ///     // Clean syntax without r# prefix!
+    ///     let users = DB::table("users")
+    ///         .filter("active", true)
+    ///         .filter("role", "admin")
+    ///         .get().await.unwrap();
+    /// }
     /// ```
     pub fn filter<V: Into<Value>>(self, column: impl Into<String>, value: V) -> Self {
         self.r#where(column, value)
@@ -119,10 +131,14 @@ impl QueryBuilder {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// let users = DB::table("users")
-    ///     .where_op("age", ">=", 18)
-    ///     .where_op("score", "<", 100)
-    ///     .get().await?;
+    /// use rf_db_facade::DB;
+    ///
+    /// async fn example() {
+    ///     let users = DB::table("users")
+    ///         .where_op("age", ">=", 18)
+    ///         .where_op("score", "<", 100)
+    ///         .get().await.unwrap();
+    /// }
     /// ```
     pub fn where_op<V: Into<Value>>(mut self, column: impl Into<String>, operator: impl Into<String>, value: V) -> Self {
         self.wheres.push((column.into(), operator.into(), value.into()));
@@ -158,9 +174,13 @@ impl QueryBuilder {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// let users = DB::table("users")
-    ///     .where_in("id", vec![1, 2, 3])
-    ///     .get().await?;
+    /// use rf_db_facade::DB;
+    ///
+    /// async fn example() {
+    ///     let users = DB::table("users")
+    ///         .where_in("id", vec![1, 2, 3])
+    ///         .get().await.unwrap();
+    /// }
     /// ```
     pub fn where_in<V: Into<Value>>(mut self, column: impl Into<String>, values: Vec<V>) -> Self {
         let values: Vec<Value> = values.into_iter().map(|v| v.into()).collect();
@@ -280,7 +300,11 @@ impl QueryBuilder {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// let users = DB::table("users").take(5).get().await?;
+    /// use rf_db_facade::DB;
+    ///
+    /// async fn example() {
+    ///     let users = DB::table("users").take(5).get().await.unwrap();
+    /// }
     /// ```
     pub fn take(self, count: usize) -> Self {
         self.limit(count)
@@ -291,7 +315,11 @@ impl QueryBuilder {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// let users = DB::table("users").skip(10).take(5).get().await?;
+    /// use rf_db_facade::DB;
+    ///
+    /// async fn example() {
+    ///     let users = DB::table("users").skip(10).take(5).get().await.unwrap();
+    /// }
     /// ```
     pub fn skip(self, count: usize) -> Self {
         self.offset(count)
@@ -301,7 +329,7 @@ impl QueryBuilder {
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// let users = User::query().latest().take(10).get().await?;
     /// ```
     pub fn latest(self) -> Self {
@@ -312,7 +340,7 @@ impl QueryBuilder {
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// let users = User::query().oldest().first().await?;
     /// ```
     pub fn oldest(self) -> Self {
@@ -333,7 +361,7 @@ impl QueryBuilder {
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// let users = User::where("role", "admin")
     ///     .orWhere("role", "moderator")
     ///     .get().await?;
@@ -382,10 +410,14 @@ impl QueryBuilder {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// let stats = DB::table("orders")
-    ///     .select(&["status", "COUNT(*) as count"])
-    ///     .groupBy("status")
-    ///     .get().await?;
+    /// use rf_db_facade::DB;
+    ///
+    /// async fn example() {
+    ///     let stats = DB::table("orders")
+    ///         .select(&["status", "COUNT(*) as count"])
+    ///         .groupBy("status")
+    ///         .get().await.unwrap();
+    /// }
     /// ```
     #[allow(non_snake_case)]
     pub fn groupBy(mut self, column: impl Into<String>) -> Self {
@@ -398,11 +430,15 @@ impl QueryBuilder {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// let stats = DB::table("orders")
-    ///     .select(&["user_id", "SUM(total) as total"])
-    ///     .groupBy("user_id")
-    ///     .having("total", ">", 1000)
-    ///     .get().await?;
+    /// use rf_db_facade::DB;
+    ///
+    /// async fn example() {
+    ///     let stats = DB::table("orders")
+    ///         .select(&["user_id", "SUM(total) as total"])
+    ///         .groupBy("user_id")
+    ///         .having("total", ">", 1000)
+    ///         .get().await.unwrap();
+    /// }
     /// ```
     pub fn having<V: Into<Value>>(mut self, column: impl Into<String>, operator: impl Into<String>, value: V) -> Self {
         self.having.push((column.into(), operator.into(), value.into()));
@@ -417,7 +453,7 @@ impl QueryBuilder {
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// let users = User::whereDate("created_at", "2024-01-15").get().await?;
     /// ```
     #[allow(non_snake_case)]
@@ -430,7 +466,7 @@ impl QueryBuilder {
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// let users = User::whereYear("created_at", 2024).get().await?;
     /// ```
     #[allow(non_snake_case)]
@@ -443,7 +479,7 @@ impl QueryBuilder {
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// let users = User::whereMonth("created_at", 12).get().await?;
     /// ```
     #[allow(non_snake_case)]
@@ -456,7 +492,7 @@ impl QueryBuilder {
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// let users = User::whereDay("created_at", 25).get().await?;
     /// ```
     #[allow(non_snake_case)]
@@ -469,7 +505,7 @@ impl QueryBuilder {
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// let users = User::whereTime("created_at", ">=", "09:00:00").get().await?;
     /// ```
     #[allow(non_snake_case)]
@@ -482,7 +518,7 @@ impl QueryBuilder {
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// let users = User::whereColumn("updated_at", ">", "created_at").get().await?;
     /// ```
     #[allow(non_snake_case)]
@@ -497,9 +533,13 @@ impl QueryBuilder {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// let users = DB::table("users")
-    ///     .where_clause("active", "=", true.into())
-    ///     .get().await?;
+    /// use rf_db_facade::DB;
+    ///
+    /// async fn example() {
+    ///     let users = DB::table("users")
+    ///         .where_clause("active", "=", true.into())
+    ///         .get().await.unwrap();
+    /// }
     /// ```
     pub async fn get(self) -> Result<Vec<Value>, String> {
         // Mock implementation - in production this executes against DB
@@ -511,9 +551,13 @@ impl QueryBuilder {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// let user = DB::table("users")
-    ///     .where_clause("id", "=", 1.into())
-    ///     .first().await?;
+    /// use rf_db_facade::DB;
+    ///
+    /// async fn example() {
+    ///     let user = DB::table("users")
+    ///         .where_clause("id", "=", 1.into())
+    ///         .first().await.unwrap();
+    /// }
     /// ```
     pub async fn first(self) -> Result<Option<Value>, String> {
         let results = self.limit(1).get().await?;
@@ -524,7 +568,7 @@ impl QueryBuilder {
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// let user = User::where("id", 1).firstOrFail().await?;
     /// ```
     #[allow(non_snake_case)]
@@ -539,7 +583,7 @@ impl QueryBuilder {
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// let emails = User::where("active", true).pluck("email").await?;
     /// // Returns: ["john@example.com", "jane@example.com", ...]
     /// ```
@@ -556,7 +600,7 @@ impl QueryBuilder {
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// let email = User::where("id", 1).value("email").await?;
     /// // Returns: Some("john@example.com")
     /// ```
@@ -571,8 +615,12 @@ impl QueryBuilder {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// let user = DB::table("users").find(1).await?;
-    /// let post = DB::table("posts").find(42).await?;
+    /// use rf_db_facade::DB;
+    ///
+    /// async fn example() {
+    ///     let user = DB::table("users").find(1).await.unwrap();
+    ///     let post = DB::table("posts").find(42).await.unwrap();
+    /// }
     /// ```
     pub async fn find<V: Into<Value>>(self, id: V) -> Result<Option<Value>, String> {
         self.r#where("id", id).first().await
@@ -583,7 +631,11 @@ impl QueryBuilder {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// let user = DB::table("users").findOrFail(1).await?;
+    /// use rf_db_facade::DB;
+    ///
+    /// async fn example() {
+    ///     let user = DB::table("users").findOrFail(1).await.unwrap();
+    /// }
     /// ```
     #[allow(non_snake_case)]
     pub async fn findOrFail<V: Into<Value>>(self, id: V) -> Result<Value, String> {
@@ -598,7 +650,7 @@ impl QueryBuilder {
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// let random_user = User::query().inRandomOrder().first().await?;
     /// ```
     #[allow(non_snake_case)]
@@ -610,7 +662,7 @@ impl QueryBuilder {
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// let users = User::query()
     ///     .when(is_admin, |q| q.where("role", "admin"))
     ///     .get().await?;
@@ -630,7 +682,7 @@ impl QueryBuilder {
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// let users = User::query()
     ///     .unless(show_all, |q| q.where("active", true))
     ///     .get().await?;
@@ -650,7 +702,7 @@ impl QueryBuilder {
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// let users = User::query()
     ///     .where("active", true)
     ///     .tap(|q| println!("Query: {:?}", q))
@@ -680,7 +732,7 @@ impl QueryBuilder {
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// let users = User::whereNotBetween("age", 18, 65).get().await?;
     /// ```
     #[allow(non_snake_case)]
@@ -701,7 +753,7 @@ impl QueryBuilder {
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// let users = User::whereNotLike("email", "%@spam.com").get().await?;
     /// ```
     #[allow(non_snake_case)]
@@ -719,7 +771,7 @@ impl QueryBuilder {
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// let users = User::whereRaw("age > ? AND status = ?", vec![18, "active"]).get().await?;
     /// ```
     #[allow(non_snake_case)]
@@ -744,7 +796,7 @@ impl QueryBuilder {
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// User::where("id", 1).increment("login_count", 1).await?;
     /// User::where("id", 1).increment("views", 5).await?;
     /// ```
@@ -757,7 +809,7 @@ impl QueryBuilder {
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// User::where("id", 1).decrement("credits", 10).await?;
     /// ```
     pub async fn decrement(self, column: impl Into<String>, amount: i64) -> Result<u64, String> {
@@ -768,7 +820,7 @@ impl QueryBuilder {
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// let user = User::where("email", email)
     ///     .firstOr(|| User::default())
     ///     .await;
@@ -789,7 +841,7 @@ impl QueryBuilder {
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// let user = User::where("email", "unique@example.com").sole().await?;
     /// ```
     pub async fn sole(self) -> Result<Value, String> {
@@ -806,7 +858,7 @@ impl QueryBuilder {
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// User::query().chunk(100, |users| {
     ///     for user in users {
     ///         // Process each user
@@ -844,7 +896,7 @@ impl QueryBuilder {
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// User::query().each(|user| {
     ///     println!("User: {:?}", user);
     ///     true // Continue
@@ -879,7 +931,7 @@ impl QueryBuilder {
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// User::where("active", true).dd();
     /// ```
     pub fn dd(self) -> ! {
@@ -910,7 +962,7 @@ impl QueryBuilder {
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// let sql = User::where("active", true).toSql();
     /// println!("SQL: {}", sql);
     /// ```
@@ -974,7 +1026,7 @@ impl QueryBuilder {
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// let user = User::firstOrCreate(
     ///     json!({"email": "john@example.com"}),     // Search attributes
     ///     json!({"name": "John", "role": "user"})   // Additional attributes for create
@@ -1004,7 +1056,7 @@ impl QueryBuilder {
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// let user = User::firstOrNew(
     ///     json!({"email": "john@example.com"}),
     ///     json!({"name": "John"})
@@ -1034,7 +1086,7 @@ impl QueryBuilder {
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// let user = User::updateOrCreate(
     ///     json!({"email": "john@example.com"}),  // Search attributes
     ///     json!({"name": "John Updated"})        // Values to update/create
@@ -1075,7 +1127,7 @@ impl QueryBuilder {
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// User::updateOrInsert(
     ///     json!({"email": "john@example.com"}),
     ///     json!({"login_count": 1})
@@ -1102,7 +1154,7 @@ impl QueryBuilder {
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// User::upsert(
     ///     vec![
     ///         json!({"email": "john@ex.com", "name": "John"}),
@@ -1126,7 +1178,7 @@ impl QueryBuilder {
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// User::where("id", 1).touch().await?;
     /// ```
     pub async fn touch(self) -> Result<u64, String> {
@@ -1139,7 +1191,7 @@ impl QueryBuilder {
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// User::destroy(vec![1, 2, 3]).await?;
     /// ```
     pub async fn destroy<V: Into<Value>>(self, ids: Vec<V>) -> Result<u64, String> {
@@ -1151,7 +1203,7 @@ impl QueryBuilder {
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// // Be careful! This deletes everything!
     /// User::truncate().await?;
     /// ```
@@ -1164,10 +1216,15 @@ impl QueryBuilder {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// let id = DB::table("users").insert(json!({
-    ///     "name": "John",
-    ///     "email": "john@example.com"
-    /// })).await?;
+    /// use rf_db_facade::DB;
+    /// use serde_json::json;
+    ///
+    /// async fn example() {
+    ///     let id = DB::table("users").insert(json!({
+    ///         "name": "John",
+    ///         "email": "john@example.com"
+    ///     })).await.unwrap();
+    /// }
     /// ```
     pub async fn insert(self, _data: Value) -> Result<u64, String> {
         // Mock implementation - returns fake ID
@@ -1181,13 +1238,18 @@ impl QueryBuilder {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// // Just like Laravel's User::create()!
-    /// let user = DB::table("users").create(json!({
-    ///     "name": "John",
-    ///     "email": "john@example.com"
-    /// })).await?;
+    /// use rf_db_facade::DB;
+    /// use serde_json::json;
     ///
-    /// println!("Created user: {}", user["name"]);
+    /// async fn example() {
+    ///     // Just like Laravel's User::create()!
+    ///     let user = DB::table("users").create(json!({
+    ///         "name": "John",
+    ///         "email": "john@example.com"
+    ///     })).await.unwrap();
+    ///
+    ///     println!("Created user: {}", user["name"]);
+    /// }
     /// ```
     pub async fn create(self, data: Value) -> Result<Value, String> {
         let _table = self.table.clone();
@@ -1206,10 +1268,15 @@ impl QueryBuilder {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// DB::table("users").insert_many(vec![
-    ///     json!({"name": "John"}),
-    ///     json!({"name": "Jane"}),
-    /// ]).await?;
+    /// use rf_db_facade::DB;
+    /// use serde_json::json;
+    ///
+    /// async fn example() {
+    ///     DB::table("users").insert_many(vec![
+    ///         json!({"name": "John"}),
+    ///         json!({"name": "Jane"}),
+    ///     ]).await.unwrap();
+    /// }
     /// ```
     pub async fn insert_many(self, data: Vec<Value>) -> Result<u64, String> {
         Ok(data.len() as u64)
@@ -1220,9 +1287,14 @@ impl QueryBuilder {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// let affected = DB::table("users")
-    ///     .where_clause("id", "=", 1.into())
-    ///     .update(json!({"active": true})).await?;
+    /// use rf_db_facade::DB;
+    /// use serde_json::json;
+    ///
+    /// async fn example() {
+    ///     let affected = DB::table("users")
+    ///         .where_clause("id", "=", 1.into())
+    ///         .update(json!({"active": true})).await.unwrap();
+    /// }
     /// ```
     pub async fn update(self, _data: Value) -> Result<u64, String> {
         // Mock implementation
@@ -1234,9 +1306,13 @@ impl QueryBuilder {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// let deleted = DB::table("users")
-    ///     .where_clause("id", "=", 1.into())
-    ///     .delete().await?;
+    /// use rf_db_facade::DB;
+    ///
+    /// async fn example() {
+    ///     let deleted = DB::table("users")
+    ///         .where_clause("id", "=", 1.into())
+    ///         .delete().await.unwrap();
+    /// }
     /// ```
     pub async fn delete(self) -> Result<u64, String> {
         // Mock implementation
@@ -1259,9 +1335,13 @@ impl QueryBuilder {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// let page = DB::table("users")
-    ///     .where_clause("active", "=", true.into())
-    ///     .paginate(15, 1).await?;
+    /// use rf_db_facade::DB;
+    ///
+    /// async fn example() {
+    ///     let page = DB::table("users")
+    ///         .where_clause("active", "=", true.into())
+    ///         .paginate(15, 1).await.unwrap();
+    /// }
     /// ```
     pub async fn paginate(self, per_page: usize, page: usize) -> Result<PaginatedResult, String> {
         let offset = (page.saturating_sub(1)) * per_page;

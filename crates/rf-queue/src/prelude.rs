@@ -15,4 +15,5 @@ pub use crate:: job::{Job, JobMetadata};
 pub use crate:: memory::MemoryQueue;
 pub use crate:: queue::Queue;
 pub use crate:: worker::Worker;
+#[cfg(feature = "redis-backend")]
 pub use crate:: redis::RedisQueue;

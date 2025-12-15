@@ -146,44 +146,71 @@ impl RedisCache {
         F: FnOnce() -> Fut + Send,
         Fut: std::future::Future<Output = CacheResult<T>> + Send,
     {
-        // Check cache first
-        if let Some(value) = self.get(key).await? {
-            return Ok(value);
-        }
+        Box::pin(self.remember_with_lock_impl(key, ttl, f, 0)).await
+    }
 
-        // Try to acquire distributed lock
-        let lock_key = self.lock_key(key);
-        let lock_acquired = self
-            .acquire_lock(&lock_key, Duration::from_secs(10))
-            .await?;
+    /// Internal implementation with recursion counter
+    fn remember_with_lock_impl<'a, T, F, Fut>(
+        &'a self,
+        key: &'a str,
+        ttl: Duration,
+        f: F,
+        retry_count: u32,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = CacheResult<T>> + Send + 'a>>
+    where
+        T: Serialize + DeserializeOwned + Send + Sync + 'static,
+        F: FnOnce() -> Fut + Send + 'a,
+        Fut: std::future::Future<Output = CacheResult<T>> + Send + 'a,
+    {
+        Box::pin(async move {
+            // Prevent infinite recursion
+            if retry_count > 10 {
+                return Err(CacheError::Backend(
+                    "Max retry count exceeded in remember_with_lock".to_string(),
+                ));
+            }
 
-        if lock_acquired {
-            // We got the lock, double-check cache and compute if needed
+            // Check cache first
             if let Some(value) = self.get(key).await? {
-                self.release_lock(&lock_key).await?;
                 return Ok(value);
             }
 
-            // Compute value
-            let value = f().await?;
-            self.set(key, &value, ttl).await?;
+            // Try to acquire distributed lock
+            let lock_key = self.lock_key(key);
+            let lock_acquired = self
+                .acquire_lock(&lock_key, Duration::from_secs(10))
+                .await?;
 
-            // Release lock
-            self.release_lock(&lock_key).await?;
+            if lock_acquired {
+                // We got the lock, double-check cache and compute if needed
+                if let Some(value) = self.get(key).await? {
+                    self.release_lock(&lock_key).await?;
+                    return Ok(value);
+                }
 
-            Ok(value)
-        } else {
-            // Someone else has the lock, wait and try again
-            tokio::time::sleep(Duration::from_millis(100)).await;
+                // Compute value
+                let value = f().await?;
+                self.set(key, &value, ttl).await?;
 
-            // Try to get cached value (should be there now)
-            if let Some(value) = self.get(key).await? {
+                // Release lock
+                self.release_lock(&lock_key).await?;
+
                 Ok(value)
             } else {
-                // Still not there, try one more time with lock
-                self.remember_with_lock(key, ttl, f).await
+                // Someone else has the lock, wait and check again
+                tokio::time::sleep(Duration::from_millis(100)).await;
+
+                // Try to get cached value (should be there now)
+                if let Some(value) = self.get(key).await? {
+                    Ok(value)
+                } else {
+                    // Still not there, return error to avoid recursion issues
+                    Err(CacheError::Backend(
+                        "Cache value not available after waiting for lock".to_string(),
+                    ))
+                }
             }
-        }
+        })
     }
 
     /// Acquire distributed lock
@@ -431,6 +458,23 @@ impl RedisTaggedCache {
 mod tests {
     use super::*;
     use std::sync::Arc;
+
+    async fn redis_available() -> bool {
+        let redis_url =
+            std::env::var("REDIS_URL").unwrap_or_else(|_| "redis://localhost:6379".to_string());
+        match redis::Client::open(redis_url.as_str()) {
+            Ok(client) => match client.get_multiplexed_async_connection().await {
+                Ok(mut conn) => {
+                    redis::cmd("PING")
+                        .query_async::<_, String>(&mut conn)
+                        .await
+                        .is_ok()
+                }
+                Err(_) => false,
+            },
+            Err(_) => false,
+        }
+    }
 
     async fn create_test_cache() -> RedisCache {
         let redis_url =

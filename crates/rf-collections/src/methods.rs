@@ -1,8 +1,6 @@
 //! Higher-order collection methods.
 
 use crate::Collection;
-use std::collections::HashMap;
-use std::hash::Hash;
 
 /// Extension trait for higher-order collection methods.
 pub trait CollectionMethods<T>: Sized {
@@ -181,7 +179,7 @@ mod tests {
         let collection = collect(items);
         let avg = collection.avg();
 
-        assert_eq!(avg, 3.0);
+        assert_eq!(avg, Some(3.0));
     }
 
     #[test]

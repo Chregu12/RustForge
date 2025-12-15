@@ -21,6 +21,7 @@ chrono.workspace = true
 uuid.workspace = true
 serde_urlencoded = "0.7"
 redis.workspace = true
+rf-mail = { path = "../rf-mail" }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["test-util", "macros"] }

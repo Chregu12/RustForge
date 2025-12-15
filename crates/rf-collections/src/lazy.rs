@@ -1,8 +1,5 @@
 //! Lazy collections for efficient processing of large datasets.
 
-use std::collections::HashMap;
-use std::hash::Hash;
-
 /// A lazy collection that processes items on-demand.
 pub struct LazyCollection<T, I>
 where

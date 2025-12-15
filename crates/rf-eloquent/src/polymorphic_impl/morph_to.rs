@@ -169,9 +169,9 @@ mod tests {
     #[tokio::test]
     async fn test_morph_to_get_type_not_registered() {
         let morph_to = MorphTo::<String>::new(1, "commentable");
-        let db = DatabaseConnection::default();
+        let db = Arc::new(DatabaseConnection::default());
 
-        let result = morph_to.get(&db, "UnknownType", 1).await;
+        let result = morph_to.get(db, "UnknownType", 1).await;
         assert!(result.is_err());
     }
 
@@ -187,9 +187,9 @@ mod tests {
             .await;
 
         let morph_to = MorphTo::<String>::new(1, "testable");
-        let db = DatabaseConnection::default();
+        let db = Arc::new(DatabaseConnection::default());
 
-        let result = morph_to.get(&db, "TestModel", 42).await;
+        let result = morph_to.get(db, "TestModel", 42).await;
         assert!(result.is_ok());
         assert_eq!(result.unwrap().unwrap(), "Model-42");
     }

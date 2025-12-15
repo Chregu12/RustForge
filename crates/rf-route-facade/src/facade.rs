@@ -19,15 +19,15 @@ use rf_routing::HttpMethod;
 /// use rf_route_facade::Route;
 ///
 /// // Simple GET route
-/// Route::get("/users", |_| async { "List users" });
+/// Route::get("/users", "UserController@index");
 ///
 /// // POST route with middleware and name
-/// Route::post("/users", |_| async { "Create user" })
+/// Route::post("/users", "UserController@store")
 ///     .name("users.store")
 ///     .middleware("auth");
 ///
 /// // Route with multiple middleware
-/// Route::put("/users/:id", |_| async { "Update user" })
+/// Route::put("/users/:id", "UserController@update")
 ///     .name("users.update")
 ///     .middleware("auth")
 ///     .middleware("validate");
@@ -42,7 +42,7 @@ impl Route {
     /// ```rust,no_run
     /// use rf_route_facade::Route;
     ///
-    /// Route::get("/users", |_| async { "List users" })
+    /// Route::get("/users", "UserController@index")
     ///     .name("users.index");
     /// ```
     pub fn get(path: impl Into<String>, _handler: impl Into<String>) -> FacadeRouteBuilder {
@@ -56,7 +56,7 @@ impl Route {
     /// ```rust,no_run
     /// use rf_route_facade::Route;
     ///
-    /// Route::post("/users", |_| async { "Create user" })
+    /// Route::post("/users", "UserController@store")
     ///     .name("users.store")
     ///     .middleware("auth");
     /// ```
@@ -71,7 +71,7 @@ impl Route {
     /// ```rust,no_run
     /// use rf_route_facade::Route;
     ///
-    /// Route::put("/users/:id", |_| async { "Update user" })
+    /// Route::put("/users/:id", "UserController@update")
     ///     .name("users.update");
     /// ```
     pub fn put(path: impl Into<String>, _handler: impl Into<String>) -> FacadeRouteBuilder {
@@ -85,7 +85,7 @@ impl Route {
     /// ```rust,no_run
     /// use rf_route_facade::Route;
     ///
-    /// Route::patch("/users/:id", |_| async { "Patch user" })
+    /// Route::patch("/users/:id", "UserController@patch")
     ///     .name("users.patch");
     /// ```
     pub fn patch(path: impl Into<String>, _handler: impl Into<String>) -> FacadeRouteBuilder {
@@ -99,7 +99,7 @@ impl Route {
     /// ```rust,no_run
     /// use rf_route_facade::Route;
     ///
-    /// Route::delete("/users/:id", |_| async { "Delete user" })
+    /// Route::delete("/users/:id", "UserController@destroy")
     ///     .name("users.destroy")
     ///     .middleware("auth");
     /// ```
@@ -114,7 +114,7 @@ impl Route {
     /// ```rust,no_run
     /// use rf_route_facade::Route;
     ///
-    /// Route::options("/users", |_| async { "OPTIONS" });
+    /// Route::options("/users", "OptionsController@handle");
     /// ```
     pub fn options(path: impl Into<String>, _handler: impl Into<String>) -> FacadeRouteBuilder {
         FacadeRouteBuilder::new(path, vec![HttpMethod::Options])
@@ -131,7 +131,7 @@ impl Route {
     /// Route::match_methods(
     ///     vec![HttpMethod::Get, HttpMethod::Post],
     ///     "/users",
-    ///     |_| async { "Handle GET or POST" }
+    ///     "UserController@handle"
     /// );
     /// ```
     pub fn match_methods(
@@ -149,7 +149,7 @@ impl Route {
     /// ```rust,no_run
     /// use rf_route_facade::Route;
     ///
-    /// Route::any("/fallback", |_| async { "Handle any method" });
+    /// Route::any("/fallback", "FallbackController@handle");
     /// ```
     pub fn any(path: impl Into<String>, _handler: impl Into<String>) -> FacadeRouteBuilder {
         FacadeRouteBuilder::new(
@@ -176,8 +176,8 @@ impl Route {
     ///     .prefix("/api")
     ///     .middleware("auth")
     ///     .routes(|group| {
-    ///         group.get("/users", |_| async { "List users" });
-    ///         group.post("/users", |_| async { "Create user" });
+    ///         group.get("/users", "UserController@index");
+    ///         group.post("/users", "UserController@store");
     ///     });
     /// ```
     pub fn group() -> GroupBuilder {

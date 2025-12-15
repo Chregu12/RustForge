@@ -9,6 +9,9 @@
 //! - **Database Assertions**: Laravel-style database assertions (`assert_database_has!`)
 //! - **Queue Fakes**: Test job dispatching without processing (`QueueFake`)
 //! - **Event Fakes**: Test event dispatching and listeners (`EventFake`)
+//! - **Mail Fakes**: Test email sending without actually sending (`MailFake`)
+//! - **Storage Fakes**: In-memory file storage for testing (`StorageFake`)
+//! - **Time Fakes**: Time travel and freezing for deterministic tests (`TimeFake`)
 //! - **Custom Assertions**: Common assertion patterns
 //! - **Factories & Seeders**: Generate test data easily
 //!
@@ -144,7 +147,11 @@ pub use error::{TestError, TestResult};
 pub use factory::{Factory, FactoryBuilder, FactoryDefinition, FactoryError};
 pub use factory_advanced::{EnhancedFactory, FactoryState, RelationshipBuilder, Sequence};
 pub use fake::Fake;
-pub use fakes::{EventFake, QueueFake};
+pub use fakes::{
+    EventFake, MailFake, MailRecord, QueueFake, StorageFake, TimeFake,
+    FakeClock, Clock, SystemClock, FileRecord, Visibility, FakeUploadedFile,
+    create_fake_file, create_fake_image, set_test_clock, reset_test_clock, current_time,
+};
 pub use http::{HttpTester, TestResponse};
 pub use http_client::{RequestBuilder, TestClient, TestResponseBuilder};
 pub use seeder::{DatabaseSeeder, Seeder, SeederError, SeederRunner};

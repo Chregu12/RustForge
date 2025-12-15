@@ -421,7 +421,7 @@ mod tests {
         let app = Router::new().route("/test", get(handler));
         let client = TestClient::new(app);
 
-        let response = client.get("/test").send().await.unwrap().assert_ok();
+        let mut response = client.get("/test").send().await.unwrap().assert_ok();
 
         let body: Value = response.body_json().await.unwrap();
         assert_eq!(body, json!({"message": "hello"}));

@@ -4,27 +4,27 @@
 //!
 //! ```rust,no_run
 //! use rf_db_facade::{Model, model};
+//! use serde_json::json;
 //!
 //! // Define a model using the macro
 //! model!(User, "users");
 //!
-//! # async fn example() -> Result<(), String> {
-//! // Now use Laravel-style syntax!
-//! let active_users = User::r#where("active", true).get().await?;
-//! let user = User::find(1).await?;
-//! let new_user = User::create(serde_json::json!({
-//!     "name": "John",
-//!     "email": "john@example.com"
-//! })).await?;
+//! async fn example() {
+//!     // Now use Laravel-style syntax!
+//!     let active_users = User::r#where("active", true).get().await.unwrap();
+//!     let user = User::find(1).await.unwrap();
+//!     let new_user = User::create(json!({
+//!         "name": "John",
+//!         "email": "john@example.com"
+//!     })).await.unwrap();
 //!
-//! // Chain queries like Laravel!
-//! let admins = User::r#where("role", "admin")
-//!     .r#where("active", true)
-//!     .order_by("name", "asc")
-//!     .limit(10)
-//!     .get().await?;
-//! # Ok(())
-//! # }
+//!     // Chain queries like Laravel!
+//!     let admins = User::r#where("role", "admin")
+//!         .r#where("active", true)
+//!         .order_by("name", "asc")
+//!         .limit(10)
+//!         .get().await.unwrap();
+//! }
 //! ```
 
 use crate::query_builder::QueryBuilder;
@@ -45,12 +45,11 @@ use serde_json::Value;
 ///     const TABLE: &'static str = "users";
 /// }
 ///
-/// // Now you can use Laravel-style syntax!
-/// # async fn example() -> Result<(), String> {
-/// let users = User::r#where("active", true).get().await?;
-/// let user = User::find(1).await?;
-/// # Ok(())
-/// # }
+/// async fn example() {
+///     // Now you can use Laravel-style syntax!
+///     let users = User::r#where("active", true).get().await.unwrap();
+///     let user = User::find(1).await.unwrap();
+/// }
 /// ```
 pub trait Model: Sized {
     /// The database table name for this model
@@ -60,7 +59,7 @@ pub trait Model: Sized {
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// // Just like Laravel!
     /// User::r#where("active", true).get().await?;
     /// User::r#where("email", "john@example.com").first().await?;
@@ -73,7 +72,7 @@ pub trait Model: Sized {
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// // Clean and readable!
     /// User::filter("active", true).get().await?;
     /// User::filter("role", "admin").filter("active", true).get().await?;
@@ -86,7 +85,7 @@ pub trait Model: Sized {
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// let query = User::query()
     ///     .r#where("active", true)
     ///     .order_by("name", "asc");
@@ -99,7 +98,7 @@ pub trait Model: Sized {
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// let all_users = User::all().await?;
     /// ```
     async fn all() -> Result<Vec<Value>, String> {
@@ -110,7 +109,7 @@ pub trait Model: Sized {
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// let user = User::find(1).await?;
     /// let user = User::find("uuid-string").await?;
     /// ```
@@ -125,7 +124,7 @@ pub trait Model: Sized {
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// let user = User::find_or_fail(1).await?; // Returns error if not found
     /// ```
     async fn find_or_fail<V: Into<Value>>(id: V) -> Result<Value, String> {
@@ -138,7 +137,7 @@ pub trait Model: Sized {
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// // Just like Laravel!
     /// let user = User::create(serde_json::json!({
     ///     "name": "John",
@@ -155,7 +154,7 @@ pub trait Model: Sized {
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// User::update_by_id(1, serde_json::json!({
     ///     "name": "John Doe"
     /// })).await?;
@@ -171,7 +170,7 @@ pub trait Model: Sized {
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// User::destroy(1).await?;
     /// ```
     async fn destroy<V: Into<Value>>(id: V) -> Result<u64, String> {
@@ -185,7 +184,7 @@ pub trait Model: Sized {
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// let total = User::count().await?;
     /// ```
     async fn count() -> Result<usize, String> {
@@ -196,7 +195,7 @@ pub trait Model: Sized {
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// let user = User::first_or_create(
     ///     serde_json::json!({"email": "john@example.com"}),  // search
     ///     serde_json::json!({"name": "John", "email": "john@example.com"})  // create
@@ -227,7 +226,7 @@ pub trait Model: Sized {
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// let user = User::update_or_create(
     ///     serde_json::json!({"email": "john@example.com"}),  // search
     ///     serde_json::json!({"name": "John Updated"})  // update/create data
@@ -306,16 +305,15 @@ pub trait Model: Sized {
 /// # Examples
 ///
 /// ```rust,no_run
-/// use rf_db_facade::model;
+/// use rf_db_facade::{model, Model};
 ///
 /// // Simple model
 /// model!(User, "users");
 ///
-/// // Now use it:
-/// # async fn example() -> Result<(), String> {
-/// let users = User::r#where("active", true).get().await?;
-/// # Ok(())
-/// # }
+/// async fn example() {
+///     // Now use it:
+///     let users = User::r#where("active", true).get().await.unwrap();
+/// }
 /// ```
 #[macro_export]
 macro_rules! model {

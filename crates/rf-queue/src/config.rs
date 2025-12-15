@@ -187,6 +187,7 @@ impl Default for QueueConfigBuilder {
 mod tests {
 
     #[cfg(test)]
+    #[cfg(feature = "redis-backend")]
     async fn redis_available() -> bool {
         use redis::AsyncCommands;
         let redis_url =

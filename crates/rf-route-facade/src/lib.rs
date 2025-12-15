@@ -19,11 +19,11 @@
 //! use rf_route_facade::Route;
 //!
 //! // Define routes using the static API
-//! Route::get("/users", |_| async { "List users" })
+//! Route::get("/users", "UserController@index")
 //!     .name("users.index")
 //!     .middleware("auth");
 //!
-//! Route::post("/users", |_| async { "Create user" })
+//! Route::post("/users", "UserController@store")
 //!     .name("users.store")
 //!     .middleware("auth");
 //! ```
@@ -37,8 +37,8 @@
 //!     .prefix("/api")
 //!     .middleware("auth")
 //!     .routes(|group| {
-//!         group.get("/users", |_| async { "List users" });
-//!         group.post("/users", |_| async { "Create user" });
+//!         group.get("/users", "UserController@index");
+//!         group.post("/users", "UserController@store");
 //!     });
 //! ```
 //!

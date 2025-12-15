@@ -38,7 +38,7 @@ pub struct ComponentTag {
 /// Component tag parser
 pub struct ComponentParser {
     // Regex patterns
-    component_tag_re: Regex,
+    opening_tag_re: Regex,
     self_closing_re: Regex,
     slot_re: Regex,
     attribute_re: Regex,
@@ -48,10 +48,8 @@ impl ComponentParser {
     /// Create a new component parser
     pub fn new() -> Result<Self, ParseError> {
         Ok(Self {
-            // Match: <x-alert type="danger">content</x-alert>
-            component_tag_re: Regex::new(
-                r#"(?s)<x-([a-zA-Z0-9._-]+)((?:\s+[^>]*)?)>(.*?)</x-\1>"#,
-            )?,
+            // Match opening tag: <x-alert type="danger">
+            opening_tag_re: Regex::new(r#"<x-([a-zA-Z0-9._-]+)((?:\s+[^>]*)?)>"#)?,
             // Match: <x-alert type="danger" />
             self_closing_re: Regex::new(r#"<x-([a-zA-Z0-9._-]+)((?:\s+[^>]*)?)\s*/>"#)?,
             // Match: <x-slot name="header" class="bold">content</x-slot>
@@ -67,21 +65,54 @@ impl ComponentParser {
     pub fn parse_all(&self, template: &str) -> Result<Vec<ComponentTag>, ParseError> {
         let mut tags = Vec::new();
 
-        // Parse regular components
-        for cap in self.component_tag_re.captures_iter(template) {
-            let full_match = cap.get(0).unwrap().as_str();
-            let name = cap.get(1).unwrap().as_str();
-            let attrs_str = cap.get(2).map(|m| m.as_str()).unwrap_or("");
-            let content = cap.get(3).unwrap().as_str();
+        // Parse regular components with manual closing tag matching
+        let mut search_start = 0;
+        while let Some(cap) = self.opening_tag_re.captures(&template[search_start..]) {
+            let match_start = cap.get(0).unwrap().start();
+            let match_end = cap.get(0).unwrap().end();
+            let absolute_start = search_start + match_start;
+            let absolute_end = search_start + match_end;
 
-            let tag = self.parse_component_tag(name, attrs_str, content, full_match)?;
-            tags.push(tag);
+            let name = cap.get(1).unwrap().as_str();
+
+            // Skip x-slot tags - they are handled separately
+            if name == "slot" {
+                search_start = absolute_end;
+                continue;
+            }
+
+            let attrs_str = cap.get(2).map(|m| m.as_str()).unwrap_or("");
+
+            // Build closing tag pattern
+            let closing_tag = format!("</x-{}>", name);
+
+            // Find matching closing tag, accounting for nesting
+            if let Some((content, full_match_end)) = self.find_matching_close(
+                template,
+                absolute_end,
+                &format!("<x-{}", name),
+                &closing_tag,
+            ) {
+                let full_match = &template[absolute_start..full_match_end];
+                let tag = self.parse_component_tag(name, attrs_str, &content, full_match)?;
+                tags.push(tag);
+
+                search_start = absolute_start + 1;
+            } else {
+                search_start = absolute_end;
+            }
         }
 
         // Parse self-closing components
         for cap in self.self_closing_re.captures_iter(template) {
             let full_match = cap.get(0).unwrap().as_str();
             let name = cap.get(1).unwrap().as_str();
+
+            // Skip x-slot tags
+            if name == "slot" {
+                continue;
+            }
+
             let attrs_str = cap.get(2).map(|m| m.as_str()).unwrap_or("");
 
             let tag = self.parse_component_tag(name, attrs_str, "", full_match)?;
@@ -89,6 +120,54 @@ impl ComponentParser {
         }
 
         Ok(tags)
+    }
+
+    /// Find matching closing tag, accounting for nesting
+    fn find_matching_close(
+        &self,
+        template: &str,
+        start: usize,
+        opening_pattern: &str,
+        closing_pattern: &str,
+    ) -> Option<(String, usize)> {
+        let search_area = &template[start..];
+        let mut depth = 1;
+        let mut pos = 0;
+
+        while pos < search_area.len() && depth > 0 {
+            // Look for next opening or closing tag
+            let next_open = search_area[pos..].find(opening_pattern);
+            let next_close = search_area[pos..].find(closing_pattern);
+
+            match (next_open, next_close) {
+                (Some(open_pos), Some(close_pos)) if open_pos < close_pos => {
+                    // Found nested opening tag first
+                    depth += 1;
+                    pos += open_pos + opening_pattern.len();
+                }
+                (_, Some(close_pos)) => {
+                    // Found closing tag
+                    depth -= 1;
+                    if depth == 0 {
+                        let content = &search_area[..pos + close_pos];
+                        let full_end = start + pos + close_pos + closing_pattern.len();
+                        return Some((content.to_string(), full_end));
+                    }
+                    pos += close_pos + closing_pattern.len();
+                }
+                (Some(open_pos), None) => {
+                    // Only opening tag found, increment depth
+                    depth += 1;
+                    pos += open_pos + opening_pattern.len();
+                }
+                (None, None) => {
+                    // No more tags found
+                    break;
+                }
+            }
+        }
+
+        None
     }
 
     /// Parse a single component tag
@@ -167,13 +246,10 @@ impl ComponentParser {
         let mut tags = Vec::new();
 
         // Find regular component tags
-        for cap in self.component_tag_re.captures_iter(template) {
-            tags.push(cap.get(0).unwrap().as_str().to_string());
-        }
-
-        // Find self-closing tags
-        for cap in self.self_closing_re.captures_iter(template) {
-            tags.push(cap.get(0).unwrap().as_str().to_string());
+        if let Ok(parsed_tags) = self.parse_all(template) {
+            for tag in parsed_tags {
+                tags.push(tag.raw);
+            }
         }
 
         tags
@@ -181,7 +257,7 @@ impl ComponentParser {
 
     /// Check if template contains component tags
     pub fn has_components(&self, template: &str) -> bool {
-        self.component_tag_re.is_match(template) || self.self_closing_re.is_match(template)
+        self.opening_tag_re.is_match(template) || self.self_closing_re.is_match(template)
     }
 }
 

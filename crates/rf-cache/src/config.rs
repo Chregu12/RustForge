@@ -199,14 +199,18 @@ impl Default for CacheConfigBuilder {
 #[cfg(test)]
 mod tests {
 
-    #[cfg(test)]
+    #[cfg(all(test, feature = "redis-backend"))]
     async fn redis_available() -> bool {
-        use redis::AsyncCommands;
         let redis_url =
             std::env::var("REDIS_URL").unwrap_or_else(|_| "redis://localhost:6379".to_string());
         match redis::Client::open(redis_url.as_str()) {
             Ok(client) => match client.get_multiplexed_async_connection().await {
-                Ok(mut conn) => conn.ping::<_, String>().await.is_ok(),
+                Ok(mut conn) => {
+                    redis::cmd("PING")
+                        .query_async::<_, String>(&mut conn)
+                        .await
+                        .is_ok()
+                }
                 Err(_) => false,
             },
             Err(_) => false,

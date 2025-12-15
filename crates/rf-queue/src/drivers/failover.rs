@@ -223,7 +223,7 @@ mod tests {
 
         // Complete job
         if let Some(meta) = reserved {
-            failover.complete(&meta.id.unwrap()).await.unwrap();
+            failover.complete(&meta.id).await.unwrap();
         }
 
         // Verify queue is empty

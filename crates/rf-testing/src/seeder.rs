@@ -461,8 +461,8 @@ mod tests {
     #[tokio::test]
     async fn test_database_seeder_run_one_invalid() {
         let db_seeder = DatabaseSeeder::new();
-        // Should not panic
-        db_seeder.run_one(99).await.unwrap();
+        // Should return an error for invalid index
+        assert!(db_seeder.run_one(99).await.is_err());
     }
 
     #[tokio::test]

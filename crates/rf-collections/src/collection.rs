@@ -155,6 +155,13 @@ impl<T: PartialEq> Collection<T> {
     }
 }
 
+/// Implement PartialEq for comparing Collection with Vec
+impl<T: PartialEq> PartialEq<Vec<T>> for Collection<T> {
+    fn eq(&self, other: &Vec<T>) -> bool {
+        self.items == *other
+    }
+}
+
 impl<T: PartialEq + Clone> Collection<T> {
     /// Remove duplicates.
     pub fn unique(mut self) -> Self {
@@ -327,9 +334,12 @@ impl<T> Collection<T> {
         (Collection::new(matched), Collection::new(unmatched))
     }
 
-    /// Zip with another collection
-    pub fn zip<U>(self, other: Collection<U>) -> Collection<(T, U)> {
-        Collection::new(self.items.into_iter().zip(other.items).collect())
+    /// Zip with another collection or vector
+    pub fn zip<U, I>(self, other: I) -> Collection<(T, U)>
+    where
+        I: IntoIterator<Item = U>,
+    {
+        Collection::new(self.items.into_iter().zip(other).collect())
     }
 
     /// Key the collection by a function
@@ -348,7 +358,7 @@ impl<T> Collection<T> {
     }
 
     /// Map with keys
-    pub fn map_with_keys<F, K, V>(self, mut f: F) -> HashMap<K, V>
+    pub fn map_with_keys<F, K, V>(self, f: F) -> HashMap<K, V>
     where
         F: FnMut(T) -> (K, V),
         K: Eq + Hash,

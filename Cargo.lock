@@ -8033,6 +8033,7 @@ dependencies = [
  "http 1.4.0",
  "rand 0.8.5",
  "redis 0.24.0",
+ "rf-mail",
  "serde",
  "serde_json",
  "serde_urlencoded",
@@ -8453,6 +8454,34 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
+]
+
+[[package]]
+name = "rustforge-test-project"
+version = "0.1.0"
+dependencies = [
+ "axum 0.8.7",
+ "chrono",
+ "rf-auth",
+ "rf-blade",
+ "rf-cache",
+ "rf-config",
+ "rf-core",
+ "rf-encryption",
+ "rf-helpers",
+ "rf-logging",
+ "rf-mail",
+ "rf-queue",
+ "rf-route-facade",
+ "rf-routing",
+ "rf-storage",
+ "rf-testing",
+ "rf-validation",
+ "rustforge",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tokio-test",
 ]
 
 [[package]]

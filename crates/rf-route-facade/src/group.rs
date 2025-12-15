@@ -18,8 +18,8 @@ use rf_routing::HttpMethod;
 ///     .prefix("/api")
 ///     .middleware("auth")
 ///     .routes(|group| {
-///         group.get("/users", |_| async { "List users" });
-///         group.post("/users", |_| async { "Create user" });
+///         group.get("/users", "UserController@index");
+///         group.post("/users", "UserController@store");
 ///     });
 /// ```
 pub struct GroupBuilder {
@@ -87,7 +87,7 @@ impl GroupBuilder {
     /// Route::group()
     ///     .name("api.")
     ///     .routes(|group| {
-    ///         group.get("/users", |_| async { "List users" })
+    ///         group.get("/users", "UserController@index")
     ///             .name("users"); // Will be named "api.users"
     ///     });
     /// ```
@@ -125,9 +125,9 @@ impl GroupBuilder {
     ///     .prefix("/api")
     ///     .middleware("auth")
     ///     .routes(|group| {
-    ///         group.get("/users", |_| async { "List users" })
+    ///         group.get("/users", "UserController@index")
     ///             .name("users.index");
-    ///         group.post("/users", |_| async { "Create user" })
+    ///         group.post("/users", "UserController@store")
     ///             .name("users.store");
     ///     });
     /// ```
