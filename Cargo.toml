@@ -141,8 +141,6 @@ members = [
     # "crates/rf-advanced-input", # Temporarily disabled - compile errors
     "crates/rf-stub-system",
     "crates/rf-verbosity",
-    # Test Project
-    "test-project",
 ]
 exclude = ["starter-template"]
 resolver = "2"
