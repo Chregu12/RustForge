@@ -37,9 +37,40 @@ Before installing RustForge, ensure you have the following installed:
 
 ## Installation Methods
 
-### Method 1: Using Cargo (Recommended)
+### Method 1: Using the `rf` Crate (Recommended)
 
-Add RustForge dependencies to your `Cargo.toml`:
+The easiest way to use RustForge is with the unified `rf` crate:
+
+```toml
+[dependencies]
+# All-in-one RustForge
+rf = "1.0.0"
+
+# Async runtime
+tokio = { version = "1.37", features = ["full"] }
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+```
+
+This gives you access to everything with simplified imports:
+
+```rust
+use rf::{Route, Auth, DB, Hash, Collection};
+// Or use prelude for all common imports
+use rf::prelude::*;
+```
+
+Then run:
+
+```bash
+cargo build
+```
+
+### Method 2: Individual Crates (Advanced)
+
+For more control, you can add individual crates:
 
 ```toml
 [dependencies]
@@ -48,13 +79,15 @@ rf-core = "1.0.0"
 
 # Database & ORM
 rf-orm = "1.0.0"
-sea-orm = "0.12"
+rf-eloquent = "1.0.0"
 
 # HTTP & Routing
-rf-http = "1.0.0"
+rf-web = "1.0.0"
+rf-routing = "1.0.0"
 
 # Authentication
 rf-auth = "1.0.0"
+rf-sanctum = "1.0.0"
 
 # Validation
 rf-validation = "1.0.0"
@@ -71,6 +104,13 @@ rf-mail = "1.0.0"
 rf-storage = "1.0.0"
 rf-broadcast = "1.0.0"
 
+# Phase 21 features (optional)
+rf-dusk = "1.0.0"      # Browser testing
+rf-echo = "1.0.0"      # Broadcasting client
+rf-envoy = "1.0.0"     # SSH deployment
+rf-sail = "1.0.0"      # Docker environment
+rf-spark = "1.0.0"     # SaaS billing
+
 # Async runtime
 tokio = { version = "1.37", features = ["full"] }
 
@@ -85,7 +125,7 @@ Then run:
 cargo build
 ```
 
-### Method 2: Clone from GitHub
+### Method 3: Clone from GitHub
 
 Clone the repository and build from source:
 
@@ -229,23 +269,23 @@ Create a simple test file to verify your installation:
 
 ```rust
 // src/main.rs
-use rf_core::Application;
-use rf_http::Router;
+use rf::prelude::*;
 
 #[tokio::main]
 async fn main() {
-    // Initialize application
-    let app = Application::new();
+    // Define routes
+    Route::get("/", || async {
+        Response::json(json!({"message": "Hello, RustForge!"}))
+    });
 
-    // Create router
-    let mut router = Router::new();
-    router.get("/", || async {
-        "Hello, RustForge!"
+    Route::get("/users", || async {
+        let users = DB::table("users").get().await.unwrap();
+        Response::json(users)
     });
 
     // Start server
     println!("Server running at http://localhost:8000");
-    app.serve(router).await.unwrap();
+    // app.serve().await.unwrap();
 }
 ```
 

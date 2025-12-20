@@ -37,12 +37,8 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-# RustForge Core
-rf-core = "1.0.0"
-rf-orm = "1.0.0"
-rf-http = "1.0.0"
-rf-auth = "1.0.0"
-rf-validation = "1.0.0"
+# RustForge - All-in-one import
+rf = "1.0.0"
 
 # Database
 sea-orm = { version = "0.12", features = ["sqlx-sqlite", "runtime-tokio-native-tls", "macros"] }
@@ -66,6 +62,14 @@ chrono = { version = "0.4", features = ["serde"] }
 
 # UUID
 uuid = { version = "1.8", features = ["v4", "serde"] }
+```
+
+Now you can use simplified imports:
+
+```rust
+use rf::prelude::*;  // All common imports
+// Or specific imports:
+use rf::{Route, Auth, DB, Hash, Response};
 ```
 
 ## Step 3: Configure Environment

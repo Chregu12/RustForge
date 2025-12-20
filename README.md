@@ -9,14 +9,15 @@
 RustForge is the most comprehensive full-stack application framework for Rust, combining the performance and safety of Rust with the complete developer experience of Laravel 12.
 
 ```rust
-// Write Rust exactly like Laravel PHP!
-rustforge! {
-    Model!(User: name, email, hidden password);
+// Simplified imports with the rf crate
+use rf::{Route, Auth, DB, Hash, Collection};
+// Or use prelude for everything
+use rf::prelude::*;
 
-    async fn index() -> Response {
-        let users = User::where("active", true).get();
-        Response::json(users)
-    }
+// Write Rust exactly like Laravel PHP!
+async fn index() -> Response {
+    let users = User::where("active", true).get().await;
+    Response::json(users)
 }
 ```
 
@@ -261,6 +262,13 @@ RustForge implements **100% Laravel 12 feature parity** with over 40 major featu
 - **Presigned URLs** - Temporary secure access
 - **Streaming** - Large file handling
 
+### DevOps & Deployment (Phase 21)
+- **Dusk (rf-dusk)** - Browser testing with WebDriver
+- **Echo (rf-echo)** - WebSocket broadcasting client (Pusher/Soketi)
+- **Envoy (rf-envoy)** - SSH deployment task runner
+- **Sail (rf-sail)** - Docker development environment
+- **Spark (rf-spark)** - SaaS billing with Stripe
+
 ### Additional Features
 - **Rate Limiting** - DDoS and abuse prevention
 - **Internationalization** - Multi-language support
@@ -269,6 +277,21 @@ RustForge implements **100% Laravel 12 feature parity** with over 40 major featu
 - **Audit Logging** - Track all changes
 - **Multi-Tenancy** - Tenant isolation
 - **Testing Framework** - Comprehensive test utilities
+
+### Simplified Imports (rf crate)
+```rust
+// Direct imports
+use rf::{Route, Auth, DB, Hash, Collection};
+
+// Or use prelude
+use rf::prelude::*;
+
+// 5 main modules
+use rf::web::*;        // HTTP, Views, API
+use rf::data::*;       // DB, Cache, Validation
+use rf::background::*; // Jobs, Events, Broadcast
+use rf::services::*;   // Storage, Mail, Auth
+```
 
 **👉 Full feature documentation in the [Features Wiki](https://github.com/Chregu12/RustForge/wiki/Features)**
 
@@ -616,11 +639,12 @@ RustForge is built on the shoulders of giants:
 ## 📊 Project Statistics
 
 - **Version**: 1.0.0 (Stable Release)
-- **Total Packages**: 85+ modular components
+- **Total Packages**: 114+ modular components
 - **CLI Commands**: 50+ available commands
-- **Laravel Parity**: 100%
+- **Laravel Parity**: 100% (including Dusk, Echo, Envoy, Sail, Spark)
 - **Production Ready**: Yes
 - **Test Coverage**: Comprehensive
+- **Simplified Imports**: `use rf::prelude::*`
 
 ---
 
@@ -641,9 +665,9 @@ RustForge is built on the shoulders of giants:
 
 ---
 
-**Status**: Production Ready | 85+ Packages | 100% Laravel 12 Parity | v1.0.0 Stable
+**Status**: Production Ready | 114+ Packages | 100% Laravel 12 Parity | v1.0.0 Stable
 
 **📚 [Read the Full Documentation →](https://github.com/Chregu12/RustForge/wiki)**
 
-*Last Updated: November 30, 2025*
+*Last Updated: December 20, 2024*
 *RustForge v1.0.0 - Complete Laravel Experience for Rust* 🎉

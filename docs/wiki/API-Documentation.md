@@ -846,6 +846,206 @@ async fn test_user_creation() {
 
 ---
 
+## rf (Simplified Imports)
+
+Unified import crate for the entire RustForge framework.
+
+### Usage
+
+```rust
+// Direct imports for common items
+use rf::{Route, Auth, DB, Hash, Collection, Response};
+
+// Prelude for all common imports
+use rf::prelude::*;
+
+// Specific modules
+use rf::web::*;        // HTTP, Views, API
+use rf::data::*;       // DB, Cache, Validation
+use rf::background::*; // Jobs, Events, Broadcast
+use rf::services::*;   // Storage, Mail, Auth
+use rf::helpers::*;    // Helper functions
+```
+
+### Available Modules
+
+| Module | Description |
+|--------|-------------|
+| `rf::prelude` | All common imports |
+| `rf::web` | Request, Response, Routing, Blade |
+| `rf::data` | ORM, Eloquent, Cache, Validation |
+| `rf::background` | Jobs, Events, Notifications |
+| `rf::services` | Storage, Mail, Auth, Logging |
+| `rf::facades` | All Laravel-style facades |
+| `rf::helpers` | String, array, URL helpers |
+
+---
+
+## rf-dusk (Browser Testing)
+
+Browser testing with WebDriver.
+
+### Basic Usage
+
+```rust
+use rf_dusk::{Browser, DuskTestCase};
+
+#[tokio::test]
+async fn test_login_page() {
+    let browser = Browser::new().await.unwrap();
+
+    browser
+        .visit("http://localhost:8000/login").await
+        .type_text("#email", "user@example.com").await
+        .type_text("#password", "secret").await
+        .click("button[type='submit']").await
+        .assert_path_is("/dashboard").await
+        .assert_see("Welcome").await;
+}
+```
+
+**Key Types:**
+- `Browser` - Browser automation
+- `DuskTestCase` - Test case trait
+- `Element` - DOM element wrapper
+
+---
+
+## rf-echo (Broadcasting Client)
+
+WebSocket client for real-time broadcasting.
+
+### Basic Usage
+
+```rust
+use rf_echo::{Echo, Channel};
+
+let echo = Echo::new()
+    .host("ws://localhost:6001")
+    .app_key("your-key")
+    .connect()
+    .await?;
+
+// Subscribe to channel
+echo.channel("chat-room")
+    .listen("MessageSent", |event| {
+        println!("Message: {:?}", event.data);
+    })
+    .await?;
+
+// Presence channel
+echo.join("room.1")
+    .here(|users| println!("Users: {:?}", users))
+    .joining(|user| println!("{} joined", user.name))
+    .leaving(|user| println!("{} left", user.name))
+    .await?;
+```
+
+**Key Types:**
+- `Echo` - Broadcasting client
+- `Channel` - Channel subscription
+- `PresenceChannel` - Presence channel
+
+---
+
+## rf-envoy (SSH Deployment)
+
+SSH task runner for deployment.
+
+### Basic Usage
+
+```rust
+use rf_envoy::{Envoy, Server, Task};
+
+let envoy = Envoy::new()
+    .server(Server::new("production")
+        .host("192.168.1.100")
+        .user("deploy"));
+
+envoy.task("deploy")
+    .on(&["production"])
+    .run(r#"
+        cd /var/www/app
+        git pull origin main
+        cargo build --release
+    "#);
+
+envoy.run("deploy").await?;
+```
+
+**Key Types:**
+- `Envoy` - Task runner
+- `Server` - Server configuration
+- `Task` - Task definition
+
+---
+
+## rf-sail (Docker Environment)
+
+Docker development environment management.
+
+### Basic Usage
+
+```rust
+use rf_sail::{Sail, Service};
+
+let sail = Sail::new()
+    .service(Service::Postgres)
+    .service(Service::Redis)
+    .service(Service::Mailhog);
+
+// Start services
+sail.up().await?;
+
+// Execute command
+sail.exec("cargo test").await?;
+
+// Stop services
+sail.down().await?;
+```
+
+**Key Types:**
+- `Sail` - Docker manager
+- `Service` - Service enum (Postgres, Redis, etc.)
+
+---
+
+## rf-spark (SaaS Billing)
+
+Stripe-based SaaS billing.
+
+### Basic Usage
+
+```rust
+use rf_spark::{Spark, Billable};
+
+let spark = Spark::new()
+    .stripe_key("sk_test_...");
+
+// Subscribe user
+spark.subscribe(&user, "pro-monthly")
+    .trial_days(14)
+    .create()
+    .await?;
+
+// Check subscription
+if user.subscribed("pro-monthly") {
+    // Has subscription
+}
+
+// Cancel
+user.subscription("pro-monthly")
+    .cancel()
+    .await?;
+```
+
+**Key Types:**
+- `Spark` - Billing manager
+- `Billable` - Billable trait
+- `Subscription` - Subscription model
+
+---
+
 ## Next Steps
 
 - **[Features](Features)** - Explore all features

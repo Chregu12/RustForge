@@ -16,38 +16,40 @@ RustForge brings the elegant developer experience of Laravel to the Rust ecosyst
 - **Performant**: Built on Rust's zero-cost abstractions
 - **Type-Safe**: Compile-time guarantees for reliability
 
-## 🆕 New: Ultimate Laravel Experience
+## 🆕 Simplified Imports with `rf` Crate
 
-RustForge now supports **Laravel-identical syntax** with the `rustforge!` block - write Rust exactly like Laravel PHP:
+RustForge now offers **ultra-simple imports** with the `rf` crate:
 
 ```rust
-// That's it! No imports needed!
-rustforge! {
-    Model!(User: name, email, hidden password);
+// Direct imports - Laravel style!
+use rf::{Route, Auth, DB, Hash, Collection};
 
-    async fn index() -> Response {
-        let users = User::where("active", true)
-            .orderBy("name", "asc")
-            .get();  // No .await needed!
-        Response::json(users)
-    }
+// Or use prelude for everything
+use rf::prelude::*;
 
-    async fn store(data: Json<Value>) -> Response {
-        let user = User::create(data.0);
-        Response::json(user).status(201)
-    }
-}
+// 5 main modules for organization
+use rf::web::*;        // HTTP, Views, API
+use rf::data::*;       // DB, Cache, Validation
+use rf::background::*; // Jobs, Events, Broadcast
+use rf::services::*;   // Storage, Mail, Auth
+use rf::helpers::*;    // Helper functions
 ```
-
-**✨ What's automatic:**
-- ✅ `use rustforge::*;` - no manual imports
-- ✅ `#[auto_await]` applied to all async functions
-- ✅ `.await` added to async calls automatically
-- ✅ `where` keyword works like Laravel
 
 **👉 [Learn more about Laravel Syntax](Laravel-Syntax)**
 
-## 🆕 New Features in Latest Version
+## 🆕 Phase 21: Complete Laravel Parity
+
+RustForge now includes all major Laravel ecosystem packages:
+
+| Package | Description |
+|---------|-------------|
+| **rf-dusk** | Browser testing with WebDriver/fantoccini |
+| **rf-echo** | WebSocket broadcasting client (Pusher/Soketi) |
+| **rf-envoy** | SSH deployment task runner |
+| **rf-sail** | Docker development environment |
+| **rf-spark** | SaaS billing with Stripe integration |
+
+## 🆕 Additional Features
 
 - **Blade Templates** - `@if`, `@foreach`, `@auth`, `@csrf` and more
 - **Mailable Classes** - Structured emails with envelope, content, attachments
@@ -127,7 +129,7 @@ RustForge follows a modular architecture with clear separation of concerns:
 ```
 rf-core/          # Core framework functionality
 rf-orm/           # ORM and database layer
-rf-http/          # HTTP routing and middleware
+rf-web/           # HTTP routing and middleware
 rf-auth/          # Authentication system
 rf-validation/    # Input validation
 rf-cache/         # Caching layer
@@ -136,7 +138,13 @@ rf-jobs/          # Background jobs
 rf-mail/          # Email system
 rf-storage/       # File storage
 rf-broadcast/     # WebSocket broadcasting
-...               # 85+ total packages
+rf-dusk/          # Browser testing (NEW)
+rf-echo/          # Broadcasting client (NEW)
+rf-envoy/         # SSH deployment (NEW)
+rf-sail/          # Docker environment (NEW)
+rf-spark/         # SaaS billing (NEW)
+rf/               # Simplified imports (NEW)
+...               # 114+ total packages
 ```
 
 ## System Requirements
@@ -160,8 +168,9 @@ Ready to build something amazing? Start with our [Installation Guide](Installati
 ## Version Information
 
 - **Current Version**: 1.0.0
-- **Release Date**: November 23, 2025
+- **Release Date**: December 20, 2024
 - **Status**: Production Ready
+- **Total Packages**: 114+
 - **Rust Edition**: 2021
 
 ## Credits

@@ -25,6 +25,12 @@ RustForge provides 100% Laravel 12 feature parity, bringing the elegant Laravel 
 - [CLI Commands](#cli-commands)
 - [Service Container](#service-container)
 - [Testing](#testing)
+- [Browser Testing (Dusk)](#browser-testing-dusk)
+- [Broadcasting Client (Echo)](#broadcasting-client-echo)
+- [SSH Deployment (Envoy)](#ssh-deployment-envoy)
+- [Docker Environment (Sail)](#docker-environment-sail)
+- [SaaS Billing (Spark)](#saas-billing-spark)
+- [Simplified Imports (rf)](#simplified-imports-rf)
 
 ---
 
@@ -1382,6 +1388,325 @@ async fn test_user_registration() {
     assert_eq!(user.name, "Test User");
 }
 ```
+
+---
+
+## Browser Testing (Dusk)
+
+Automated browser testing with WebDriver, inspired by Laravel Dusk.
+
+### Features
+
+- **WebDriver Integration**: Chrome, Firefox, Safari support via fantoccini
+- **Page Object Pattern**: Reusable page components
+- **Element Interactions**: Click, type, select, submit
+- **Assertions**: Assert text, URL, element visibility
+- **Screenshots**: Capture screenshots on failure
+- **Wait Helpers**: Wait for elements, conditions, JavaScript
+
+### Example
+
+```rust
+use rf_dusk::{Browser, DuskTestCase};
+
+#[tokio::test]
+async fn test_user_login() {
+    let browser = Browser::new().await.unwrap();
+
+    browser
+        .visit("http://localhost:8000/login")
+        .await
+        .type_text("#email", "user@example.com")
+        .await
+        .type_text("#password", "secret")
+        .await
+        .click("button[type='submit']")
+        .await
+        .assert_path_is("/dashboard")
+        .await
+        .assert_see("Welcome back!")
+        .await;
+}
+
+// Page Object Pattern
+struct LoginPage;
+
+impl LoginPage {
+    async fn login(browser: &Browser, email: &str, password: &str) {
+        browser
+            .visit("http://localhost:8000/login").await
+            .type_text("#email", email).await
+            .type_text("#password", password).await
+            .click("button[type='submit']").await;
+    }
+}
+```
+
+---
+
+## Broadcasting Client (Echo)
+
+WebSocket broadcasting client compatible with Pusher and Soketi, inspired by Laravel Echo.
+
+### Features
+
+- **Pusher Protocol**: Compatible with Pusher, Soketi, Ably
+- **Channel Types**: Public, Private, Presence channels
+- **Authentication**: Automatic channel authentication
+- **Presence Tracking**: Track online users in presence channels
+- **Event Handling**: Subscribe to and handle events
+
+### Example
+
+```rust
+use rf_echo::{Echo, Channel};
+
+// Connect to broadcasting server
+let echo = Echo::new()
+    .host("ws://localhost:6001")
+    .app_key("your-app-key")
+    .connect()
+    .await?;
+
+// Subscribe to public channel
+echo.channel("chat-room")
+    .listen("MessageSent", |event| {
+        println!("New message: {:?}", event.data);
+    })
+    .await?;
+
+// Subscribe to private channel
+echo.private("user.1")
+    .listen("NotificationReceived", |event| {
+        println!("Notification: {:?}", event.data);
+    })
+    .await?;
+
+// Subscribe to presence channel
+echo.join("chat.1")
+    .here(|users| println!("Users online: {:?}", users))
+    .joining(|user| println!("{} joined", user.name))
+    .leaving(|user| println!("{} left", user.name))
+    .listen("MessageSent", |event| {
+        println!("Message: {:?}", event.data);
+    })
+    .await?;
+```
+
+---
+
+## SSH Deployment (Envoy)
+
+SSH task runner for deployment automation, inspired by Laravel Envoy.
+
+### Features
+
+- **Task Definition**: Define deployment tasks
+- **Multi-Server**: Execute tasks on multiple servers
+- **Stories**: Group tasks into stories
+- **Parallel Execution**: Run tasks in parallel
+- **Notifications**: Slack, Discord notifications on completion
+- **Variables**: Template variable substitution
+
+### Example
+
+```rust
+use rf_envoy::{Envoy, Server, Task};
+
+let envoy = Envoy::new()
+    .server(Server::new("production")
+        .host("192.168.1.100")
+        .user("deploy")
+        .identity_file("~/.ssh/id_rsa"))
+    .server(Server::new("staging")
+        .host("192.168.1.101")
+        .user("deploy"));
+
+// Define tasks
+envoy
+    .task("deploy")
+    .on(&["production"])
+    .run(r#"
+        cd /var/www/app
+        git pull origin main
+        cargo build --release
+        sudo systemctl restart app
+    "#);
+
+envoy
+    .task("rollback")
+    .on(&["production"])
+    .run(r#"
+        cd /var/www/app
+        git checkout HEAD~1
+        cargo build --release
+        sudo systemctl restart app
+    "#);
+
+// Define story (multiple tasks)
+envoy
+    .story("full-deploy", &["deploy", "cache:clear", "migrate"]);
+
+// Run tasks
+envoy.run("deploy").await?;
+```
+
+---
+
+## Docker Environment (Sail)
+
+Docker development environment management, inspired by Laravel Sail.
+
+### Features
+
+- **Service Management**: MySQL, PostgreSQL, Redis, Mailhog, etc.
+- **Docker Compose**: Auto-generated docker-compose.yml
+- **Container Commands**: Up, down, shell, exec
+- **File Watching**: Auto-rebuild on file changes
+- **Volume Management**: Persistent data volumes
+
+### Example
+
+```rust
+use rf_sail::{Sail, Service};
+
+let sail = Sail::new()
+    .service(Service::Postgres)
+    .service(Service::Redis)
+    .service(Service::Mailhog)
+    .service(Service::Minio);
+
+// Start all services
+sail.up().await?;
+
+// Execute command in container
+sail.exec("cargo test").await?;
+
+// Open shell
+sail.shell().await?;
+
+// Stop all services
+sail.down().await?;
+
+// Available services
+// - Service::Postgres
+// - Service::Mysql
+// - Service::Redis
+// - Service::Memcached
+// - Service::Mailhog
+// - Service::Minio
+// - Service::MeiliSearch
+// - Service::Selenium
+```
+
+---
+
+## SaaS Billing (Spark)
+
+Stripe-based SaaS billing system, inspired by Laravel Spark/Cashier.
+
+### Features
+
+- **Stripe Integration**: Full Stripe API support
+- **Subscriptions**: Create, update, cancel subscriptions
+- **Payment Methods**: Add, remove, update payment methods
+- **Invoices**: Generate and manage invoices
+- **Webhooks**: Handle Stripe webhook events
+- **Customer Management**: Stripe customer sync
+
+### Example
+
+```rust
+use rf_spark::{Spark, Billable};
+
+// Initialize Spark
+let spark = Spark::new()
+    .stripe_key("sk_test_...")
+    .stripe_secret("sk_secret_...");
+
+// Subscribe user to plan
+let subscription = spark
+    .subscribe(&user, "pro-monthly")
+    .trial_days(14)
+    .create()
+    .await?;
+
+// Check subscription status
+if user.subscribed("pro-monthly") {
+    // User has active subscription
+}
+
+// Cancel subscription
+user.subscription("pro-monthly")
+    .cancel()
+    .await?;
+
+// Update payment method
+user.update_payment_method("pm_...")
+    .await?;
+
+// Get invoices
+let invoices = user.invoices().await?;
+
+// Webhook handler
+let handler = spark.webhook_handler()
+    .on("invoice.paid", |event| {
+        println!("Invoice paid: {:?}", event);
+    })
+    .on("customer.subscription.deleted", |event| {
+        println!("Subscription cancelled: {:?}", event);
+    });
+```
+
+---
+
+## Simplified Imports (rf)
+
+The `rf` crate provides simplified imports for the entire RustForge framework.
+
+### Features
+
+- **Direct Imports**: Import common types directly
+- **Prelude**: One import for all common items
+- **5 Main Modules**: Organized into logical groups
+- **Laravel-Style**: Familiar naming conventions
+
+### Usage
+
+```rust
+// Option 1: Direct imports (most common)
+use rf::{Route, Auth, DB, Hash, Collection, Response};
+
+// Option 2: Prelude for everything
+use rf::prelude::*;
+
+// Option 3: Specific modules
+use rf::web::*;        // HTTP, Views, API
+use rf::data::*;       // DB, Cache, Validation
+use rf::background::*; // Jobs, Events, Broadcast
+use rf::services::*;   // Storage, Mail, Auth
+use rf::helpers::*;    // Helper functions
+
+// Available at root level:
+// - Facades: Route, Auth, DB, Cache, Event, Storage, Log, Mail, Session, Config, View
+// - Helpers: Hash, redirect, csrf_token
+// - Collections: Collection, collect
+// - Macros: rules, route, controller, Model
+// - Validation: Validate
+// - Errors: RustForgeError, Result
+```
+
+### Module Overview
+
+| Module | Description | Key Exports |
+|--------|-------------|-------------|
+| `rf::prelude` | Common imports | All facades, helpers, macros |
+| `rf::web` | HTTP & Views | Request, Response, Blade, Inertia |
+| `rf::data` | Database | ORM, Eloquent, Cache, Validation |
+| `rf::background` | Background | Jobs, Events, Notifications, Broadcast |
+| `rf::services` | Infrastructure | Storage, Mail, Auth, Logging |
+| `rf::helpers` | Helpers | String, array, URL helpers |
+| `rf::facades` | All Facades | Route, Auth, DB, Cache, etc. |
 
 ---
 
