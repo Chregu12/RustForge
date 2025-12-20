@@ -29,6 +29,8 @@ jobs:
 
       - name: rustforge
         run: cargo build -p rustforge
+      - name: rf (simplified imports)
+        run: cargo build -p rf
       - name: rf-core
         run: cargo build -p rf-core
       - name: rf-config
@@ -241,3 +243,39 @@ jobs:
         run: cargo build -p rf-global-helpers
       - name: rf-collections
         run: cargo build -p rf-collections
+
+  # ===========================================
+  # Phase 21: Laravel Parity (Dusk, Echo, Envoy, Sail, Spark)
+  # ===========================================
+  laravel-parity:
+    name: "🚀 Laravel Parity"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: rf-dusk (Browser Testing)
+        run: cargo build -p rf-dusk
+      - name: rf-echo (Broadcasting Client)
+        run: cargo build -p rf-echo
+      - name: rf-envoy (Deployment)
+        run: cargo build -p rf-envoy
+      - name: rf-sail (Docker)
+        run: cargo build -p rf-sail
+      - name: rf-spark (SaaS Billing)
+        run: cargo build -p rf-spark
+
+  # ===========================================
+  # Tests
+  # ===========================================
+  tests:
+    name: "🧪 Tests"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Run all tests
+        run: cargo test --workspace --lib

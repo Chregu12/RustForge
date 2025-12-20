@@ -1,0 +1,36 @@
+[package]
+name = "rf-echo"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Real-time broadcasting client for RustForge - Laravel Echo inspired"
+keywords = ["websocket", "broadcasting", "pusher", "realtime", "events"]
+
+[dependencies]
+async-trait.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+futures.workspace = true
+tracing.workspace = true
+uuid.workspace = true
+dashmap.workspace = true
+
+# WebSocket client
+tokio-tungstenite.workspace = true
+
+# HTTP for Pusher REST API
+reqwest.workspace = true
+
+# HMAC for Pusher authentication
+hmac = "0.12"
+sha2 = "0.10"
+hex = "0.4"
+
+# URL encoding
+urlencoding = "2.1"
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["test-util", "macros"] }

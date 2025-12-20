@@ -1,0 +1,96 @@
+[package]
+name = "rf"
+description = "RustForge - Simplified imports for the Laravel-inspired Rust web framework"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+keywords = ["web", "framework", "laravel", "rust", "prelude"]
+categories = ["web-programming::http-server", "web-programming"]
+
+[dependencies]
+# Facades
+rf-route-facade = { path = "../rf-route-facade" }
+rf-auth-facade = { path = "../rf-auth-facade" }
+rf-db-facade = { path = "../rf-db-facade" }
+rf-cache-facade = { path = "../rf-cache-facade" }
+rf-event-facade = { path = "../rf-event-facade" }
+rf-storage-facade = { path = "../rf-storage-facade" }
+rf-log-facade = { path = "../rf-log-facade" }
+rf-mail-facade = { path = "../rf-mail-facade" }
+rf-session-facade = { path = "../rf-session-facade" }
+rf-config-facade = { path = "../rf-config-facade" }
+rf-view-facade = { path = "../rf-view-facade" }
+rf-sanctum-facade = { path = "../rf-sanctum-facade" }
+rf-passport-facade = { path = "../rf-passport-facade" }
+
+# Helpers & Macros
+rf-global-helpers = { path = "../rf-global-helpers" }
+rf-helpers = { path = "../rf-helpers" }
+rf-macros = { path = "../rf-macros" }
+
+# Core
+rf-core = { path = "../rf-core" }
+rf-web = { path = "../rf-web" }
+rf-config = { path = "../rf-config" }
+rf-routing = { path = "../rf-routing" }
+rf-request = { path = "../rf-request" }
+rf-response = { path = "../rf-response" }
+
+# Database & ORM
+rf-orm = { path = "../rf-orm" }
+rf-eloquent = { path = "../rf-eloquent" }
+rf-model-macro = { path = "../rf-model-macro" }
+
+# Auth & Security
+rf-auth = { path = "../rf-auth" }
+rf-authorization = { path = "../rf-authorization" }
+rf-sanctum = { path = "../rf-sanctum" }
+rf-validation = { path = "../rf-validation" }
+rf-validation-derive = { path = "../rf-validation-derive" }
+
+# HTTP & API
+rf-api-resources = { path = "../rf-api-resources" }
+rf-requests = { path = "../rf-requests" }
+rf-pagination = { path = "../rf-pagination" }
+rf-collections = { path = "../rf-collections" }
+
+# Jobs & Events
+rf-jobs = { path = "../rf-jobs" }
+rf-queue = { path = "../rf-queue" }
+rf-events = { path = "../rf-events" }
+rf-notifications = { path = "../rf-notifications" }
+
+# Storage & Mail
+rf-storage = { path = "../rf-storage" }
+rf-mail = { path = "../rf-mail" }
+rf-upload = { path = "../rf-upload" }
+
+# Cache & Session
+rf-cache = { path = "../rf-cache" }
+
+# Testing
+rf-testing = { path = "../rf-testing" }
+
+# Views
+rf-blade = { path = "../rf-blade" }
+rf-view = { path = "../rf-view" }
+rf-inertia = { path = "../rf-inertia" }
+
+# Broadcasting
+rf-broadcast = { path = "../rf-broadcast" }
+rf-sse = { path = "../rf-sse" }
+
+# Logging & Monitoring
+rf-logging = { path = "../rf-logging" }
+rf-metrics = { path = "../rf-metrics" }
+
+# Errors
+rf-errors = { path = "../rf-errors" }
+
+[features]
+default = []
+full = []

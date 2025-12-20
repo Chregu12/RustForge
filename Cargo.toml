@@ -76,6 +76,8 @@ members = [
     "crates/rf-passport-facade",
     # RustForge - single import for everything
     "crates/rustforge",
+    # rf - Simplified imports (use rf::Route, rf::Hash, etc.)
+    "crates/rf",
     # Phase 15: Monitoring & Debugging
     "crates/rf-horizon",
     "crates/rf-telescope",
@@ -141,6 +143,12 @@ members = [
     # "crates/rf-advanced-input", # Temporarily disabled - compile errors
     "crates/rf-stub-system",
     "crates/rf-verbosity",
+    # Phase 21: Complete Laravel Parity (Dusk, Echo, Envoy, Sail, Spark)
+    "crates/rf-dusk",
+    "crates/rf-echo",
+    "crates/rf-envoy",
+    "crates/rf-sail",
+    "crates/rf-spark",
 ]
 exclude = ["starter-template"]
 resolver = "2"
