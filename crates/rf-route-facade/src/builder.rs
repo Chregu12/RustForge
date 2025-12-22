@@ -140,6 +140,38 @@ impl FacadeRouteBuilder {
         self.metadata("domain", domain)
     }
 
+    /// Add a prefix to the route path.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use rf_route_facade::FacadeRouteBuilder;
+    /// use rf_routing::HttpMethod;
+    ///
+    /// let builder = FacadeRouteBuilder::new("/users", vec![HttpMethod::Get])
+    ///     .with_prefix("/api");
+    /// // Route will be: /api/users
+    /// ```
+    pub fn with_prefix(mut self, prefix: impl Into<String>) -> Self {
+        let prefix = prefix.into();
+        let new_uri = if self.route.uri.starts_with('/') {
+            format!("{}{}", prefix, self.route.uri)
+        } else {
+            format!("{}/{}", prefix, self.route.uri)
+        };
+        self.route.uri = new_uri;
+        self
+    }
+
+    /// Explicitly register this route with the global router.
+    ///
+    /// Note: Routes are also auto-registered on drop, but this method
+    /// allows explicit registration and prevents double-registration.
+    pub fn register(mut self) {
+        let route = std::mem::replace(&mut self.route, RfRoute::new("", vec![]));
+        global_router().register_route(route);
+    }
+
     /// Build and register the route with the global router.
     ///
     /// This method consumes the builder and registers the route.

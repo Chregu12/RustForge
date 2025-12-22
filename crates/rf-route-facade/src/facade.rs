@@ -322,6 +322,123 @@ impl Route {
     pub fn view(path: impl Into<String>, view: impl Into<String>) -> FacadeRouteBuilder {
         FacadeRouteBuilder::new(path, vec![HttpMethod::Get]).metadata("view", view.into())
     }
+
+    /// Start a middleware group without closures.
+    ///
+    /// This is an alternative syntax that avoids the `||` closure syntax
+    /// which is difficult to type on German keyboards.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use rf_route_facade::Route;
+    ///
+    /// // Instead of: Route::middleware(&["auth"]).group(|| { ... });
+    /// // Use this:
+    /// Route::middleware(&["auth"])
+    ///     .add(Route::post("/posts", "PostController@store"))
+    ///     .add(Route::put("/posts/:id", "PostController@update"))
+    ///     .add(Route::delete("/posts/:id", "PostController@destroy"));
+    /// ```
+    pub fn middleware(middleware: &[&str]) -> MiddlewareGroupBuilder {
+        MiddlewareGroupBuilder::new(middleware)
+    }
+
+    /// Create a protected route group (shortcut for auth middleware).
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use rf_route_facade::Route;
+    ///
+    /// Route::protected()
+    ///     .add(Route::post("/posts", "PostController@store"))
+    ///     .add(Route::delete("/posts/:id", "PostController@destroy"));
+    /// ```
+    pub fn protected() -> MiddlewareGroupBuilder {
+        MiddlewareGroupBuilder::new(&["auth"])
+    }
+
+    /// Create an API route group (with api middleware and /api prefix).
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use rf_route_facade::Route;
+    ///
+    /// Route::api()
+    ///     .add(Route::get("/users", "UserController@index"))
+    ///     .add(Route::post("/users", "UserController@store"));
+    /// // Routes will be: /api/users
+    /// ```
+    pub fn api() -> MiddlewareGroupBuilder {
+        MiddlewareGroupBuilder::new(&["api"]).with_prefix("/api")
+    }
+}
+
+/// Builder for middleware groups without closure syntax.
+///
+/// This provides an alternative to the closure-based `group()` method,
+/// avoiding the `||` syntax which is difficult on German keyboards.
+pub struct MiddlewareGroupBuilder {
+    middleware: Vec<String>,
+    prefix: Option<String>,
+    routes: Vec<FacadeRouteBuilder>,
+}
+
+impl MiddlewareGroupBuilder {
+    /// Create a new middleware group builder.
+    pub fn new(middleware: &[&str]) -> Self {
+        Self {
+            middleware: middleware.iter().map(|s| s.to_string()).collect(),
+            prefix: None,
+            routes: Vec::new(),
+        }
+    }
+
+    /// Set a prefix for all routes in this group.
+    pub fn with_prefix(mut self, prefix: impl Into<String>) -> Self {
+        self.prefix = Some(prefix.into());
+        self
+    }
+
+    /// Add a route to this middleware group.
+    ///
+    /// The middleware will be automatically applied to the route.
+    pub fn add(mut self, mut route: FacadeRouteBuilder) -> Self {
+        // Apply prefix if set
+        if let Some(ref prefix) = self.prefix {
+            route = route.with_prefix(prefix);
+        }
+
+        // Apply middleware
+        for mw in &self.middleware {
+            route = route.middleware(mw);
+        }
+
+        // Route will auto-register on drop, just push to track
+        self.routes.push(route);
+        self
+    }
+
+    /// Add multiple routes at once.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use rf_route_facade::Route;
+    ///
+    /// Route::middleware(&["auth"]).add_all(vec![
+    ///     Route::post("/posts", "PostController@store"),
+    ///     Route::put("/posts/:id", "PostController@update"),
+    /// ]);
+    /// ```
+    pub fn add_all(mut self, routes: Vec<FacadeRouteBuilder>) -> Self {
+        for route in routes {
+            self = self.add(route);
+        }
+        self
+    }
 }
 
 #[cfg(test)]

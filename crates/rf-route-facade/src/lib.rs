@@ -68,7 +68,7 @@ pub mod registry;
 pub mod handler;
 
 pub use builder::FacadeRouteBuilder;
-pub use facade::Route;
+pub use facade::{Route, MiddlewareGroupBuilder};
 pub use group::{RouteGroupFacade, GroupBuilder};
 pub use registry::{global_router, GlobalRouter};
 pub use handler::{Handler, HandlerFunc};
