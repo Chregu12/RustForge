@@ -2,7 +2,6 @@
 
 use crate::config::{GrantControl, PkceControl, TokenLifetimes};
 use crate::manager::GLOBAL_PASSPORT;
-use async_trait::async_trait;
 use chrono::Duration;
 use rf_passport::{
     ClientRepository, HasApiTokens, OAuthAccessToken, OAuthClient, PassportConfig, PassportError,
@@ -45,18 +44,18 @@ impl Passport {
     /// use sea_orm::DatabaseConnection;
     /// use std::sync::Arc;
     ///
-    /// # async fn example(db: DatabaseConnection) {
-    /// Passport::setDatabase(Arc::new(db)).await;
+    /// # fn example(db: DatabaseConnection) {
+    /// Passport::setDatabase(Arc::new(db));
     /// # }
     /// ```
-    pub async fn setDatabase(db: Arc<DatabaseConnection>) {
-        let mut manager = GLOBAL_PASSPORT.write().await;
+    pub fn setDatabase(db: Arc<DatabaseConnection>) {
+        let mut manager = GLOBAL_PASSPORT.write().unwrap();
         manager.set_database(db);
     }
 
     /// Get the current configuration
-    pub async fn config() -> PassportConfig {
-        let manager = GLOBAL_PASSPORT.read().await;
+    pub fn config() -> PassportConfig {
+        let manager = GLOBAL_PASSPORT.read().unwrap();
         manager.config().clone()
     }
 
@@ -70,12 +69,12 @@ impl Passport {
     /// use rf_passport_facade::Passport;
     /// use chrono::Duration;
     ///
-    /// # async fn example() {
-    /// Passport::tokensExpireIn(Duration::seconds(3600 * 24 * 15)).await;
+    /// # fn example() {
+    /// Passport::tokensExpireIn(Duration::seconds(3600 * 24 * 15));
     /// # }
     /// ```
-    pub async fn tokensExpireIn(duration: Duration) {
-        TokenLifetimes::access_tokens_expire_in(duration).await;
+    pub fn tokensExpireIn(duration: Duration) {
+        TokenLifetimes::access_tokens_expire_in(duration);
     }
 
     /// Set refresh token lifetime
@@ -86,12 +85,12 @@ impl Passport {
     /// use rf_passport_facade::Passport;
     /// use chrono::Duration;
     ///
-    /// # async fn example() {
-    /// Passport::refreshTokensExpireIn(Duration::seconds(3600 * 24 * 30)).await;
+    /// # fn example() {
+    /// Passport::refreshTokensExpireIn(Duration::seconds(3600 * 24 * 30));
     /// # }
     /// ```
-    pub async fn refreshTokensExpireIn(duration: Duration) {
-        TokenLifetimes::refresh_tokens_expire_in(duration).await;
+    pub fn refreshTokensExpireIn(duration: Duration) {
+        TokenLifetimes::refresh_tokens_expire_in(duration);
     }
 
     /// Set personal access token lifetime
@@ -102,12 +101,12 @@ impl Passport {
     /// use rf_passport_facade::Passport;
     /// use chrono::Duration;
     ///
-    /// # async fn example() {
-    /// Passport::personalAccessTokensExpireIn(Duration::seconds(3600 * 24 * 365)).await;
+    /// # fn example() {
+    /// Passport::personalAccessTokensExpireIn(Duration::seconds(3600 * 24 * 365));
     /// # }
     /// ```
-    pub async fn personalAccessTokensExpireIn(duration: Duration) {
-        TokenLifetimes::personal_access_tokens_expire_in(duration).await;
+    pub fn personalAccessTokensExpireIn(duration: Duration) {
+        TokenLifetimes::personal_access_tokens_expire_in(duration);
     }
 
     /// Set authorization code lifetime
@@ -118,12 +117,12 @@ impl Passport {
     /// use rf_passport_facade::Passport;
     /// use chrono::Duration;
     ///
-    /// # async fn example() {
-    /// Passport::authCodesExpireIn(Duration::seconds(600)).await;
+    /// # fn example() {
+    /// Passport::authCodesExpireIn(Duration::seconds(600));
     /// # }
     /// ```
-    pub async fn authCodesExpireIn(duration: Duration) {
-        TokenLifetimes::auth_codes_expire_in(duration).await;
+    pub fn authCodesExpireIn(duration: Duration) {
+        TokenLifetimes::auth_codes_expire_in(duration);
     }
 
     // ===== Scope Management =====
@@ -135,16 +134,16 @@ impl Passport {
     /// ```rust,no_run
     /// use rf_passport_facade::Passport;
     ///
-    /// # async fn example() {
+    /// # fn example() {
     /// Passport::tokensCan(&[
     ///     ("read:posts", "Read blog posts"),
     ///     ("write:posts", "Create and edit posts"),
     ///     ("delete:posts", "Delete posts"),
-    /// ]).await;
+    /// ]);
     /// # }
     /// ```
-    pub async fn tokensCan(scopes: &[(&str, &str)]) {
-        let mut manager = GLOBAL_PASSPORT.write().await;
+    pub fn tokensCan(scopes: &[(&str, &str)]) {
+        let mut manager = GLOBAL_PASSPORT.write().unwrap();
         let scope_list: Vec<Scope> = scopes
             .iter()
             .map(|(id, desc)| Scope::new(*id, *desc))
@@ -159,12 +158,12 @@ impl Passport {
     /// ```rust,no_run
     /// use rf_passport_facade::Passport;
     ///
-    /// # async fn example() {
-    /// Passport::setDefaultScope(&["read:posts"]).await;
+    /// # fn example() {
+    /// Passport::setDefaultScope(&["read:posts"]);
     /// # }
     /// ```
-    pub async fn setDefaultScope(scopes: &[&str]) {
-        let mut manager = GLOBAL_PASSPORT.write().await;
+    pub fn setDefaultScope(scopes: &[&str]) {
+        let mut manager = GLOBAL_PASSPORT.write().unwrap();
         manager.set_default_scopes(scopes.iter().map(|s| s.to_string()).collect());
     }
 
@@ -175,14 +174,14 @@ impl Passport {
     /// ```rust,no_run
     /// use rf_passport_facade::Passport;
     ///
-    /// # async fn example() {
-    /// if Passport::hasScope("read:posts").await {
+    /// # fn example() {
+    /// if Passport::hasScope("read:posts") {
     ///     println!("Scope is registered");
     /// }
     /// # }
     /// ```
-    pub async fn hasScope(scope: &str) -> bool {
-        let manager = GLOBAL_PASSPORT.read().await;
+    pub fn hasScope(scope: &str) -> bool {
+        let manager = GLOBAL_PASSPORT.read().unwrap();
         manager.has_scope(scope)
     }
 
@@ -193,15 +192,15 @@ impl Passport {
     /// ```rust,no_run
     /// use rf_passport_facade::Passport;
     ///
-    /// # async fn example() {
-    /// let scopes = Passport::scopes().await;
+    /// # fn example() {
+    /// let scopes = Passport::scopes();
     /// for scope in scopes {
     ///     println!("{}: {}", scope.id, scope.description);
     /// }
     /// # }
     /// ```
-    pub async fn scopes() -> Vec<Scope> {
-        let manager = GLOBAL_PASSPORT.read().await;
+    pub fn scopes() -> Vec<Scope> {
+        let manager = GLOBAL_PASSPORT.read().unwrap();
         manager.all_scopes().iter().map(|s| (*s).clone()).collect()
     }
 
@@ -212,14 +211,14 @@ impl Passport {
     /// ```rust,no_run
     /// use rf_passport_facade::Passport;
     ///
-    /// # async fn example() {
-    /// if let Some(scope) = Passport::scope("read:posts").await {
+    /// # fn example() {
+    /// if let Some(scope) = Passport::scope("read:posts") {
     ///     println!("Description: {}", scope.description);
     /// }
     /// # }
     /// ```
-    pub async fn scope(scope_id: &str) -> Option<Scope> {
-        let manager = GLOBAL_PASSPORT.read().await;
+    pub fn scope(scope_id: &str) -> Option<Scope> {
+        let manager = GLOBAL_PASSPORT.read().unwrap();
         manager.get_scope(scope_id).cloned()
     }
 
@@ -232,13 +231,13 @@ impl Passport {
     /// ```rust,no_run
     /// use rf_passport_facade::Passport;
     ///
-    /// # async fn example(user: MyUser) -> Result<(), Box<dyn std::error::Error>> {
-    /// let token = Passport::createToken(&user, "api-token", vec!["read:posts".to_string()]).await?;
+    /// # fn example(user: MyUser) -> Result<(), Box<dyn std::error::Error>> {
+    /// let token = Passport::createToken(&user, "api-token", vec!["read:posts".to_string()])?;
     /// println!("Token created: {}", token);
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn createToken<T>(
+    pub fn createToken<T>(
         user: &T,
         name: &str,
         scopes: Vec<String>,
@@ -246,14 +245,18 @@ impl Passport {
     where
         T: HasApiTokens + Send + Sync,
     {
-        let manager = GLOBAL_PASSPORT.read().await;
+        let manager = GLOBAL_PASSPORT.read().unwrap();
         let db = manager.database().ok_or(PassportError::ConfigurationError(
             "Database not configured".to_string(),
         ))?;
         let config = manager.config().clone();
         drop(manager);
 
-        user.create_token(name, scopes, &db, &config).await
+        tokio::task::block_in_place(|| {
+            tokio::runtime::Handle::current().block_on(async {
+                user.create_token(name, scopes, &db, &config).await
+            })
+        })
     }
 
     /// Get all tokens for a user
@@ -263,23 +266,27 @@ impl Passport {
     /// ```rust,no_run
     /// use rf_passport_facade::Passport;
     ///
-    /// # async fn example(user: MyUser) -> Result<(), Box<dyn std::error::Error>> {
-    /// let tokens = Passport::tokens(&user).await?;
+    /// # fn example(user: MyUser) -> Result<(), Box<dyn std::error::Error>> {
+    /// let tokens = Passport::tokens(&user)?;
     /// println!("User has {} tokens", tokens.len());
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn tokens<T>(user: &T) -> PassportResult<Vec<OAuthAccessToken>>
+    pub fn tokens<T>(user: &T) -> PassportResult<Vec<OAuthAccessToken>>
     where
         T: HasApiTokens + Send + Sync,
     {
-        let manager = GLOBAL_PASSPORT.read().await;
+        let manager = GLOBAL_PASSPORT.read().unwrap();
         let db = manager.database().ok_or(PassportError::ConfigurationError(
             "Database not configured".to_string(),
         ))?;
         drop(manager);
 
-        user.tokens(&db).await
+        tokio::task::block_in_place(|| {
+            tokio::runtime::Handle::current().block_on(async {
+                user.tokens(&db).await
+            })
+        })
     }
 
     /// Revoke a specific token
@@ -289,20 +296,24 @@ impl Passport {
     /// ```rust,no_run
     /// use rf_passport_facade::Passport;
     ///
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// Passport::revokeToken("token_id").await?;
+    /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// Passport::revokeToken("token_id")?;
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn revokeToken(token_id: &str) -> PassportResult<()> {
-        let manager = GLOBAL_PASSPORT.read().await;
+    pub fn revokeToken(token_id: &str) -> PassportResult<()> {
+        let manager = GLOBAL_PASSPORT.read().unwrap();
         let db = manager.database().ok_or(PassportError::ConfigurationError(
             "Database not configured".to_string(),
         ))?;
         drop(manager);
 
-        let repo = TokenRepository::new(&db);
-        repo.revoke_access_token(token_id).await
+        tokio::task::block_in_place(|| {
+            tokio::runtime::Handle::current().block_on(async {
+                let repo = TokenRepository::new(&db);
+                repo.revoke_access_token(token_id).await
+            })
+        })
     }
 
     /// Revoke all tokens for a user
@@ -312,23 +323,27 @@ impl Passport {
     /// ```rust,no_run
     /// use rf_passport_facade::Passport;
     ///
-    /// # async fn example(user: MyUser) -> Result<(), Box<dyn std::error::Error>> {
-    /// let count = Passport::revokeAllTokens(&user).await?;
+    /// # fn example(user: MyUser) -> Result<(), Box<dyn std::error::Error>> {
+    /// let count = Passport::revokeAllTokens(&user)?;
     /// println!("Revoked {} tokens", count);
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn revokeAllTokens<T>(user: &T) -> PassportResult<u64>
+    pub fn revokeAllTokens<T>(user: &T) -> PassportResult<u64>
     where
         T: HasApiTokens + Send + Sync,
     {
-        let manager = GLOBAL_PASSPORT.read().await;
+        let manager = GLOBAL_PASSPORT.read().unwrap();
         let db = manager.database().ok_or(PassportError::ConfigurationError(
             "Database not configured".to_string(),
         ))?;
         drop(manager);
 
-        user.revoke_all_tokens(&db).await
+        tokio::task::block_in_place(|| {
+            tokio::runtime::Handle::current().block_on(async {
+                user.revoke_all_tokens(&db).await
+            })
+        })
     }
 
     // ===== Token Abilities (for current request) =====
@@ -340,36 +355,44 @@ impl Passport {
     /// ```rust,no_run
     /// use rf_passport_facade::Passport;
     ///
-    /// # async fn example() {
-    /// if Passport::tokenCan("write:posts").await {
+    /// # fn example() {
+    /// if Passport::tokenCan("write:posts") {
     ///     println!("User can write posts");
     /// }
     /// # }
     /// ```
-    pub async fn tokenCan(scope: &str) -> bool {
-        let manager = GLOBAL_PASSPORT.read().await;
+    pub fn tokenCan(scope: &str) -> bool {
+        let manager = GLOBAL_PASSPORT.read().unwrap();
         if let Some(token_id) = manager.current_token_id() {
             if let Some(db) = manager.database() {
-                let repo = TokenRepository::new(&db);
-                if let Ok(Some(token)) = repo.find_access_token(token_id).await {
-                    return token.has_scope(scope);
-                }
+                tokio::task::block_in_place(|| {
+                    tokio::runtime::Handle::current().block_on(async {
+                        let repo = TokenRepository::new(&db);
+                        if let Ok(Some(token)) = repo.find_access_token(token_id).await {
+                            return token.has_scope(scope);
+                        }
+                        false
+                    })
+                })
+            } else {
+                false
             }
+        } else {
+            false
         }
-        false
     }
 
     /// Get the authenticated user via Passport
     ///
     /// Returns the user ID if authenticated via Passport
-    pub async fn userId() -> Option<i64> {
-        let manager = GLOBAL_PASSPORT.read().await;
+    pub fn userId() -> Option<i64> {
+        let manager = GLOBAL_PASSPORT.read().unwrap();
         manager.current_user_id()
     }
 
     /// Check if authenticated via Passport
-    pub async fn check() -> bool {
-        let manager = GLOBAL_PASSPORT.read().await;
+    pub fn check() -> bool {
+        let manager = GLOBAL_PASSPORT.read().unwrap();
         manager.check()
     }
 
@@ -382,48 +405,60 @@ impl Passport {
     /// ```rust,no_run
     /// use rf_passport_facade::Passport;
     ///
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let client = Passport::createClient(
     ///     "My App",
     ///     "https://app.com/callback"
-    /// ).await?;
-    /// println!("Client ID: {}", client.id);
+    /// )?;
+    /// println!("Client ID: {}", client.0.id);
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn createClient(name: &str, redirect: &str) -> PassportResult<(OAuthClient, Option<String>)> {
-        let manager = GLOBAL_PASSPORT.read().await;
+    pub fn createClient(name: &str, redirect: &str) -> PassportResult<(OAuthClient, Option<String>)> {
+        let manager = GLOBAL_PASSPORT.read().unwrap();
         let db = manager.database().ok_or(PassportError::ConfigurationError(
             "Database not configured".to_string(),
         ))?;
         drop(manager);
 
-        let repo = ClientRepository::new(&db);
-        repo.create(None, name, vec![redirect.to_string()], false, false, true).await
+        tokio::task::block_in_place(|| {
+            tokio::runtime::Handle::current().block_on(async {
+                let repo = ClientRepository::new(&db);
+                repo.create(None, name, vec![redirect.to_string()], false, false, true).await
+            })
+        })
     }
 
     /// Get all clients for a user
-    pub async fn clients(user_id: i64) -> PassportResult<Vec<OAuthClient>> {
-        let manager = GLOBAL_PASSPORT.read().await;
+    pub fn clients(user_id: i64) -> PassportResult<Vec<OAuthClient>> {
+        let manager = GLOBAL_PASSPORT.read().unwrap();
         let db = manager.database().ok_or(PassportError::ConfigurationError(
             "Database not configured".to_string(),
         ))?;
         drop(manager);
 
-        let repo = ClientRepository::new(&db);
-        repo.find_by_user(user_id).await
+        tokio::task::block_in_place(|| {
+            tokio::runtime::Handle::current().block_on(async {
+                let repo = ClientRepository::new(&db);
+                repo.find_by_user(user_id).await
+            })
+        })
     }
 
     /// Delete a client
-    pub async fn deleteClient(client_id: i64) -> PassportResult<()> {
-        let manager = GLOBAL_PASSPORT.read().await;
+    pub fn deleteClient(client_id: i64) -> PassportResult<()> {
+        let manager = GLOBAL_PASSPORT.read().unwrap();
         let db = manager.database().ok_or(PassportError::ConfigurationError(
             "Database not configured".to_string(),
         ))?;
         drop(manager);
 
-        let repo = ClientRepository::new(&db);
-        repo.delete(client_id).await
+        tokio::task::block_in_place(|| {
+            tokio::runtime::Handle::current().block_on(async {
+                let repo = ClientRepository::new(&db);
+                repo.delete(client_id).await
+            })
+        })
     }
 
     // ===== Grant Control =====
@@ -435,47 +470,47 @@ impl Passport {
     /// ```rust,no_run
     /// use rf_passport_facade::Passport;
     ///
-    /// # async fn example() {
-    /// Passport::enablePasswordGrant().await;
+    /// # fn example() {
+    /// Passport::enablePasswordGrant();
     /// # }
     /// ```
-    pub async fn enablePasswordGrant() {
-        GrantControl::enable_password_grant().await;
+    pub fn enablePasswordGrant() {
+        GrantControl::enable_password_grant();
     }
 
     /// Disable password grant
-    pub async fn disablePasswordGrant() {
-        GrantControl::disable_password_grant().await;
+    pub fn disablePasswordGrant() {
+        GrantControl::disable_password_grant();
     }
 
     /// Enable implicit grant
-    pub async fn enableImplicitGrant() {
-        GrantControl::enable_implicit_grant().await;
+    pub fn enableImplicitGrant() {
+        GrantControl::enable_implicit_grant();
     }
 
     /// Disable implicit grant
-    pub async fn disableImplicitGrant() {
-        GrantControl::disable_implicit_grant().await;
+    pub fn disableImplicitGrant() {
+        GrantControl::disable_implicit_grant();
     }
 
     /// Enable client credentials grant
-    pub async fn enableClientCredentialsGrant() {
-        GrantControl::enable_client_credentials_grant().await;
+    pub fn enableClientCredentialsGrant() {
+        GrantControl::enable_client_credentials_grant();
     }
 
     /// Disable client credentials grant
-    pub async fn disableClientCredentialsGrant() {
-        GrantControl::disable_client_credentials_grant().await;
+    pub fn disableClientCredentialsGrant() {
+        GrantControl::disable_client_credentials_grant();
     }
 
     /// Enable authorization code grant
-    pub async fn enableAuthorizationCodeGrant() {
-        GrantControl::enable_authorization_code_grant().await;
+    pub fn enableAuthorizationCodeGrant() {
+        GrantControl::enable_authorization_code_grant();
     }
 
     /// Disable authorization code grant
-    pub async fn disableAuthorizationCodeGrant() {
-        GrantControl::disable_authorization_code_grant().await;
+    pub fn disableAuthorizationCodeGrant() {
+        GrantControl::disable_authorization_code_grant();
     }
 
     // ===== PKCE Control =====
@@ -487,30 +522,30 @@ impl Passport {
     /// ```rust,no_run
     /// use rf_passport_facade::Passport;
     ///
-    /// # async fn example() {
-    /// Passport::requirePkce(true).await;
+    /// # fn example() {
+    /// Passport::requirePkce(true);
     /// # }
     /// ```
-    pub async fn requirePkce(enforce: bool) {
-        PkceControl::require_pkce(enforce).await;
+    pub fn requirePkce(enforce: bool) {
+        PkceControl::require_pkce(enforce);
     }
 
     /// Allow plain text PKCE (not recommended)
-    pub async fn allowPlainPkce(allow: bool) {
-        PkceControl::allow_plain_pkce(allow).await;
+    pub fn allowPlainPkce(allow: bool) {
+        PkceControl::allow_plain_pkce(allow);
     }
 
     // ===== Context Management (for middleware) =====
 
     /// Set the current authentication context (called by middleware)
-    pub async fn setCurrentContext(token_id: String, user_id: i64) {
-        let mut manager = GLOBAL_PASSPORT.write().await;
+    pub fn setCurrentContext(token_id: String, user_id: i64) {
+        let mut manager = GLOBAL_PASSPORT.write().unwrap();
         manager.set_current_token(token_id, user_id);
     }
 
     /// Clear the current authentication context
-    pub async fn clearContext() {
-        let mut manager = GLOBAL_PASSPORT.write().await;
+    pub fn clearContext() {
+        let mut manager = GLOBAL_PASSPORT.write().unwrap();
         manager.clear_context();
     }
 }
@@ -519,37 +554,36 @@ impl Passport {
 mod tests {
     use super::*;
 
-    #[tokio::test]
-    async fn test_passport_check_not_authenticated() {
-        Passport::clearContext().await;
-        assert!(!Passport::check().await);
+    #[test]
+    fn test_passport_check_not_authenticated() {
+        Passport::clearContext();
+        assert!(!Passport::check());
     }
 
-    #[tokio::test]
-    async fn test_passport_scope_management() {
+    #[test]
+    fn test_passport_scope_management() {
         Passport::tokensCan(&[
             ("read:posts", "Read posts"),
             ("write:posts", "Write posts"),
-        ])
-        .await;
+        ]);
 
-        assert!(Passport::hasScope("read:posts").await);
-        assert!(Passport::hasScope("write:posts").await);
-        assert!(!Passport::hasScope("delete:posts").await);
+        assert!(Passport::hasScope("read:posts"));
+        assert!(Passport::hasScope("write:posts"));
+        assert!(!Passport::hasScope("delete:posts"));
     }
 
-    #[tokio::test]
-    async fn test_passport_default_scopes() {
-        Passport::setDefaultScope(&["read:posts"]).await;
-        let manager = GLOBAL_PASSPORT.read().await;
+    #[test]
+    fn test_passport_default_scopes() {
+        Passport::setDefaultScope(&["read:posts"]);
+        let manager = GLOBAL_PASSPORT.read().unwrap();
         assert_eq!(manager.default_scopes(), &["read:posts"]);
     }
 
-    #[tokio::test]
-    async fn test_passport_static_methods_exist() {
+    #[test]
+    fn test_passport_static_methods_exist() {
         // Just verify methods compile and are callable
-        let _ = Passport::check().await;
-        let _ = Passport::userId().await;
-        let _ = Passport::scopes().await;
+        let _ = Passport::check();
+        let _ = Passport::userId();
+        let _ = Passport::scopes();
     }
 }

@@ -13,26 +13,26 @@ use serde_json::Value;
 /// ```rust,no_run
 /// use rf_db_facade::DB;
 ///
-/// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+/// # fn example() -> Result<(), Box<dyn std::error::Error>> {
 /// // Select records
-/// let users = DB::select("SELECT * FROM users", &[]).await?;
+/// let users = DB::select("SELECT * FROM users", &[])?;
 ///
 /// // Insert a record
 /// let id = DB::insert("INSERT INTO users (name) VALUES (?)",
-///     &["John".into()]).await?;
+///     &["John".into()])?;
 ///
 /// // Update records
 /// let affected = DB::update("UPDATE users SET active = ?",
-///     &[true.into()]).await?;
+///     &[true.into()])?;
 ///
 /// // Delete records
 /// let deleted = DB::delete("DELETE FROM users WHERE id = ?",
-///     &[id.into()]).await?;
+///     &[id.into()])?;
 ///
 /// // Use query builder
 /// let users = DB::table("users")
 ///     .where_clause("active", "=", true.into())
-///     .get().await?;
+///     .get()?;
 /// # Ok(())
 /// # }
 /// ```
@@ -46,14 +46,14 @@ impl DB {
     /// ```rust,no_run
     /// use rf_db_facade::DB;
     ///
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let users = DB::select("SELECT * FROM users WHERE active = ?",
-    ///     &[true.into()]).await?;
+    ///     &[true.into()])?;
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn select(query: &str, bindings: &[Value]) -> Result<Vec<Value>, String> {
-        let manager = GLOBAL_DB.read();
+    pub fn select(query: &str, bindings: &[Value]) -> Result<Vec<Value>, String> {
+        let manager = GLOBAL_DB.read().unwrap();
         manager.select(query, bindings)
     }
 
@@ -64,14 +64,14 @@ impl DB {
     /// ```rust,no_run
     /// use rf_db_facade::DB;
     ///
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let id = DB::insert("INSERT INTO users (name, email) VALUES (?, ?)",
-    ///     &["John".into(), "john@example.com".into()]).await?;
+    ///     &["John".into(), "john@example.com".into()])?;
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn insert(query: &str, bindings: &[Value]) -> Result<u64, String> {
-        let mut manager = GLOBAL_DB.write();
+    pub fn insert(query: &str, bindings: &[Value]) -> Result<u64, String> {
+        let mut manager = GLOBAL_DB.write().unwrap();
         manager.insert(query, bindings)
     }
 
@@ -82,14 +82,14 @@ impl DB {
     /// ```rust,no_run
     /// use rf_db_facade::DB;
     ///
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let affected = DB::update("UPDATE users SET active = ? WHERE id = ?",
-    ///     &[true.into(), 1.into()]).await?;
+    ///     &[true.into(), 1.into()])?;
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn update(query: &str, bindings: &[Value]) -> Result<u64, String> {
-        let mut manager = GLOBAL_DB.write();
+    pub fn update(query: &str, bindings: &[Value]) -> Result<u64, String> {
+        let mut manager = GLOBAL_DB.write().unwrap();
         manager.update(query, bindings)
     }
 
@@ -100,14 +100,14 @@ impl DB {
     /// ```rust,no_run
     /// use rf_db_facade::DB;
     ///
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let deleted = DB::delete("DELETE FROM users WHERE id = ?",
-    ///     &[1.into()]).await?;
+    ///     &[1.into()])?;
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn delete(query: &str, bindings: &[Value]) -> Result<u64, String> {
-        let mut manager = GLOBAL_DB.write();
+    pub fn delete(query: &str, bindings: &[Value]) -> Result<u64, String> {
+        let mut manager = GLOBAL_DB.write().unwrap();
         manager.delete(query, bindings)
     }
 
@@ -118,13 +118,13 @@ impl DB {
     /// ```rust,no_run
     /// use rf_db_facade::DB;
     ///
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// DB::statement("CREATE TABLE users (id INT, name VARCHAR(255))").await?;
+    /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// DB::statement("CREATE TABLE users (id INT, name VARCHAR(255))")?;
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn statement(query: &str) -> Result<bool, String> {
-        let mut manager = GLOBAL_DB.write();
+    pub fn statement(query: &str) -> Result<bool, String> {
+        let mut manager = GLOBAL_DB.write().unwrap();
         manager.statement(query)
     }
 
@@ -135,11 +135,11 @@ impl DB {
     /// ```rust,no_run
     /// use rf_db_facade::DB;
     ///
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let users = DB::table("users")
     ///     .where_clause("active", "=", true.into())
     ///     .limit(10)
-    ///     .get().await?;
+    ///     .get()?;
     /// # Ok(())
     /// # }
     /// ```
@@ -154,40 +154,40 @@ impl DB {
     /// ```rust,no_run
     /// use rf_db_facade::DB;
     ///
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// DB::begin_transaction().await?;
+    /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// DB::begin_transaction()?;
     /// // ... perform database operations
-    /// DB::commit().await?;
+    /// DB::commit()?;
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn begin_transaction() -> Result<(), String> {
-        let mut manager = GLOBAL_DB.write();
+    pub fn begin_transaction() -> Result<(), String> {
+        let mut manager = GLOBAL_DB.write().unwrap();
         manager.begin_transaction()
     }
 
     /// Commit the current transaction
-    pub async fn commit() -> Result<(), String> {
-        let mut manager = GLOBAL_DB.write();
+    pub fn commit() -> Result<(), String> {
+        let mut manager = GLOBAL_DB.write().unwrap();
         manager.commit()
     }
 
     /// Rollback the current transaction
-    pub async fn rollback() -> Result<(), String> {
-        let mut manager = GLOBAL_DB.write();
+    pub fn rollback() -> Result<(), String> {
+        let mut manager = GLOBAL_DB.write().unwrap();
         manager.rollback()
     }
 
     /// Set the database connection to use
-    pub async fn connection(name: &str) -> Result<(), String> {
-        let mut manager = GLOBAL_DB.write();
+    pub fn connection(name: &str) -> Result<(), String> {
+        let mut manager = GLOBAL_DB.write().unwrap();
         manager.set_connection(name.to_string());
         Ok(())
     }
 
     /// Get the current connection name
-    pub async fn connection_name() -> String {
-        let manager = GLOBAL_DB.read();
+    pub fn connection_name() -> String {
+        let manager = GLOBAL_DB.read().unwrap();
         manager.connection_name().to_string()
     }
 }
@@ -196,65 +196,65 @@ impl DB {
 mod tests {
     use super::*;
 
-    #[tokio::test]
-    async fn test_db_insert() {
+    #[test]
+    fn test_db_insert() {
         let bindings = vec![
             serde_json::json!("John"),
             serde_json::json!("john@example.com")
         ];
 
-        let result = DB::insert("INSERT INTO users (name, email) VALUES (?, ?)", &bindings).await;
+        let result = DB::insert("INSERT INTO users (name, email) VALUES (?, ?)", &bindings);
         assert!(result.is_ok());
     }
 
-    #[tokio::test]
-    async fn test_db_select() {
-        let result = DB::select("SELECT * FROM users", &[]).await;
+    #[test]
+    fn test_db_select() {
+        let result = DB::select("SELECT * FROM users", &[]);
         assert!(result.is_ok());
     }
 
-    #[tokio::test]
-    async fn test_db_update() {
+    #[test]
+    fn test_db_update() {
         let bindings = vec![serde_json::json!(true)];
-        let result = DB::update("UPDATE users SET active = ?", &bindings).await;
+        let result = DB::update("UPDATE users SET active = ?", &bindings);
         assert!(result.is_ok());
     }
 
-    #[tokio::test]
-    async fn test_db_delete() {
+    #[test]
+    fn test_db_delete() {
         let bindings = vec![serde_json::json!(1)];
-        let result = DB::delete("DELETE FROM users WHERE id = ?", &bindings).await;
+        let result = DB::delete("DELETE FROM users WHERE id = ?", &bindings);
         assert!(result.is_ok());
     }
 
-    #[tokio::test]
-    async fn test_db_statement() {
-        let result = DB::statement("CREATE TABLE users (id INT)").await;
+    #[test]
+    fn test_db_statement() {
+        let result = DB::statement("CREATE TABLE users (id INT)");
         assert!(result.is_ok());
     }
 
-    #[tokio::test]
-    async fn test_db_table() {
+    #[test]
+    fn test_db_table() {
         let builder = DB::table("users");
         assert_eq!(builder.table_name(), "users");
     }
 
-    #[tokio::test]
-    async fn test_db_transaction() {
-        assert!(DB::begin_transaction().await.is_ok());
-        assert!(DB::commit().await.is_ok());
-        assert!(DB::rollback().await.is_ok());
+    #[test]
+    fn test_db_transaction() {
+        assert!(DB::begin_transaction().is_ok());
+        assert!(DB::commit().is_ok());
+        assert!(DB::rollback().is_ok());
     }
 
-    #[tokio::test]
-    async fn test_db_connection() {
-        assert!(DB::connection("mysql").await.is_ok());
-        let name = DB::connection_name().await;
+    #[test]
+    fn test_db_connection() {
+        assert!(DB::connection("mysql").is_ok());
+        let name = DB::connection_name();
         assert_eq!(name, "mysql");
     }
 
-    #[tokio::test]
-    async fn test_db_query_builder_chaining() {
+    #[test]
+    fn test_db_query_builder_chaining() {
         let builder = DB::table("users")
             .where_clause("active", "=", serde_json::json!(true))
             .limit(10);

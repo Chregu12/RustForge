@@ -26,6 +26,9 @@ uuid.workspace = true
 # Logging
 tracing.workspace = true
 
+# Runtime for sync/async bridge
+tokio = { workspace = true, features = ["rt", "rt-multi-thread"] }
+
 # Optional validator support
 validator = { workspace = true, optional = true }
 

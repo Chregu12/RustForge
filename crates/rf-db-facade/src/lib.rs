@@ -2,6 +2,13 @@
 //!
 //! Laravel-style DB facade for the RustForge framework.
 //!
+//! # Recommended Usage
+//!
+//! Use the consolidated `rf` crate for simpler imports:
+//! ```rust
+//! use rf::DB;  // or use rf::prelude::*;
+//! ```
+//!
 //! ## Features
 //!
 //! - **Static DB API**: Use `DB::select()`, `DB::insert()`, etc.
@@ -13,33 +20,34 @@
 //! ## Quick Start
 //!
 //! ```rust,no_run
-//! use rf_db_facade::{DB, Model, model};
+//! // Recommended: use rf::{DB, Model, model};
+//! use rf_db_facade::{DB, Model, model};  // Direct import also works
 //!
 //! // Define models using the macro - just like Laravel!
 //! model!(User, "users");
 //! model!(Post, "posts");
 //!
-//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+//! # fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! // Laravel-style Model queries!
-//! let users = User::filter("active", true).get().await?;
-//! let user = User::find(1).await?;
+//! let users = User::filter("active", true).get()?;
+//! let user = User::find(1)?;
 //! let new_user = User::create(serde_json::json!({
 //!     "name": "John",
 //!     "email": "john@example.com"
-//! })).await?;
+//! }))?;
 //!
 //! // Chain queries like Laravel!
 //! let admins = User::filter("role", "admin")
 //!     .filter("active", true)
 //!     .order_by("name", "asc")
 //!     .limit(10)
-//!     .get().await?;
+//!     .get()?;
 //!
 //! // Or use DB::table() for raw queries
 //! let users = DB::table("users")
 //!     .filter("active", true)
 //!     .limit(10)
-//!     .get().await?;
+//!     .get()?;
 //! # Ok(())
 //! # }
 //! ```

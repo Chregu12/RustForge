@@ -755,7 +755,7 @@ Route::middleware('auth')->group(function () {
 
 **RustForge:**
 ```rust
-use rf_route_facade::Route;
+use rf::Route;
 
 Route::get("/users", user_controller::index);
 Route::post("/users", user_controller::store);
@@ -939,7 +939,7 @@ HttpServer::new(|| {
 
 **RustForge:**
 ```rust
-use rf_route_facade::Route;
+use rf::Route;
 
 Route::get("/", index);
 Route::post("/users", create_user);
@@ -1038,7 +1038,7 @@ fn rocket() -> _ {
 
 **RustForge:**
 ```rust
-use rf_route_facade::Route;
+use rf::Route;
 
 async fn index() -> &'static str {
     "Hello, world!"
@@ -1083,7 +1083,7 @@ let app = Router::new()
 
 **RustForge:**
 ```rust
-use rf_route_facade::Route;
+use rf::Route;
 
 Route::get("/", index);
 Route::post("/users", create_user);

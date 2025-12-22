@@ -4,7 +4,24 @@ use crate::manager::GLOBAL_AUTH;
 use serde::Serialize;
 use serde_json::Value;
 
-/// Authentication guard
+/// Authentication guard for multi-guard authentication.
+///
+/// Guards allow you to use different authentication strategies
+/// (e.g., "web" for sessions, "api" for tokens).
+///
+/// # Examples
+///
+/// ```rust
+/// use rf_auth_facade::Auth;
+///
+/// // Get a specific guard
+/// let api_guard = Auth::guard("api");
+///
+/// // Check authentication on this guard
+/// if api_guard.check() {
+///     println!("Authenticated on API guard");
+/// }
+/// ```
 pub struct Guard {
     name: String,
 }
@@ -23,32 +40,44 @@ impl Guard {
     }
 
     /// Check if authenticated on this guard
-    pub async fn check(&self) -> bool {
-        let manager = GLOBAL_AUTH.read().await;
+    pub fn check(&self) -> bool {
+        let manager = GLOBAL_AUTH.read().unwrap();
         manager.check()
     }
 
+    /// Check if guest on this guard
+    pub fn guest(&self) -> bool {
+        let manager = GLOBAL_AUTH.read().unwrap();
+        manager.guest()
+    }
+
     /// Get the user for this guard
-    pub async fn user<T: for<'de> serde::Deserialize<'de>>(&self) -> Option<T> {
-        let manager = GLOBAL_AUTH.read().await;
+    pub fn user<T: for<'de> serde::Deserialize<'de>>(&self) -> Option<T> {
+        let manager = GLOBAL_AUTH.read().unwrap();
         manager.user()
     }
 
+    /// Get the user ID for this guard
+    pub fn id(&self) -> Option<u64> {
+        let manager = GLOBAL_AUTH.read().unwrap();
+        manager.id()
+    }
+
     /// Login a user on this guard
-    pub async fn login<T: Serialize>(&self, user: T) -> Result<(), String> {
-        let mut manager = GLOBAL_AUTH.write().await;
+    pub fn login<T: Serialize>(&self, user: T) -> Result<(), String> {
+        let mut manager = GLOBAL_AUTH.write().unwrap();
         manager.login(user)
     }
 
     /// Logout on this guard
-    pub async fn logout(&self) {
-        let mut manager = GLOBAL_AUTH.write().await;
+    pub fn logout(&self) {
+        let mut manager = GLOBAL_AUTH.write().unwrap();
         manager.logout();
     }
 
     /// Attempt login on this guard
-    pub async fn attempt(&self, credentials: Value) -> Result<bool, String> {
-        let mut manager = GLOBAL_AUTH.write().await;
+    pub fn attempt(&self, credentials: Value) -> Result<bool, String> {
+        let mut manager = GLOBAL_AUTH.write().unwrap();
         manager.attempt(credentials)
     }
 }
@@ -57,15 +86,17 @@ impl Guard {
 mod tests {
     use super::*;
 
-    #[tokio::test]
-    async fn test_guard_creation() {
+    #[test]
+    fn test_guard_creation() {
         let guard = Guard::new("api");
         assert_eq!(guard.name(), "api");
     }
 
-    #[tokio::test]
-    async fn test_guard_check() {
+    #[test]
+    fn test_guard_check() {
         let guard = Guard::new("web");
-        assert!(!guard.check().await);
+        // Initially not authenticated
+        assert!(!guard.check());
+        assert!(guard.guest());
     }
 }

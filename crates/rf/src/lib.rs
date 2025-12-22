@@ -25,8 +25,11 @@
 // DIRECT RE-EXPORTS (Most Common - Laravel-style)
 // ============================================================================
 
+// Standard library re-exports
+pub use std::time::Duration;
+
 // Facades
-pub use rf_route_facade::Route;
+pub use rf_route_facade::{Route, global_router, GlobalRouter};
 pub use rf_auth_facade::Auth;
 pub use rf_db_facade::DB;
 pub use rf_cache_facade::Cache;
@@ -75,6 +78,9 @@ pub use rf_response::Response;
 ///
 /// Includes: Route, Auth, DB, Cache, Hash, Collection, Response, etc.
 pub mod prelude {
+    // Standard library
+    pub use std::time::Duration;
+
     // All Facades
     pub use rf_route_facade::Route;
     pub use rf_auth_facade::Auth;

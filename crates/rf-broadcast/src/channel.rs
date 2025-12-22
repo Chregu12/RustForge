@@ -16,6 +16,22 @@ pub enum Channel {
 }
 
 impl Channel {
+    /// Create channel from name (auto-detects type based on prefix)
+    ///
+    /// - `"private-..."` -> Private channel
+    /// - `"presence-..."` -> Presence channel
+    /// - Otherwise -> Public channel
+    pub fn new(name: impl Into<String>) -> Self {
+        let name = name.into();
+        if name.starts_with("private-") {
+            Self::Private(name)
+        } else if name.starts_with("presence-") {
+            Self::Presence(name)
+        } else {
+            Self::Public(name)
+        }
+    }
+
     /// Create public channel
     pub fn public(name: impl Into<String>) -> Self {
         Self::Public(name.into())

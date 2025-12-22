@@ -26,6 +26,7 @@ once_cell = "1.19"
 # Internal dependencies
 rf-jobs = { path = "../rf-jobs" }
 rf-cache = { path = "../rf-cache" }
+rf-core = { path = "../rf-core" }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["test-util", "macros"] }

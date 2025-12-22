@@ -15,6 +15,9 @@ tokio = { workspace = true, features = ["sync", "time"] }
 chrono.workspace = true
 uuid.workspace = true
 
+# Core runtime for sync/async bridge
+rf-core = { path = "../rf-core" }
+
 # Redis support (optional)
 redis = { workspace = true, optional = true }
 deadpool-redis = { workspace = true, optional = true }

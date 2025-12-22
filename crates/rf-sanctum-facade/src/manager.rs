@@ -4,8 +4,7 @@ use chrono::{DateTime, Utc};
 use once_cell::sync::Lazy;
 use rf_sanctum::{PersonalAccessToken, TokenStats};
 use sea_orm::DatabaseConnection;
-use std::sync::Arc;
-use tokio::sync::RwLock;
+use std::sync::{Arc, RwLock};
 
 /// Global Sanctum manager instance
 pub static GLOBAL_SANCTUM: Lazy<Arc<RwLock<SanctumManager>>> = Lazy::new(|| {

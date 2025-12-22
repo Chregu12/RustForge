@@ -121,11 +121,7 @@ pub struct UpdatePostRequest {
 ### Controller (src/controllers/post_controller.rs)
 
 ```rust
-use rf_http::{Response, Json, Path, Query};
-use rf_db_facade::DB;
-use rf_cache_facade::Cache;
-use rf_auth_facade::Auth;
-use rf_event_facade::Event;
+use rf::prelude::*;
 use std::time::Duration;
 use serde::Deserialize;
 use crate::requests::post_request::*;
@@ -253,9 +249,7 @@ mod models;
 mod controllers;
 mod requests;
 
-use rf_core::Application;
-use rf_route_facade::Route;
-use rf_http::middleware;
+use rf::prelude::*;
 use rf_orm::Database;
 
 #[tokio::main]
@@ -291,10 +285,7 @@ Complete authentication system with registration, login, and password reset usin
 ### Auth Controller
 
 ```rust
-use rf_http::{Request, Response, Json};
-use rf_auth::Hash;
-use rf_auth_facade::Auth;
-use rf_mail_facade::Mail;
+use rf::prelude::*;
 use rf_validation::Validate;
 use serde::{Deserialize, Serialize};
 
@@ -785,7 +776,7 @@ email.queue().await?;
 Implement cache-aside pattern with Laravel-style Cache facade.
 
 ```rust
-use rf_cache_facade::Cache;
+use rf::Cache;
 use std::time::Duration;
 
 pub struct PostRepository;

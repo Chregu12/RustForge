@@ -33,6 +33,7 @@
 pub mod context;
 pub mod error;
 pub mod prelude;
+pub mod runtime;
 
 // Axum support (optional)
 #[cfg(feature = "axum")]

@@ -8,11 +8,8 @@ name = "simple"
 path = "src/main.rs"
 
 [dependencies]
-rf-macros = { path = "../../crates/rf-macros" }
-rf-route-facade = { path = "../../crates/rf-route-facade" }
-rf-global-helpers = { path = "../../crates/rf-global-helpers" }
+rf = { path = "../../crates/rf" }
 rf-validation = { path = "../../crates/rf-validation" }
-rf-request = { path = "../../crates/rf-request" }
 
 tokio = { version = "1", features = ["full"] }
 serde = { version = "1", features = ["derive"] }

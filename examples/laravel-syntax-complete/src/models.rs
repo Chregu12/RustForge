@@ -2,7 +2,7 @@
 //!
 //! In a real application, you would use #[model] macro which requires:
 //! - Models in separate modules to avoid Relation enum conflicts
-//! - rf-db-facade dependency for static query methods
+//! - rf crate with DB facade for static query methods
 
 use serde::{Deserialize, Serialize};
 

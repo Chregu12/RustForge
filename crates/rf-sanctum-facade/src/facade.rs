@@ -1,7 +1,6 @@
 //! Sanctum facade providing Laravel-style static API for token authentication
 
 use crate::manager::GLOBAL_SANCTUM;
-use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use rf_sanctum::{
     LoadFromToken, NewToken, PersonalAccessToken, SanctumError, Tokenable, TokenRepository,
@@ -42,12 +41,12 @@ impl Sanctum {
     /// use sea_orm::DatabaseConnection;
     /// use std::sync::Arc;
     ///
-    /// # async fn example(db: DatabaseConnection) {
-    /// Sanctum::setDatabase(Arc::new(db)).await;
+    /// # fn example(db: DatabaseConnection) {
+    /// Sanctum::setDatabase(Arc::new(db));
     /// # }
     /// ```
-    pub async fn setDatabase(db: Arc<DatabaseConnection>) {
-        let mut manager = GLOBAL_SANCTUM.write().await;
+    pub fn setDatabase(db: Arc<DatabaseConnection>) {
+        let mut manager = GLOBAL_SANCTUM.write().unwrap();
         manager.set_database(db);
     }
 
@@ -58,14 +57,14 @@ impl Sanctum {
     /// ```rust,no_run
     /// use rf_sanctum_facade::Sanctum;
     ///
-    /// # async fn example() {
-    /// if Sanctum::check().await {
+    /// # fn example() {
+    /// if Sanctum::check() {
     ///     println!("User is authenticated via Sanctum");
     /// }
     /// # }
     /// ```
-    pub async fn check() -> bool {
-        let manager = GLOBAL_SANCTUM.read().await;
+    pub fn check() -> bool {
+        let manager = GLOBAL_SANCTUM.read().unwrap();
         manager.check()
     }
 
@@ -76,19 +75,23 @@ impl Sanctum {
     /// ```rust,no_run
     /// use rf_sanctum_facade::Sanctum;
     ///
-    /// # async fn example() {
+    /// # fn example() {
     /// // Returns None if not authenticated or user can't be loaded
-    /// let user = Sanctum::user::<MyUser>().await;
+    /// let user = Sanctum::user::<MyUser>();
     /// # }
     /// ```
-    pub async fn user<T>() -> Option<T>
+    pub fn user<T>() -> Option<T>
     where
         T: LoadFromToken + Send + Sync,
     {
-        let manager = GLOBAL_SANCTUM.read().await;
+        let manager = GLOBAL_SANCTUM.read().unwrap();
 
         if let (Some(user_id), Some(db)) = (manager.current_user_id(), manager.database()) {
-            T::load_from_token(user_id, &db).await.ok()
+            tokio::task::block_in_place(|| {
+                tokio::runtime::Handle::current().block_on(async {
+                    T::load_from_token(user_id, &db).await.ok()
+                })
+            })
         } else {
             None
         }
@@ -101,14 +104,14 @@ impl Sanctum {
     /// ```rust,no_run
     /// use rf_sanctum_facade::Sanctum;
     ///
-    /// # async fn example() {
-    /// if let Some(token) = Sanctum::currentAccessToken().await {
+    /// # fn example() {
+    /// if let Some(token) = Sanctum::currentAccessToken() {
     ///     println!("Token: {}", token.name);
     /// }
     /// # }
     /// ```
-    pub async fn currentAccessToken() -> Option<PersonalAccessToken> {
-        let manager = GLOBAL_SANCTUM.read().await;
+    pub fn currentAccessToken() -> Option<PersonalAccessToken> {
+        let manager = GLOBAL_SANCTUM.read().unwrap();
         manager.current_token().cloned()
     }
 
@@ -119,14 +122,14 @@ impl Sanctum {
     /// ```rust,no_run
     /// use rf_sanctum_facade::Sanctum;
     ///
-    /// # async fn example() {
-    /// if Sanctum::tokenCan("read:posts").await {
+    /// # fn example() {
+    /// if Sanctum::tokenCan("read:posts") {
     ///     println!("User can read posts");
     /// }
     /// # }
     /// ```
-    pub async fn tokenCan(ability: &str) -> bool {
-        let manager = GLOBAL_SANCTUM.read().await;
+    pub fn tokenCan(ability: &str) -> bool {
+        let manager = GLOBAL_SANCTUM.read().unwrap();
         manager.token_can(ability)
     }
 
@@ -137,14 +140,14 @@ impl Sanctum {
     /// ```rust,no_run
     /// use rf_sanctum_facade::Sanctum;
     ///
-    /// # async fn example() {
-    /// if Sanctum::tokenCanAny(&["read:posts", "write:posts"]).await {
+    /// # fn example() {
+    /// if Sanctum::tokenCanAny(&["read:posts", "write:posts"]) {
     ///     println!("User can read or write posts");
     /// }
     /// # }
     /// ```
-    pub async fn tokenCanAny(abilities: &[&str]) -> bool {
-        let manager = GLOBAL_SANCTUM.read().await;
+    pub fn tokenCanAny(abilities: &[&str]) -> bool {
+        let manager = GLOBAL_SANCTUM.read().unwrap();
         manager.token_can_any(abilities)
     }
 
@@ -155,14 +158,14 @@ impl Sanctum {
     /// ```rust,no_run
     /// use rf_sanctum_facade::Sanctum;
     ///
-    /// # async fn example() {
-    /// if Sanctum::tokenCanAll(&["read:posts", "write:posts"]).await {
+    /// # fn example() {
+    /// if Sanctum::tokenCanAll(&["read:posts", "write:posts"]) {
     ///     println!("User can both read and write posts");
     /// }
     /// # }
     /// ```
-    pub async fn tokenCanAll(abilities: &[&str]) -> bool {
-        let manager = GLOBAL_SANCTUM.read().await;
+    pub fn tokenCanAll(abilities: &[&str]) -> bool {
+        let manager = GLOBAL_SANCTUM.read().unwrap();
         manager.token_can_all(abilities)
     }
 
@@ -173,18 +176,18 @@ impl Sanctum {
     /// ```rust,no_run
     /// use rf_sanctum_facade::Sanctum;
     ///
-    /// # async fn example(user: MyUser) -> Result<(), Box<dyn std::error::Error>> {
+    /// # fn example(user: MyUser) -> Result<(), Box<dyn std::error::Error>> {
     /// let token = Sanctum::createToken(
     ///     &user,
     ///     "mobile-app",
     ///     vec!["read:posts", "write:posts"],
     ///     None
-    /// ).await?;
+    /// )?;
     /// println!("New token: {}", token.access_token);
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn createToken<T>(
+    pub fn createToken<T>(
         user: &T,
         name: &str,
         abilities: Vec<&str>,
@@ -193,10 +196,14 @@ impl Sanctum {
     where
         T: Tokenable + Send + Sync,
     {
-        let manager = GLOBAL_SANCTUM.read().await;
+        let manager = GLOBAL_SANCTUM.read().unwrap();
         let db = manager.database().ok_or(SanctumError::DatabaseNotConfigured)?;
 
-        user.create_token(name, abilities, expires_at, &db).await
+        tokio::task::block_in_place(|| {
+            tokio::runtime::Handle::current().block_on(async {
+                user.create_token(name, abilities, expires_at, &db).await
+            })
+        })
     }
 
     /// Create a token with device information
@@ -206,7 +213,7 @@ impl Sanctum {
     /// ```rust,no_run
     /// use rf_sanctum_facade::Sanctum;
     ///
-    /// # async fn example(user: MyUser) -> Result<(), Box<dyn std::error::Error>> {
+    /// # fn example(user: MyUser) -> Result<(), Box<dyn std::error::Error>> {
     /// let token = Sanctum::createTokenWithDevice(
     ///     &user,
     ///     "mobile-app",
@@ -214,11 +221,11 @@ impl Sanctum {
     ///     None,
     ///     Some("Mozilla/5.0...".to_string()),
     ///     Some("192.168.1.1".to_string())
-    /// ).await?;
+    /// )?;
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn createTokenWithDevice<T>(
+    pub fn createTokenWithDevice<T>(
         user: &T,
         name: &str,
         abilities: Vec<&str>,
@@ -229,11 +236,15 @@ impl Sanctum {
     where
         T: Tokenable + Send + Sync,
     {
-        let manager = GLOBAL_SANCTUM.read().await;
+        let manager = GLOBAL_SANCTUM.read().unwrap();
         let db = manager.database().ok_or(SanctumError::DatabaseNotConfigured)?;
 
-        user.create_token_with_device(name, abilities, expires_at, user_agent, ip_address, &db)
-            .await
+        tokio::task::block_in_place(|| {
+            tokio::runtime::Handle::current().block_on(async {
+                user.create_token_with_device(name, abilities, expires_at, user_agent, ip_address, &db)
+                    .await
+            })
+        })
     }
 
     /// Revoke the current access token
@@ -243,19 +254,23 @@ impl Sanctum {
     /// ```rust,no_run
     /// use rf_sanctum_facade::Sanctum;
     ///
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// Sanctum::revokeCurrentToken().await?;
+    /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// Sanctum::revokeCurrentToken()?;
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn revokeCurrentToken() -> Result<(), SanctumError> {
-        let manager = GLOBAL_SANCTUM.read().await;
+    pub fn revokeCurrentToken() -> Result<(), SanctumError> {
+        let manager = GLOBAL_SANCTUM.read().unwrap();
         let db = manager.database().ok_or(SanctumError::DatabaseNotConfigured)?;
 
         if let Some(token) = manager.current_token() {
-            let repo = TokenRepository::new(&db);
-            repo.revoke(token.id).await?;
-            Ok(())
+            let token_id = token.id;
+            tokio::task::block_in_place(|| {
+                tokio::runtime::Handle::current().block_on(async {
+                    let repo = TokenRepository::new(&db);
+                    repo.revoke(token_id).await
+                })
+            })
         } else {
             Err(SanctumError::InvalidToken)
         }
@@ -268,19 +283,23 @@ impl Sanctum {
     /// ```rust,no_run
     /// use rf_sanctum_facade::Sanctum;
     ///
-    /// # async fn example(user: MyUser) -> Result<(), Box<dyn std::error::Error>> {
-    /// Sanctum::revokeAllTokens(&user).await?;
+    /// # fn example(user: MyUser) -> Result<(), Box<dyn std::error::Error>> {
+    /// Sanctum::revokeAllTokens(&user)?;
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn revokeAllTokens<T>(user: &T) -> Result<(), SanctumError>
+    pub fn revokeAllTokens<T>(user: &T) -> Result<(), SanctumError>
     where
         T: Tokenable + Send + Sync,
     {
-        let manager = GLOBAL_SANCTUM.read().await;
+        let manager = GLOBAL_SANCTUM.read().unwrap();
         let db = manager.database().ok_or(SanctumError::DatabaseNotConfigured)?;
 
-        user.revoke_all_tokens(&db).await
+        tokio::task::block_in_place(|| {
+            tokio::runtime::Handle::current().block_on(async {
+                user.revoke_all_tokens(&db).await
+            })
+        })
     }
 
     /// Revoke a specific token by ID
@@ -290,17 +309,21 @@ impl Sanctum {
     /// ```rust,no_run
     /// use rf_sanctum_facade::Sanctum;
     ///
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// Sanctum::revokeToken(123).await?;
+    /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// Sanctum::revokeToken(123)?;
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn revokeToken(token_id: i64) -> Result<(), SanctumError> {
-        let manager = GLOBAL_SANCTUM.read().await;
+    pub fn revokeToken(token_id: i64) -> Result<(), SanctumError> {
+        let manager = GLOBAL_SANCTUM.read().unwrap();
         let db = manager.database().ok_or(SanctumError::DatabaseNotConfigured)?;
 
-        let repo = TokenRepository::new(&db);
-        repo.revoke(token_id).await
+        tokio::task::block_in_place(|| {
+            tokio::runtime::Handle::current().block_on(async {
+                let repo = TokenRepository::new(&db);
+                repo.revoke(token_id).await
+            })
+        })
     }
 
     /// Get all tokens for a user
@@ -310,20 +333,24 @@ impl Sanctum {
     /// ```rust,no_run
     /// use rf_sanctum_facade::Sanctum;
     ///
-    /// # async fn example(user: MyUser) -> Result<(), Box<dyn std::error::Error>> {
-    /// let tokens = Sanctum::tokens(&user).await?;
+    /// # fn example(user: MyUser) -> Result<(), Box<dyn std::error::Error>> {
+    /// let tokens = Sanctum::tokens(&user)?;
     /// println!("User has {} tokens", tokens.len());
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn tokens<T>(user: &T) -> Result<Vec<PersonalAccessToken>, SanctumError>
+    pub fn tokens<T>(user: &T) -> Result<Vec<PersonalAccessToken>, SanctumError>
     where
         T: Tokenable + Send + Sync,
     {
-        let manager = GLOBAL_SANCTUM.read().await;
+        let manager = GLOBAL_SANCTUM.read().unwrap();
         let db = manager.database().ok_or(SanctumError::DatabaseNotConfigured)?;
 
-        user.tokens(&db).await
+        tokio::task::block_in_place(|| {
+            tokio::runtime::Handle::current().block_on(async {
+                user.tokens(&db).await
+            })
+        })
     }
 
     /// Prune expired tokens
@@ -333,18 +360,22 @@ impl Sanctum {
     /// ```rust,no_run
     /// use rf_sanctum_facade::Sanctum;
     ///
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let deleted = Sanctum::pruneExpiredTokens().await?;
+    /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let deleted = Sanctum::pruneExpiredTokens()?;
     /// println!("Deleted {} expired tokens", deleted);
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn pruneExpiredTokens() -> Result<u64, SanctumError> {
-        let manager = GLOBAL_SANCTUM.read().await;
+    pub fn pruneExpiredTokens() -> Result<u64, SanctumError> {
+        let manager = GLOBAL_SANCTUM.read().unwrap();
         let db = manager.database().ok_or(SanctumError::DatabaseNotConfigured)?;
 
-        let repo = TokenRepository::new(&db);
-        repo.prune_expired_tokens().await
+        tokio::task::block_in_place(|| {
+            tokio::runtime::Handle::current().block_on(async {
+                let repo = TokenRepository::new(&db);
+                repo.prune_expired_tokens().await
+            })
+        })
     }
 
     /// Prune tokens older than specified days
@@ -354,18 +385,22 @@ impl Sanctum {
     /// ```rust,no_run
     /// use rf_sanctum_facade::Sanctum;
     ///
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let deleted = Sanctum::pruneTokensOlderThan(90).await?;
+    /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let deleted = Sanctum::pruneTokensOlderThan(90)?;
     /// println!("Deleted {} old tokens", deleted);
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn pruneTokensOlderThan(days: u32) -> Result<u64, SanctumError> {
-        let manager = GLOBAL_SANCTUM.read().await;
+    pub fn pruneTokensOlderThan(days: u32) -> Result<u64, SanctumError> {
+        let manager = GLOBAL_SANCTUM.read().unwrap();
         let db = manager.database().ok_or(SanctumError::DatabaseNotConfigured)?;
 
-        let repo = TokenRepository::new(&db);
-        repo.prune_tokens_older_than(days).await
+        tokio::task::block_in_place(|| {
+            tokio::runtime::Handle::current().block_on(async {
+                let repo = TokenRepository::new(&db);
+                repo.prune_tokens_older_than(days).await
+            })
+        })
     }
 
     /// Prune unused tokens (not used in last N days)
@@ -375,18 +410,22 @@ impl Sanctum {
     /// ```rust,no_run
     /// use rf_sanctum_facade::Sanctum;
     ///
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let deleted = Sanctum::pruneUnusedTokens(30).await?;
+    /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let deleted = Sanctum::pruneUnusedTokens(30)?;
     /// println!("Deleted {} unused tokens", deleted);
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn pruneUnusedTokens(days: u32) -> Result<u64, SanctumError> {
-        let manager = GLOBAL_SANCTUM.read().await;
+    pub fn pruneUnusedTokens(days: u32) -> Result<u64, SanctumError> {
+        let manager = GLOBAL_SANCTUM.read().unwrap();
         let db = manager.database().ok_or(SanctumError::DatabaseNotConfigured)?;
 
-        let repo = TokenRepository::new(&db);
-        repo.prune_unused_tokens(days).await
+        tokio::task::block_in_place(|| {
+            tokio::runtime::Handle::current().block_on(async {
+                let repo = TokenRepository::new(&db);
+                repo.prune_unused_tokens(days).await
+            })
+        })
     }
 
     /// Get token statistics for a user
@@ -396,41 +435,45 @@ impl Sanctum {
     /// ```rust,no_run
     /// use rf_sanctum_facade::Sanctum;
     ///
-    /// # async fn example(user: MyUser) -> Result<(), Box<dyn std::error::Error>> {
-    /// let stats = Sanctum::tokenStats(&user).await?;
+    /// # fn example(user: MyUser) -> Result<(), Box<dyn std::error::Error>> {
+    /// let stats = Sanctum::tokenStats(&user)?;
     /// println!("Total tokens: {}, Active: {}", stats.total, stats.active);
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn tokenStats<T>(user: &T) -> Result<TokenStats, SanctumError>
+    pub fn tokenStats<T>(user: &T) -> Result<TokenStats, SanctumError>
     where
         T: Tokenable + Send + Sync,
     {
-        let manager = GLOBAL_SANCTUM.read().await;
+        let manager = GLOBAL_SANCTUM.read().unwrap();
         let db = manager.database().ok_or(SanctumError::DatabaseNotConfigured)?;
 
-        let repo = TokenRepository::new(&db);
-        repo.get_token_stats(T::tokenable_type(), user.tokenable_id()).await
+        tokio::task::block_in_place(|| {
+            tokio::runtime::Handle::current().block_on(async {
+                let repo = TokenRepository::new(&db);
+                repo.get_token_stats(T::tokenable_type(), user.tokenable_id()).await
+            })
+        })
     }
 
     /// Set the current authentication context (called by middleware)
     ///
     /// This is typically called by authentication middleware and should not be
     /// called directly in application code.
-    pub async fn setCurrentContext(
+    pub fn setCurrentContext(
         token: PersonalAccessToken,
         user_id: i64,
         tokenable_type: String,
     ) {
-        let mut manager = GLOBAL_SANCTUM.write().await;
+        let mut manager = GLOBAL_SANCTUM.write().unwrap();
         manager.set_current_token(token, user_id, tokenable_type);
     }
 
     /// Clear the current authentication context
     ///
     /// This is typically called at the end of a request or by middleware.
-    pub async fn clearContext() {
-        let mut manager = GLOBAL_SANCTUM.write().await;
+    pub fn clearContext() {
+        let mut manager = GLOBAL_SANCTUM.write().unwrap();
         manager.clear_context();
     }
 }
@@ -439,24 +482,24 @@ impl Sanctum {
 mod tests {
     use super::*;
 
-    #[tokio::test]
-    async fn test_sanctum_check_not_authenticated() {
+    #[test]
+    fn test_sanctum_check_not_authenticated() {
         // Clear any existing context
-        Sanctum::clearContext().await;
-        assert!(!Sanctum::check().await);
+        Sanctum::clearContext();
+        assert!(!Sanctum::check());
     }
 
-    #[tokio::test]
-    async fn test_sanctum_token_can_not_authenticated() {
-        Sanctum::clearContext().await;
-        assert!(!Sanctum::tokenCan("read:posts").await);
+    #[test]
+    fn test_sanctum_token_can_not_authenticated() {
+        Sanctum::clearContext();
+        assert!(!Sanctum::tokenCan("read:posts"));
     }
 
-    #[tokio::test]
-    async fn test_sanctum_static_methods_exist() {
+    #[test]
+    fn test_sanctum_static_methods_exist() {
         // Just verify methods compile and are callable
-        let _ = Sanctum::check().await;
-        let _ = Sanctum::currentAccessToken().await;
-        let _ = Sanctum::tokenCan("test").await;
+        let _ = Sanctum::check();
+        let _ = Sanctum::currentAccessToken();
+        let _ = Sanctum::tokenCan("test");
     }
 }

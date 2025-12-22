@@ -4,8 +4,7 @@ use once_cell::sync::Lazy;
 use rf_passport::{PassportConfig, Scope};
 use sea_orm::DatabaseConnection;
 use std::collections::HashMap;
-use std::sync::Arc;
-use tokio::sync::RwLock;
+use std::sync::{Arc, RwLock};
 
 /// Global Passport manager instance
 pub static GLOBAL_PASSPORT: Lazy<Arc<RwLock<PassportManager>>> = Lazy::new(|| {

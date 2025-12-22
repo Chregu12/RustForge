@@ -21,7 +21,7 @@ RustForge provides a `Route` facade for defining routes in Laravel style.
 #### Basic Routes
 
 ```rust
-use rf_route_facade::Route;
+use rf::Route;
 
 // GET route
 Route::get("/", "HomeController@index");
@@ -102,7 +102,7 @@ let app = Router::new()
 #### After (Laravel-style)
 
 ```rust
-use rf_route_facade::Route;
+use rf::Route;
 
 Route::get("/users", "UserController@index")
     .name("users.index");
@@ -191,7 +191,7 @@ let rules = rules! {
 Password hashing and verification using bcrypt.
 
 ```rust
-use rf_global_helpers::Hash;
+use rf::Hash;
 
 // Hash a password
 let hash = Hash::make("my_password");
@@ -212,7 +212,7 @@ if Hash::check("my_password", &hash) {
 Generate CSRF tokens for form protection.
 
 ```rust
-use rf_global_helpers::csrf_token;
+use rf::csrf_token;
 
 let token = csrf_token();
 println!("CSRF Token: {}", token);
@@ -228,7 +228,7 @@ println!("CSRF Token: {}", token);
 Laravel-style translation helper (currently returns key as placeholder).
 
 ```rust
-use rf_global_helpers::__;
+use rf::__;
 
 let message = __("auth.failed");
 // Returns: "auth.failed"
@@ -237,7 +237,7 @@ let message = __("auth.failed");
 ### Redirect Helpers
 
 ```rust
-use rf_global_helpers::{redirect, back};
+use rf::{redirect, back};
 
 // Redirect to URL
 redirect("/dashboard")
@@ -290,10 +290,7 @@ back()
 
 ```toml
 [dependencies]
-rf-route-facade = { path = "../../crates/rf-route-facade" }
-rf-global-helpers = { path = "../../crates/rf-global-helpers" }
-rf-macros = { path = "../../crates/rf-macros" }
-rf-validation = { path = "../../crates/rf-validation" }
+rf = "1.0"
 ```
 
 ### Step 2: Convert Routes
@@ -309,7 +306,7 @@ let app = Router::new()
 
 **After:**
 ```rust
-use rf_route_facade::Route;
+use rf::Route;
 
 Route::get("/users", "UserController@index");
 Route::get("/users/:id", "UserController@show");
@@ -340,7 +337,7 @@ let rules = rules! {
 
 **Password Hashing:**
 ```rust
-use rf_global_helpers::Hash;
+use rf::Hash;
 
 // Hash password
 let hash = Hash::make(&password);
@@ -351,7 +348,7 @@ user.password = hash;
 
 **CSRF Protection:**
 ```rust
-use rf_global_helpers::csrf_token;
+use rf::csrf_token;
 
 // Generate token
 let token = csrf_token();
@@ -456,7 +453,7 @@ Our goal is 100% Laravel parity where it makes sense. Some Laravel features (lik
 
 ## See Also
 
-- [Route Facade Documentation](../crates/rf-route-facade/README.md)
+- [RustForge Consolidated Crate](../crates/rf/README.md)
 - [Global Helpers Documentation](../crates/rf-global-helpers/README.md)
 - [Validation Documentation](../crates/rf-validation/README.md)
 - [Macros Documentation](../crates/rf-macros/README.md)

@@ -1,0 +1,56 @@
+[package]
+name = "rf-mail"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+async-trait.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+tokio = { workspace = true, features = ["fs"] }
+uuid.workspace = true
+chrono.workspace = true
+
+# Email
+lettre = { version = "0.11", default-features = false, features = ["tokio1-rustls-tls", "smtp-transport", "sendmail-transport", "builder", "hostname"] }
+handlebars = "5.1"
+
+# Markdown support
+pulldown-cmark = "0.9"
+regex = "1.10"
+
+# Optional
+rf-jobs = { path = "../rf-jobs", optional = true }
+rf-view = { path = "../rf-view", optional = true }
+
+# For testing
+parking_lot = "0.12"
+
+# Phase 19: Production mail drivers
+reqwest = { version = "0.11", default-features = false, features = ["json", "rustls-tls", "multipart"], optional = true }
+base64 = { version = "0.21", optional = true }
+hex = { version = "0.4", optional = true }
+sha2 = { version = "0.10", optional = true }
+urlencoding = { version = "2.1", optional = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["test-util", "macros"] }
+tempfile = "3.12"
+
+[features]
+default = []
+queue = ["rf-jobs"]
+view = ["rf-view"]
+
+# Phase 19: Production mail drivers
+postmark = ["reqwest", "base64"]
+mailgun = ["reqwest", "base64"]
+sendgrid = ["reqwest", "base64"]
+ses = ["reqwest", "base64", "hex", "sha2", "urlencoding"]
+
+# Enable all production drivers
+all-drivers = ["postmark", "mailgun", "sendgrid", "ses"]

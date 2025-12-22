@@ -5,6 +5,13 @@
 //! This crate provides a static, fluent API for defining routes similar to Laravel's routing,
 //! making it easy to define routes with middleware, names, and groups.
 //!
+//! # Recommended Usage
+//!
+//! Use the consolidated `rf` crate for simpler imports:
+//! ```rust
+//! use rf::Route;  // or use rf::prelude::*;
+//! ```
+//!
 //! ## Features
 //!
 //! - **Static Route API**: Define routes using `Route::get()`, `Route::post()`, etc.
@@ -16,7 +23,8 @@
 //! ## Quick Start
 //!
 //! ```rust,no_run
-//! use rf_route_facade::Route;
+//! // Recommended: use rf::Route;
+//! use rf_route_facade::Route;  // Direct import also works
 //!
 //! // Define routes using the static API
 //! Route::get("/users", "UserController@index")
@@ -31,7 +39,8 @@
 //! ## Route Groups
 //!
 //! ```rust,no_run
-//! use rf_route_facade::Route;
+//! // Recommended: use rf::Route;
+//! use rf_route_facade::Route;  // Direct import also works
 //!
 //! Route::group()
 //!     .prefix("/api")
@@ -45,7 +54,8 @@
 //! ## Resource Routes
 //!
 //! ```rust,no_run
-//! use rf_route_facade::Route;
+//! // Recommended: use rf::Route;
+//! use rf_route_facade::Route;  // Direct import also works
 //!
 //! // Generates standard RESTful routes
 //! Route::resource("posts", "PostController");

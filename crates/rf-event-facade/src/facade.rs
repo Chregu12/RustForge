@@ -6,7 +6,7 @@ use serde_json::Value;
 
 /// The Event facade providing a static-like API for event dispatching.
 ///
-/// This is the main entry point for event operations in your application.
+/// Simple, Laravel-style API - no `.await` needed anywhere!
 ///
 /// # Examples
 ///
@@ -20,24 +20,24 @@ use serde_json::Value;
 ///     email: String,
 /// }
 ///
-/// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-/// // Dispatch an event
-/// Event::dispatch("user.created", UserCreated {
-///     user_id: 1,
-///     email: "user@example.com".to_string(),
-/// }).await?;
+/// fn example() -> Result<(), Box<dyn std::error::Error>> {
+///     // Dispatch an event
+///     Event::dispatch("user.created", UserCreated {
+///         user_id: 1,
+///         email: "user@example.com".to_string(),
+///     })?;
 ///
-/// // Listen for events
-/// Event::listen("user.created", |event: &Value| {
-///     println!("Event received: {:?}", event);
-/// }).await;
+///     // Listen for events
+///     Event::listen("user.created", |event: &serde_json::Value| {
+///         println!("Event received: {:?}", event);
+///     });
 ///
-/// // Check if event has listeners
-/// if Event::has_listeners("user.created").await {
-///     println!("Event has listeners");
+///     // Check if event has listeners
+///     if Event::has_listeners("user.created") {
+///         println!("Event has listeners");
+///     }
+///     Ok(())
 /// }
-/// # Ok(())
-/// # }
 /// ```
 pub struct Event;
 
@@ -56,19 +56,19 @@ impl Event {
     ///     total: f64,
     /// }
     ///
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// Event::dispatch("order.placed", OrderPlaced {
-    ///     order_id: 123,
-    ///     total: 99.99,
-    /// }).await?;
-    /// # Ok(())
-    /// # }
+    /// fn example() -> Result<(), Box<dyn std::error::Error>> {
+    ///     Event::dispatch("order.placed", OrderPlaced {
+    ///         order_id: 123,
+    ///         total: 99.99,
+    ///     })?;
+    ///     Ok(())
+    /// }
     /// ```
-    pub async fn dispatch<T: Serialize>(event_name: &str, data: T) -> Result<(), String> {
+    pub fn dispatch<T: Serialize>(event_name: &str, data: T) -> Result<(), String> {
         let value = serde_json::to_value(data)
             .map_err(|e| format!("Failed to serialize event data: {}", e))?;
 
-        let mut manager = GLOBAL_EVENT.write();
+        let mut manager = GLOBAL_EVENT.write().unwrap();
         manager.dispatch(event_name, value)
     }
 
@@ -79,17 +79,17 @@ impl Event {
     /// ```rust,no_run
     /// use rf_event_facade::Event;
     ///
-    /// # async fn example() {
-    /// Event::listen("user.created", |data| {
-    ///     println!("User created: {:?}", data);
-    /// }).await;
-    /// # }
+    /// fn example() {
+    ///     Event::listen("user.created", |data| {
+    ///         println!("User created: {:?}", data);
+    ///     });
+    /// }
     /// ```
-    pub async fn listen<F>(event_name: &str, callback: F)
+    pub fn listen<F>(event_name: &str, callback: F)
     where
         F: Fn(&Value) + Send + Sync + 'static,
     {
-        let mut manager = GLOBAL_EVENT.write();
+        let mut manager = GLOBAL_EVENT.write().unwrap();
         manager.listen(event_name, callback);
     }
 
@@ -100,14 +100,14 @@ impl Event {
     /// ```rust,no_run
     /// use rf_event_facade::Event;
     ///
-    /// # async fn example() {
-    /// if Event::has_listeners("user.created").await {
-    ///     println!("Event has listeners");
+    /// fn example() {
+    ///     if Event::has_listeners("user.created") {
+    ///         println!("Event has listeners");
+    ///     }
     /// }
-    /// # }
     /// ```
-    pub async fn has_listeners(event_name: &str) -> bool {
-        let manager = GLOBAL_EVENT.read();
+    pub fn has_listeners(event_name: &str) -> bool {
+        let manager = GLOBAL_EVENT.read().unwrap();
         manager.has_listeners(event_name)
     }
 
@@ -118,13 +118,13 @@ impl Event {
     /// ```rust,no_run
     /// use rf_event_facade::Event;
     ///
-    /// # async fn example() {
-    /// let count = Event::listener_count("user.created").await;
-    /// println!("Number of listeners: {}", count);
-    /// # }
+    /// fn example() {
+    ///     let count = Event::listener_count("user.created");
+    ///     println!("Number of listeners: {}", count);
+    /// }
     /// ```
-    pub async fn listener_count(event_name: &str) -> usize {
-        let manager = GLOBAL_EVENT.read();
+    pub fn listener_count(event_name: &str) -> usize {
+        let manager = GLOBAL_EVENT.read().unwrap();
         manager.listener_count(event_name)
     }
 
@@ -135,12 +135,12 @@ impl Event {
     /// ```rust,no_run
     /// use rf_event_facade::Event;
     ///
-    /// # async fn example() {
-    /// Event::forget("user.created").await;
-    /// # }
+    /// fn example() {
+    ///     Event::forget("user.created");
+    /// }
     /// ```
-    pub async fn forget(event_name: &str) {
-        let mut manager = GLOBAL_EVENT.write();
+    pub fn forget(event_name: &str) {
+        let mut manager = GLOBAL_EVENT.write().unwrap();
         manager.forget(event_name);
     }
 
@@ -151,24 +151,24 @@ impl Event {
     /// ```rust,no_run
     /// use rf_event_facade::Event;
     ///
-    /// # async fn example() {
-    /// Event::forget_all().await;
-    /// # }
+    /// fn example() {
+    ///     Event::forget_all();
+    /// }
     /// ```
-    pub async fn forget_all() {
-        let mut manager = GLOBAL_EVENT.write();
+    pub fn forget_all() {
+        let mut manager = GLOBAL_EVENT.write().unwrap();
         manager.forget_all();
     }
 
     /// Get event dispatch history (for testing/debugging)
-    pub async fn history() -> Vec<(String, Value)> {
-        let manager = GLOBAL_EVENT.read();
+    pub fn history() -> Vec<(String, Value)> {
+        let manager = GLOBAL_EVENT.read().unwrap();
         manager.history().to_vec()
     }
 
     /// Clear event history
-    pub async fn clear_history() {
-        let mut manager = GLOBAL_EVENT.write();
+    pub fn clear_history() {
+        let mut manager = GLOBAL_EVENT.write().unwrap();
         manager.clear_history();
     }
 }
@@ -184,100 +184,97 @@ mod tests {
         message: String,
     }
 
-    #[tokio::test]
-    async fn test_event_dispatch() {
-        Event::clear_history().await;
+    #[test]
+    fn test_event_dispatch() {
+        Event::clear_history();
 
         let event = TestEvent {
             message: "test".to_string(),
         };
 
-        let result = Event::dispatch("test.event", event).await;
+        let result = Event::dispatch("test.event", event);
         assert!(result.is_ok());
 
-        let history = Event::history().await;
+        let history = Event::history();
         assert_eq!(history.len(), 1);
         assert_eq!(history[0].0, "test.event");
     }
 
-    #[tokio::test]
-    async fn test_event_listen() {
-        Event::forget_all().await;
+    #[test]
+    fn test_event_listen() {
+        let event_name = format!("test.listen.{}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos());
 
         let counter = Arc::new(AtomicUsize::new(0));
         let counter_clone = counter.clone();
 
-        Event::listen("test.listen", move |_| {
+        Event::listen(&event_name, move |_| {
             counter_clone.fetch_add(1, Ordering::SeqCst);
-        })
-        .await;
+        });
 
-        assert!(Event::has_listeners("test.listen").await);
-        assert_eq!(Event::listener_count("test.listen").await, 1);
+        assert!(Event::has_listeners(&event_name));
+        assert_eq!(Event::listener_count(&event_name), 1);
     }
 
-    #[tokio::test]
-    async fn test_event_dispatch_and_listen() {
-        Event::forget_all().await;
-        Event::clear_history().await;
+    #[test]
+    fn test_event_dispatch_and_listen() {
+        let event_name = format!("test.both.{}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos());
 
         let counter = Arc::new(AtomicUsize::new(0));
         let counter_clone = counter.clone();
 
-        Event::listen("test.both", move |_| {
+        Event::listen(&event_name, move |_| {
             counter_clone.fetch_add(1, Ordering::SeqCst);
-        })
-        .await;
+        });
 
         let event = TestEvent {
             message: "test".to_string(),
         };
 
-        Event::dispatch("test.both", event).await.unwrap();
+        Event::dispatch(&event_name, event).unwrap();
 
         assert_eq!(counter.load(Ordering::SeqCst), 1);
     }
 
-    #[tokio::test]
-    async fn test_event_forget() {
-        Event::forget_all().await;
+    #[test]
+    fn test_event_forget() {
+        Event::forget_all();
 
-        Event::listen("test.forget", |_| {}).await;
-        assert!(Event::has_listeners("test.forget").await);
+        Event::listen("test.forget", |_| {});
+        assert!(Event::has_listeners("test.forget"));
 
-        Event::forget("test.forget").await;
-        assert!(!Event::has_listeners("test.forget").await);
+        Event::forget("test.forget");
+        assert!(!Event::has_listeners("test.forget"));
     }
 
-    #[tokio::test]
-    async fn test_event_forget_all() {
-        Event::forget_all().await;
+    #[test]
+    fn test_event_forget_all() {
+        Event::forget_all();
 
-        Event::listen("forget_all_test.event1", |_| {}).await;
-        Event::listen("forget_all_test.event2", |_| {}).await;
+        Event::listen("forget_all_test.event1", |_| {});
+        Event::listen("forget_all_test.event2", |_| {});
 
-        assert!(Event::has_listeners("forget_all_test.event1").await);
-        assert!(Event::has_listeners("forget_all_test.event2").await);
+        assert!(Event::has_listeners("forget_all_test.event1"));
+        assert!(Event::has_listeners("forget_all_test.event2"));
 
-        Event::forget_all().await;
+        Event::forget_all();
 
-        assert!(!Event::has_listeners("forget_all_test.event1").await);
-        assert!(!Event::has_listeners("forget_all_test.event2").await);
+        assert!(!Event::has_listeners("forget_all_test.event1"));
+        assert!(!Event::has_listeners("forget_all_test.event2"));
     }
 
-    #[tokio::test]
-    async fn test_event_listener_count() {
+    #[test]
+    fn test_event_listener_count() {
         let event_name = format!("test.count.{}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos());
 
-        Event::listen(&event_name, |_| {}).await;
-        Event::listen(&event_name, |_| {}).await;
+        Event::listen(&event_name, |_| {});
+        Event::listen(&event_name, |_| {});
 
-        assert_eq!(Event::listener_count(&event_name).await, 2);
+        assert_eq!(Event::listener_count(&event_name), 2);
     }
 
-    #[tokio::test]
-    async fn test_event_history() {
-        let old_count = Event::history().await.len();
+    #[test]
+    fn test_event_history() {
+        let old_count = Event::history().len();
 
         let event1 = TestEvent {
             message: "first".to_string(),
@@ -286,26 +283,26 @@ mod tests {
             message: "second".to_string(),
         };
 
-        Event::dispatch("test.history.unique1", event1).await.unwrap();
-        Event::dispatch("test.history.unique2", event2).await.unwrap();
+        Event::dispatch("test.history.unique1", event1).unwrap();
+        Event::dispatch("test.history.unique2", event2).unwrap();
 
-        let history = Event::history().await;
+        let history = Event::history();
         assert!(history.len() >= old_count + 2);
     }
 
-    #[tokio::test]
-    async fn test_event_clear_history() {
-        Event::clear_history().await;
+    #[test]
+    fn test_event_clear_history() {
+        Event::clear_history();
 
         let event = TestEvent {
             message: "test".to_string(),
         };
 
-        Event::dispatch("test.clear.unique", event).await.unwrap();
-        let count_before = Event::history().await.len();
+        Event::dispatch("test.clear.unique", event).unwrap();
+        let count_before = Event::history().len();
         assert!(count_before >= 1);
 
-        Event::clear_history().await;
-        assert_eq!(Event::history().await.len(), 0);
+        Event::clear_history();
+        assert_eq!(Event::history().len(), 0);
     }
 }

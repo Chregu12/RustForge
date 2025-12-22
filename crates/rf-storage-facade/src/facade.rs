@@ -1,35 +1,37 @@
 //! Storage facade providing Laravel-style static storage API
+//!
+//! All methods are simple to use - no `.await` needed!
 
 use crate::manager::GLOBAL_STORAGE;
 
 /// The Storage facade providing a static-like API for file storage.
 ///
-/// This is the main entry point for file storage operations in your application.
+/// Simple, Laravel-style API - no `.await` needed anywhere!
 ///
 /// # Examples
 ///
 /// ```rust,no_run
 /// use rf_storage_facade::Storage;
 ///
-/// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+/// # fn example() -> Result<(), Box<dyn std::error::Error>> {
 /// // Put a file
-/// Storage::put("file.txt", b"Hello, World!".to_vec()).await?;
+/// Storage::put("file.txt", b"Hello, World!".to_vec())?;
 ///
 /// // Get a file
-/// let contents = Storage::get("file.txt").await?;
+/// let contents = Storage::get("file.txt")?;
 /// println!("File contents: {:?}", String::from_utf8_lossy(&contents));
 ///
 /// // Check if exists
-/// if Storage::exists("file.txt").await {
+/// if Storage::exists("file.txt") {
 ///     println!("File exists!");
 /// }
 ///
 /// // Get file size
-/// let size = Storage::size("file.txt").await?;
+/// let size = Storage::size("file.txt")?;
 /// println!("File size: {} bytes", size);
 ///
 /// // Delete file
-/// Storage::delete("file.txt").await?;
+/// Storage::delete("file.txt")?;
 /// # Ok(())
 /// # }
 /// ```
@@ -43,13 +45,13 @@ impl Storage {
     /// ```rust,no_run
     /// use rf_storage_facade::Storage;
     ///
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// Storage::put("file.txt", b"Hello, World!".to_vec()).await?;
+    /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// Storage::put("file.txt", b"Hello, World!".to_vec())?;
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn put(path: &str, contents: Vec<u8>) -> Result<(), String> {
-        let mut manager = GLOBAL_STORAGE.write();
+    pub fn put(path: &str, contents: Vec<u8>) -> Result<(), String> {
+        let mut manager = GLOBAL_STORAGE.write().unwrap();
         manager.put(path, contents)
     }
 
@@ -60,13 +62,13 @@ impl Storage {
     /// ```rust,no_run
     /// use rf_storage_facade::Storage;
     ///
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let contents = Storage::get("file.txt").await?;
+    /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let contents = Storage::get("file.txt")?;
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn get(path: &str) -> Result<Vec<u8>, String> {
-        let manager = GLOBAL_STORAGE.read();
+    pub fn get(path: &str) -> Result<Vec<u8>, String> {
+        let manager = GLOBAL_STORAGE.read().unwrap();
         manager.get(path)
     }
 
@@ -77,13 +79,13 @@ impl Storage {
     /// ```rust,no_run
     /// use rf_storage_facade::Storage;
     ///
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let text = Storage::get_string("file.txt").await?;
+    /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let text = Storage::get_string("file.txt")?;
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn get_string(path: &str) -> Result<String, String> {
-        let contents = Self::get(path).await?;
+    pub fn get_string(path: &str) -> Result<String, String> {
+        let contents = Self::get(path)?;
         String::from_utf8(contents)
             .map_err(|e| format!("Failed to convert file to UTF-8: {}", e))
     }
@@ -95,14 +97,14 @@ impl Storage {
     /// ```rust,no_run
     /// use rf_storage_facade::Storage;
     ///
-    /// # async fn example() {
-    /// if Storage::exists("file.txt").await {
+    /// # fn example() {
+    /// if Storage::exists("file.txt") {
     ///     println!("File exists!");
     /// }
     /// # }
     /// ```
-    pub async fn exists(path: &str) -> bool {
-        let manager = GLOBAL_STORAGE.read();
+    pub fn exists(path: &str) -> bool {
+        let manager = GLOBAL_STORAGE.read().unwrap();
         manager.exists(path)
     }
 
@@ -113,13 +115,13 @@ impl Storage {
     /// ```rust,no_run
     /// use rf_storage_facade::Storage;
     ///
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// Storage::delete("file.txt").await?;
+    /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// Storage::delete("file.txt")?;
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn delete(path: &str) -> Result<(), String> {
-        let mut manager = GLOBAL_STORAGE.write();
+    pub fn delete(path: &str) -> Result<(), String> {
+        let mut manager = GLOBAL_STORAGE.write().unwrap();
         manager.delete(path)
     }
 
@@ -130,14 +132,14 @@ impl Storage {
     /// ```rust,no_run
     /// use rf_storage_facade::Storage;
     ///
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let size = Storage::size("file.txt").await?;
+    /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let size = Storage::size("file.txt")?;
     /// println!("File size: {} bytes", size);
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn size(path: &str) -> Result<u64, String> {
-        let manager = GLOBAL_STORAGE.read();
+    pub fn size(path: &str) -> Result<u64, String> {
+        let manager = GLOBAL_STORAGE.read().unwrap();
         manager.size(path)
     }
 
@@ -148,15 +150,15 @@ impl Storage {
     /// ```rust,no_run
     /// use rf_storage_facade::Storage;
     ///
-    /// # async fn example() {
-    /// let files = Storage::files().await;
+    /// # fn example() {
+    /// let files = Storage::files();
     /// for file in files {
     ///     println!("File: {}", file);
     /// }
     /// # }
     /// ```
-    pub async fn files() -> Vec<String> {
-        let manager = GLOBAL_STORAGE.read();
+    pub fn files() -> Vec<String> {
+        let manager = GLOBAL_STORAGE.read().unwrap();
         manager.files()
     }
 
@@ -167,12 +169,12 @@ impl Storage {
     /// ```rust,no_run
     /// use rf_storage_facade::Storage;
     ///
-    /// # async fn example() {
-    /// let files = Storage::files_in("uploads").await;
+    /// # fn example() {
+    /// let files = Storage::files_in("uploads");
     /// # }
     /// ```
-    pub async fn files_in(directory: &str) -> Vec<String> {
-        let manager = GLOBAL_STORAGE.read();
+    pub fn files_in(directory: &str) -> Vec<String> {
+        let manager = GLOBAL_STORAGE.read().unwrap();
         manager.files_in(directory)
     }
 
@@ -183,12 +185,12 @@ impl Storage {
     /// ```rust,no_run
     /// use rf_storage_facade::Storage;
     ///
-    /// # async fn example() {
-    /// let dirs = Storage::directories().await;
+    /// # fn example() {
+    /// let dirs = Storage::directories();
     /// # }
     /// ```
-    pub async fn directories() -> Vec<String> {
-        let manager = GLOBAL_STORAGE.read();
+    pub fn directories() -> Vec<String> {
+        let manager = GLOBAL_STORAGE.read().unwrap();
         manager.directories()
     }
 
@@ -199,13 +201,13 @@ impl Storage {
     /// ```rust,no_run
     /// use rf_storage_facade::Storage;
     ///
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// Storage::copy("file.txt", "file_copy.txt").await?;
+    /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// Storage::copy("file.txt", "file_copy.txt")?;
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn copy(from: &str, to: &str) -> Result<(), String> {
-        let mut manager = GLOBAL_STORAGE.write();
+    pub fn copy(from: &str, to: &str) -> Result<(), String> {
+        let mut manager = GLOBAL_STORAGE.write().unwrap();
         manager.copy(from, to)
     }
 
@@ -216,13 +218,13 @@ impl Storage {
     /// ```rust,no_run
     /// use rf_storage_facade::Storage;
     ///
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// Storage::move_file("old.txt", "new.txt").await?;
+    /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// Storage::move_file("old.txt", "new.txt")?;
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn move_file(from: &str, to: &str) -> Result<(), String> {
-        let mut manager = GLOBAL_STORAGE.write();
+    pub fn move_file(from: &str, to: &str) -> Result<(), String> {
+        let mut manager = GLOBAL_STORAGE.write().unwrap();
         manager.move_file(from, to)
     }
 
@@ -233,13 +235,13 @@ impl Storage {
     /// ```rust,no_run
     /// use rf_storage_facade::Storage;
     ///
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// Storage::prepend("file.txt", b"Prepended text\n".to_vec()).await?;
+    /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// Storage::prepend("file.txt", b"Prepended text\n".to_vec())?;
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn prepend(path: &str, data: Vec<u8>) -> Result<(), String> {
-        let mut manager = GLOBAL_STORAGE.write();
+    pub fn prepend(path: &str, data: Vec<u8>) -> Result<(), String> {
+        let mut manager = GLOBAL_STORAGE.write().unwrap();
         manager.prepend(path, data)
     }
 
@@ -250,25 +252,25 @@ impl Storage {
     /// ```rust,no_run
     /// use rf_storage_facade::Storage;
     ///
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// Storage::append("file.txt", b"\nAppended text".to_vec()).await?;
+    /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// Storage::append("file.txt", b"\nAppended text".to_vec())?;
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn append(path: &str, data: Vec<u8>) -> Result<(), String> {
-        let mut manager = GLOBAL_STORAGE.write();
+    pub fn append(path: &str, data: Vec<u8>) -> Result<(), String> {
+        let mut manager = GLOBAL_STORAGE.write().unwrap();
         manager.append(path, data)
     }
 
     /// Get the current disk name
-    pub async fn disk_name() -> String {
-        let manager = GLOBAL_STORAGE.read();
+    pub fn disk_name() -> String {
+        let manager = GLOBAL_STORAGE.read().unwrap();
         manager.disk_name().to_string()
     }
 
     /// Set the disk to use
-    pub async fn disk(name: &str) {
-        let mut manager = GLOBAL_STORAGE.write();
+    pub fn disk(name: &str) {
+        let mut manager = GLOBAL_STORAGE.write().unwrap();
         manager.set_disk(name.to_string());
     }
 }
@@ -277,118 +279,118 @@ impl Storage {
 mod tests {
     use super::*;
 
-    #[tokio::test]
-    async fn test_storage_put_get() {
+    #[test]
+    fn test_storage_put_get() {
         let contents = b"Hello, World!".to_vec();
-        Storage::put("test_put_get.txt", contents.clone()).await.unwrap();
+        Storage::put("test_put_get.txt", contents.clone()).unwrap();
 
-        let retrieved = Storage::get("test_put_get.txt").await.unwrap();
+        let retrieved = Storage::get("test_put_get.txt").unwrap();
         assert_eq!(retrieved, contents);
     }
 
-    #[tokio::test]
-    async fn test_storage_get_string() {
+    #[test]
+    fn test_storage_get_string() {
         let text = "Hello, World!";
-        Storage::put("test_string.txt", text.as_bytes().to_vec()).await.unwrap();
+        Storage::put("test_string.txt", text.as_bytes().to_vec()).unwrap();
 
-        let retrieved = Storage::get_string("test_string.txt").await.unwrap();
+        let retrieved = Storage::get_string("test_string.txt").unwrap();
         assert_eq!(retrieved, text);
     }
 
-    #[tokio::test]
-    async fn test_storage_exists() {
+    #[test]
+    fn test_storage_exists() {
         let path = "test_exists.txt";
-        Storage::put(path, b"test".to_vec()).await.unwrap();
+        Storage::put(path, b"test".to_vec()).unwrap();
 
-        assert!(Storage::exists(path).await);
-        assert!(!Storage::exists("nonexistent.txt").await);
+        assert!(Storage::exists(path));
+        assert!(!Storage::exists("nonexistent.txt"));
     }
 
-    #[tokio::test]
-    async fn test_storage_delete() {
+    #[test]
+    fn test_storage_delete() {
         let path = "test_delete.txt";
-        Storage::put(path, b"test".to_vec()).await.unwrap();
-        assert!(Storage::exists(path).await);
+        Storage::put(path, b"test".to_vec()).unwrap();
+        assert!(Storage::exists(path));
 
-        Storage::delete(path).await.unwrap();
-        assert!(!Storage::exists(path).await);
+        Storage::delete(path).unwrap();
+        assert!(!Storage::exists(path));
     }
 
-    #[tokio::test]
-    async fn test_storage_size() {
+    #[test]
+    fn test_storage_size() {
         let contents = b"Hello, World!".to_vec();
         let path = "test_size.txt";
-        Storage::put(path, contents.clone()).await.unwrap();
+        Storage::put(path, contents.clone()).unwrap();
 
-        let size = Storage::size(path).await.unwrap();
+        let size = Storage::size(path).unwrap();
         assert_eq!(size, contents.len() as u64);
     }
 
-    #[tokio::test]
-    async fn test_storage_files() {
-        Storage::put("test_files_1.txt", b"test1".to_vec()).await.unwrap();
-        Storage::put("test_files_2.txt", b"test2".to_vec()).await.unwrap();
+    #[test]
+    fn test_storage_files() {
+        Storage::put("test_files_1.txt", b"test1".to_vec()).unwrap();
+        Storage::put("test_files_2.txt", b"test2".to_vec()).unwrap();
 
-        let files = Storage::files().await;
+        let files = Storage::files();
         assert!(files.len() >= 2);
     }
 
-    #[tokio::test]
-    async fn test_storage_copy() {
+    #[test]
+    fn test_storage_copy() {
         let from = "test_copy_from.txt";
         let to = "test_copy_to.txt";
         let contents = b"test".to_vec();
 
-        Storage::put(from, contents.clone()).await.unwrap();
-        Storage::copy(from, to).await.unwrap();
+        Storage::put(from, contents.clone()).unwrap();
+        Storage::copy(from, to).unwrap();
 
-        assert!(Storage::exists(from).await);
-        assert!(Storage::exists(to).await);
-        assert_eq!(Storage::get(from).await.unwrap(), Storage::get(to).await.unwrap());
+        assert!(Storage::exists(from));
+        assert!(Storage::exists(to));
+        assert_eq!(Storage::get(from).unwrap(), Storage::get(to).unwrap());
     }
 
-    #[tokio::test]
-    async fn test_storage_move() {
+    #[test]
+    fn test_storage_move() {
         let from = "test_move_from.txt";
         let to = "test_move_to.txt";
         let contents = b"test".to_vec();
 
-        Storage::put(from, contents.clone()).await.unwrap();
-        Storage::move_file(from, to).await.unwrap();
+        Storage::put(from, contents.clone()).unwrap();
+        Storage::move_file(from, to).unwrap();
 
-        assert!(!Storage::exists(from).await);
-        assert!(Storage::exists(to).await);
-        assert_eq!(Storage::get(to).await.unwrap(), contents);
+        assert!(!Storage::exists(from));
+        assert!(Storage::exists(to));
+        assert_eq!(Storage::get(to).unwrap(), contents);
     }
 
-    #[tokio::test]
-    async fn test_storage_append() {
+    #[test]
+    fn test_storage_append() {
         let path = "test_append.txt";
-        Storage::put(path, b"Hello".to_vec()).await.unwrap();
-        Storage::append(path, b", World!".to_vec()).await.unwrap();
+        Storage::put(path, b"Hello".to_vec()).unwrap();
+        Storage::append(path, b", World!".to_vec()).unwrap();
 
-        let contents = Storage::get(path).await.unwrap();
+        let contents = Storage::get(path).unwrap();
         assert_eq!(contents, b"Hello, World!");
     }
 
-    #[tokio::test]
-    async fn test_storage_prepend() {
+    #[test]
+    fn test_storage_prepend() {
         let path = "test_prepend.txt";
-        Storage::put(path, b"World!".to_vec()).await.unwrap();
-        Storage::prepend(path, b"Hello, ".to_vec()).await.unwrap();
+        Storage::put(path, b"World!".to_vec()).unwrap();
+        Storage::prepend(path, b"Hello, ".to_vec()).unwrap();
 
-        let contents = Storage::get(path).await.unwrap();
+        let contents = Storage::get(path).unwrap();
         assert_eq!(contents, b"Hello, World!");
     }
 
-    #[tokio::test]
-    async fn test_storage_disk() {
-        let original = Storage::disk_name().await;
+    #[test]
+    fn test_storage_disk() {
+        let original = Storage::disk_name();
 
-        Storage::disk("s3").await;
-        assert_eq!(Storage::disk_name().await, "s3");
+        Storage::disk("s3");
+        assert_eq!(Storage::disk_name(), "s3");
 
         // Restore
-        Storage::disk(&original).await;
+        Storage::disk(&original);
     }
 }

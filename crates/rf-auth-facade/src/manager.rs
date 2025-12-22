@@ -3,12 +3,12 @@
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::sync::Arc;
-use tokio::sync::RwLock;
+use std::sync::RwLock;
 
 /// Global authentication manager instance
-pub static GLOBAL_AUTH: Lazy<Arc<RwLock<AuthManager>>> = Lazy::new(|| {
-    Arc::new(RwLock::new(AuthManager::new()))
+/// Uses std::sync::RwLock for synchronous access (no .await needed)
+pub static GLOBAL_AUTH: Lazy<RwLock<AuthManager>> = Lazy::new(|| {
+    RwLock::new(AuthManager::new())
 });
 
 /// Authentication manager that holds the current authentication state

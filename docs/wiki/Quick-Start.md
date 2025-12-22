@@ -280,9 +280,7 @@ forge migrate
 Create `src/controllers/auth_controller.rs`:
 
 ```rust
-use rf_http::{Request, Response, Json};
-use rf_auth::Hash;
-use rf_auth_facade::Auth;
+use rf::prelude::*;
 use rf_validation::Validate;
 use serde::{Deserialize, Serialize};
 use crate::models::user;
@@ -521,9 +519,7 @@ Edit `src/main.rs`:
 mod models;
 mod controllers;
 
-use rf_core::Application;
-use rf_route_facade::Route;
-use rf_http::middleware;
+use rf::prelude::*;
 use rf_orm::Database;
 
 #[tokio::main]

@@ -3,18 +3,19 @@
 use once_cell::sync::Lazy;
 use rf_cache::{Cache as CacheTrait, CacheError, CacheResult, MemoryCache};
 use serde::{de::DeserializeOwned, Serialize};
-use std::sync::Arc;
+use std::sync::RwLock;
 use std::time::Duration;
-use tokio::sync::RwLock;
 
 /// Global cache manager instance
-pub static GLOBAL_CACHE: Lazy<Arc<RwLock<CacheManager>>> = Lazy::new(|| {
-    Arc::new(RwLock::new(CacheManager::new()))
+/// Uses std::sync::RwLock for synchronous access (no .await needed)
+pub static GLOBAL_CACHE: Lazy<RwLock<CacheManager>> = Lazy::new(|| {
+    RwLock::new(CacheManager::new())
 });
 
 /// Cache manager that holds the cache backend
 pub struct CacheManager {
     backend: MemoryCache,
+    runtime: tokio::runtime::Runtime,
 }
 
 impl CacheManager {
@@ -22,51 +23,52 @@ impl CacheManager {
     pub fn new() -> Self {
         Self {
             backend: MemoryCache::new(),
+            runtime: tokio::runtime::Runtime::new().expect("Failed to create tokio runtime"),
         }
     }
 
     /// Get a value from cache
-    pub async fn get<T: DeserializeOwned + Send>(&self, key: &str) -> CacheResult<Option<T>> {
-        self.backend.get(key).await
+    pub fn get<T: DeserializeOwned + Send>(&self, key: &str) -> CacheResult<Option<T>> {
+        self.runtime.block_on(self.backend.get(key))
     }
 
     /// Put a value in cache
-    pub async fn put<T: Serialize + Sync>(
+    pub fn put<T: Serialize + Sync>(
         &self,
         key: &str,
         value: &T,
         ttl: Duration,
     ) -> CacheResult<()> {
-        self.backend.set(key, value, ttl).await
+        self.runtime.block_on(self.backend.set(key, value, ttl))
     }
 
     /// Store a value forever (very long TTL)
-    pub async fn forever<T: Serialize + Sync>(
+    pub fn forever<T: Serialize + Sync>(
         &self,
         key: &str,
         value: &T,
     ) -> CacheResult<()> {
         // Use a very long TTL (1 year)
-        self.backend.set(key, value, Duration::from_secs(365 * 24 * 3600)).await
+        self.runtime.block_on(self.backend.set(key, value, Duration::from_secs(365 * 24 * 3600)))
     }
 
     /// Remove a value from cache
-    pub async fn forget(&self, key: &str) -> CacheResult<()> {
-        self.backend.delete(key).await
+    pub fn forget(&self, key: &str) -> CacheResult<()> {
+        self.runtime.block_on(self.backend.delete(key))
     }
 
     /// Check if a key exists in cache
-    pub async fn has(&self, key: &str) -> CacheResult<bool> {
-        self.backend.exists(key).await
+    pub fn has(&self, key: &str) -> CacheResult<bool> {
+        self.runtime.block_on(self.backend.exists(key))
     }
 
     /// Flush all cache entries
-    pub async fn flush(&self) -> CacheResult<()> {
-        self.backend.flush().await
+    pub fn flush(&self) -> CacheResult<()> {
+        self.runtime.block_on(self.backend.flush())
     }
 
     /// Remember pattern: get from cache or compute and store
-    pub async fn remember<T, F, Fut>(
+    pub fn remember<T, F, Fut>(
         &self,
         key: &str,
         ttl: Duration,
@@ -77,11 +79,11 @@ impl CacheManager {
         F: FnOnce() -> Fut + Send,
         Fut: std::future::Future<Output = CacheResult<T>> + Send,
     {
-        self.backend.remember(key, ttl, f).await
+        self.runtime.block_on(self.backend.remember(key, ttl, f))
     }
 
     /// Remember forever: get from cache or compute and store forever
-    pub async fn remember_forever<T, F, Fut>(
+    pub fn remember_forever<T, F, Fut>(
         &self,
         key: &str,
         f: F,
@@ -91,13 +93,13 @@ impl CacheManager {
         F: FnOnce() -> Fut + Send,
         Fut: std::future::Future<Output = CacheResult<T>> + Send,
     {
-        self.remember(key, Duration::from_secs(365 * 24 * 3600), f).await
+        self.remember(key, Duration::from_secs(365 * 24 * 3600), f)
     }
 
     /// Pull: get and delete a value from cache
-    pub async fn pull<T: DeserializeOwned + Send>(&self, key: &str) -> CacheResult<Option<T>> {
-        if let Some(value) = self.get(key).await? {
-            self.forget(key).await?;
+    pub fn pull<T: DeserializeOwned + Send>(&self, key: &str) -> CacheResult<Option<T>> {
+        if let Some(value) = self.get(key)? {
+            self.forget(key)?;
             Ok(Some(value))
         } else {
             Ok(None)
@@ -105,14 +107,14 @@ impl CacheManager {
     }
 
     /// Add: store only if key doesn't exist
-    pub async fn add<T: Serialize + Sync>(
+    pub fn add<T: Serialize + Sync>(
         &self,
         key: &str,
         value: &T,
         ttl: Duration,
     ) -> CacheResult<bool> {
-        if !self.has(key).await? {
-            self.put(key, value, ttl).await?;
+        if !self.has(key)? {
+            self.put(key, value, ttl)?;
             Ok(true)
         } else {
             Ok(false)
@@ -140,60 +142,60 @@ impl Default for CacheManager {
 mod tests {
     use super::*;
 
-    #[tokio::test]
-    async fn test_cache_manager_new() {
+    #[test]
+    fn test_cache_manager_new() {
         let manager = CacheManager::new();
-        assert!(!manager.has("test").await.unwrap());
+        assert!(!manager.has("test").unwrap());
     }
 
-    #[tokio::test]
-    async fn test_cache_manager_put_get() {
+    #[test]
+    fn test_cache_manager_put_get() {
         let manager = CacheManager::new();
 
-        manager.put("key", &"value", Duration::from_secs(60)).await.unwrap();
+        manager.put("key", &"value", Duration::from_secs(60)).unwrap();
 
-        let value: Option<String> = manager.get("key").await.unwrap();
+        let value: Option<String> = manager.get("key").unwrap();
         assert_eq!(value, Some("value".to_string()));
     }
 
-    #[tokio::test]
-    async fn test_cache_manager_forget() {
+    #[test]
+    fn test_cache_manager_forget() {
         let manager = CacheManager::new();
 
-        manager.put("key", &"value", Duration::from_secs(60)).await.unwrap();
-        assert!(manager.has("key").await.unwrap());
+        manager.put("key", &"value", Duration::from_secs(60)).unwrap();
+        assert!(manager.has("key").unwrap());
 
-        manager.forget("key").await.unwrap();
-        assert!(!manager.has("key").await.unwrap());
+        manager.forget("key").unwrap();
+        assert!(!manager.has("key").unwrap());
     }
 
-    #[tokio::test]
-    async fn test_cache_manager_pull() {
+    #[test]
+    fn test_cache_manager_pull() {
         let manager = CacheManager::new();
 
-        manager.put("key", &"value", Duration::from_secs(60)).await.unwrap();
+        manager.put("key", &"value", Duration::from_secs(60)).unwrap();
 
-        let value: Option<String> = manager.pull("key").await.unwrap();
+        let value: Option<String> = manager.pull("key").unwrap();
         assert_eq!(value, Some("value".to_string()));
 
         // Should be removed after pull
-        assert!(!manager.has("key").await.unwrap());
+        assert!(!manager.has("key").unwrap());
     }
 
-    #[tokio::test]
-    async fn test_cache_manager_add() {
+    #[test]
+    fn test_cache_manager_add() {
         let manager = CacheManager::new();
 
         // First add should succeed
-        let added = manager.add("key", &"value1", Duration::from_secs(60)).await.unwrap();
+        let added = manager.add("key", &"value1", Duration::from_secs(60)).unwrap();
         assert!(added);
 
         // Second add should fail
-        let added = manager.add("key", &"value2", Duration::from_secs(60)).await.unwrap();
+        let added = manager.add("key", &"value2", Duration::from_secs(60)).unwrap();
         assert!(!added);
 
         // Value should still be the first one
-        let value: Option<String> = manager.get("key").await.unwrap();
+        let value: Option<String> = manager.get("key").unwrap();
         assert_eq!(value, Some("value1".to_string()));
     }
 }

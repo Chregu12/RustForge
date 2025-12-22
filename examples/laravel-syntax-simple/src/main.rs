@@ -8,9 +8,7 @@
 //!
 //! Run with: cargo run --bin simple
 
-use rf_macros::rules;
-use rf_route_facade::Route;
-use rf_global_helpers::{Hash, csrf_token};
+use rf::{rules, Route, Hash, csrf_token};
 
 #[tokio::main]
 async fn main() {
@@ -133,7 +131,8 @@ fn test_routes() {
     println!("   ✅ Route group registered");
 
     // Count registered routes
-    let router = rf_route_facade::global_router();
+    use rf::global_router;
+    let router = global_router();
     let route_count = router.routes().len();
     println!("   📊 Total routes registered: {}", route_count);
 }

@@ -3118,19 +3118,9 @@ dependencies = [
 name = "facades-demo"
 version = "0.1.0"
 dependencies = [
- "rf-auth-facade",
- "rf-cache-facade",
- "rf-config-facade",
- "rf-db-facade",
- "rf-event-facade",
- "rf-log-facade",
- "rf-mail-facade",
- "rf-session-facade",
- "rf-storage-facade",
- "rf-view-facade",
+ "rf",
  "serde",
  "serde_json",
- "tokio",
 ]
 
 [[package]]
@@ -4730,10 +4720,7 @@ name = "laravel-syntax-simple"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "rf-global-helpers",
- "rf-macros",
- "rf-request",
- "rf-route-facade",
+ "rf",
  "rf-validation",
  "serde",
  "serde_json",
@@ -7403,6 +7390,7 @@ dependencies = [
  "md5",
  "redis 0.24.0",
  "reqwest 0.11.27",
+ "rf-core",
  "serde",
  "serde_json",
  "sha2",
@@ -7904,6 +7892,7 @@ dependencies = [
  "once_cell",
  "redis 0.24.0",
  "rf-cache",
+ "rf-core",
  "rf-jobs",
  "serde",
  "serde_json",
@@ -8348,6 +8337,7 @@ dependencies = [
  "chrono",
  "deadpool-redis 0.14.0",
  "redis 0.24.0",
+ "rf-core",
  "sea-orm 1.1.19",
  "serde",
  "serde_json",

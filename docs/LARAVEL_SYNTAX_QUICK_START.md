@@ -4,14 +4,11 @@ Get started with Laravel-style syntax in RustForge in under 5 minutes.
 
 ## Installation
 
-Add these dependencies to your `Cargo.toml`:
+Add the consolidated `rf` crate to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-rf-route-facade = { path = "../../crates/rf-route-facade" }
-rf-global-helpers = { path = "../../crates/rf-global-helpers" }
-rf-macros = { path = "../../crates/rf-macros" }
-rf-validation = { path = "../../crates/rf-validation" }
+rf = "1.0"
 ```
 
 ## Basic Usage
@@ -19,7 +16,7 @@ rf-validation = { path = "../../crates/rf-validation" }
 ### 1. Password Hashing
 
 ```rust
-use rf_global_helpers::Hash;
+use rf::Hash;
 
 // Hash a password
 let hash = Hash::make("my_password");
@@ -33,7 +30,7 @@ if Hash::check("my_password", &hash) {
 ### 2. CSRF Protection
 
 ```rust
-use rf_global_helpers::csrf_token;
+use rf::csrf_token;
 
 // Generate a token
 let token = csrf_token();
@@ -60,7 +57,7 @@ let validation = rules! {
 ### 4. Routes
 
 ```rust
-use rf_route_facade::Route;
+use rf::Route;
 
 // Simple routes
 Route::get("/", "HomeController@index");

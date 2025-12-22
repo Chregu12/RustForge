@@ -10,7 +10,7 @@
 //! ## Quick Start
 //!
 //! ```ignore
-//! use rf_jobs::{Job, JobContext, JobResult, QueueManager};
+//! use rf_jobs::{Job, JobContext, JobResult, SyncQueueManager, dispatch};
 //! use serde::{Deserialize, Serialize};
 //! use async_trait::async_trait;
 //!
@@ -30,18 +30,20 @@
 //!     }
 //! }
 //!
-//! // 2. Dispatch job
-//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-//! let manager = QueueManager::new("redis://localhost:6379").await?;
+//! // 2. Dispatch job using synchronous API
+//! let manager = SyncQueueManager::new("redis://localhost:6379")
+//!     .expect("Failed to create queue manager");
+//!
 //! let job = SendEmailJob {
 //!     to: "user@example.com".to_string(),
 //!     subject: "Welcome!".to_string(),
 //! };
-//! manager.dispatch(job).await?;
-//! # Ok(())
-//! # }
+//!
+//! // Dispatch synchronously
+//! manager.dispatch(job).expect("Failed to dispatch job");
 //! ```
 
+pub mod api;
 pub mod batch;
 pub mod chain;
 pub mod context;
@@ -55,6 +57,10 @@ pub mod serialization;
 pub mod worker;
 
 // Re-export main types
+pub use api::{
+    clear_failed_jobs, clear_queue, dispatch, dispatch_later, dispatch_on, dispatch_to,
+    dispatch_with_priority, queue_size, retry_failed, SyncQueueManager,
+};
 pub use batch::{BatchState, BatchStatus, JobBatch};
 pub use chain::{ChainState, ChainStatus, JobChain};
 pub use context::JobContext;
@@ -70,6 +76,7 @@ pub use worker::{Worker, WorkerConfig, WorkerPool};
 /// Prelude module for convenient imports
 pub mod prelude {
     pub use crate::{
+        api::{dispatch, dispatch_later, SyncQueueManager},
         batch::{BatchState, BatchStatus, JobBatch},
         chain::{ChainState, ChainStatus, JobChain},
         context::JobContext,

@@ -1,13 +1,13 @@
 //! Global storage manager
 
 use once_cell::sync::Lazy;
-use parking_lot::RwLock;
 use std::collections::HashMap;
-use std::sync::Arc;
+use std::sync::RwLock;
 
 /// Global storage manager instance
-pub static GLOBAL_STORAGE: Lazy<Arc<RwLock<StorageManager>>> = Lazy::new(|| {
-    Arc::new(RwLock::new(StorageManager::new()))
+/// Uses std::sync::RwLock for synchronous access (no .await needed)
+pub static GLOBAL_STORAGE: Lazy<RwLock<StorageManager>> = Lazy::new(|| {
+    RwLock::new(StorageManager::new())
 });
 
 /// Storage manager that holds file storage state

@@ -1,14 +1,14 @@
 //! Global event manager
 
 use once_cell::sync::Lazy;
-use parking_lot::RwLock;
 use serde_json::Value;
 use std::collections::HashMap;
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 
 /// Global event manager instance
-pub static GLOBAL_EVENT: Lazy<Arc<RwLock<EventManager>>> = Lazy::new(|| {
-    Arc::new(RwLock::new(EventManager::new()))
+/// Uses std::sync::RwLock for synchronous access (no .await needed)
+pub static GLOBAL_EVENT: Lazy<RwLock<EventManager>> = Lazy::new(|| {
+    RwLock::new(EventManager::new())
 });
 
 /// Event listener callback type

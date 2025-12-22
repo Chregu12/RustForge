@@ -18,27 +18,27 @@
 //! use std::sync::Arc;
 //! use serde_json::json;
 //!
-//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! // Create broadcaster
 //! let broadcaster = Arc::new(MemoryBroadcaster::new());
 //!
-//! // Subscribe connection
-//! broadcaster.subscribe(
-//!     &Channel::public("users"),
+//! // Subscribe connection using synchronous API
+//! let channel = channel("users");
+//! subscribe(
+//!     Arc::clone(&broadcaster),
+//!     &channel,
 //!     "conn-123".to_string(),
 //!     None,
-//! ).await?;
+//! ).expect("Failed to subscribe");
 //!
-//! // Broadcast event
+//! // Broadcast event using synchronous API
 //! let event = SimpleEvent::new(
 //!     "user.created",
 //!     json!({"id": 123, "name": "John"}),
-//!     vec![Channel::public("users")],
+//!     vec![channel.clone()],
 //! );
 //!
-//! broadcaster.broadcast(&Channel::public("users"), &event).await?;
-//! # Ok(())
-//! # }
+//! broadcast(broadcaster, &channel, &event)
+//!     .expect("Failed to broadcast");
 //! ```
 //!
 //! # WebSocket Integration
@@ -51,13 +51,16 @@
 //! # async fn example() {
 //! let broadcaster = Arc::new(MemoryBroadcaster::new());
 //!
+//! // WebSocket router still uses async (server-side)
 //! let app = Router::new()
 //!     .merge(websocket_router(broadcaster));
 //!
+//! // But broadcasting from your app uses sync API
 //! // Start server...
 //! # }
 //! ```
 
+pub mod api;
 pub mod auth;
 mod broadcaster;
 mod channel;
@@ -73,6 +76,9 @@ mod redis;
 #[cfg(feature = "pusher")]
 pub mod pusher;
 
+pub use api::{
+    broadcast, channel, connections, presence, subscribe, unsubscribe, BroadcastFacade,
+};
 pub use auth::{AllowAllAuthorizer, ChannelAuthorizer, PublicOnlyAuthorizer, WebSocketAuth};
 pub use broadcaster::{Broadcaster, ConnectionId, PresenceInfo, UserId};
 pub use channel::Channel;

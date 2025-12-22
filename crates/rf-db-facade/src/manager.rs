@@ -1,13 +1,13 @@
 //! Global database manager
 
 use once_cell::sync::Lazy;
-use parking_lot::RwLock;
 use serde_json::Value;
-use std::sync::Arc;
+use std::sync::RwLock;
 
 /// Global database manager instance
-pub static GLOBAL_DB: Lazy<Arc<RwLock<DBManager>>> = Lazy::new(|| {
-    Arc::new(RwLock::new(DBManager::new()))
+/// Uses std::sync::RwLock for synchronous access (no .await needed)
+pub static GLOBAL_DB: Lazy<RwLock<DBManager>> = Lazy::new(|| {
+    RwLock::new(DBManager::new())
 });
 
 /// Database manager that holds connection state

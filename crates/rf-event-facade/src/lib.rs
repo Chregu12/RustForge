@@ -4,7 +4,7 @@
 //!
 //! ## Features
 //!
-//! - **Static Event API**: Use `Event::dispatch()`, `Event::listen()`, etc.
+//! - **Static Event API**: Use `Event::dispatch()`, `Event::listen()`, etc. - no `.await` needed!
 //! - **Global Event Dispatcher**: Thread-safe global event management
 //! - **Laravel-Compatible**: Familiar API for Laravel developers
 //!
@@ -20,27 +20,27 @@
 //!     email: String,
 //! }
 //!
-//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-//! // Dispatch an event
-//! Event::dispatch("user.created", UserCreated {
-//!     user_id: 1,
-//!     email: "user@example.com".to_string(),
-//! }).await?;
+//! fn example() -> Result<(), Box<dyn std::error::Error>> {
+//!     // Dispatch an event
+//!     Event::dispatch("user.created", UserCreated {
+//!         user_id: 1,
+//!         email: "user@example.com".to_string(),
+//!     })?;
 //!
-//! // Listen for events
-//! Event::listen("user.created", |event: UserCreated| {
-//!     println!("User created: {}", event.email);
-//! }).await;
+//!     // Listen for events
+//!     Event::listen("user.created", |event| {
+//!         println!("User created: {:?}", event);
+//!     });
 //!
-//! // Check if event has listeners
-//! if Event::has_listeners("user.created").await {
-//!     println!("Event has listeners");
+//!     // Check if event has listeners
+//!     if Event::has_listeners("user.created") {
+//!         println!("Event has listeners");
+//!     }
+//!
+//!     // Forget all listeners for an event
+//!     Event::forget("user.created");
+//!     Ok(())
 //! }
-//!
-//! // Forget all listeners for an event
-//! Event::forget("user.created").await;
-//! # Ok(())
-//! # }
 //! ```
 
 pub mod facade;

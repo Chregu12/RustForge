@@ -11,7 +11,7 @@ RustForge brings Laravel's elegant syntax to Rust, making it easy for PHP develo
 ### 1. Password Hashing (`Hash` Facade)
 
 ```rust
-use rf_global_helpers::Hash;
+use rf::Hash;
 
 // Hash password
 let hash = Hash::make("password123");
@@ -34,7 +34,7 @@ if Hash::needs_rehash(&hash) {
 ### 2. CSRF Protection
 
 ```rust
-use rf_global_helpers::{csrf_token, csrf_field, csrf_meta};
+use rf::{csrf_token, csrf_field, csrf_meta};
 
 // Generate token
 let token = csrf_token();
@@ -79,7 +79,7 @@ let validation_rules = rules! {
 ### 4. Route Facade
 
 ```rust
-use rf_route_facade::Route;
+use rf::Route;
 
 // Simple routes
 Route::get("/", handler);
@@ -310,7 +310,7 @@ let users = User::query()
 ### 6. Global Helper Functions
 
 ```rust
-use rf_global_helpers::{redirect, back, event, __};
+use rf::{redirect, back, event, __};
 
 // Redirect
 redirect("/dashboard");
@@ -636,20 +636,15 @@ Route::post("/users", function!(request: Request) {
 
 ```toml
 [dependencies]
-rf-macros = "1.0"
-rf-request = "1.0"
-rf-route-facade = "1.0"
-rf-global-helpers = "1.0"
-rf-validation = "1.0"
+rf = "1.0"
 ```
 
 ### 2. Import in Your Code
 
 ```rust
-use rf_macros::rules;
-use rf_route_facade::Route;
-use rf_global_helpers::{Hash, csrf_token, redirect};
-use rf_request::Request;
+use rf::prelude::*;
+// Or specific imports:
+// use rf::{Route, Hash, csrf_token, redirect, Request};
 ```
 
 ### 3. Start Using!

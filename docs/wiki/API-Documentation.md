@@ -130,8 +130,7 @@ HTTP routing and request/response handling.
 #### Router (Laravel-style Route Facade)
 
 ```rust
-use rf_route_facade::Route;
-use rf_http::{Request, Response, Json};
+use rf::prelude::*;
 
 // Basic routes with Laravel-style facade
 Route::get("/", home);
@@ -242,8 +241,7 @@ Authentication and authorization with Laravel-style Auth facade.
 #### Auth Facade (Laravel-style)
 
 ```rust
-use rf_auth_facade::Auth;
-use rf_auth::Hash;
+use rf::{Auth, Hash};
 
 // Login user (like Laravel's Auth::login)
 Auth::login(user).await?;
@@ -319,7 +317,7 @@ let is_valid = Hash::check("password123", &hash)?;
 #### Protect Routes
 
 ```rust
-use rf_route_facade::Route;
+use rf::Route;
 
 // Protect routes with auth middleware
 Route::middleware(&["auth"]).group(|| {
@@ -408,7 +406,7 @@ Caching layer with Laravel-style Cache facade.
 #### Basic Usage (Laravel-style)
 
 ```rust
-use rf_cache_facade::Cache;
+use rf::Cache;
 use std::time::Duration;
 
 // Put value in cache
@@ -455,7 +453,7 @@ Cache::decrement("counter", 1).await?;
 #### Cache Tags
 
 ```rust
-use rf_cache_facade::Cache;
+use rf::Cache;
 use std::time::Duration;
 
 // Create tagged cache
@@ -607,7 +605,7 @@ File storage with Laravel-style Storage facade.
 #### File Operations (Laravel-style)
 
 ```rust
-use rf_storage_facade::Storage;
+use rf::Storage;
 
 // Put file (uses default disk)
 Storage::put("path/to/file.txt", contents).await?;
@@ -641,7 +639,7 @@ let modified = Storage::last_modified("path/to/file.txt").await?;
 #### Directory Operations
 
 ```rust
-use rf_storage_facade::Storage;
+use rf::Storage;
 
 // List files in directory
 let files = Storage::files("directory/").await?;

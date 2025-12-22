@@ -7,7 +7,7 @@ This example demonstrates the **working** Laravel-style syntax features in RustF
 ### 1. Password Hashing with Hash Facade
 
 ```rust
-use rf_global_helpers::Hash;
+use rf::Hash;
 
 // Hash a password
 let hash = Hash::make("my_password");
@@ -21,7 +21,7 @@ if Hash::check("my_password", &hash) {
 ### 2. CSRF Token Generation
 
 ```rust
-use rf_global_helpers::csrf_token;
+use rf::csrf_token;
 
 // Generate a CSRF token
 let token = csrf_token();
@@ -31,7 +31,7 @@ println!("CSRF Token: {}", token);
 ### 3. Validation Rules with Pipes
 
 ```rust
-use rf_macros::rules;
+use rf::rules;
 
 // Define validation rules with Laravel-style pipe syntax
 let rules = rules! {
@@ -45,7 +45,7 @@ let rules = rules! {
 ### 4. Route Facade (Registration Only)
 
 ```rust
-use rf_route_facade::Route;
+use rf::Route;
 
 // Simple routes
 Route::get("/", "HomeController@index");

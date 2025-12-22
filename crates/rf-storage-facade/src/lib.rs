@@ -4,7 +4,7 @@
 //!
 //! ## Features
 //!
-//! - **Static Storage API**: Use `Storage::put()`, `Storage::get()`, etc.
+//! - **Static Storage API**: Use `Storage::put()`, `Storage::get()`, etc. - no `.await` needed!
 //! - **Global Storage Manager**: Thread-safe global storage state
 //! - **Disk Support**: Multiple disk configurations
 //! - **Laravel-Compatible**: Familiar API for Laravel developers
@@ -14,23 +14,23 @@
 //! ```rust,no_run
 //! use rf_storage_facade::Storage;
 //!
-//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+//! # fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! // Put a file
-//! Storage::put("file.txt", b"Hello, World!".to_vec()).await?;
+//! Storage::put("file.txt", b"Hello, World!".to_vec())?;
 //!
 //! // Get a file
-//! let contents = Storage::get("file.txt").await?;
+//! let contents = Storage::get("file.txt")?;
 //!
 //! // Check if file exists
-//! if Storage::exists("file.txt").await? {
+//! if Storage::exists("file.txt") {
 //!     println!("File exists!");
 //! }
 //!
 //! // Get file size
-//! let size = Storage::size("file.txt").await?;
+//! let size = Storage::size("file.txt")?;
 //!
 //! // Delete a file
-//! Storage::delete("file.txt").await?;
+//! Storage::delete("file.txt")?;
 //! # Ok(())
 //! # }
 //! ```

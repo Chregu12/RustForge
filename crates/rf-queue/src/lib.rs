@@ -14,7 +14,7 @@
 //! ## Quick Start
 //!
 //! ```no_run
-//! use rf_queue::{Job, MemoryQueue, Worker, JobMetadata, Queue};
+//! use rf_queue::{Job, MemoryQueue, dispatch, QueueFacade};
 //! use async_trait::async_trait;
 //! use serde::{Serialize, Deserialize};
 //! use std::sync::Arc;
@@ -38,35 +38,30 @@
 //!     }
 //! }
 //!
-//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! // Create queue
 //! let queue = Arc::new(MemoryQueue::new());
 //!
-//! // Dispatch job
+//! // Dispatch job using synchronous API
 //! let job = SendEmailJob {
 //!     to: "user@example.com".to_string(),
 //!     subject: "Hello".to_string(),
 //! };
 //!
-//! let metadata = JobMetadata::new(&job)?;
-//! queue.push(metadata).await?;
+//! // Simple dispatch
+//! dispatch(Arc::clone(&queue), job).expect("Failed to dispatch job");
 //!
-//! // Start worker
-//! let worker = Worker::new(Arc::clone(&queue) as Arc<dyn Queue>)
-//!     .concurrency(5)
-//!     .handle(|job: SendEmailJob| Box::pin(async move { job.handle().await }));
-//!
-//! // worker.start().await?;
-//! # Ok(())
-//! # }
+//! // Or use the facade for more control
+//! let facade = QueueFacade::new(queue);
+//! println!("Queue size: {}", facade.size("default").unwrap());
 //! ```
 //!
 //! ## Delayed Jobs
 //!
 //! ```no_run
-//! # use rf_queue::{Job, MemoryQueue, JobMetadata, Queue};
+//! # use rf_queue::{Job, MemoryQueue, dispatch_later};
 //! # use async_trait::async_trait;
 //! # use serde::{Serialize, Deserialize};
+//! # use std::sync::Arc;
 //! # use std::time::Duration;
 //! # #[derive(Serialize, Deserialize)]
 //! # struct SendEmailJob { to: String }
@@ -75,17 +70,15 @@
 //! #     async fn handle(&self) -> Result<(), rf_queue::QueueError> { Ok(()) }
 //! #     fn job_type(&self) -> &'static str { "send_email" }
 //! # }
-//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-//! # let queue = MemoryQueue::new();
+//! let queue = Arc::new(MemoryQueue::new());
 //! let job = SendEmailJob { to: "user@example.com".to_string() };
 //!
-//! // Execute after 5 minutes
-//! let metadata = JobMetadata::new_delayed(&job, Duration::from_secs(300))?;
-//! queue.push(metadata).await?;
-//! # Ok(())
-//! # }
+//! // Execute after 5 minutes using synchronous API
+//! dispatch_later(queue, job, Duration::from_secs(300))
+//!     .expect("Failed to dispatch delayed job");
 //! ```
 
+mod api;
 mod config;
 mod error;
 mod job;
@@ -98,6 +91,7 @@ mod redis;
 
 pub mod drivers;
 
+pub use api::{dispatch, dispatch_later, QueueFacade};
 pub use config::{QueueConfig, QueueConfigBuilder};
 pub use error::{QueueError, QueueResult};
 pub use job::{Job, JobMetadata};

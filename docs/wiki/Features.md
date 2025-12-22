@@ -52,7 +52,7 @@ RustForge includes a powerful Laravel-style DB facade and query builder.
 ### Example
 
 ```rust
-use rf_db_facade::DB;
+use rf::DB;
 
 // Query
 let users = DB::table("users")
@@ -128,8 +128,7 @@ Complete authentication system with multiple strategies.
 ### Example
 
 ```rust
-use rf_auth_facade::Auth;
-use rf_auth::Hash;
+use rf::{Auth, Hash};
 
 // Register user
 let password_hash = Hash::make("password123")?;
@@ -206,8 +205,7 @@ Expressive routing system with middleware support.
 ### Example
 
 ```rust
-use rf_route_facade::Route;
-use rf_http::{Request, Response, middleware};
+use rf::prelude::*;
 
 // Laravel-style Route facade
 Route::get("/", home);
@@ -570,7 +568,7 @@ High-performance caching layer with multiple drivers.
 ### Example
 
 ```rust
-use rf_cache_facade::Cache;
+use rf::Cache;
 use std::time::Duration;
 
 // Simple caching with Laravel-style facade
@@ -721,7 +719,7 @@ Event-driven architecture with synchronous and asynchronous listeners.
 ### Example
 
 ```rust
-use rf_event_facade::Event;
+use rf::Event;
 use serde::{Serialize, Deserialize};
 
 // Define event
@@ -869,7 +867,7 @@ user.notify(OrderShipped { order }).await?;
 ### Simple Email API
 
 ```rust
-use rf_mail_facade::Mail;
+use rf::Mail;
 
 // Simple email
 Mail::to("user@example.com")
@@ -948,7 +946,7 @@ Unified file storage interface for local and cloud storage.
 ### Example
 
 ```rust
-use rf_storage_facade::Storage;
+use rf::Storage;
 
 // Store file with Laravel-style facade
 Storage::put("uploads/photo.jpg", file_contents).await?;

@@ -5,9 +5,16 @@
 //! This crate provides a static, fluent API for authentication similar to Laravel's Auth facade,
 //! making it easy to work with authentication from anywhere in your application.
 //!
+//! # Recommended Usage
+//!
+//! Use the consolidated `rf` crate for simpler imports:
+//! ```rust
+//! use rf::Auth;  // or use rf::prelude::*;
+//! ```
+//!
 //! ## Features
 //!
-//! - **Static Auth API**: Use `Auth::check()`, `Auth::user()`, etc.
+//! - **Static Auth API**: Use `Auth::check()`, `Auth::user()`, etc. - no `.await` needed!
 //! - **Global Auth Manager**: Thread-safe global authentication state
 //! - **Guard Support**: Multiple authentication guards
 //! - **Laravel-Compatible**: Familiar API for Laravel developers
@@ -15,7 +22,8 @@
 //! ## Quick Start
 //!
 //! ```rust,no_run
-//! use rf_auth_facade::Auth;
+//! // Recommended: use rf::Auth;
+//! use rf_auth_facade::Auth;  // Direct import also works
 //! use serde::{Serialize, Deserialize};
 //!
 //! #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -25,58 +33,56 @@
 //!     name: String,
 //! }
 //!
-//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-//! // Login a user
-//! let user = User {
-//!     id: 1,
-//!     email: "user@example.com".to_string(),
-//!     name: "John Doe".to_string(),
-//! };
-//! Auth::login(user.clone()).await?;
+//! fn example() -> Result<(), String> {
+//!     // Login a user
+//!     let user = User {
+//!         id: 1,
+//!         email: "user@example.com".to_string(),
+//!         name: "John Doe".to_string(),
+//!     };
+//!     Auth::login(user.clone())?;
 //!
-//! // Check if authenticated
-//! if Auth::check().await {
-//!     println!("User is authenticated");
+//!     // Check if authenticated
+//!     if Auth::check() {
+//!         println!("User is authenticated");
+//!     }
+//!
+//!     // Get current user
+//!     if let Some(current_user) = Auth::user::<User>() {
+//!         println!("Current user: {}", current_user.name);
+//!     }
+//!
+//!     // Get user ID
+//!     if let Some(id) = Auth::id() {
+//!         println!("User ID: {}", id);
+//!     }
+//!
+//!     // Logout
+//!     Auth::logout();
+//!     Ok(())
 //! }
-//!
-//! // Get current user
-//! if let Some(current_user) = Auth::user::<User>().await {
-//!     println!("Current user: {}", current_user.name);
-//! }
-//!
-//! // Get user ID
-//! if let Some(id) = Auth::id().await {
-//!     println!("User ID: {}", id);
-//! }
-//!
-//! // Logout
-//! Auth::logout().await;
-//! # Ok(())
-//! # }
 //! ```
 //!
 //! ## Authentication Flow
 //!
 //! ```rust,no_run
-//! use rf_auth_facade::Auth;
-//! # use serde::{Serialize, Deserialize};
-//! # #[derive(Debug, Clone, Serialize, Deserialize)]
-//! # struct User { id: u64, email: String, password: String }
+//! // Recommended: use rf::Auth;
+//! use rf_auth_facade::Auth;  // Direct import also works
 //!
-//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-//! // Attempt login with credentials
-//! let credentials = serde_json::json!({
-//!     "email": "user@example.com",
-//!     "password": "secret"
-//! });
+//! fn example() -> Result<(), String> {
+//!     // Attempt login with credentials
+//!     let credentials = serde_json::json!({
+//!         "email": "user@example.com",
+//!         "password": "secret"
+//!     });
 //!
-//! if Auth::attempt(credentials).await? {
-//!     println!("Login successful!");
-//! } else {
-//!     println!("Invalid credentials");
+//!     if Auth::attempt(credentials)? {
+//!         println!("Login successful!");
+//!     } else {
+//!         println!("Invalid credentials");
+//!     }
+//!     Ok(())
 //! }
-//! # Ok(())
-//! # }
 //! ```
 
 pub mod facade;
