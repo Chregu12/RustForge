@@ -12,11 +12,17 @@ async-trait.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
-tokio.workspace = true
+tokio = { workspace = true, features = ["process"] }
 chrono.workspace = true
 tracing.workspace = true
 futures.workspace = true
 regex.workspace = true
+
+# HTTP client for notifications
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+
+# Temporary files for SSH key generation
+tempfile = "3.15"
 
 # SSH client
 russh = "0.46"
