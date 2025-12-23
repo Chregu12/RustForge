@@ -350,10 +350,8 @@ mod tests {
         session.age_flash_data();
 
         let message = session.get_flash("message");
-        assert_eq!(
-            message.and_then(|v| v.as_str()).map(|s| s.to_string()),
-            Some("Success!".to_string())
-        );
+        let message_str = message.as_ref().and_then(|v| v.as_str()).map(|s| s.to_string());
+        assert_eq!(message_str, Some("Success!".to_string()));
     }
 
     #[test]
