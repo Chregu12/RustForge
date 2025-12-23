@@ -148,7 +148,7 @@ members = [
     "crates/rf-echo",
     "crates/rf-envoy",
     "crates/rf-sail",
-    # "crates/rf-spark", # Temporarily disabled - requires stripe API update
+    # "crates/rf-spark", # Disabled - requires async-stripe API migration (111 errors)
 ]
 exclude = ["starter-template"]
 resolver = "2"
