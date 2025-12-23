@@ -76,6 +76,7 @@ impl UploadedFile {
 }
 
 /// File upload handler
+#[derive(Clone)]
 pub struct FileUpload {
     filename: String,
     content: Bytes,
