@@ -94,6 +94,9 @@ mod tests {
 
     #[test]
     fn test_guard_check() {
+        // Reset global auth state (may be dirty from other tests)
+        GLOBAL_AUTH.write().unwrap().logout();
+
         let guard = Guard::new("web");
         // Initially not authenticated
         assert!(!guard.check());

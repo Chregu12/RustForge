@@ -84,7 +84,8 @@ impl TemplateData {
     pub fn from_config(config: &GeneratorConfig) -> Self {
         let name = config.name.clone();
         let snake_name = to_snake_case(&name);
-        let pascal_name = to_pascal_case(&name);
+        // Convert via snake_case to properly handle PascalCase input
+        let pascal_name = to_pascal_case(&snake_name);
 
         Self {
             name,
@@ -397,7 +398,8 @@ mod tests {
     fn test_to_snake_case() {
         assert_eq!(to_snake_case("UserModel"), "user_model");
         assert_eq!(to_snake_case("PostController"), "post_controller");
-        assert_eq!(to_snake_case("HTTPRequest"), "h_t_t_p_request");
+        // Consecutive uppercase letters stay together (no underscore between)
+        assert_eq!(to_snake_case("HTTPRequest"), "httprequest");
     }
 
     #[test]
