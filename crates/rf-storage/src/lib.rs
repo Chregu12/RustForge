@@ -31,19 +31,23 @@
 //! ```
 
 mod error;
+pub mod facade;
 mod local;
 mod manager;
 mod memory;
 mod s3;
 mod storage;
+pub mod storage_manager;
 mod stream;
 
 pub use error::{StorageError, StorageResult};
+pub use facade::StorageFacade;
 pub use local::LocalStorage;
 pub use manager::StorageManager;
 pub use memory::MemoryStorage;
 pub use s3::{S3Config, S3Storage};
 pub use storage::Storage;
+pub use storage_manager::{StorageManagerFacade, GLOBAL_STORAGE};
 pub use stream::{detect_content_type, extract_file_name, FileStream};
 
 /// Prelude module for convenient imports

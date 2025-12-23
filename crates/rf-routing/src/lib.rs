@@ -81,6 +81,7 @@
 //! ```
 
 pub mod controller;
+pub mod facade;
 pub mod groups;
 pub mod middleware_pipeline;
 pub mod middleware_stack;
@@ -115,6 +116,14 @@ pub use versioned_router::VersionedRouterBuilder;
 pub use versioning::{
     extract_from_accept, extract_from_header, extract_from_path, ApiVersion, DefaultNegotiator,
     VersionConfig, VersionError, VersionNegotiator,
+};
+
+// Facade re-exports (Laravel-style static API)
+pub use facade::{
+    builder::FacadeRouteBuilder,
+    group::GroupBuilder as FacadeGroupBuilder,
+    registry::{global_router, GlobalRouter},
+    route::{MiddlewareGroupBuilder, Route as RouteFacade},
 };
 
 #[cfg(test)]

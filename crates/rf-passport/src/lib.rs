@@ -149,6 +149,7 @@ pub mod auth_code;
 pub mod client;
 pub mod config;
 pub mod errors;
+pub mod facade;
 pub mod grants;
 pub mod handlers;
 pub mod middleware;
@@ -177,6 +178,13 @@ pub use middleware::{check_any_scope, check_scopes, DatabaseExtension, PassportA
 pub use personal_access_token::HasApiTokens;
 pub use scope::{Scope, ScopeChecker, ScopeRepository};
 pub use token::{OAuthAccessToken, OAuthRefreshToken, TokenRepository};
+
+// Facade re-exports (Laravel-style static API)
+pub use facade::{
+    config::{GrantControl, PkceControl, TokenLifetimes},
+    manager::{PassportManager, GLOBAL_PASSPORT},
+    passport::Passport,
+};
 
 /// Prelude module for convenient imports
 pub mod prelude {

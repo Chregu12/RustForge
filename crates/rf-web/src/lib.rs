@@ -50,6 +50,7 @@ pub mod middleware;
 pub mod response;
 pub mod router;
 pub mod session;
+pub mod session_facade;
 pub mod versioning;
 
 // Re-exports for convenience
@@ -59,4 +60,5 @@ pub use csrf::{
 pub use middleware::{compression_layer, cors_layer, timeout_layer, tracing_layer, CorsConfig};
 pub use router::RouterBuilder;
 pub use session::{Session, SessionConfig, SessionDriver, SessionMiddleware};
+pub use session_facade::{SessionFacade, GLOBAL_SESSION};
 pub use versioning::{ApiVersion, VersionedRouter};

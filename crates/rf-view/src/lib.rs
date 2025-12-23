@@ -61,11 +61,13 @@
 
 pub mod engine;
 pub mod error;
+pub mod facade;
 pub mod response;
 pub mod view;
 
 pub use engine::ViewEngine;
 pub use error::{ViewError, ViewResult};
+pub use facade::{ViewFacade, ViewFacadeResponse, GLOBAL_VIEW_ENGINE};
 pub use response::ViewResponse;
 pub use view::View;
 

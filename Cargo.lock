@@ -7140,54 +7140,42 @@ version = "1.0.0"
 dependencies = [
  "rf-api-resources",
  "rf-auth",
- "rf-auth-facade",
  "rf-authorization",
  "rf-blade",
  "rf-broadcast",
  "rf-cache",
- "rf-cache-facade",
  "rf-collections",
  "rf-config",
- "rf-config-facade",
  "rf-core",
- "rf-db-facade",
  "rf-eloquent",
  "rf-errors",
- "rf-event-facade",
  "rf-events",
  "rf-global-helpers",
  "rf-helpers",
  "rf-inertia",
  "rf-jobs",
- "rf-log-facade",
  "rf-logging",
  "rf-macros",
  "rf-mail",
- "rf-mail-facade",
  "rf-metrics",
  "rf-model-macro",
  "rf-notifications",
  "rf-orm",
  "rf-pagination",
- "rf-passport-facade",
+ "rf-passport",
  "rf-queue",
  "rf-request",
  "rf-requests",
  "rf-response",
- "rf-route-facade",
  "rf-routing",
  "rf-sanctum",
- "rf-sanctum-facade",
- "rf-session-facade",
  "rf-sse",
  "rf-storage",
- "rf-storage-facade",
  "rf-testing",
  "rf-upload",
  "rf-validation",
  "rf-validation-derive",
  "rf-view",
- "rf-view-facade",
  "rf-web",
 ]
 
@@ -7431,6 +7419,7 @@ dependencies = [
  "deadpool-redis 0.14.0",
  "md5",
  "memcache",
+ "once_cell",
  "rand 0.8.5",
  "redis 0.24.0",
  "sea-orm 1.1.19",
@@ -7518,21 +7507,13 @@ dependencies = [
  "anyhow",
  "config",
  "dotenvy",
+ "once_cell",
  "serde",
  "serde_json",
  "thiserror 1.0.69",
  "tokio",
  "toml 0.8.23",
  "validator",
-]
-
-[[package]]
-name = "rf-config-facade"
-version = "0.1.0"
-dependencies = [
- "once_cell",
- "rf-config",
- "tokio",
 ]
 
 [[package]]
@@ -7759,7 +7740,9 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "chrono",
+ "once_cell",
  "serde",
+ "serde_json",
  "thiserror 1.0.69",
  "tokio",
 ]
@@ -8006,13 +7989,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "rf-log-facade"
-version = "0.1.0"
-dependencies = [
- "tracing",
-]
-
-[[package]]
 name = "rf-logging"
 version = "0.1.0"
 dependencies = [
@@ -8050,6 +8026,7 @@ dependencies = [
  "handlebars",
  "hex",
  "lettre",
+ "once_cell",
  "parking_lot",
  "pulldown-cmark",
  "regex",
@@ -8065,15 +8042,6 @@ dependencies = [
  "tracing",
  "urlencoding",
  "uuid",
-]
-
-[[package]]
-name = "rf-mail-facade"
-version = "0.1.0"
-dependencies = [
- "once_cell",
- "rf-mail",
- "tokio",
 ]
 
 [[package]]
@@ -8235,6 +8203,7 @@ dependencies = [
  "chrono",
  "futures",
  "log",
+ "once_cell",
  "parking_lot",
  "rf-config",
  "rf-core",
@@ -8456,6 +8425,7 @@ dependencies = [
  "http 1.4.0",
  "http-body-util",
  "hyper 1.8.1",
+ "once_cell",
  "parking_lot",
  "regex",
  "sea-orm 1.1.19",
@@ -8498,6 +8468,7 @@ dependencies = [
  "chrono",
  "hex",
  "http 1.4.0",
+ "once_cell",
  "rand 0.8.5",
  "sea-orm 1.1.19",
  "serde",
@@ -8602,16 +8573,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "rf-session-facade"
-version = "0.1.0"
-dependencies = [
- "once_cell",
- "serde",
- "serde_json",
- "tokio",
-]
-
-[[package]]
 name = "rf-signal-handler"
 version = "1.0.0"
 dependencies = [
@@ -8702,6 +8663,7 @@ dependencies = [
  "bytes",
  "chrono",
  "futures",
+ "once_cell",
  "serde",
  "serde_json",
  "tempfile",
@@ -8897,16 +8859,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "rf-view-facade"
-version = "0.1.0"
-dependencies = [
- "once_cell",
- "rf-view",
- "serde_json",
- "tokio",
-]
-
-[[package]]
 name = "rf-views"
 version = "0.1.0"
 dependencies = [
@@ -8952,6 +8904,7 @@ dependencies = [
  "chrono",
  "futures",
  "hyper 1.8.1",
+ "once_cell",
  "rand 0.8.5",
  "rf-core",
  "serde",

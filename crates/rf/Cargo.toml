@@ -12,20 +12,12 @@ keywords = ["web", "framework", "laravel", "rust", "prelude"]
 categories = ["web-programming::http-server", "web-programming"]
 
 [dependencies]
-# Facades
-rf-route-facade = { path = "../rf-route-facade" }
-rf-auth-facade = { path = "../rf-auth-facade" }
-rf-db-facade = { path = "../rf-db-facade" }
-rf-cache-facade = { path = "../rf-cache-facade" }
-rf-event-facade = { path = "../rf-event-facade" }
-rf-storage-facade = { path = "../rf-storage-facade" }
-rf-log-facade = { path = "../rf-log-facade" }
-rf-mail-facade = { path = "../rf-mail-facade" }
-rf-session-facade = { path = "../rf-session-facade" }
-rf-config-facade = { path = "../rf-config-facade" }
-rf-view-facade = { path = "../rf-view-facade" }
-rf-sanctum-facade = { path = "../rf-sanctum-facade" }
-rf-passport-facade = { path = "../rf-passport-facade" }
+# All facades are now merged into their main crates:
+# - Route facade → rf-routing/src/facade/
+# - DB facade → rf-orm/src/facade/
+# - Mail facade → rf-mail/src/facade.rs
+# - Sanctum facade → rf-sanctum/src/facade/
+# - Passport facade → rf-passport/src/facade/
 
 # Helpers & Macros
 rf-global-helpers = { path = "../rf-global-helpers" }
@@ -49,6 +41,7 @@ rf-model-macro = { path = "../rf-model-macro" }
 rf-auth = { path = "../rf-auth" }
 rf-authorization = { path = "../rf-authorization" }
 rf-sanctum = { path = "../rf-sanctum" }
+rf-passport = { path = "../rf-passport" }
 rf-validation = { path = "../rf-validation" }
 rf-validation-derive = { path = "../rf-validation-derive" }
 

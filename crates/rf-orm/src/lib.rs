@@ -113,6 +113,7 @@ pub mod collection;
 pub mod config;
 pub mod error;
 pub mod events;
+pub mod facade;
 pub mod manager;
 pub mod migrations;
 pub mod model;
@@ -140,6 +141,14 @@ pub mod testing;
 pub use collection::{Collection, IntoCollection};
 pub use config::DatabaseConfig;
 pub use error::{DbError, DbResult};
+
+// Facade re-exports (Laravel-style static API)
+pub use facade::{
+    db::DB,
+    db_manager::{DBManager, GLOBAL_DB},
+    model::Model as ModelFacade,
+    query_builder::{LazyCollection, PaginatedResult, QueryBuilder as QueryBuilderFacade},
+};
 pub use events::{EventObserver, ModelEvent, ModelEvents};
 pub use manager::DatabaseManager;
 pub use migrations::{

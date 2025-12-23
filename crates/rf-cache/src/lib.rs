@@ -59,7 +59,15 @@ pub mod drivers;
 #[cfg(feature = "redis-backend")]
 pub mod redis;
 
+// Cache facade (Laravel-style static API)
+pub mod cache_manager;
+pub mod facade;
+
 pub use config::{CacheBackend, CacheConfig, CacheConfigBuilder};
+
+// Re-export facade types (Laravel-style static API)
+pub use cache_manager::{CacheManager, GLOBAL_CACHE};
+pub use facade::{Cache as CacheFacade, IntoTtl};
 
 // Re-export drivers
 #[cfg(feature = "memcached")]

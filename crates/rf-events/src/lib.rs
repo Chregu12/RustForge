@@ -2,6 +2,12 @@
 //!
 //! This crate provides event dispatching and listener management.
 
+pub mod event_manager;
+pub mod facade;
+
+pub use event_manager::{EventManager, GLOBAL_EVENT, EventListenerFn};
+pub use facade::EventFacade;
+
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::{

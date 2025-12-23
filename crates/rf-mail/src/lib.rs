@@ -85,6 +85,7 @@ mod backends;
 mod builder;
 mod config;
 mod error;
+pub mod facade;
 mod mail;
 mod mail_builder;
 pub mod mailables;
@@ -128,6 +129,9 @@ pub use mailables::{InvoiceMail, OrderShippedMail, PasswordResetEmail, WelcomeEm
 pub use mailer::Mailer;
 pub use message::Message;
 pub use templates::TemplateEngine;
+
+// Facade re-exports (Laravel-style static API)
+pub use facade::{Mail as MailFacade, Mailer as FacadeMailer, GLOBAL_MAILER};
 
 // Mailable trait module
 mod mailable;

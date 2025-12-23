@@ -11,9 +11,10 @@ serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
-tokio = { workspace = true, features = ["fs"] }
+tokio = { workspace = true, features = ["fs", "rt"] }
 uuid.workspace = true
 chrono.workspace = true
+once_cell.workspace = true
 
 # Email
 lettre = { version = "0.11", default-features = false, features = ["tokio1-rustls-tls", "smtp-transport", "sendmail-transport", "builder", "hostname"] }

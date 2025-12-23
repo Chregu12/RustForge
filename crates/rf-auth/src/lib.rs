@@ -73,6 +73,11 @@ pub mod password;
 // Authorization module
 pub mod authorization;
 
+// Auth facade (Laravel-style static API)
+pub mod auth_manager;
+pub mod facade;
+pub mod guard;
+
 // Auth features (require mail feature for email sending)
 #[cfg(feature = "mail")]
 pub mod password_reset;
@@ -84,6 +89,11 @@ pub mod verification;
 pub use error::{AuthError, AuthResult};
 pub use jwt::{Claims, JwtManager};
 pub use password::{HashAlgorithm, PasswordHasher};
+
+// Re-export facade types (Laravel-style static API)
+pub use facade::Auth;
+pub use auth_manager::{AuthManager, GLOBAL_AUTH};
+pub use guard::Guard;
 
 // Re-export main authorization types
 pub use authorization::{

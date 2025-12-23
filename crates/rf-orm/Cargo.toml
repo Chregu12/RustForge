@@ -30,6 +30,7 @@ futures = "0.3"  # For async iterators (chunking)
 # Serialization
 serde.workspace = true
 serde_json.workspace = true
+once_cell.workspace = true
 
 # Error handling
 thiserror.workspace = true

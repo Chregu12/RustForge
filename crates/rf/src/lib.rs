@@ -28,18 +28,18 @@
 // Standard library re-exports
 pub use std::time::Duration;
 
-// Facades
-pub use rf_route_facade::{Route, global_router, GlobalRouter};
-pub use rf_auth_facade::Auth;
-pub use rf_db_facade::DB;
-pub use rf_cache_facade::Cache;
-pub use rf_event_facade::Event;
-pub use rf_storage_facade::Storage;
-pub use rf_log_facade::Log;
-pub use rf_mail_facade::Mail;
-pub use rf_session_facade::Session;
-pub use rf_config_facade::Config;
-pub use rf_view_facade::View;
+// Facades (from merged locations in main crates)
+pub use rf_routing::{RouteFacade as Route, global_router, GlobalRouter};
+pub use rf_auth::Auth;
+pub use rf_orm::DB;
+pub use rf_cache::CacheFacade as Cache;
+pub use rf_events::EventFacade as Event;
+pub use rf_storage::StorageFacade as Storage;
+pub use rf_logging::Log;
+pub use rf_mail::MailFacade as Mail;
+pub use rf_web::SessionFacade as Session;
+pub use rf_config::Config;
+pub use rf_view::ViewFacade as View;
 
 // Helpers
 pub use rf_global_helpers::Hash;
@@ -81,18 +81,18 @@ pub mod prelude {
     // Standard library
     pub use std::time::Duration;
 
-    // All Facades
-    pub use rf_route_facade::Route;
-    pub use rf_auth_facade::Auth;
-    pub use rf_db_facade::DB;
-    pub use rf_cache_facade::Cache;
-    pub use rf_event_facade::Event;
-    pub use rf_storage_facade::Storage;
-    pub use rf_log_facade::Log;
-    pub use rf_mail_facade::Mail;
-    pub use rf_session_facade::Session;
-    pub use rf_config_facade::Config;
-    pub use rf_view_facade::View;
+    // All Facades (from merged locations in main crates)
+    pub use rf_routing::RouteFacade as Route;
+    pub use rf_auth::Auth;
+    pub use rf_orm::DB;
+    pub use rf_cache::CacheFacade as Cache;
+    pub use rf_events::EventFacade as Event;
+    pub use rf_storage::StorageFacade as Storage;
+    pub use rf_logging::Log;
+    pub use rf_mail::MailFacade as Mail;
+    pub use rf_web::SessionFacade as Session;
+    pub use rf_config::Config;
+    pub use rf_view::ViewFacade as View;
 
     // Helpers
     pub use rf_global_helpers::{Hash, redirect, csrf_token, csrf_field};
@@ -284,17 +284,21 @@ pub mod services {
 /// use rf::facades::*;
 /// ```
 pub mod facades {
-    pub use rf_route_facade::Route;
-    pub use rf_auth_facade::Auth;
-    pub use rf_db_facade::DB;
-    pub use rf_cache_facade::Cache;
-    pub use rf_event_facade::Event;
-    pub use rf_storage_facade::Storage;
-    pub use rf_log_facade::Log;
-    pub use rf_mail_facade::Mail;
-    pub use rf_session_facade::Session;
-    pub use rf_config_facade::Config;
-    pub use rf_view_facade::View;
+    pub use rf_routing::RouteFacade as Route;
+    pub use rf_auth::Auth;
+    pub use rf_orm::DB;
+    pub use rf_cache::CacheFacade as Cache;
+    pub use rf_events::EventFacade as Event;
+    pub use rf_storage::StorageFacade as Storage;
+    pub use rf_logging::Log;
+    pub use rf_mail::MailFacade as Mail;
+    pub use rf_web::SessionFacade as Session;
+    pub use rf_config::Config;
+    pub use rf_view::ViewFacade as View;
+
+    // Additional facades (Sanctum, Passport)
+    pub use rf_sanctum::Sanctum;
+    pub use rf_passport::Passport;
 }
 
 // ============================================================================

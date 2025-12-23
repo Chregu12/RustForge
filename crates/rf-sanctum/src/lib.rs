@@ -118,6 +118,7 @@ pub mod abilities;
 pub mod auth;
 pub mod config;
 pub mod errors;
+pub mod facade;
 pub mod guard;
 pub mod middleware;
 pub mod models;
@@ -137,6 +138,12 @@ pub use repository::{TokenRepository, TokenStats};
 pub use token::{NewToken, PersonalAccessToken};
 pub use tokenable::Tokenable;
 pub use transient::{TransientTokenBuilder, TransientTokenStore};
+
+// Facade re-exports (Laravel-style static API)
+pub use facade::{
+    manager::{SanctumManager, GLOBAL_SANCTUM},
+    sanctum::Sanctum,
+};
 
 /// Prelude module for convenient imports
 pub mod prelude {

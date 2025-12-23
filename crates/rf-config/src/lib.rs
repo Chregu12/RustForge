@@ -20,8 +20,12 @@
 //! println!("Server running on {}:{}", config.server.host, config.server.port);
 //! ```
 
+pub mod facade;
 pub mod loader;
 pub mod types;
 
 pub use loader::ConfigLoader;
 pub use types::{AppConfig, AuthConfig, DatabaseConfig, ServerConfig};
+
+// Re-export facade types (Laravel-style static API)
+pub use facade::{Config, GLOBAL_CONFIG};

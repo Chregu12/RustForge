@@ -6,6 +6,11 @@
 //! - Request ID tracking
 //! - Performance timing
 //! - Distributed tracing support
+//! - Laravel-style Log facade
+
+pub mod facade;
+
+pub use facade::Log;
 
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;

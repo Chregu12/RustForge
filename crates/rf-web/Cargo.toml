@@ -29,6 +29,7 @@ tracing.workspace = true
 # CSRF & Session
 chrono.workspace = true
 base64.workspace = true
+once_cell.workspace = true
 rand = "0.8"
 subtle = "2.5"
 thiserror.workspace = true

@@ -59,21 +59,13 @@ members = [
     "crates/rf-requests",
     "crates/rf-collections",
     "crates/rf-routing",
-    "crates/rf-route-facade",
     "crates/rf-global-helpers",
-    # Phase 20: Laravel Facades
-    "crates/rf-auth-facade",
-    "crates/rf-db-facade",
-    "crates/rf-cache-facade",
-    "crates/rf-event-facade",
-    "crates/rf-storage-facade",
-    "crates/rf-log-facade",
-    "crates/rf-mail-facade",
-    "crates/rf-session-facade",
-    "crates/rf-config-facade",
-    "crates/rf-view-facade",
-    "crates/rf-sanctum-facade",
-    "crates/rf-passport-facade",
+    # Phase 20: All facades merged into their main crates:
+    # - Route facade → rf-routing/src/facade/
+    # - DB facade → rf-orm/src/facade/
+    # - Mail facade → rf-mail/src/facade.rs
+    # - Sanctum facade → rf-sanctum/src/facade/
+    # - Passport facade → rf-passport/src/facade/
     # RustForge - single import for everything
     "crates/rustforge",
     # rf - Simplified imports (use rf::Route, rf::Hash, etc.)
