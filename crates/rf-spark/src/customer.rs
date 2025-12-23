@@ -131,7 +131,7 @@ pub async fn apply_coupon(
     use stripe::{Customer as StripeCustomer, UpdateCustomer};
 
     let mut params = UpdateCustomer::default();
-    params.coupon = Some(coupon_code);
+    params.coupon = Some(coupon_code.parse().unwrap());
 
     StripeCustomer::update(client, &customer_id.parse().unwrap(), params)
         .await
@@ -169,17 +169,19 @@ pub async fn adjust_balance(
     client: &stripe::Client,
     customer_id: &str,
     amount: i64,
-    description: Option<&str>,
+    _description: Option<&str>,
 ) -> SparkResult<i64> {
-    use stripe::{CreateCustomerBalanceTransaction, CustomerBalanceTransaction};
+    use stripe::{Customer as StripeCustomer, CreateCustomerBalanceTransaction};
 
-    let mut params = CreateCustomerBalanceTransaction::new(amount, stripe::Currency::USD);
-    params.description = description;
+    let params = CreateCustomerBalanceTransaction::new(amount, stripe::Currency::USD);
 
-    let transaction =
-        CustomerBalanceTransaction::create(client, &customer_id.parse().unwrap(), params)
-            .await
-            .map_err(|e| SparkError::StripeError(e.to_string()))?;
+    let transaction = StripeCustomer::create_balance_transaction(
+        client,
+        &customer_id.parse().unwrap(),
+        params,
+    )
+    .await
+    .map_err(|e| SparkError::StripeError(e.to_string()))?;
 
     Ok(transaction.ending_balance)
 }

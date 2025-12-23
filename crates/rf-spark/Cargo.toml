@@ -20,7 +20,14 @@ futures.workspace = true
 reqwest.workspace = true
 
 # Stripe API (most common payment provider)
-stripe = { package = "async-stripe", version = "0.39", default-features = false, features = ["runtime-tokio-hyper-rustls"] }
+# Features: billing (subscriptions, invoices), checkout, connect, webhook-events
+stripe = { package = "async-stripe", version = "0.39", default-features = false, features = [
+    "runtime-tokio-hyper-rustls",
+    "billing",          # Subscriptions, Invoices, Plans, Prices
+    "checkout",         # Checkout Sessions
+    "connect",          # Connected accounts (needed for webhook-events)
+    "webhook-events",   # Webhook event parsing
+] }
 
 # Paddle API alternative
 # paddle = "0.1" # Would be added if Paddle support is needed

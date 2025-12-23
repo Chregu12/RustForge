@@ -156,7 +156,7 @@ impl<'a> InvoiceBuilder<'a> {
             let mut params = CreateInvoiceItem::new(self.customer_id.parse().unwrap());
 
             if let Some(ref price_id) = item.price_id {
-                params.price = Some(price_id.clone());
+                params.price = Some(price_id.parse().unwrap());
                 params.quantity = Some(item.quantity as u64);
             } else if let Some(amount) = item.amount {
                 params.amount = Some(amount);
@@ -170,7 +170,8 @@ impl<'a> InvoiceBuilder<'a> {
         }
 
         // Create the invoice
-        let mut params = CreateInvoice::new(self.customer_id.parse().unwrap());
+        let mut params = CreateInvoice::new();
+        params.customer = Some(self.customer_id.parse().unwrap());
         params.auto_advance = Some(self.auto_advance);
         params.collection_method = Some(match self.collection_method {
             CollectionMethod::ChargeAutomatically => {
@@ -219,10 +220,7 @@ pub async fn get_upcoming(
 ) -> SparkResult<Option<Invoice>> {
     use stripe::{Invoice as StripeInvoice, RetrieveUpcomingInvoice};
 
-    let params = RetrieveUpcomingInvoice {
-        customer: Some(customer_id.parse().unwrap()),
-        ..Default::default()
-    };
+    let params = RetrieveUpcomingInvoice::new(customer_id.parse().unwrap());
 
     match StripeInvoice::upcoming(client, params).await {
         Ok(invoice) => Ok(Some(convert_invoice(invoice))),
@@ -254,9 +252,9 @@ pub async fn pay_invoice(
     client: &stripe::Client,
     invoice_id: &str,
 ) -> SparkResult<Invoice> {
-    use stripe::{Invoice as StripeInvoice, PayInvoice};
+    use stripe::Invoice as StripeInvoice;
 
-    let invoice = StripeInvoice::pay(client, &invoice_id.parse().unwrap(), PayInvoice::default())
+    let invoice = StripeInvoice::pay(client, &invoice_id.parse().unwrap())
         .await
         .map_err(|e| SparkError::StripeError(e.to_string()))?;
 
@@ -282,15 +280,12 @@ pub async fn finalize_invoice(
     client: &stripe::Client,
     invoice_id: &str,
 ) -> SparkResult<Invoice> {
-    use stripe::{FinalizeInvoice, Invoice as StripeInvoice};
+    use stripe::{Invoice as StripeInvoice, FinalizeInvoiceParams};
 
-    let invoice = StripeInvoice::finalize(
-        client,
-        &invoice_id.parse().unwrap(),
-        FinalizeInvoice::default(),
-    )
-    .await
-    .map_err(|e| SparkError::StripeError(e.to_string()))?;
+    let params = FinalizeInvoiceParams::default();
+    let invoice = StripeInvoice::finalize(client, &invoice_id.parse().unwrap(), params)
+        .await
+        .map_err(|e| SparkError::StripeError(e.to_string()))?;
 
     Ok(convert_invoice(invoice))
 }
@@ -324,7 +319,7 @@ fn convert_invoice(inv: stripe::Invoice) -> Invoice {
         .unwrap_or_default();
 
     Invoice {
-        id: inv.id.as_ref().map(|id| id.to_string()).unwrap_or_default(),
+        id: inv.id.as_str().to_string(),
         number: inv.number,
         status: inv.status.map(|s| s.into()).unwrap_or(InvoiceStatus::Draft),
         total: Decimal::from(inv.total.unwrap_or(0)) / Decimal::from(100),

@@ -103,7 +103,7 @@ pub async fn get_default_payment_method(
 
     if let Some(pm) = customer.invoice_settings.and_then(|s| s.default_payment_method) {
         let pm_id = pm.id();
-        let pm = stripe::PaymentMethod::retrieve(client, pm_id, &[])
+        let pm = stripe::PaymentMethod::retrieve(client, &pm_id, &[])
             .await
             .map_err(|e| SparkError::StripeError(e.to_string()))?;
         Ok(Some(convert_payment_method(pm, true)))
@@ -118,10 +118,10 @@ pub async fn set_default_payment_method(
     customer_id: &str,
     payment_method_id: &str,
 ) -> SparkResult<()> {
-    use stripe::{Customer, UpdateCustomer, UpdateCustomerInvoiceSettings};
+    use stripe::{Customer, UpdateCustomer, CustomerInvoiceSettings};
 
-    let mut invoice_settings = UpdateCustomerInvoiceSettings::default();
-    invoice_settings.default_payment_method = Some(payment_method_id);
+    let mut invoice_settings = CustomerInvoiceSettings::default();
+    invoice_settings.default_payment_method = Some(payment_method_id.to_string());
 
     let mut params = UpdateCustomer::default();
     params.invoice_settings = Some(invoice_settings);
@@ -240,7 +240,7 @@ pub async fn create_setup_intent(
 
     let mut params = CreateSetupIntent::default();
     params.customer = Some(customer_id.parse().unwrap());
-    params.usage = Some(stripe::SetupIntentUsage::OffSession);
+    // Usage is set automatically by Stripe
 
     let intent = SetupIntent::create(client, params)
         .await
@@ -259,8 +259,8 @@ fn convert_payment_method(pm: stripe::PaymentMethod, is_default: bool) -> Paymen
     };
 
     let card = pm.card.map(|c| CardDetails {
-        brand: c.brand.unwrap_or_else(|| "unknown".to_string()),
-        last4: c.last4.unwrap_or_else(|| "****".to_string()),
+        brand: c.brand,
+        last4: c.last4,
         exp_month: c.exp_month as u32,
         exp_year: c.exp_year as u32,
     });

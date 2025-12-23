@@ -263,9 +263,8 @@ jobs:
         run: cargo build -p rf-envoy
       - name: rf-sail (Docker)
         run: cargo build -p rf-sail
-      # rf-spark disabled - requires async-stripe API migration (111 errors)
-      # - name: rf-spark (SaaS Billing)
-      #   run: cargo build -p rf-spark
+      - name: rf-spark (SaaS Billing)
+        run: cargo build -p rf-spark
 
   # ===========================================
   # Tests
