@@ -161,6 +161,8 @@ jobs:
 
       - name: rf-cache
         run: cargo build -p rf-cache
+      - name: rf-storage
+        run: cargo build -p rf-storage
       - name: rf-upload
         run: cargo build -p rf-upload
 
