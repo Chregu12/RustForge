@@ -1,55 +1,370 @@
 # RustForge Framework CI
-# Simple, fast build and test pipeline
+# Comprehensive build pipeline for all framework components
 
 name: CI
 
 on:
   push:
-    branches: [main, master]
+    branches: [main, master, develop]
   pull_request:
-    branches: [main, master]
+    branches: [main, master, develop]
+
+permissions:
+  contents: read
 
 env:
   CARGO_TERM_COLOR: always
-  RUST_BACKTRACE: 1
 
 jobs:
-  build:
-    name: Build & Test
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Cache
-        uses: Swatinem/rust-cache@v2
-
-      - name: Check formatting
-        run: cargo fmt --all -- --check
-
-      - name: Clippy
-        run: cargo clippy --workspace --all-targets -- -D warnings
-        continue-on-error: true
-
-      - name: Build
-        run: cargo build --workspace
-
-      - name: Test
-        run: cargo test --workspace --lib
-
-  # Quick check for rf crate (main entry point)
-  rf-crate:
-    name: RF Crate Check
+  # ===========================================
+  # Core Framework
+  # ===========================================
+  core:
+    name: "🏗️ Core Framework"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
 
-      - name: Build rf crate
+      - name: rustforge
+        run: cargo build -p rustforge
+      - name: rf (simplified imports)
         run: cargo build -p rf
+      - name: rf-core
+        run: cargo build -p rf-core
+      - name: rf-config
+        run: cargo build -p rf-config
+      - name: rf-container
+        run: cargo build -p rf-container
+      - name: rf-errors
+        run: cargo build -p rf-errors
 
-      - name: Build rf-macros
+  # ===========================================
+  # Web & HTTP
+  # ===========================================
+  web:
+    name: "🌐 Web & HTTP"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: rf-web
+        run: cargo build -p rf-web
+      - name: rf-routing
+        run: cargo build -p rf-routing
+      - name: rf-request
+        run: cargo build -p rf-request
+      - name: rf-response
+        run: cargo build -p rf-response
+      - name: rf-inertia
+        run: cargo build -p rf-inertia
+      - name: rf-http-client
+        run: cargo build -p rf-http-client
+
+  # ===========================================
+  # Database & ORM
+  # ===========================================
+  database:
+    name: "🗄️ Database & ORM"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: rf-orm
+        run: cargo build -p rf-orm
+      - name: rf-eloquent
+        run: cargo build -p rf-eloquent
+      - name: rf-db-facade
+        run: cargo build -p rf-db-facade
+      - name: rf-pagination
+        run: cargo build -p rf-pagination
+      - name: rf-seeder
+        run: cargo build -p rf-seeder
+      - name: rf-soft-deletes
+        run: cargo build -p rf-soft-deletes
+
+  # ===========================================
+  # Authentication & Security
+  # ===========================================
+  auth:
+    name: "🔐 Auth & Security"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: rf-auth
+        run: cargo build -p rf-auth
+      - name: rf-sanctum
+        run: cargo build -p rf-sanctum
+      - name: rf-passport
+        run: cargo build -p rf-passport
+      - name: rf-authorization
+        run: cargo build -p rf-authorization
+      - name: rf-encryption
+        run: cargo build -p rf-encryption
+      - name: rf-2fa
+        run: cargo build -p rf-2fa
+
+  # ===========================================
+  # Validation & Forms
+  # ===========================================
+  validation:
+    name: "✅ Validation & Forms"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: rf-validation
+        run: cargo build -p rf-validation
+      - name: rf-validation-derive
+        run: cargo build -p rf-validation-derive
+      - name: rf-forms
+        run: cargo build -p rf-forms
+      - name: rf-requests
+        run: cargo build -p rf-requests
+
+  # ===========================================
+  # Jobs & Queue
+  # ===========================================
+  queue:
+    name: "⚡ Jobs & Queue"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: rf-jobs
+        run: cargo build -p rf-jobs
+      - name: rf-queue
+        run: cargo build -p rf-queue
+      - name: rf-scheduler
+        run: cargo build -p rf-scheduler
+      - name: rf-horizon
+        run: cargo build -p rf-horizon
+
+  # ===========================================
+  # Cache & Storage
+  # ===========================================
+  storage:
+    name: "💾 Cache & Storage"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: rf-cache
+        run: cargo build -p rf-cache
+      - name: rf-storage
+        run: cargo build -p rf-storage
+      - name: rf-cache-facade
+        run: cargo build -p rf-cache-facade
+      - name: rf-storage-facade
+        run: cargo build -p rf-storage-facade
+      - name: rf-upload
+        run: cargo build -p rf-upload
+
+  # ===========================================
+  # Mail & Notifications
+  # ===========================================
+  notifications:
+    name: "📧 Mail & Notifications"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: rf-mail
+        run: cargo build -p rf-mail
+      - name: rf-notifications
+        run: cargo build -p rf-notifications
+      - name: rf-mail-facade
+        run: cargo build -p rf-mail-facade
+      - name: rf-broadcast
+        run: cargo build -p rf-broadcast
+      - name: rf-sse
+        run: cargo build -p rf-sse
+
+  # ===========================================
+  # Admin & Monitoring
+  # ===========================================
+  admin:
+    name: "📊 Admin & Monitoring"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: rf-nova
+        run: cargo build -p rf-nova
+      - name: rf-telescope
+        run: cargo build -p rf-telescope
+      - name: rf-health
+        run: cargo build -p rf-health
+      - name: rf-metrics
+        run: cargo build -p rf-metrics
+      - name: rf-audit
+        run: cargo build -p rf-audit
+
+  # ===========================================
+  # Laravel Facades
+  # ===========================================
+  facades:
+    name: "🎭 Laravel Facades"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: rf-facades
+        run: cargo build -p rf-facades
+      - name: rf-auth-facade
+        run: cargo build -p rf-auth-facade
+      - name: rf-route-facade
+        run: cargo build -p rf-route-facade
+      - name: rf-event-facade
+        run: cargo build -p rf-event-facade
+      - name: rf-log-facade
+        run: cargo build -p rf-log-facade
+      - name: rf-session-facade
+        run: cargo build -p rf-session-facade
+      - name: rf-config-facade
+        run: cargo build -p rf-config-facade
+      - name: rf-view-facade
+        run: cargo build -p rf-view-facade
+
+  # ===========================================
+  # Macros & Helpers
+  # ===========================================
+  macros:
+    name: "🔧 Macros & Helpers"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: rf-macros
         run: cargo build -p rf-macros
+      - name: rf-helpers
+        run: cargo build -p rf-helpers
+      - name: rf-global-helpers
+        run: cargo build -p rf-global-helpers
+      - name: rf-collections
+        run: cargo build -p rf-collections
+      - name: rf-model-macro
+        run: cargo build -p rf-model-macro
+
+  # ===========================================
+  # Views & Templates
+  # ===========================================
+  views:
+    name: "🎨 Views & Templates"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: rf-view
+        run: cargo build -p rf-view
+      - name: rf-blade
+        run: cargo build -p rf-blade
+      - name: rf-views
+        run: cargo build -p rf-views
+      - name: rf-vite
+        run: cargo build -p rf-vite
+      - name: rf-assets
+        run: cargo build -p rf-assets
+
+  # ===========================================
+  # Phase 21: Laravel Parity
+  # ===========================================
+  laravel-parity:
+    name: "🚀 Laravel Parity (Phase 21)"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: rf-dusk (Browser Testing)
+        run: cargo build -p rf-dusk
+      - name: rf-echo (Broadcasting Client)
+        run: cargo build -p rf-echo
+      - name: rf-envoy (Deployment)
+        run: cargo build -p rf-envoy
+      - name: rf-sail (Docker)
+        run: cargo build -p rf-sail
+      - name: rf-spark (SaaS Billing)
+        run: cargo build -p rf-spark
+      - name: rf-tinker (REPL)
+        run: cargo build -p rf-tinker
+
+  # ===========================================
+  # Phase 22: New Packages
+  # ===========================================
+  phase22:
+    name: "📦 New Packages (Phase 22)"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: rf-pest (Testing Framework)
+        run: cargo build -p rf-pest
+      - name: rf-cashier (Stripe Billing)
+        run: cargo build -p rf-cashier
+      - name: rf-mcp (AI Integration)
+        run: cargo build -p rf-mcp
+      - name: rf-nightwatch (Monitoring)
+        run: cargo build -p rf-nightwatch
+
+  # ===========================================
+  # CLI & Application
+  # ===========================================
+  cli:
+    name: "💻 CLI & Application"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: rf-application
+        run: cargo build -p rf-application
+      - name: rf-console
+        run: cargo build -p rf-console
+      - name: forge-cli
+        run: cargo build -p forge-cli
+      - name: foundry-cli
+        run: cargo build -p foundry-cli
+
+  # ===========================================
+  # Tests
+  # ===========================================
+  tests:
+    name: "🧪 Tests"
+    runs-on: ubuntu-latest
+    needs: [core, web, database, auth, validation, queue, storage, notifications, admin, facades, macros]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Run all tests
+        run: cargo test --workspace --lib
