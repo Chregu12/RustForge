@@ -960,6 +960,8 @@ pub fn cache_impl(input: TokenStream) -> TokenStream {
         Forget(LitStr),
         Has(LitStr),
         Flush,
+        Remember(LitStr, Expr, Expr),      // key, ttl, closure
+        RememberForever(LitStr, Expr),     // key, closure
     }
 
     impl Parse for CacheArgs {
@@ -1002,6 +1004,24 @@ pub fn cache_impl(input: TokenStream) -> TokenStream {
                     "flush" => {
                         input.parse::<Ident>()?;
                         return Ok(CacheArgs { action: CacheAction::Flush });
+                    }
+                    "remember" => {
+                        input.parse::<Ident>()?;
+                        input.parse::<Token![:]>()?;
+                        let key: LitStr = input.parse()?;
+                        input.parse::<Token![,]>()?;
+                        let ttl: Expr = input.parse()?;
+                        input.parse::<Token![,]>()?;
+                        let closure: Expr = input.parse()?;
+                        return Ok(CacheArgs { action: CacheAction::Remember(key, ttl, closure) });
+                    }
+                    "remember_forever" => {
+                        input.parse::<Ident>()?;
+                        input.parse::<Token![:]>()?;
+                        let key: LitStr = input.parse()?;
+                        input.parse::<Token![,]>()?;
+                        let closure: Expr = input.parse()?;
+                        return Ok(CacheArgs { action: CacheAction::RememberForever(key, closure) });
                     }
                     _ => {}
                 }
@@ -1056,6 +1076,16 @@ pub fn cache_impl(input: TokenStream) -> TokenStream {
         CacheAction::Flush => {
             quote! {
                 rf_cache_facade::Cache::flush()
+            }
+        }
+        CacheAction::Remember(key, ttl, closure) => {
+            quote! {
+                rf_cache_facade::Cache::remember(#key, #ttl, #closure)
+            }
+        }
+        CacheAction::RememberForever(key, closure) => {
+            quote! {
+                rf_cache_facade::Cache::remember_forever(#key, #closure)
             }
         }
     };
@@ -1232,6 +1262,633 @@ pub fn storage_impl(input: TokenStream) -> TokenStream {
         StorageAction::Disk(name) => quote! {
             rf_storage_facade::Storage::disk(#name)
         },
+    };
+
+    TokenStream::from(expanded)
+}
+
+// =============================================================================
+// Laravel-style Eloquent Macros (update!, create!, find!, delete!)
+// =============================================================================
+
+/// Parse key = value pairs for update/create macros
+struct FieldAssignment {
+    key: Ident,
+    value: Expr,
+}
+
+impl Parse for FieldAssignment {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let key: Ident = input.parse()?;
+        input.parse::<Token![=]>()?;
+        let value: Expr = input.parse()?;
+        Ok(FieldAssignment { key, value })
+    }
+}
+
+/// Parse update! arguments: update!(Model, id, field = value, ...)
+struct UpdateArgs {
+    model: Ident,
+    id: Expr,
+    fields: Punctuated<FieldAssignment, Token![,]>,
+}
+
+impl Parse for UpdateArgs {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let model: Ident = input.parse()?;
+        input.parse::<Token![,]>()?;
+        let id: Expr = input.parse()?;
+        input.parse::<Token![,]>()?;
+        let fields = Punctuated::parse_terminated(input)?;
+        Ok(UpdateArgs { model, id, fields })
+    }
+}
+
+/// Implements the update! macro for Laravel-style updates
+///
+/// ```rust,ignore
+/// // Simple syntax - no json!, no .await needed in macro!
+/// update!(User, 1, name = "John", email = "john@example.com");
+///
+/// // Equivalent to:
+/// // User::update_by_id(1, json!({"name": "John", "email": "john@example.com"})).await
+/// ```
+pub fn update_impl(input: TokenStream) -> TokenStream {
+    let args = parse_macro_input!(input as UpdateArgs);
+    let model = &args.model;
+    let id = &args.id;
+
+    let field_names: Vec<_> = args.fields.iter().map(|f| f.key.to_string()).collect();
+    let field_values: Vec<_> = args.fields.iter().map(|f| &f.value).collect();
+
+    let expanded = quote! {
+        #model::update_by_id(#id, serde_json::json!({
+            #( #field_names: #field_values ),*
+        })).await
+    };
+
+    TokenStream::from(expanded)
+}
+
+/// Parse create! arguments: create!(Model, field = value, ...)
+struct CreateArgs {
+    model: Ident,
+    fields: Punctuated<FieldAssignment, Token![,]>,
+}
+
+impl Parse for CreateArgs {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let model: Ident = input.parse()?;
+        input.parse::<Token![,]>()?;
+        let fields = Punctuated::parse_terminated(input)?;
+        Ok(CreateArgs { model, fields })
+    }
+}
+
+/// Implements the create! macro for Laravel-style creation
+///
+/// ```rust,ignore
+/// // Simple syntax - no json!, no .await needed in macro!
+/// create!(User, name = "John", email = "john@example.com");
+///
+/// // Equivalent to:
+/// // User::create(json!({"name": "John", "email": "john@example.com"})).await
+/// ```
+pub fn create_impl(input: TokenStream) -> TokenStream {
+    let args = parse_macro_input!(input as CreateArgs);
+    let model = &args.model;
+
+    let field_names: Vec<_> = args.fields.iter().map(|f| f.key.to_string()).collect();
+    let field_values: Vec<_> = args.fields.iter().map(|f| &f.value).collect();
+
+    let expanded = quote! {
+        #model::create(serde_json::json!({
+            #( #field_names: #field_values ),*
+        })).await
+    };
+
+    TokenStream::from(expanded)
+}
+
+/// Parse find! arguments: find!(Model, id)
+struct FindArgs {
+    model: Ident,
+    id: Expr,
+}
+
+impl Parse for FindArgs {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let model: Ident = input.parse()?;
+        input.parse::<Token![,]>()?;
+        let id: Expr = input.parse()?;
+        Ok(FindArgs { model, id })
+    }
+}
+
+/// Implements the find! macro for Laravel-style finding
+///
+/// ```rust,ignore
+/// // Simple syntax
+/// let user = find!(User, 1);
+///
+/// // Equivalent to:
+/// // User::find(1).await
+/// ```
+pub fn find_impl(input: TokenStream) -> TokenStream {
+    let args = parse_macro_input!(input as FindArgs);
+    let model = &args.model;
+    let id = &args.id;
+
+    let expanded = quote! {
+        #model::find(#id).await
+    };
+
+    TokenStream::from(expanded)
+}
+
+/// Implements the delete! macro for Laravel-style deletion
+///
+/// ```rust,ignore
+/// // Simple syntax
+/// delete!(User, 1);
+///
+/// // Equivalent to:
+/// // User::destroy(1).await
+/// ```
+pub fn delete_impl(input: TokenStream) -> TokenStream {
+    let args = parse_macro_input!(input as FindArgs);  // Same structure as find
+    let model = &args.model;
+    let id = &args.id;
+
+    let expanded = quote! {
+        #model::destroy(#id).await
+    };
+
+    TokenStream::from(expanded)
+}
+
+// =============================================================================
+// MEDIUM PRIORITY Laravel Helper Macros
+// =============================================================================
+
+/// Implements the mail! macro for sending emails Laravel-style
+///
+/// ```rust,ignore
+/// // Simple email
+/// mail!(to = "user@example.com", subject = "Welcome!", body = "Hello!");
+///
+/// // With template and data
+/// mail!(
+///     to = "user@example.com",
+///     subject = "Order Confirmation",
+///     template = "emails.order",
+///     data = { order_id: 123, total: 99.99 },
+/// );
+///
+/// // With attachments and queueing
+/// mail!(
+///     to = "user@example.com",
+///     subject = "Invoice",
+///     template = "emails.invoice",
+///     data = invoice_data,
+///     attach = "/path/to/invoice.pdf",
+///     queue,
+/// );
+/// ```
+pub fn mail_impl(input: TokenStream) -> TokenStream {
+    struct MailArgs {
+        options: Vec<MailOption>,
+    }
+
+    enum MailOption {
+        To(Expr),
+        Subject(Expr),
+        Body(Expr),
+        Template(Expr),
+        Data(Expr),
+        Attach(Expr),
+        Queue,
+    }
+
+    impl Parse for MailArgs {
+        fn parse(input: ParseStream) -> syn::Result<Self> {
+            let mut options = Vec::new();
+
+            while !input.is_empty() {
+                let key: Ident = input.parse()?;
+                let key_str = key.to_string();
+
+                match key_str.as_str() {
+                    "queue" => {
+                        options.push(MailOption::Queue);
+                    }
+                    _ => {
+                        input.parse::<Token![=]>()?;
+                        let value: Expr = input.parse()?;
+
+                        match key_str.as_str() {
+                            "to" => options.push(MailOption::To(value)),
+                            "subject" => options.push(MailOption::Subject(value)),
+                            "body" => options.push(MailOption::Body(value)),
+                            "template" => options.push(MailOption::Template(value)),
+                            "data" => options.push(MailOption::Data(value)),
+                            "attach" => options.push(MailOption::Attach(value)),
+                            _ => return Err(syn::Error::new(
+                                key.span(),
+                                format!("Unknown mail option: {}. Use to, subject, body, template, data, attach, or queue", key_str)
+                            )),
+                        }
+                    }
+                }
+
+                if input.peek(Token![,]) {
+                    input.parse::<Token![,]>()?;
+                } else {
+                    break;
+                }
+            }
+
+            Ok(MailArgs { options })
+        }
+    }
+
+    let args = parse_macro_input!(input as MailArgs);
+
+    // Extract individual options
+    let mut to_expr = None;
+    let mut subject_expr = None;
+    let mut body_expr = None;
+    let mut template_expr = None;
+    let mut data_expr = None;
+    let mut attach_expr = None;
+    let mut is_queue = false;
+
+    for option in args.options {
+        match option {
+            MailOption::To(expr) => to_expr = Some(expr),
+            MailOption::Subject(expr) => subject_expr = Some(expr),
+            MailOption::Body(expr) => body_expr = Some(expr),
+            MailOption::Template(expr) => template_expr = Some(expr),
+            MailOption::Data(expr) => data_expr = Some(expr),
+            MailOption::Attach(expr) => attach_expr = Some(expr),
+            MailOption::Queue => is_queue = true,
+        }
+    }
+
+    // Build the mail chain
+    let mut mail_chain = quote! { rf_mail_facade::Mail::new() };
+
+    if let Some(to) = to_expr {
+        mail_chain = quote! { #mail_chain.to(#to) };
+    }
+
+    if let Some(subject) = subject_expr {
+        mail_chain = quote! { #mail_chain.subject(#subject) };
+    }
+
+    if let Some(body) = body_expr {
+        mail_chain = quote! { #mail_chain.body(#body) };
+    }
+
+    if let Some(template) = template_expr {
+        if let Some(data) = data_expr {
+            mail_chain = quote! { #mail_chain.template(#template, #data) };
+        } else {
+            mail_chain = quote! { #mail_chain.template(#template, serde_json::json!({})) };
+        }
+    }
+
+    if let Some(attach) = attach_expr {
+        mail_chain = quote! { #mail_chain.attach(#attach) };
+    }
+
+    // Add send or queue
+    let expanded = if is_queue {
+        quote! { #mail_chain.queue() }
+    } else {
+        quote! { #mail_chain.send() }
+    };
+
+    TokenStream::from(expanded)
+}
+
+/// Implements the dispatch! macro for event dispatching
+///
+/// ```rust,ignore
+/// // Dispatch event with named fields
+/// dispatch!(user.registered, user_id = 1, email = "john@example.com");
+///
+/// // Dispatch event struct
+/// dispatch!(UserRegistered { user_id: 1, email: "john@example.com".into() });
+///
+/// // Delayed dispatch
+/// dispatch!(order.shipped, order_id = 123, delay = 3600);
+///
+/// // With explicit delay method
+/// dispatch!(delay: 3600, OrderShipped { order_id: 123 });
+/// ```
+pub fn dispatch_impl(input: TokenStream) -> TokenStream {
+    struct DispatchArgs {
+        delay: Option<Expr>,
+        event: DispatchEvent,
+    }
+
+    enum DispatchEvent {
+        Named(LitStr, Vec<(Ident, Expr)>),  // "event.name", [(field, value), ...]
+        Struct(Expr),                        // EventStruct { ... }
+    }
+
+    impl Parse for DispatchArgs {
+        fn parse(input: ParseStream) -> syn::Result<Self> {
+            let mut delay = None;
+
+            // Check for delay: prefix
+            if input.peek(Ident) {
+                let lookahead: Ident = input.fork().parse()?;
+                if lookahead == "delay" {
+                    input.parse::<Ident>()?;  // consume "delay"
+                    input.parse::<Token![:]>()?;
+                    delay = Some(input.parse()?);
+                    input.parse::<Token![,]>()?;
+                }
+            }
+
+            // Try parsing as named event with dot notation
+            if input.peek(LitStr) || (input.peek(Ident) && input.peek2(Token![.])) {
+                // Try to parse identifier.identifier as a string-like event name
+                let event_name = if input.peek(LitStr) {
+                    input.parse::<LitStr>()?
+                } else {
+                    // Parse ident.ident as event name
+                    let first: Ident = input.parse()?;
+                    input.parse::<Token![.]>()?;
+                    let second: Ident = input.parse()?;
+                    let combined = format!("{}.{}", first, second);
+                    LitStr::new(&combined, first.span())
+                };
+
+                let mut fields = Vec::new();
+                while input.peek(Token![,]) {
+                    input.parse::<Token![,]>()?;
+                    if input.is_empty() {
+                        break;
+                    }
+
+                    // Check if it's delay field
+                    let field_name: Ident = input.parse()?;
+                    if field_name == "delay" {
+                        input.parse::<Token![=]>()?;
+                        delay = Some(input.parse()?);
+                        continue;
+                    }
+
+                    input.parse::<Token![=]>()?;
+                    let field_value: Expr = input.parse()?;
+                    fields.push((field_name, field_value));
+                }
+
+                return Ok(DispatchArgs {
+                    delay,
+                    event: DispatchEvent::Named(event_name, fields),
+                });
+            }
+
+            // Otherwise parse as struct expression
+            let event_expr: Expr = input.parse()?;
+            Ok(DispatchArgs {
+                delay,
+                event: DispatchEvent::Struct(event_expr),
+            })
+        }
+    }
+
+    let args = parse_macro_input!(input as DispatchArgs);
+
+    let event_expr = match args.event {
+        DispatchEvent::Named(name, fields) => {
+            let field_names: Vec<_> = fields.iter().map(|(k, _)| k.to_string()).collect();
+            let field_values: Vec<_> = fields.iter().map(|(_, v)| v).collect();
+            quote! {
+                serde_json::json!({
+                    "event": #name,
+                    #( #field_names: #field_values ),*
+                })
+            }
+        }
+        DispatchEvent::Struct(expr) => {
+            quote! { #expr }
+        }
+    };
+
+    let expanded = if let Some(delay_expr) = args.delay {
+        quote! {
+            rf_event_facade::Event::dispatch_later(#event_expr, #delay_expr)
+        }
+    } else {
+        quote! {
+            rf_event_facade::Event::dispatch(#event_expr)
+        }
+    };
+
+    TokenStream::from(expanded)
+}
+
+/// Implements the job! macro for defining background jobs
+///
+/// ```rust,ignore
+/// job! {
+///     SendEmail(to: String, subject: String, body: String) {
+///         Mail::to(&self.to).subject(&self.subject).body(&self.body).send().await
+///     }
+///
+///     retries = 3,
+///     timeout = 300,
+///     backoff = [60, 300, 900],
+/// }
+///
+/// job! {
+///     ProcessVideo(video_id: i64, resolution: String) {
+///         let video = Video::find(self.video_id).await?;
+///         video.process(&self.resolution).await?;
+///         Ok(())
+///     }
+///
+///     queue = "video-processing",
+///     retries = 5,
+/// }
+/// ```
+pub fn job_impl(input: TokenStream) -> TokenStream {
+    use syn::{braced, token, Type};
+
+    struct JobDefinition {
+        name: Ident,
+        fields: Punctuated<JobField, Token![,]>,
+        body: Vec<syn::Stmt>,
+        options: Vec<JobOption>,
+    }
+
+    struct JobField {
+        name: Ident,
+        _colon: Token![:],
+        ty: Type,
+    }
+
+    enum JobOption {
+        Retries(Expr),
+        Timeout(Expr),
+        Backoff(Expr),
+        Queue(Expr),
+    }
+
+    impl Parse for JobField {
+        fn parse(input: ParseStream) -> syn::Result<Self> {
+            Ok(JobField {
+                name: input.parse()?,
+                _colon: input.parse()?,
+                ty: input.parse()?,
+            })
+        }
+    }
+
+    impl Parse for JobDefinition {
+        fn parse(input: ParseStream) -> syn::Result<Self> {
+            // Parse job name
+            let name: Ident = input.parse()?;
+
+            // Parse fields in parentheses
+            let fields_content;
+            syn::parenthesized!(fields_content in input);
+            let fields = Punctuated::parse_terminated(&fields_content)?;
+
+            // Parse body in braces
+            let body_content;
+            braced!(body_content in input);
+            let mut body = Vec::new();
+            while !body_content.is_empty() {
+                body.push(body_content.parse()?);
+            }
+
+            // Parse options (comma-separated key = value)
+            let mut options = Vec::new();
+            while input.peek(Token![,]) || (!input.is_empty() && input.peek(Ident)) {
+                if input.peek(Token![,]) {
+                    input.parse::<Token![,]>()?;
+                }
+                if input.is_empty() {
+                    break;
+                }
+
+                let option_name: Ident = input.parse()?;
+                input.parse::<Token![=]>()?;
+                let option_value: Expr = input.parse()?;
+
+                let option = match option_name.to_string().as_str() {
+                    "retries" => JobOption::Retries(option_value),
+                    "timeout" => JobOption::Timeout(option_value),
+                    "backoff" => JobOption::Backoff(option_value),
+                    "queue" => JobOption::Queue(option_value),
+                    other => return Err(syn::Error::new(
+                        option_name.span(),
+                        format!("Unknown job option: {}. Use retries, timeout, backoff, or queue", other)
+                    )),
+                };
+                options.push(option);
+            }
+
+            Ok(JobDefinition { name, fields, body, options })
+        }
+    }
+
+    let job_def = parse_macro_input!(input as JobDefinition);
+    let name = &job_def.name;
+    let body_stmts = &job_def.body;
+
+    // Extract field names and types
+    let field_names: Vec<_> = job_def.fields.iter().map(|f| &f.name).collect();
+    let field_types: Vec<_> = job_def.fields.iter().map(|f| &f.ty).collect();
+
+    // Extract options
+    let mut retries = None;
+    let mut timeout = None;
+    let mut backoff = None;
+    let mut queue = None;
+
+    for option in job_def.options {
+        match option {
+            JobOption::Retries(expr) => retries = Some(expr),
+            JobOption::Timeout(expr) => timeout = Some(expr),
+            JobOption::Backoff(expr) => backoff = Some(expr),
+            JobOption::Queue(expr) => queue = Some(expr),
+        }
+    }
+
+    // Build option implementations
+    let retries_impl = if let Some(r) = retries {
+        quote! {
+            fn retries(&self) -> u32 {
+                #r
+            }
+        }
+    } else {
+        quote! {}
+    };
+
+    let timeout_impl = if let Some(t) = timeout {
+        quote! {
+            fn timeout(&self) -> u64 {
+                #t
+            }
+        }
+    } else {
+        quote! {}
+    };
+
+    let backoff_impl = if let Some(b) = backoff {
+        quote! {
+            fn backoff(&self) -> Vec<u64> {
+                #b.to_vec()
+            }
+        }
+    } else {
+        quote! {}
+    };
+
+    let queue_impl = if let Some(q) = queue {
+        quote! {
+            fn queue(&self) -> &str {
+                #q
+            }
+        }
+    } else {
+        quote! {}
+    };
+
+    let expanded = quote! {
+        #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+        pub struct #name {
+            #( pub #field_names: #field_types ),*
+        }
+
+        impl #name {
+            pub fn new(#( #field_names: #field_types ),*) -> Self {
+                Self {
+                    #( #field_names ),*
+                }
+            }
+        }
+
+        #[async_trait::async_trait]
+        impl rf_job_facade::Job for #name {
+            async fn handle(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+                #( #body_stmts )*
+                Ok(())
+            }
+
+            #retries_impl
+            #timeout_impl
+            #backoff_impl
+            #queue_impl
+        }
     };
 
     TokenStream::from(expanded)

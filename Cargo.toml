@@ -19,6 +19,8 @@ members = [
     "crates/rf-broadcast",
     "crates/rf-broadcasting",
     "crates/rf-testing",
+    "crates/rf-pest",
+    "crates/rf-cashier",
     "crates/rf-health",
     "crates/rf-queue",
     "crates/rf-scheduler",
@@ -142,6 +144,8 @@ members = [
     "crates/rf-envoy",
     "crates/rf-sail",
     "crates/rf-spark",
+    "crates/rf-mcp",
+    "crates/rf-nightwatch",
 ]
 exclude = ["starter-template"]
 resolver = "2"

@@ -28,6 +28,7 @@
 //! ```
 
 use crate::facade::query_builder::QueryBuilder;
+use serde::Serialize;
 use serde_json::Value;
 
 /// The Model trait for Laravel-style Eloquent operations.
@@ -138,16 +139,25 @@ pub trait Model: Sized {
     /// # Examples
     ///
     /// ```rust,ignore
-    /// // Just like Laravel!
+    /// // With json! macro:
     /// let user = User::create(serde_json::json!({
     ///     "name": "John",
     ///     "email": "john@example.com"
     /// })).await?;
     ///
+    /// // With struct (recommended):
+    /// #[derive(Serialize)]
+    /// struct NewUser { name: String, email: String }
+    /// let user = User::create(NewUser {
+    ///     name: "John".into(),
+    ///     email: "john@example.com".into()
+    /// }).await?;
+    ///
     /// println!("Created user with ID: {}", user["id"]);
     /// ```
-    async fn create(data: Value) -> Result<Value, String> {
-        QueryBuilder::new(Self::TABLE).create(data).await
+    async fn create<D: Serialize>(data: D) -> Result<Value, String> {
+        let value = serde_json::to_value(data).map_err(|e| e.to_string())?;
+        QueryBuilder::new(Self::TABLE).create(value).await
     }
 
     /// Update a record by ID
@@ -155,14 +165,21 @@ pub trait Model: Sized {
     /// # Examples
     ///
     /// ```rust,ignore
+    /// // With json! macro:
     /// User::update_by_id(1, serde_json::json!({
     ///     "name": "John Doe"
     /// })).await?;
+    ///
+    /// // With struct (recommended):
+    /// #[derive(Serialize)]
+    /// struct UserUpdate { name: String }
+    /// User::update_by_id(1, UserUpdate { name: "John Doe".into() }).await?;
     /// ```
-    async fn update_by_id<V: Into<Value>>(id: V, data: Value) -> Result<u64, String> {
+    async fn update_by_id<V: Into<Value>, D: Serialize>(id: V, data: D) -> Result<u64, String> {
+        let value = serde_json::to_value(data).map_err(|e| e.to_string())?;
         QueryBuilder::new(Self::TABLE)
             .r#where("id", id)
-            .update(data)
+            .update(value)
             .await
     }
 
@@ -196,19 +213,29 @@ pub trait Model: Sized {
     /// # Examples
     ///
     /// ```rust,ignore
+    /// // With json! macro:
     /// let user = User::first_or_create(
     ///     serde_json::json!({"email": "john@example.com"}),  // search
     ///     serde_json::json!({"name": "John", "email": "john@example.com"})  // create
     /// ).await?;
+    ///
+    /// // With structs:
+    /// let user = User::first_or_create(
+    ///     SearchEmail { email: "john@example.com".into() },
+    ///     NewUser { name: "John".into(), email: "john@example.com".into() }
+    /// ).await?;
     /// ```
-    async fn first_or_create(
-        search: Value,
-        create_data: Value,
+    async fn first_or_create<S: Serialize, C: Serialize>(
+        search: S,
+        create_data: C,
     ) -> Result<Value, String> {
+        let search_value = serde_json::to_value(search).map_err(|e| e.to_string())?;
+        let create_value = serde_json::to_value(create_data).map_err(|e| e.to_string())?;
+
         // Build search query from search params
         let mut builder = QueryBuilder::new(Self::TABLE);
 
-        if let Some(obj) = search.as_object() {
+        if let Some(obj) = search_value.as_object() {
             for (key, value) in obj {
                 builder = builder.r#where(key.clone(), value.clone());
             }
@@ -219,7 +246,7 @@ pub trait Model: Sized {
         }
 
         // Not found, create it
-        QueryBuilder::new(Self::TABLE).create(create_data).await
+        QueryBuilder::new(Self::TABLE).create(create_value).await
     }
 
     /// Update or create - update matching record or create new
@@ -227,19 +254,29 @@ pub trait Model: Sized {
     /// # Examples
     ///
     /// ```rust,ignore
+    /// // With json! macro:
     /// let user = User::update_or_create(
     ///     serde_json::json!({"email": "john@example.com"}),  // search
     ///     serde_json::json!({"name": "John Updated"})  // update/create data
     /// ).await?;
+    ///
+    /// // With structs:
+    /// let user = User::update_or_create(
+    ///     SearchEmail { email: "john@example.com".into() },
+    ///     UserUpdate { name: "John Updated".into() }
+    /// ).await?;
     /// ```
-    async fn update_or_create(
-        search: Value,
-        update_data: Value,
+    async fn update_or_create<S: Serialize, U: Serialize>(
+        search: S,
+        update_data: U,
     ) -> Result<Value, String> {
+        let search_value = serde_json::to_value(search).map_err(|e| e.to_string())?;
+        let update_value = serde_json::to_value(update_data).map_err(|e| e.to_string())?;
+
         // Build search query from search params
         let mut builder = QueryBuilder::new(Self::TABLE);
 
-        if let Some(obj) = search.as_object() {
+        if let Some(obj) = search_value.as_object() {
             for (key, value) in obj {
                 builder = builder.r#where(key.clone(), value.clone());
             }
@@ -250,7 +287,7 @@ pub trait Model: Sized {
             if let Some(id) = found.get("id") {
                 QueryBuilder::new(Self::TABLE)
                     .r#where("id", id.clone())
-                    .update(update_data)
+                    .update(update_value.clone())
                     .await?;
                 // Return updated record
                 return QueryBuilder::new(Self::TABLE)
@@ -262,8 +299,8 @@ pub trait Model: Sized {
         }
 
         // Not found, create with merged data
-        let mut merged = search.clone();
-        if let (Some(m), Some(u)) = (merged.as_object_mut(), update_data.as_object()) {
+        let mut merged = search_value.clone();
+        if let (Some(m), Some(u)) = (merged.as_object_mut(), update_value.as_object()) {
             for (key, value) in u {
                 m.insert(key.clone(), value.clone());
             }
@@ -277,13 +314,13 @@ pub trait Model: Sized {
 
     /// Laravel-style alias for `first_or_create`
     #[allow(non_snake_case)]
-    async fn firstOrCreate(search: Value, create_data: Value) -> Result<Value, String> {
+    async fn firstOrCreate<S: Serialize, C: Serialize>(search: S, create_data: C) -> Result<Value, String> {
         Self::first_or_create(search, create_data).await
     }
 
     /// Laravel-style alias for `update_or_create`
     #[allow(non_snake_case)]
-    async fn updateOrCreate(search: Value, update_data: Value) -> Result<Value, String> {
+    async fn updateOrCreate<S: Serialize, U: Serialize>(search: S, update_data: U) -> Result<Value, String> {
         Self::update_or_create(search, update_data).await
     }
 
@@ -295,7 +332,7 @@ pub trait Model: Sized {
 
     /// Laravel-style alias for `update_by_id`
     #[allow(non_snake_case)]
-    async fn updateById<V: Into<Value>>(id: V, data: Value) -> Result<u64, String> {
+    async fn updateById<V: Into<Value>, D: Serialize>(id: V, data: D) -> Result<u64, String> {
         Self::update_by_id(id, data).await
     }
 }

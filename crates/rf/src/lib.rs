@@ -56,6 +56,20 @@ pub use rf_macros::route;
 pub use rf_macros::controller;
 pub use rf_macros::Model;
 
+// Eloquent CRUD Macros (Laravel-style without json! or .await!)
+pub use rf_macros::update;
+pub use rf_macros::create;
+pub use rf_macros::find;
+pub use rf_macros::delete;
+
+// Laravel Helper Macros (Phase 23)
+pub use rf_macros::routes;        // Route definition without || (German keyboard friendly)
+pub use rf_macros::migration;     // Database migration DSL
+pub use rf_macros::request;       // Form request validation
+pub use rf_macros::send_mail;     // Email sending
+pub use rf_macros::dispatch;      // Event dispatching
+pub use rf_macros::job;           // Background job definition
+
 // Validation
 pub use rf_validation_derive::Validate;
 
@@ -65,6 +79,12 @@ pub use rf_errors::Result;
 
 // Response
 pub use rf_response::Response;
+
+// New packages (Phase 22)
+pub use rf_pest::Pest;
+pub use rf_cashier::Cashier;
+pub use rf_mcp::Mcp;
+pub use rf_nightwatch::Nightwatch;
 
 // ============================================================================
 // MODULE 1: prelude - Common imports for 90% of use cases
@@ -100,11 +120,19 @@ pub mod prelude {
 
     // Macros
     pub use rf_macros::{rules, route, controller, Model};
+    pub use rf_macros::{update, create, find, delete};  // Eloquent CRUD macros
+    pub use rf_macros::{routes, migration, request, send_mail, dispatch, job};  // Laravel helper macros
     pub use rf_validation_derive::Validate;
 
     // Core Types
     pub use rf_response::Response;
     pub use rf_errors::{RustForgeError, Result};
+
+    // New packages (Phase 22)
+    pub use rf_pest::Pest;
+    pub use rf_cashier::Cashier;
+    pub use rf_mcp::Mcp;
+    pub use rf_nightwatch::Nightwatch;
 }
 
 // ============================================================================
@@ -266,6 +294,22 @@ pub mod services {
     // Testing
     pub mod testing {
         pub use rf_testing::*;
+        pub use rf_pest::*;
+    }
+
+    // Payments
+    pub mod payments {
+        pub use rf_cashier::*;
+    }
+
+    // AI Integration
+    pub mod ai {
+        pub use rf_mcp::*;
+    }
+
+    // Monitoring
+    pub mod monitoring {
+        pub use rf_nightwatch::*;
     }
 
     // Errors

@@ -1,0 +1,39 @@
+[package]
+name = "rf-nightwatch"
+version = "0.1.0"
+edition = "2021"
+authors = ["RustForge Team"]
+description = "Laravel-style application monitoring and observability for RustForge"
+license = "MIT"
+keywords = ["monitoring", "observability", "metrics", "health", "alerting"]
+categories = ["web-programming", "development-tools::profiling"]
+
+[dependencies]
+# Async
+tokio = { version = "1.37", features = ["macros", "rt-multi-thread", "sync", "time"] }
+async-trait = "0.1"
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# HTTP
+axum = { version = "0.8", features = ["macros"] }
+
+# Error handling
+thiserror = "1.0"
+anyhow = "1.0"
+
+# Time
+chrono = { version = "0.4", features = ["serde"] }
+
+# Utils
+uuid = { version = "1.10", features = ["v4", "serde"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Metrics
+metrics = "0.22"
+
+[dev-dependencies]
+tokio = { version = "1.37", features = ["full", "test-util"] }

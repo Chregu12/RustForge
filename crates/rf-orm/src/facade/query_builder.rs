@@ -2,6 +2,7 @@
 //!
 //! Provides a Laravel-style fluent query builder for database operations.
 
+use serde::Serialize;
 use serde_json::Value;
 
 /// Query builder for fluent database queries
@@ -349,7 +350,7 @@ impl QueryBuilder {
 
     /// Laravel-style insertMany (camelCase alias)
     #[allow(non_snake_case)]
-    pub async fn insertMany(self, data: Vec<Value>) -> Result<u64, String> {
+    pub async fn insertMany<D: Serialize>(self, data: Vec<D>) -> Result<u64, String> {
         self.insert_many(data).await
     }
 
@@ -1027,28 +1028,38 @@ impl QueryBuilder {
     /// # Examples
     ///
     /// ```rust,ignore
+    /// // With json! macro:
     /// let user = User::firstOrCreate(
     ///     json!({"email": "john@example.com"}),     // Search attributes
     ///     json!({"name": "John", "role": "user"})   // Additional attributes for create
     /// ).await?;
+    ///
+    /// // With structs (recommended):
+    /// let user = User::firstOrCreate(
+    ///     SearchEmail { email: "john@example.com".into() },
+    ///     NewUser { name: "John".into(), role: "user".into() }
+    /// ).await?;
     /// ```
     #[allow(non_snake_case)]
-    pub async fn firstOrCreate(self, search: Value, create: Value) -> Result<Value, String> {
+    pub async fn firstOrCreate<S: Serialize, C: Serialize>(self, search: S, create: C) -> Result<Value, String> {
+        let search_value = serde_json::to_value(search).map_err(|e| e.to_string())?;
+        let create_value = serde_json::to_value(create).map_err(|e| e.to_string())?;
+
         // Try to find first
         if let Some(found) = self.clone().first().await? {
             return Ok(found);
         }
 
         // Create new with merged attributes
-        let mut merged = search;
-        if let (Value::Object(ref mut m1), Value::Object(m2)) = (&mut merged, create) {
+        let mut merged = search_value;
+        if let (Value::Object(ref mut m1), Value::Object(m2)) = (&mut merged, create_value) {
             m1.extend(m2);
         }
         self.create(merged).await
     }
 
     /// snake_case alias for firstOrCreate
-    pub async fn first_or_create(self, search: Value, create: Value) -> Result<Value, String> {
+    pub async fn first_or_create<S: Serialize, C: Serialize>(self, search: S, create: C) -> Result<Value, String> {
         self.firstOrCreate(search, create).await
     }
 
@@ -1057,28 +1068,38 @@ impl QueryBuilder {
     /// # Examples
     ///
     /// ```rust,ignore
+    /// // With json! macro:
     /// let user = User::firstOrNew(
     ///     json!({"email": "john@example.com"}),
     ///     json!({"name": "John"})
     /// ).await;
+    ///
+    /// // With structs (recommended):
+    /// let user = User::firstOrNew(
+    ///     SearchEmail { email: "john@example.com".into() },
+    ///     NewUser { name: "John".into() }
+    /// ).await;
     /// ```
     #[allow(non_snake_case)]
-    pub async fn firstOrNew(self, search: Value, create: Value) -> Value {
+    pub async fn firstOrNew<S: Serialize, C: Serialize>(self, search: S, create: C) -> Value {
+        let search_value = serde_json::to_value(search).unwrap_or(Value::Null);
+        let create_value = serde_json::to_value(create).unwrap_or(Value::Null);
+
         // Try to find first
         if let Ok(Some(found)) = self.clone().first().await {
             return found;
         }
 
         // Return merged attributes (not saved)
-        let mut merged = search;
-        if let (Value::Object(ref mut m1), Value::Object(m2)) = (&mut merged, create) {
+        let mut merged = search_value;
+        if let (Value::Object(ref mut m1), Value::Object(m2)) = (&mut merged, create_value) {
             m1.extend(m2);
         }
         merged
     }
 
     /// snake_case alias for firstOrNew
-    pub async fn first_or_new(self, search: Value, create: Value) -> Value {
+    pub async fn first_or_new<S: Serialize, C: Serialize>(self, search: S, create: C) -> Value {
         self.firstOrNew(search, create).await
     }
 
@@ -1087,39 +1108,49 @@ impl QueryBuilder {
     /// # Examples
     ///
     /// ```rust,ignore
+    /// // With json! macro:
     /// let user = User::updateOrCreate(
     ///     json!({"email": "john@example.com"}),  // Search attributes
     ///     json!({"name": "John Updated"})        // Values to update/create
     /// ).await?;
+    ///
+    /// // With structs (recommended):
+    /// let user = User::updateOrCreate(
+    ///     SearchEmail { email: "john@example.com".into() },
+    ///     UserUpdate { name: "John Updated".into() }
+    /// ).await?;
     /// ```
     #[allow(non_snake_case)]
-    pub async fn updateOrCreate(self, search: Value, update: Value) -> Result<Value, String> {
+    pub async fn updateOrCreate<S: Serialize, U: Serialize>(self, search: S, update: U) -> Result<Value, String> {
+        let search_value = serde_json::to_value(search).map_err(|e| e.to_string())?;
+        let update_value = serde_json::to_value(update).map_err(|e| e.to_string())?;
+
         // Try to find and update
         if let Some(found) = self.clone().first().await? {
             let id = found.get("id").and_then(|v| v.as_i64()).unwrap_or(0);
             self.clone()
                 .r#where("id", id)
-                .update(update.clone())
+                .update(update_value.clone())
                 .await?;
 
             // Return updated record
             let mut result = found;
-            if let (Value::Object(ref mut m1), Value::Object(m2)) = (&mut result, update) {
+            if let (Value::Object(ref mut m1), Value::Object(m2)) = (&mut result, update_value) {
                 m1.extend(m2);
             }
             return Ok(result);
         }
 
         // Create new
-        let mut merged = search;
-        if let (Value::Object(ref mut m1), Value::Object(m2)) = (&mut merged, update) {
+        let mut merged = search_value;
+        if let (Value::Object(ref mut m1), Value::Object(m2)) = (&mut merged, update_value) {
             m1.extend(m2);
         }
         self.create(merged).await
     }
 
     /// snake_case alias for updateOrCreate
-    pub async fn update_or_create(self, search: Value, update: Value) -> Result<Value, String> {
+    pub async fn update_or_create<S: Serialize, U: Serialize>(self, search: S, update: U) -> Result<Value, String> {
         self.updateOrCreate(search, update).await
     }
 
@@ -1128,22 +1159,32 @@ impl QueryBuilder {
     /// # Examples
     ///
     /// ```rust,ignore
+    /// // With json! macro:
     /// User::updateOrInsert(
     ///     json!({"email": "john@example.com"}),
     ///     json!({"login_count": 1})
     /// ).await?;
+    ///
+    /// // With structs (recommended):
+    /// User::updateOrInsert(
+    ///     SearchEmail { email: "john@example.com".into() },
+    ///     LoginUpdate { login_count: 1 }
+    /// ).await?;
     /// ```
     #[allow(non_snake_case)]
-    pub async fn updateOrInsert(self, search: Value, update: Value) -> Result<bool, String> {
+    pub async fn updateOrInsert<S: Serialize, U: Serialize>(self, search: S, update: U) -> Result<bool, String> {
+        let search_value = serde_json::to_value(search).map_err(|e| e.to_string())?;
+        let update_value = serde_json::to_value(update).map_err(|e| e.to_string())?;
+
         // Try to update
-        let affected = self.clone().update(update.clone()).await?;
+        let affected = self.clone().update(update_value.clone()).await?;
         if affected > 0 {
             return Ok(true);
         }
 
         // Insert new
-        let mut merged = search;
-        if let (Value::Object(ref mut m1), Value::Object(m2)) = (&mut merged, update) {
+        let mut merged = search_value;
+        if let (Value::Object(ref mut m1), Value::Object(m2)) = (&mut merged, update_value) {
             m1.extend(m2);
         }
         self.insert(merged).await?;
@@ -1155,6 +1196,7 @@ impl QueryBuilder {
     /// # Examples
     ///
     /// ```rust,ignore
+    /// // With json! macro:
     /// User::upsert(
     ///     vec![
     ///         json!({"email": "john@ex.com", "name": "John"}),
@@ -1163,13 +1205,26 @@ impl QueryBuilder {
     ///     &["email"],  // Unique columns
     ///     &["name"]    // Columns to update on conflict
     /// ).await?;
+    ///
+    /// // With structs (recommended):
+    /// User::upsert(
+    ///     vec![
+    ///         NewUser { email: "john@ex.com".into(), name: "John".into() },
+    ///         NewUser { email: "jane@ex.com".into(), name: "Jane".into() },
+    ///     ],
+    ///     &["email"],
+    ///     &["name"]
+    /// ).await?;
     /// ```
-    pub async fn upsert(
+    pub async fn upsert<D: Serialize>(
         self,
-        _records: Vec<Value>,
+        records: Vec<D>,
         _unique_by: &[&str],
         _update: &[&str]
     ) -> Result<u64, String> {
+        for record in records {
+            let _value = serde_json::to_value(record).map_err(|e| e.to_string())?;
+        }
         // Mock implementation - real impl would use INSERT ... ON CONFLICT
         Ok(0)
     }
@@ -1218,15 +1273,27 @@ impl QueryBuilder {
     /// ```rust,no_run
     /// use rf_orm::DB;
     /// use serde_json::json;
+    /// use serde::Serialize;
+    ///
+    /// #[derive(Serialize)]
+    /// struct NewUser { name: String, email: String }
     ///
     /// async fn example() {
+    ///     // With json! macro:
     ///     let id = DB::table("users").insert(json!({
     ///         "name": "John",
     ///         "email": "john@example.com"
     ///     })).await.unwrap();
+    ///
+    ///     // With struct (recommended):
+    ///     let id = DB::table("users").insert(NewUser {
+    ///         name: "John".into(),
+    ///         email: "john@example.com".into(),
+    ///     }).await.unwrap();
     /// }
     /// ```
-    pub async fn insert(self, _data: Value) -> Result<u64, String> {
+    pub async fn insert<D: Serialize>(self, data: D) -> Result<u64, String> {
+        let _value = serde_json::to_value(data).map_err(|e| e.to_string())?;
         // Mock implementation - returns fake ID
         Ok(1)
     }
@@ -1240,23 +1307,34 @@ impl QueryBuilder {
     /// ```rust,no_run
     /// use rf_orm::DB;
     /// use serde_json::json;
+    /// use serde::Serialize;
+    ///
+    /// #[derive(Serialize)]
+    /// struct NewUser { name: String, email: String }
     ///
     /// async fn example() {
-    ///     // Just like Laravel's User::create()!
+    ///     // With json! macro:
     ///     let user = DB::table("users").create(json!({
     ///         "name": "John",
     ///         "email": "john@example.com"
     ///     })).await.unwrap();
     ///
+    ///     // With struct (recommended):
+    ///     let user = DB::table("users").create(NewUser {
+    ///         name: "John".into(),
+    ///         email: "john@example.com".into(),
+    ///     }).await.unwrap();
+    ///
     ///     println!("Created user: {}", user["name"]);
     /// }
     /// ```
-    pub async fn create(self, data: Value) -> Result<Value, String> {
+    pub async fn create<D: Serialize>(self, data: D) -> Result<Value, String> {
+        let value = serde_json::to_value(data).map_err(|e| e.to_string())?;
         let _table = self.table.clone();
-        let id = self.insert(data.clone()).await?;
+        let id = self.insert(value.clone()).await?;
 
         // Return the created record with ID
-        let mut result = data;
+        let mut result = value;
         if let Value::Object(ref mut map) = result {
             map.insert("id".to_string(), Value::Number(id.into()));
         }
@@ -1270,16 +1348,31 @@ impl QueryBuilder {
     /// ```rust,no_run
     /// use rf_orm::DB;
     /// use serde_json::json;
+    /// use serde::Serialize;
+    ///
+    /// #[derive(Serialize)]
+    /// struct NewUser { name: String }
     ///
     /// async fn example() {
+    ///     // With json! macro:
     ///     DB::table("users").insert_many(vec![
     ///         json!({"name": "John"}),
     ///         json!({"name": "Jane"}),
     ///     ]).await.unwrap();
+    ///
+    ///     // With structs (recommended):
+    ///     DB::table("users").insert_many(vec![
+    ///         NewUser { name: "John".into() },
+    ///         NewUser { name: "Jane".into() },
+    ///     ]).await.unwrap();
     /// }
     /// ```
-    pub async fn insert_many(self, data: Vec<Value>) -> Result<u64, String> {
-        Ok(data.len() as u64)
+    pub async fn insert_many<D: Serialize>(self, data: Vec<D>) -> Result<u64, String> {
+        let len = data.len();
+        for item in data {
+            let _value = serde_json::to_value(item).map_err(|e| e.to_string())?;
+        }
+        Ok(len as u64)
     }
 
     /// Update records matching the where clauses
@@ -1289,14 +1382,25 @@ impl QueryBuilder {
     /// ```rust,no_run
     /// use rf_orm::DB;
     /// use serde_json::json;
+    /// use serde::Serialize;
+    ///
+    /// #[derive(Serialize)]
+    /// struct UserUpdate { active: bool }
     ///
     /// async fn example() {
+    ///     // With json! macro:
     ///     let affected = DB::table("users")
     ///         .where_clause("id", "=", 1.into())
     ///         .update(json!({"active": true})).await.unwrap();
+    ///
+    ///     // With struct (recommended):
+    ///     let affected = DB::table("users")
+    ///         .where_clause("id", "=", 1.into())
+    ///         .update(UserUpdate { active: true }).await.unwrap();
     /// }
     /// ```
-    pub async fn update(self, _data: Value) -> Result<u64, String> {
+    pub async fn update<D: Serialize>(self, data: D) -> Result<u64, String> {
+        let _value = serde_json::to_value(data).map_err(|e| e.to_string())?;
         // Mock implementation
         Ok(1)
     }

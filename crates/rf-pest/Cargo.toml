@@ -1,0 +1,31 @@
+[package]
+name = "rf-pest"
+version = "0.1.0"
+edition = "2021"
+authors = ["RustForge Team"]
+description = "Pest-style testing framework for RustForge - elegant, expressive tests"
+license = "MIT"
+keywords = ["testing", "pest", "expect", "bdd", "tdd"]
+categories = ["development-tools::testing"]
+
+[dependencies]
+# Testing base
+rf-testing = { path = "../rf-testing" }
+
+# Async
+tokio = { version = "1.37", features = ["macros", "rt-multi-thread"] }
+async-trait = "0.1"
+
+# Output
+colored = "2.1"
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Utils
+regex = "1.10"
+chrono = { version = "0.4", features = ["serde"] }
+
+[dev-dependencies]
+tokio = { version = "1.37", features = ["full", "test-util"] }

@@ -80,9 +80,19 @@ rf-sse = { path = "../rf-sse" }
 # Logging & Monitoring
 rf-logging = { path = "../rf-logging" }
 rf-metrics = { path = "../rf-metrics" }
+rf-nightwatch = { path = "../rf-nightwatch" }
 
 # Errors
 rf-errors = { path = "../rf-errors" }
+
+# Testing
+rf-pest = { path = "../rf-pest" }
+
+# Payments
+rf-cashier = { path = "../rf-cashier" }
+
+# AI Integration
+rf-mcp = { path = "../rf-mcp" }
 
 [features]
 default = []

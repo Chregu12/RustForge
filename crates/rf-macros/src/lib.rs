@@ -49,6 +49,7 @@ mod exception_handler;
 mod form_request_macro;
 mod function_macro;
 mod helpers;
+mod laravel_macros;
 mod laravel_syntax;
 mod mailable_macro;
 mod query_macro;
@@ -788,6 +789,83 @@ pub fn storage(input: TokenStream) -> TokenStream {
 }
 
 // =============================================================================
+// Laravel-style Eloquent Macros (CRUD without json! or .await!)
+// =============================================================================
+
+/// Update a model record - Laravel-style without json! or explicit .await!
+///
+/// # Example
+///
+/// ```ignore
+/// use rf_macros::update;
+///
+/// // Clean syntax - no json!, automatic .await!
+/// update!(User, 1, name = "John Doe");
+/// update!(User, user_id, name = "John", email = "john@example.com");
+///
+/// // Equivalent to:
+/// // User::update_by_id(1, json!({"name": "John Doe"})).await
+/// ```
+#[proc_macro]
+pub fn update(input: TokenStream) -> TokenStream {
+    helpers::update_impl(input)
+}
+
+/// Create a new model record - Laravel-style without json! or explicit .await!
+///
+/// # Example
+///
+/// ```ignore
+/// use rf_macros::create;
+///
+/// // Clean syntax - no json!, automatic .await!
+/// let user = create!(User, name = "John", email = "john@example.com");
+///
+/// // Equivalent to:
+/// // User::create(json!({"name": "John", "email": "john@example.com"})).await
+/// ```
+#[proc_macro]
+pub fn create(input: TokenStream) -> TokenStream {
+    helpers::create_impl(input)
+}
+
+/// Find a model by ID - Laravel-style with automatic .await!
+///
+/// # Example
+///
+/// ```ignore
+/// use rf_macros::find;
+///
+/// let user = find!(User, 1);
+/// let post = find!(Post, post_id);
+///
+/// // Equivalent to:
+/// // User::find(1).await
+/// ```
+#[proc_macro]
+pub fn find(input: TokenStream) -> TokenStream {
+    helpers::find_impl(input)
+}
+
+/// Delete a model by ID - Laravel-style with automatic .await!
+///
+/// # Example
+///
+/// ```ignore
+/// use rf_macros::delete;
+///
+/// delete!(User, 1);
+/// delete!(Post, post_id);
+///
+/// // Equivalent to:
+/// // User::destroy(1).await
+/// ```
+#[proc_macro]
+pub fn delete(input: TokenStream) -> TokenStream {
+    helpers::delete_impl(input)
+}
+
+// =============================================================================
 // Ultimate Laravel Experience - rustforge! block
 // =============================================================================
 
@@ -1395,4 +1473,264 @@ pub fn notification(input: TokenStream) -> TokenStream {
 #[proc_macro]
 pub fn markdown(input: TokenStream) -> TokenStream {
     mailable_macro::markdown_impl(input)
+}
+
+// =============================================================================
+// MEDIUM PRIORITY Laravel Helper Macros
+// =============================================================================
+
+/// Send emails with Laravel-style syntax
+///
+/// Note: Using send_mail! to avoid conflict with the #[mail] attribute macro.
+/// In Laravel-style code, you can use this for quick email sending.
+///
+/// # Example
+///
+/// ```ignore
+/// use rf_macros::send_mail;
+///
+/// // Simple email
+/// send_mail!(to = "user@example.com", subject = "Welcome!", body = "Hello!");
+///
+/// // With template
+/// send_mail!(
+///     to = "user@example.com",
+///     subject = "Order Confirmation",
+///     template = "emails.order",
+///     data = order_data,
+/// );
+///
+/// // With attachment and queue
+/// send_mail!(
+///     to = "user@example.com",
+///     subject = "Invoice",
+///     template = "emails.invoice",
+///     data = invoice_data,
+///     attach = "/path/to/invoice.pdf",
+///     queue,
+/// );
+/// ```
+#[proc_macro]
+pub fn send_mail(input: TokenStream) -> TokenStream {
+    helpers::mail_impl(input)
+}
+
+/// Dispatch events with Laravel-style syntax
+///
+/// # Example
+///
+/// ```ignore
+/// use rf_macros::dispatch;
+///
+/// // Dispatch event with named fields
+/// dispatch!(user.registered, user_id = 1, email = "john@example.com");
+///
+/// // Dispatch event struct
+/// dispatch!(UserRegistered { user_id: 1, email: "john@example.com".into() });
+///
+/// // Delayed dispatch
+/// dispatch!(order.shipped, order_id = 123, delay = 3600);
+/// dispatch!(delay: 3600, OrderShipped { order_id: 123 });
+/// ```
+#[proc_macro]
+pub fn dispatch(input: TokenStream) -> TokenStream {
+    helpers::dispatch_impl(input)
+}
+
+/// Define background jobs with Laravel-style syntax
+///
+/// # Example
+///
+/// ```ignore
+/// use rf_macros::job;
+///
+/// job! {
+///     SendEmail(to: String, subject: String, body: String) {
+///         Mail::to(&self.to).subject(&self.subject).body(&self.body).send().await
+///     }
+///
+///     retries = 3,
+///     timeout = 300,
+///     backoff = [60, 300, 900],
+/// }
+///
+/// job! {
+///     ProcessVideo(video_id: i64, resolution: String) {
+///         let video = Video::find(self.video_id).await?;
+///         video.process(&self.resolution).await?;
+///         Ok(())
+///     }
+///
+///     queue = "video-processing",
+///     retries = 5,
+/// }
+///
+/// // Then dispatch the job:
+/// SendEmail::new("user@example.com".into(), "Hello".into(), "World".into())
+///     .dispatch()
+///     .await?;
+/// ```
+#[proc_macro]
+pub fn job(input: TokenStream) -> TokenStream {
+    helpers::job_impl(input)
+}
+
+// =============================================================================
+// HIGH PRIORITY Laravel-style Macros (Phase 21 - German Keyboard Fix)
+// =============================================================================
+
+/// Define routes using clean Laravel-style syntax (solves German keyboard || problem)
+///
+/// This macro is the HIGHEST PRIORITY as it eliminates the need for the pipe operator
+/// which is difficult to type on German keyboards.
+///
+/// # Example
+///
+/// ```ignore
+/// use rf_macros::routes;
+///
+/// routes! {
+///     get "/posts" => post_controller::index,
+///     post "/posts" => post_controller::store,
+///     get "/posts/{id}" => post_controller::show,
+///     put "/posts/{id}" => post_controller::update,
+///     delete "/posts/{id}" => post_controller::destroy,
+///
+///     middleware ["auth"] {
+///         get "/profile" => profile_controller::show,
+///         put "/profile" => profile_controller::update,
+///     }
+///
+///     prefix "/api/v1" {
+///         get "/users" => api::users::index,
+///         post "/users" => api::users::store,
+///     }
+/// }
+/// ```
+#[proc_macro]
+pub fn routes(input: TokenStream) -> TokenStream {
+    laravel_macros::routes_impl(input)
+}
+
+/// Define RESTful resource routes for a controller
+///
+/// Automatically generates standard RESTful routes (index, create, store, show, edit, update, destroy).
+///
+/// # Example
+///
+/// ```ignore
+/// use rf_macros::resource;
+///
+/// // All routes
+/// resource!(posts, PostController);
+///
+/// // Only specific routes
+/// resource!(users, UserController, only: [index, show]);
+///
+/// // All except specific routes
+/// resource!(comments, CommentController, except: [destroy]);
+/// ```
+#[proc_macro]
+pub fn resource(input: TokenStream) -> TokenStream {
+    laravel_macros::resource_impl(input)
+}
+
+/// Define database migrations with Laravel-style syntax
+///
+/// # Example
+///
+/// ```ignore
+/// use rf_macros::migration;
+///
+/// migration! {
+///     create_table users {
+///         id: primary,
+///         email: string unique,
+///         name: string,
+///         password: string,
+///         role: string = "user",
+///         timestamps,
+///     }
+/// }
+///
+/// migration! {
+///     create_table posts {
+///         id: primary,
+///         user_id: integer,
+///         title: string,
+///         body: string,
+///         published: bool = false,
+///         timestamps,
+///     }
+/// }
+/// ```
+#[proc_macro]
+pub fn migration(input: TokenStream) -> TokenStream {
+    laravel_macros::migration_impl(input)
+}
+
+/// Define models with relationships using Laravel-style syntax
+///
+/// # Example
+///
+/// ```ignore
+/// use rf_macros::model;
+///
+/// model! {
+///     Post => "posts" {
+///         id: i32 primary,
+///         user_id: i32,
+///         title: String,
+///         content: String,
+///         published: bool = false,
+///         timestamps,
+///
+///         belongs_to User via user_id,
+///         has_many Comment,
+///     }
+/// }
+///
+/// model! {
+///     Comment => "comments" {
+///         id: i32 primary,
+///         post_id: i32,
+///         body: String,
+///         timestamps,
+///
+///         belongs_to Post via post_id,
+///     }
+/// }
+/// ```
+#[proc_macro]
+pub fn model(input: TokenStream) -> TokenStream {
+    laravel_macros::model_impl(input)
+}
+
+/// Define form request validation with Laravel-style syntax
+///
+/// # Example
+///
+/// ```ignore
+/// use rf_macros::request;
+///
+/// request! {
+///     CreateUser {
+///         email: email,
+///         name: length(3, 50),
+///         password: length(8) + uppercase + number,
+///         age: range(18, 120) | optional,
+///     }
+/// }
+///
+/// request! {
+///     UpdatePost {
+///         title: length(5, 200),
+///         body: length(10),
+///         published: optional,
+///     }
+/// }
+/// ```
+#[proc_macro]
+pub fn request(input: TokenStream) -> TokenStream {
+    laravel_macros::request_impl(input)
 }

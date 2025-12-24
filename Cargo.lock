@@ -648,6 +648,7 @@ dependencies = [
  "http-types",
  "hyper 0.14.32",
  "hyper-rustls 0.24.2",
+ "hyper-tls 0.5.0",
  "serde",
  "serde_json",
  "serde_path_to_error",
@@ -657,6 +658,7 @@ dependencies = [
  "smol_str",
  "thiserror 1.0.69",
  "tokio",
+ "uuid 0.8.2",
 ]
 
 [[package]]
@@ -849,7 +851,7 @@ dependencies = [
  "percent-encoding",
  "pin-project-lite",
  "tracing",
- "uuid",
+ "uuid 1.18.1",
 ]
 
 [[package]]
@@ -2660,7 +2662,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bef552e6f588e446098f6ba40d89ac146c8c7b64aade83c051ee00bb5d2bc18d"
 dependencies = [
  "serde",
- "uuid",
+ "uuid 1.18.1",
 ]
 
 [[package]]
@@ -5006,7 +5008,7 @@ dependencies = [
  "serde_json",
  "thiserror 1.0.69",
  "time",
- "uuid",
+ "uuid 1.18.1",
  "wasm-bindgen-futures",
  "web-sys",
  "yaup",
@@ -5031,6 +5033,16 @@ name = "memchr"
 version = "2.7.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f52b00d39961fc5b2736ea853c9cc86238e165017a493d1d5c8eac6bdc4cc273"
+
+[[package]]
+name = "metrics"
+version = "0.22.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "56d05972e8cbac2671e85aa9d04d9160d193f8bebd1a5c1a2f4542c62e65d1d0"
+dependencies = [
+ "ahash 0.8.12",
+ "portable-atomic",
+]
 
 [[package]]
 name = "mime"
@@ -7161,6 +7173,7 @@ dependencies = [
  "rf-blade",
  "rf-broadcast",
  "rf-cache",
+ "rf-cashier",
  "rf-collections",
  "rf-config",
  "rf-core",
@@ -7174,12 +7187,15 @@ dependencies = [
  "rf-logging",
  "rf-macros",
  "rf-mail",
+ "rf-mcp",
  "rf-metrics",
  "rf-model-macro",
+ "rf-nightwatch",
  "rf-notifications",
  "rf-orm",
  "rf-pagination",
  "rf-passport",
+ "rf-pest",
  "rf-queue",
  "rf-request",
  "rf-requests",
@@ -7262,7 +7278,7 @@ dependencies = [
  "serde_json",
  "thiserror 1.0.69",
  "tokio",
- "uuid",
+ "uuid 1.18.1",
 ]
 
 [[package]]
@@ -7288,7 +7304,7 @@ dependencies = [
  "tokio-test",
  "tower 0.4.13",
  "tracing",
- "uuid",
+ "uuid 1.18.1",
 ]
 
 [[package]]
@@ -7332,7 +7348,7 @@ dependencies = [
  "tower-http 0.5.2",
  "tower-sessions",
  "urlencoding",
- "uuid",
+ "uuid 1.18.1",
  "validator",
 ]
 
@@ -7406,7 +7422,7 @@ dependencies = [
  "thiserror 1.0.69",
  "tokio",
  "tracing",
- "uuid",
+ "uuid 1.18.1",
 ]
 
 [[package]]
@@ -7458,6 +7474,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "rf-cashier"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-stripe",
+ "async-trait",
+ "axum 0.8.7",
+ "chrono",
+ "hex",
+ "hmac",
+ "sea-orm 1.1.19",
+ "serde",
+ "serde_json",
+ "sha2",
+ "thiserror 1.0.69",
+ "tokio",
+ "uuid 1.18.1",
+]
+
+[[package]]
 name = "rf-cli-gen"
 version = "0.1.0"
 dependencies = [
@@ -7489,7 +7525,7 @@ dependencies = [
  "tempfile",
  "thiserror 1.0.69",
  "tokio",
- "uuid",
+ "uuid 1.18.1",
 ]
 
 [[package]]
@@ -7562,7 +7598,7 @@ dependencies = [
  "thiserror 1.0.69",
  "tokio",
  "tracing",
- "uuid",
+ "uuid 1.18.1",
  "validator",
 ]
 
@@ -7613,7 +7649,7 @@ dependencies = [
  "thiserror 1.0.69",
  "tokio",
  "tracing",
- "uuid",
+ "uuid 1.18.1",
  "webdriver",
 ]
 
@@ -7635,7 +7671,7 @@ dependencies = [
  "tokio-tungstenite 0.21.0",
  "tracing",
  "urlencoding",
- "uuid",
+ "uuid 1.18.1",
 ]
 
 [[package]]
@@ -7662,7 +7698,7 @@ dependencies = [
  "thiserror 1.0.69",
  "tokio",
  "tracing",
- "uuid",
+ "uuid 1.18.1",
 ]
 
 [[package]]
@@ -7736,7 +7772,7 @@ dependencies = [
  "tokio",
  "tokio-test",
  "tracing",
- "uuid",
+ "uuid 1.18.1",
 ]
 
 [[package]]
@@ -7808,7 +7844,7 @@ dependencies = [
  "tera",
  "thiserror 1.0.69",
  "tokio",
- "uuid",
+ "uuid 1.18.1",
  "validator",
 ]
 
@@ -7828,7 +7864,7 @@ dependencies = [
  "serde_json",
  "tokio",
  "tower 0.4.13",
- "uuid",
+ "uuid 1.18.1",
 ]
 
 [[package]]
@@ -7907,7 +7943,7 @@ dependencies = [
  "tokio",
  "tokio-tungstenite 0.21.0",
  "tower 0.4.13",
- "uuid",
+ "uuid 1.18.1",
 ]
 
 [[package]]
@@ -7985,7 +8021,7 @@ dependencies = [
  "tokio-test",
  "tracing",
  "tracing-subscriber",
- "uuid",
+ "uuid 1.18.1",
 ]
 
 [[package]]
@@ -8016,7 +8052,7 @@ dependencies = [
  "tracing",
  "tracing-appender",
  "tracing-subscriber",
- "uuid",
+ "uuid 1.18.1",
 ]
 
 [[package]]
@@ -8058,7 +8094,7 @@ dependencies = [
  "tokio",
  "tracing",
  "urlencoding",
- "uuid",
+ "uuid 1.18.1",
 ]
 
 [[package]]
@@ -8076,6 +8112,24 @@ dependencies = [
  "tempfile",
  "tokio",
  "tower 0.4.13",
+]
+
+[[package]]
+name = "rf-mcp"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "axum 0.8.7",
+ "base64 0.21.7",
+ "regex",
+ "reqwest 0.12.24",
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+ "tokio",
+ "tracing",
+ "uuid 1.18.1",
 ]
 
 [[package]]
@@ -8109,6 +8163,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "rf-nightwatch"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "axum 0.8.7",
+ "chrono",
+ "metrics",
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "uuid 1.18.1",
+]
+
+[[package]]
 name = "rf-notifications"
 version = "0.1.0"
 dependencies = [
@@ -8122,7 +8194,7 @@ dependencies = [
  "serde_json",
  "thiserror 1.0.69",
  "tokio",
- "uuid",
+ "uuid 1.18.1",
 ]
 
 [[package]]
@@ -8150,7 +8222,7 @@ dependencies = [
  "tower 0.4.13",
  "tower-http 0.5.2",
  "tracing",
- "uuid",
+ "uuid 1.18.1",
 ]
 
 [[package]]
@@ -8178,7 +8250,7 @@ dependencies = [
  "thiserror 1.0.69",
  "tokio",
  "tracing",
- "uuid",
+ "uuid 1.18.1",
 ]
 
 [[package]]
@@ -8208,7 +8280,7 @@ dependencies = [
  "tracing",
  "tracing-opentelemetry",
  "tracing-subscriber",
- "uuid",
+ "uuid 1.18.1",
 ]
 
 [[package]]
@@ -8297,6 +8369,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "rf-pest"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "colored 2.2.0",
+ "regex",
+ "rf-testing",
+ "serde",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
 name = "rf-plugins"
 version = "1.0.0"
 dependencies = [
@@ -8336,7 +8422,7 @@ dependencies = [
  "thiserror 1.0.69",
  "tokio",
  "tracing",
- "uuid",
+ "uuid 1.18.1",
 ]
 
 [[package]]
@@ -8553,7 +8639,7 @@ dependencies = [
  "thiserror 1.0.69",
  "tokio",
  "tracing",
- "uuid",
+ "uuid 1.18.1",
 ]
 
 [[package]]
@@ -8651,7 +8737,7 @@ dependencies = [
  "thiserror 1.0.69",
  "tokio",
  "tracing",
- "uuid",
+ "uuid 1.18.1",
 ]
 
 [[package]]
@@ -8688,7 +8774,7 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-subscriber",
- "uuid",
+ "uuid 1.18.1",
 ]
 
 [[package]]
@@ -8743,7 +8829,7 @@ dependencies = [
  "thiserror 1.0.69",
  "tokio",
  "tower 0.4.13",
- "uuid",
+ "uuid 1.18.1",
 ]
 
 [[package]]
@@ -8777,7 +8863,7 @@ dependencies = [
  "thiserror 1.0.69",
  "tokio",
  "tower 0.4.13",
- "uuid",
+ "uuid 1.18.1",
 ]
 
 [[package]]
@@ -9011,7 +9097,7 @@ dependencies = [
  "rkyv_derive",
  "seahash",
  "tinyvec",
- "uuid",
+ "uuid 1.18.1",
 ]
 
 [[package]]
@@ -9668,7 +9754,7 @@ dependencies = [
  "time",
  "tracing",
  "url",
- "uuid",
+ "uuid 1.18.1",
 ]
 
 [[package]]
@@ -9758,7 +9844,7 @@ dependencies = [
  "rust_decimal",
  "serde_json",
  "time",
- "uuid",
+ "uuid 1.18.1",
 ]
 
 [[package]]
@@ -9774,7 +9860,7 @@ dependencies = [
  "serde_json",
  "sqlx",
  "time",
- "uuid",
+ "uuid 1.18.1",
 ]
 
 [[package]]
@@ -9984,7 +10070,7 @@ dependencies = [
  "thiserror 1.0.69",
  "time",
  "url",
- "uuid",
+ "uuid 1.18.1",
 ]
 
 [[package]]
@@ -10434,7 +10520,7 @@ dependencies = [
  "tokio-stream",
  "tracing",
  "url",
- "uuid",
+ "uuid 1.18.1",
  "webpki-roots 0.26.11",
 ]
 
@@ -10519,7 +10605,7 @@ dependencies = [
  "thiserror 2.0.17",
  "time",
  "tracing",
- "uuid",
+ "uuid 1.18.1",
  "whoami",
 ]
 
@@ -10562,7 +10648,7 @@ dependencies = [
  "thiserror 2.0.17",
  "time",
  "tracing",
- "uuid",
+ "uuid 1.18.1",
  "whoami",
 ]
 
@@ -10590,7 +10676,7 @@ dependencies = [
  "time",
  "tracing",
  "url",
- "uuid",
+ "uuid 1.18.1",
 ]
 
 [[package]]
@@ -11927,6 +12013,15 @@ dependencies = [
  "serde_json",
  "utoipa",
  "zip",
+]
+
+[[package]]
+name = "uuid"
+version = "0.8.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bc5cf98d8186244414c848017f0e2676b3fcb46807f6668a97dfe67359a3c4b7"
+dependencies = [
+ "getrandom 0.2.16",
 ]
 
 [[package]]
