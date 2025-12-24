@@ -79,12 +79,8 @@ jobs:
         run: cargo build -p rf-orm
       - name: rf-eloquent
         run: cargo build -p rf-eloquent
-      - name: rf-db-facade
-        run: cargo build -p rf-db-facade
       - name: rf-pagination
         run: cargo build -p rf-pagination
-      - name: rf-seeder
-        run: cargo build -p rf-seeder
       - name: rf-soft-deletes
         run: cargo build -p rf-soft-deletes
 
@@ -165,12 +161,6 @@ jobs:
 
       - name: rf-cache
         run: cargo build -p rf-cache
-      - name: rf-storage
-        run: cargo build -p rf-storage
-      - name: rf-cache-facade
-        run: cargo build -p rf-cache-facade
-      - name: rf-storage-facade
-        run: cargo build -p rf-storage-facade
       - name: rf-upload
         run: cargo build -p rf-upload
 
@@ -189,8 +179,6 @@ jobs:
         run: cargo build -p rf-mail
       - name: rf-notifications
         run: cargo build -p rf-notifications
-      - name: rf-mail-facade
-        run: cargo build -p rf-mail-facade
       - name: rf-broadcast
         run: cargo build -p rf-broadcast
       - name: rf-sse
@@ -229,22 +217,14 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
 
+      # Note: Individual facade crates were merged into their parent crates in Phase 20
+      # Route facade → rf-routing/src/facade/
+      # DB facade → rf-orm/src/facade/
+      # Mail facade → rf-mail/src/facade.rs
+      # Sanctum facade → rf-sanctum/src/facade/
+      # Passport facade → rf-passport/src/facade/
       - name: rf-facades
         run: cargo build -p rf-facades
-      - name: rf-auth-facade
-        run: cargo build -p rf-auth-facade
-      - name: rf-route-facade
-        run: cargo build -p rf-route-facade
-      - name: rf-event-facade
-        run: cargo build -p rf-event-facade
-      - name: rf-log-facade
-        run: cargo build -p rf-log-facade
-      - name: rf-session-facade
-        run: cargo build -p rf-session-facade
-      - name: rf-config-facade
-        run: cargo build -p rf-config-facade
-      - name: rf-view-facade
-        run: cargo build -p rf-view-facade
 
   # ===========================================
   # Macros & Helpers
@@ -335,24 +315,46 @@ jobs:
         run: cargo build -p rf-nightwatch
 
   # ===========================================
-  # CLI & Application
+  # CLI & Console
   # ===========================================
   cli:
-    name: "💻 CLI & Application"
+    name: "💻 CLI & Console"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
 
-      - name: rf-application
-        run: cargo build -p rf-application
       - name: rf-console
         run: cargo build -p rf-console
       - name: forge-cli
         run: cargo build -p forge-cli
-      - name: foundry-cli
-        run: cargo build -p foundry-cli
+
+  # ===========================================
+  # Additional Crates
+  # ===========================================
+  additional:
+    name: "📚 Additional Crates"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: rf-domain
+        run: cargo build -p rf-domain
+      - name: rf-events
+        run: cargo build -p rf-events
+      - name: rf-logging
+        run: cargo build -p rf-logging
+      - name: rf-scheduling
+        run: cargo build -p rf-scheduling
+      - name: rf-service-container
+        run: cargo build -p rf-service-container
+      - name: rf-providers
+        run: cargo build -p rf-providers
+      - name: rf-socialite
+        run: cargo build -p rf-socialite
 
   # ===========================================
   # Tests
@@ -360,7 +362,7 @@ jobs:
   tests:
     name: "🧪 Tests"
     runs-on: ubuntu-latest
-    needs: [core, web, database, auth, validation, queue, storage, notifications, admin, facades, macros]
+    needs: [core, web, database, auth, validation, queue, storage, notifications, admin, facades, macros, views, laravel-parity, phase22, cli, additional]
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
