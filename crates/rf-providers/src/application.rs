@@ -34,7 +34,8 @@ impl Container {
     where
         F: Fn() -> BoxedService + Send + Sync + 'static,
     {
-        let mut bindings = self.bindings.write().await;
+        let mut bindings: tokio::sync::RwLockWriteGuard<'_, HashMap<String, Factory>> =
+            self.bindings.write().await;
         bindings.insert(key.into(), Arc::new(factory));
     }
 
@@ -45,7 +46,8 @@ impl Container {
     {
         let key = key.into();
         let service = Arc::new(factory());
-        let mut singletons = self.singletons.write().await;
+        let mut singletons: tokio::sync::RwLockWriteGuard<'_, HashMap<String, Arc<BoxedService>>> =
+            self.singletons.write().await;
         singletons.insert(key, service);
     }
 
@@ -56,7 +58,8 @@ impl Container {
         F: Fn() -> T + Send + Sync + 'static,
     {
         let wrapped_factory = Arc::new(move || Box::new(factory()) as BoxedService);
-        let mut bindings = self.type_bindings.write().await;
+        let mut bindings: tokio::sync::RwLockWriteGuard<'_, HashMap<TypeId, Factory>> =
+            self.type_bindings.write().await;
         bindings.insert(TypeId::of::<T>(), wrapped_factory);
     }
 
@@ -67,7 +70,8 @@ impl Container {
         F: Fn() -> T + Send + Sync + 'static,
     {
         let service = Arc::new(Box::new(factory()) as BoxedService);
-        let mut singletons = self.type_singletons.write().await;
+        let mut singletons: tokio::sync::RwLockWriteGuard<'_, HashMap<TypeId, Arc<BoxedService>>> =
+            self.type_singletons.write().await;
         singletons.insert(TypeId::of::<T>(), service);
     }
 
@@ -75,14 +79,16 @@ impl Container {
     pub async fn make(&self, key: &str) -> Option<Arc<BoxedService>> {
         // Check singletons first
         {
-            let singletons = self.singletons.read().await;
+            let singletons: tokio::sync::RwLockReadGuard<'_, HashMap<String, Arc<BoxedService>>> =
+                self.singletons.read().await;
             if let Some(service) = singletons.get(key) {
                 return Some(Arc::clone(service));
             }
         }
 
         // Check bindings
-        let bindings = self.bindings.read().await;
+        let bindings: tokio::sync::RwLockReadGuard<'_, HashMap<String, Factory>> =
+            self.bindings.read().await;
         if let Some(factory) = bindings.get(key) {
             return Some(Arc::new(factory()));
         }
@@ -96,7 +102,8 @@ impl Container {
 
         // Check singletons first
         {
-            let singletons = self.type_singletons.read().await;
+            let singletons: tokio::sync::RwLockReadGuard<'_, HashMap<TypeId, Arc<BoxedService>>> =
+                self.type_singletons.read().await;
             if let Some(service) = singletons.get(&type_id) {
                 let boxed = Arc::clone(service);
                 if let Some(concrete) =
@@ -109,7 +116,8 @@ impl Container {
         }
 
         // Check bindings
-        let bindings = self.type_bindings.read().await;
+        let bindings: tokio::sync::RwLockReadGuard<'_, HashMap<TypeId, Factory>> =
+            self.type_bindings.read().await;
         if let Some(factory) = bindings.get(&type_id) {
             let boxed = factory();
             if let Ok(concrete) = boxed.downcast::<T>() {
@@ -122,12 +130,14 @@ impl Container {
 
     /// Check if a binding exists
     pub async fn has(&self, key: &str) -> bool {
-        let singletons = self.singletons.read().await;
+        let singletons: tokio::sync::RwLockReadGuard<'_, HashMap<String, Arc<BoxedService>>> =
+            self.singletons.read().await;
         if singletons.contains_key(key) {
             return true;
         }
 
-        let bindings = self.bindings.read().await;
+        let bindings: tokio::sync::RwLockReadGuard<'_, HashMap<String, Factory>> =
+            self.bindings.read().await;
         bindings.contains_key(key)
     }
 }

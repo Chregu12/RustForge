@@ -163,6 +163,8 @@ jobs:
         run: cargo build -p rf-cache
       - name: rf-storage
         run: cargo build -p rf-storage
+      - name: rf-seeder
+        run: cargo build -p rf-seeder
       - name: rf-upload
         run: cargo build -p rf-upload
 
@@ -355,7 +357,10 @@ jobs:
         run: cargo build -p rf-service-container
       - name: rf-socialite
         run: cargo build -p rf-socialite
-      # Note: rf-providers temporarily excluded due to type inference issues
+      - name: rf-providers
+        run: cargo build -p rf-providers
+      - name: rf-application
+        run: cargo build -p rf-application
 
   # ===========================================
   # Tests

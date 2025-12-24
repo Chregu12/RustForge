@@ -15,6 +15,7 @@ members = [
     "crates/rf-jobs",
     "crates/rf-mail",
     "crates/rf-storage",
+    "crates/rf-seeder",
     "crates/rf-ratelimit",
     "crates/rf-broadcast",
     "crates/rf-broadcasting",
@@ -110,7 +111,7 @@ members = [
     # Legacy CLI (kept as foundry-cli)
     # "crates/foundry-cli", # Temporarily disabled - requires rf-application
     # All other packages now use rf-* prefix
-    # "crates/rf-application", # Temporarily disabled - requires rf-infra
+    "crates/rf-application",
     "crates/rf-domain",
     # "crates/rf-infra", # Temporarily disabled - requires dependency migration
     "crates/rf-plugins",
