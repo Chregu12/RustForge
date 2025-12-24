@@ -75,6 +75,7 @@ members = [
     "crates/rf-telescope",
     "crates/rf-nova",
     "crates/rf-nova-macros",
+    "crates/rf-tinker",
     # Phase 16: Error Handling
     "crates/rf-errors",
     # Phase 16-17: Ecosystem & Polish
