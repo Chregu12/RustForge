@@ -366,11 +366,11 @@ mod tests {
 
     #[test]
     fn test_numeric_greater() {
-        expect(&10).to_be_greater_than(&5);
+        expect(&10i32).to_be_greater_than(&5i32);
     }
 
     #[test]
     fn test_between() {
-        expect(&5).to_be_between(&1, &10);
+        expect(&5i32).to_be_between(&1i32, &10i32);
     }
 }
