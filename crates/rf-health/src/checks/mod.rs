@@ -2,7 +2,7 @@
 
 mod checks_impl;
 
-pub use checks_impl::{AlwaysHealthyCheck, DiskCheck, MemoryCheck};
+pub use checks_impl::{AlwaysHealthyCheck, DiskCheck, MemoryCheck, PingCheck, UptimeCheck};
 
 #[cfg(feature = "database")]
 pub use checks_impl::DatabaseCheck;

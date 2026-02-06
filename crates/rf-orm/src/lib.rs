@@ -132,7 +132,7 @@ pub mod sharding;
 
 // Performance optimization modules
 pub mod pool_optimizer;
-// pub mod query_cache; // Temporarily disabled - requires rf-cache API migration
+pub mod query_cache;
 
 #[cfg(test)]
 pub mod testing;
@@ -183,6 +183,10 @@ pub use advanced_migrations::{
 pub use sharding::{
     manager::{ShardError, ShardManager, ShardResult, ShardStrategy},
     strategies::{GeographicStrategy, HashStrategy, RangeStrategy, TenantStrategy},
+};
+pub use query_cache::{
+    InMemoryQueryCacheStore, QueryCache, QueryCacheConfig, QueryCacheError, QueryCacheResult,
+    QueryCacheStats, QueryCacheStore, QueryFingerprint,
 };
 
 // Re-export SeaORM types for convenience

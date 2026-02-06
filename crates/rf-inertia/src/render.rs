@@ -29,6 +29,7 @@ pub struct Inertia {
     component: String,
     props: Props,
     lazy_props: Vec<LazyProp>,
+    deferred_keys: Vec<String>,
     url: Option<String>,
     version: Option<String>,
 }
@@ -40,6 +41,7 @@ impl Inertia {
             component: component.into(),
             props: Props::new(),
             lazy_props: Vec::new(),
+            deferred_keys: Vec::new(),
             url: None,
             version: None,
         }
@@ -107,6 +109,37 @@ impl Inertia {
         } else {
             self
         }
+    }
+
+    /// Exclude specific props from the response (Inertia 2 feature).
+    ///
+    /// Useful for removing props that were added by shared data but are not
+    /// needed for this particular page.
+    pub fn except(mut self, keys: &[&str]) -> Self {
+        for key in keys {
+            self.props.remove(key);
+        }
+        self
+    }
+
+    /// Add a deferred prop that is loaded after initial page render (Inertia 2).
+    ///
+    /// Deferred props are excluded from the initial page load and fetched via
+    /// a subsequent partial-reload request.  This improves perceived performance
+    /// for pages with expensive data.
+    pub fn with_deferred<T: Serialize>(mut self, key: impl Into<String>, value: T) -> Self {
+        let key = key.into();
+        // Mark as deferred by storing in a special meta-prop
+        if let Ok(json_value) = serde_json::to_value(value) {
+            self.props = self.props.with(&key, json_value);
+            self.deferred_keys.push(key);
+        }
+        self
+    }
+
+    /// Get the list of deferred prop keys
+    pub fn deferred_keys(&self) -> &[String] {
+        &self.deferred_keys
     }
 
     /// Build the final InertiaResponse

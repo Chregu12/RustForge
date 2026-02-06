@@ -9,7 +9,7 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-/// Inertia response structure
+/// Inertia response structure (Inertia 2 compatible)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InertiaResponse {
     /// Component name (e.g., "Dashboard/Index")
@@ -23,6 +23,18 @@ pub struct InertiaResponse {
 
     /// Asset version
     pub version: String,
+
+    /// Keys of deferred props (loaded after initial render)
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub deferred_props: Vec<String>,
+
+    /// Whether to clear the navigation history (Inertia 2)
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub clear_history: bool,
+
+    /// Whether to encrypt history state (Inertia 2)
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub encrypt_history: bool,
 }
 
 impl InertiaResponse {
@@ -38,7 +50,28 @@ impl InertiaResponse {
             props,
             url: url.into(),
             version: version.into(),
+            deferred_props: Vec::new(),
+            clear_history: false,
+            encrypt_history: false,
         }
+    }
+
+    /// Mark specific props as deferred (Inertia 2)
+    pub fn with_deferred_props(mut self, keys: Vec<String>) -> Self {
+        self.deferred_props = keys;
+        self
+    }
+
+    /// Clear navigation history on this response (Inertia 2)
+    pub fn clear_history(mut self) -> Self {
+        self.clear_history = true;
+        self
+    }
+
+    /// Encrypt history state for this response (Inertia 2)
+    pub fn encrypt_history(mut self) -> Self {
+        self.encrypt_history = true;
+        self
     }
 
     /// Convert to JSON response

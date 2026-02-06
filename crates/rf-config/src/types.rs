@@ -1,6 +1,26 @@
 //! Configuration type definitions
 
 use serde::{Deserialize, Serialize};
+use thiserror::Error;
+
+/// Configuration validation errors
+#[derive(Debug, Error)]
+pub enum ConfigValidationError {
+    #[error("server.port must be non-zero")]
+    InvalidPort,
+
+    #[error("server.workers must be non-zero")]
+    InvalidWorkers,
+
+    #[error("database.max_connections must be non-zero")]
+    InvalidMaxConnections,
+
+    #[error("auth.jwt_secret must be changed in production")]
+    InsecureJwtSecret,
+
+    #[error("missing required field: {0}")]
+    MissingField(&'static str),
+}
 
 /// Main application configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -17,29 +37,79 @@ pub struct AppConfig {
 
 impl AppConfig {
     /// Validate configuration
-    ///
-    /// Returns an error if configuration is invalid
-    pub fn validate(&self) -> Result<(), String> {
+    pub fn validate(&self) -> Result<(), ConfigValidationError> {
         if self.server.port == 0 {
-            return Err("server.port must be non-zero".to_string());
+            return Err(ConfigValidationError::InvalidPort);
         }
 
         if self.server.workers == 0 {
-            return Err("server.workers must be non-zero".to_string());
+            return Err(ConfigValidationError::InvalidWorkers);
         }
 
         if self.database.max_connections == 0 {
-            return Err("database.max_connections must be non-zero".to_string());
+            return Err(ConfigValidationError::InvalidMaxConnections);
         }
 
         // In production, ensure secrets are not default values
         if std::env::var("APP_ENV").unwrap_or_default() == "production"
             && self.auth.jwt_secret == "dev-secret-change-in-production"
         {
-            return Err("auth.jwt_secret must be changed in production".to_string());
+            return Err(ConfigValidationError::InsecureJwtSecret);
         }
 
         Ok(())
+    }
+
+    /// Load from environment variables with defaults
+    pub fn from_env() -> Result<Self, ConfigValidationError> {
+        let config = Self {
+            server: ServerConfig {
+                host: std::env::var("SERVER_HOST").unwrap_or_else(|_| default_host()),
+                port: std::env::var("SERVER_PORT")
+                    .ok()
+                    .and_then(|p| p.parse().ok())
+                    .unwrap_or_else(default_port),
+                workers: std::env::var("SERVER_WORKERS")
+                    .ok()
+                    .and_then(|w| w.parse().ok())
+                    .unwrap_or_else(default_workers),
+                timeout: std::env::var("SERVER_TIMEOUT")
+                    .ok()
+                    .and_then(|t| t.parse().ok())
+                    .unwrap_or_else(default_timeout),
+            },
+            database: DatabaseConfig {
+                url: std::env::var("DATABASE_URL")
+                    .unwrap_or_else(|_| "postgres://localhost/rustforge".to_string()),
+                max_connections: std::env::var("DATABASE_MAX_CONNECTIONS")
+                    .ok()
+                    .and_then(|c| c.parse().ok())
+                    .unwrap_or_else(default_max_connections),
+                min_connections: std::env::var("DATABASE_MIN_CONNECTIONS")
+                    .ok()
+                    .and_then(|c| c.parse().ok())
+                    .unwrap_or_else(default_min_connections),
+                connect_timeout: std::env::var("DATABASE_CONNECT_TIMEOUT")
+                    .ok()
+                    .and_then(|t| t.parse().ok())
+                    .unwrap_or_else(default_connect_timeout),
+            },
+            auth: AuthConfig {
+                jwt_secret: std::env::var("JWT_SECRET")
+                    .unwrap_or_else(|_| "dev-secret-change-in-production".to_string()),
+                token_expiry_hours: std::env::var("TOKEN_EXPIRY_HOURS")
+                    .ok()
+                    .and_then(|e| e.parse().ok())
+                    .unwrap_or_else(default_token_expiry),
+                session_timeout_minutes: std::env::var("SESSION_TIMEOUT_MINUTES")
+                    .ok()
+                    .and_then(|s| s.parse().ok())
+                    .unwrap_or_else(default_session_timeout),
+            },
+        };
+
+        config.validate()?;
+        Ok(config)
     }
 }
 

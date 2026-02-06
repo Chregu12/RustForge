@@ -98,6 +98,27 @@ pub enum CacheError {
 /// Result type for cache operations
 pub type CacheResult<T> = Result<T, CacheError>;
 
+/// Cache statistics for monitoring
+#[derive(Debug, Clone, Default)]
+pub struct CacheStats {
+    pub hits: u64,
+    pub misses: u64,
+    pub sets: u64,
+    pub deletes: u64,
+}
+
+impl CacheStats {
+    /// Cache hit rate (0.0 - 1.0)
+    pub fn hit_rate(&self) -> f64 {
+        let total = self.hits + self.misses;
+        if total == 0 {
+            0.0
+        } else {
+            self.hits as f64 / total as f64
+        }
+    }
+}
+
 /// Cache trait
 #[async_trait]
 pub trait Cache: Send + Sync {
@@ -136,6 +157,45 @@ pub trait Cache: Send + Sync {
         self.set(key, &value, ttl).await?;
         Ok(value)
     }
+
+    /// Get multiple values at once
+    async fn get_many<T: DeserializeOwned + Send>(
+        &self,
+        keys: &[&str],
+    ) -> CacheResult<HashMap<String, T>> {
+        let mut results = HashMap::new();
+        for key in keys {
+            if let Ok(Some(value)) = self.get(key).await {
+                results.insert(key.to_string(), value);
+            }
+        }
+        Ok(results)
+    }
+
+    /// Set multiple values at once
+    async fn set_many<T: Serialize + Sync>(
+        &self,
+        items: &[(&str, &T)],
+        ttl: Duration,
+    ) -> CacheResult<()> {
+        for (key, value) in items {
+            self.set(key, value, ttl).await?;
+        }
+        Ok(())
+    }
+
+    /// Increment a numeric value (returns new value)
+    async fn increment(&self, key: &str, amount: i64) -> CacheResult<i64> {
+        let current: i64 = self.get(key).await?.unwrap_or(0);
+        let new_val = current + amount;
+        self.set(key, &new_val, Duration::from_secs(86400)).await?;
+        Ok(new_val)
+    }
+
+    /// Decrement a numeric value (returns new value)
+    async fn decrement(&self, key: &str, amount: i64) -> CacheResult<i64> {
+        self.increment(key, -amount).await
+    }
 }
 
 /// Cache entry with TTL
@@ -164,6 +224,7 @@ pub struct MemoryCache {
     entries: Arc<RwLock<HashMap<String, CacheEntry>>>,
     tags: Arc<RwLock<HashMap<String, HashSet<String>>>>,
     locks: Arc<Mutex<HashMap<String, Arc<Mutex<()>>>>>,
+    stats: Arc<RwLock<CacheStats>>,
 }
 
 impl MemoryCache {
@@ -173,7 +234,18 @@ impl MemoryCache {
             entries: Arc::new(RwLock::new(HashMap::new())),
             tags: Arc::new(RwLock::new(HashMap::new())),
             locks: Arc::new(Mutex::new(HashMap::new())),
+            stats: Arc::new(RwLock::new(CacheStats::default())),
         }
+    }
+
+    /// Get cache statistics
+    pub async fn stats(&self) -> CacheStats {
+        self.stats.read().await.clone()
+    }
+
+    /// Reset cache statistics
+    pub async fn reset_stats(&self) {
+        *self.stats.write().await = CacheStats::default();
     }
 
     /// Create tagged cache
@@ -264,13 +336,16 @@ impl Cache for MemoryCache {
             if entry.is_expired() {
                 drop(entries);
                 self.delete(key).await?;
+                self.stats.write().await.misses += 1;
                 return Ok(None);
             }
 
             let value = serde_json::from_slice(&entry.data)
                 .map_err(|e| CacheError::Deserialization(e.to_string()))?;
+            self.stats.write().await.hits += 1;
             Ok(Some(value))
         } else {
+            self.stats.write().await.misses += 1;
             Ok(None)
         }
     }
@@ -288,6 +363,7 @@ impl Cache for MemoryCache {
 
         let mut entries = self.entries.write().await;
         entries.insert(key.to_string(), entry);
+        self.stats.write().await.sets += 1;
 
         Ok(())
     }
@@ -295,6 +371,7 @@ impl Cache for MemoryCache {
     async fn delete(&self, key: &str) -> CacheResult<()> {
         let mut entries = self.entries.write().await;
         entries.remove(key);
+        self.stats.write().await.deletes += 1;
         Ok(())
     }
 
@@ -361,7 +438,7 @@ pub use redis::{RedisCache, RedisTaggedCache};
 pub mod prelude {
     pub use crate::advanced::{CacheWarmer, MultiLevelCache, ProbabilisticCache};
     pub use crate::config::{CacheBackend, CacheConfig, CacheConfigBuilder};
-    pub use crate::{Cache, CacheError, CacheResult, MemoryCache, TaggedCache};
+    pub use crate::{Cache, CacheError, CacheResult, CacheStats, MemoryCache, TaggedCache};
 
     #[cfg(feature = "redis-backend")]
     pub use crate::{RedisCache, RedisTaggedCache};

@@ -38,7 +38,7 @@ pub mod response;
 pub mod retry;
 
 pub use auth::{Auth, AuthType};
-pub use middleware::{Middleware, MiddlewareChain};
+pub use middleware::{AfterResponseHook, HeaderMiddleware, LoggingMiddleware, Middleware, MiddlewareChain};
 pub use request::{RequestBuilder, RequestMethod};
 pub use response::Response;
 pub use retry::{RetryConfig, RetryPolicy};

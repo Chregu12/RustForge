@@ -25,7 +25,7 @@ pub mod loader;
 pub mod types;
 
 pub use loader::ConfigLoader;
-pub use types::{AppConfig, AuthConfig, DatabaseConfig, ServerConfig};
+pub use types::{AppConfig, AuthConfig, ConfigValidationError, DatabaseConfig, ServerConfig};
 
 // Re-export facade types (Laravel-style static API)
 pub use facade::{Config, GLOBAL_CONFIG};

@@ -360,7 +360,7 @@ mod tests {
     fn test_cache_remember() {
         // Laravel-style: just pass seconds!
         let value = Cache::remember("remember_key", 60, || async {
-            Ok::<_, rf_cache::CacheError>("computed".to_string())
+            Ok::<_, crate::CacheError>("computed".to_string())
         })
         .unwrap();
 

@@ -189,6 +189,137 @@ impl HealthCheck for DiskCheck {
     }
 }
 
+/// Ping check - verify an external URL/service is reachable
+pub struct PingCheck {
+    name: String,
+    url: String,
+    timeout: std::time::Duration,
+}
+
+impl PingCheck {
+    /// Create a new ping check
+    ///
+    /// * `name` - Check name (e.g., "api_gateway")
+    /// * `url` - URL to check (e.g., "https://api.example.com/health")
+    pub fn new(name: impl Into<String>, url: impl Into<String>) -> Self {
+        Self {
+            name: name.into(),
+            url: url.into(),
+            timeout: std::time::Duration::from_secs(5),
+        }
+    }
+
+    /// Set the timeout for the check
+    pub fn timeout(mut self, timeout: std::time::Duration) -> Self {
+        self.timeout = timeout;
+        self
+    }
+}
+
+#[async_trait]
+impl HealthCheck for PingCheck {
+    fn name(&self) -> &str {
+        &self.name
+    }
+
+    async fn check(&self) -> CheckResult {
+        let start = std::time::Instant::now();
+
+        match tokio::time::timeout(
+            self.timeout,
+            async {
+                // Use a simple TCP connection check
+                let url = self.url.trim_start_matches("http://").trim_start_matches("https://");
+                let host = url.split('/').next().unwrap_or(url);
+                let addr = if host.contains(':') {
+                    host.to_string()
+                } else {
+                    format!("{}:80", host)
+                };
+                tokio::net::TcpStream::connect(&addr).await
+            },
+        )
+        .await
+        {
+            Ok(Ok(_)) => {
+                let duration = start.elapsed();
+                CheckResult::healthy(&self.name)
+                    .with_metadata("url", json!(&self.url))
+                    .with_metadata("response_time_ms", json!(duration.as_millis()))
+            }
+            Ok(Err(e)) => CheckResult::unhealthy(
+                &self.name,
+                format!("Connection failed: {}", e),
+            )
+            .with_metadata("url", json!(&self.url)),
+            Err(_) => CheckResult::unhealthy(
+                &self.name,
+                format!("Timeout after {}ms", self.timeout.as_millis()),
+            )
+            .with_metadata("url", json!(&self.url)),
+        }
+    }
+
+    fn is_readiness(&self) -> bool {
+        true
+    }
+}
+
+/// Uptime check - reports how long the service has been running
+pub struct UptimeCheck {
+    started_at: std::time::Instant,
+}
+
+impl UptimeCheck {
+    pub fn new() -> Self {
+        Self {
+            started_at: std::time::Instant::now(),
+        }
+    }
+}
+
+impl Default for UptimeCheck {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[async_trait]
+impl HealthCheck for UptimeCheck {
+    fn name(&self) -> &str {
+        "uptime"
+    }
+
+    async fn check(&self) -> CheckResult {
+        let uptime = self.started_at.elapsed();
+        CheckResult::healthy(self.name())
+            .with_metadata("uptime_seconds", json!(uptime.as_secs()))
+            .with_metadata("uptime_human", json!(format_duration(uptime)))
+    }
+
+    fn is_liveness(&self) -> bool {
+        true
+    }
+}
+
+fn format_duration(d: std::time::Duration) -> String {
+    let secs = d.as_secs();
+    let days = secs / 86400;
+    let hours = (secs % 86400) / 3600;
+    let mins = (secs % 3600) / 60;
+    let secs = secs % 60;
+
+    if days > 0 {
+        format!("{}d {}h {}m {}s", days, hours, mins, secs)
+    } else if hours > 0 {
+        format!("{}h {}m {}s", hours, mins, secs)
+    } else if mins > 0 {
+        format!("{}m {}s", mins, secs)
+    } else {
+        format!("{}s", secs)
+    }
+}
+
 /// Database connectivity check (requires "database" feature)
 #[cfg(feature = "database")]
 pub struct DatabaseCheck {
@@ -310,5 +441,33 @@ mod tests {
 
         assert_eq!(result.name, "disk");
         // Results may vary by system, just check it runs
+    }
+
+    #[tokio::test]
+    async fn test_uptime_check() {
+        let check = UptimeCheck::new();
+        let result = check.check().await;
+
+        assert_eq!(result.name, "uptime");
+        assert!(result.status.is_healthy());
+        assert!(result.metadata.contains_key("uptime_seconds"));
+        assert!(result.metadata.contains_key("uptime_human"));
+    }
+
+    #[test]
+    fn test_format_duration() {
+        assert_eq!(format_duration(std::time::Duration::from_secs(30)), "30s");
+        assert_eq!(
+            format_duration(std::time::Duration::from_secs(90)),
+            "1m 30s"
+        );
+        assert_eq!(
+            format_duration(std::time::Duration::from_secs(3661)),
+            "1h 1m 1s"
+        );
+        assert_eq!(
+            format_duration(std::time::Duration::from_secs(90061)),
+            "1d 1h 1m 1s"
+        );
     }
 }

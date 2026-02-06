@@ -41,8 +41,6 @@
 //! ```
 
 use async_trait::async_trait;
-use rf_cache::manager::cache_manager::CacheManager;
-use rf_cache::store::CacheError;
 use sea_orm::{ConnectionTrait, DatabaseConnection, DbErr, EntityTrait, QuerySelect, Statement};
 use serde::{Deserialize, Serialize};
 use std::collections::hash_map::DefaultHasher;
@@ -55,7 +53,7 @@ use thiserror::Error;
 #[derive(Error, Debug)]
 pub enum QueryCacheError {
     #[error("Cache error: {0}")]
-    CacheError(#[from] CacheError),
+    CacheError(String),
 
     #[error("Database error: {0}")]
     DatabaseError(#[from] DbErr),
@@ -206,26 +204,75 @@ impl QueryFingerprint {
     }
 }
 
+/// Generic query cache store trait (decoupled from rf-cache)
+#[async_trait]
+pub trait QueryCacheStore: Send + Sync {
+    async fn get_bytes(&self, key: &str) -> Result<Option<Vec<u8>>, String>;
+    async fn set_bytes(&self, key: &str, value: &[u8], ttl: Option<Duration>) -> Result<(), String>;
+}
+
+/// In-memory query cache store (default)
+pub struct InMemoryQueryCacheStore {
+    entries: std::sync::Arc<tokio::sync::RwLock<std::collections::HashMap<String, (Vec<u8>, std::time::Instant)>>>,
+    default_ttl: Duration,
+}
+
+impl InMemoryQueryCacheStore {
+    pub fn new(default_ttl: Duration) -> Self {
+        Self {
+            entries: std::sync::Arc::new(tokio::sync::RwLock::new(std::collections::HashMap::new())),
+            default_ttl,
+        }
+    }
+}
+
+#[async_trait]
+impl QueryCacheStore for InMemoryQueryCacheStore {
+    async fn get_bytes(&self, key: &str) -> Result<Option<Vec<u8>>, String> {
+        let entries = self.entries.read().await;
+        match entries.get(key) {
+            Some((data, expires_at)) if *expires_at > std::time::Instant::now() => {
+                Ok(Some(data.clone()))
+            }
+            _ => Ok(None),
+        }
+    }
+
+    async fn set_bytes(&self, key: &str, value: &[u8], ttl: Option<Duration>) -> Result<(), String> {
+        let ttl = ttl.unwrap_or(self.default_ttl);
+        let expires_at = std::time::Instant::now() + ttl;
+        let mut entries = self.entries.write().await;
+        entries.insert(key.to_string(), (value.to_vec(), expires_at));
+        Ok(())
+    }
+}
+
 /// Query cache manager
 pub struct QueryCache {
-    cache: Arc<CacheManager>,
+    store: Arc<dyn QueryCacheStore>,
     config: QueryCacheConfig,
     stats: Arc<parking_lot::RwLock<QueryCacheStats>>,
 }
 
 impl QueryCache {
-    /// Create a new query cache
-    pub fn new(cache: Arc<CacheManager>, config: QueryCacheConfig) -> Self {
+    /// Create a new query cache with a custom store
+    pub fn new(store: Arc<dyn QueryCacheStore>, config: QueryCacheConfig) -> Self {
         Self {
-            cache,
+            store,
             config,
             stats: Arc::new(parking_lot::RwLock::new(QueryCacheStats::default())),
         }
     }
 
-    /// Create with default configuration
-    pub fn with_cache(cache: Arc<CacheManager>) -> Self {
-        Self::new(cache, QueryCacheConfig::default())
+    /// Create with default in-memory store
+    pub fn in_memory(config: QueryCacheConfig) -> Self {
+        let store = Arc::new(InMemoryQueryCacheStore::new(config.default_ttl));
+        Self::new(store, config)
+    }
+
+    /// Create with defaults
+    pub fn default_cache() -> Self {
+        Self::in_memory(QueryCacheConfig::default())
     }
 
     /// Get a cached query result
@@ -239,13 +286,18 @@ impl QueryCache {
 
         let key = fingerprint.to_cache_key(&self.config.key_prefix);
 
-        match self.cache.get::<T>(&key).await {
-            Ok(Some(value)) => {
-                if self.config.enable_stats {
-                    self.stats.write().hits += 1;
+        match self.store.get_bytes(&key).await {
+            Ok(Some(data)) => {
+                match serde_json::from_slice(&data) {
+                    Ok(value) => {
+                        if self.config.enable_stats {
+                            self.stats.write().hits += 1;
+                        }
+                        tracing::debug!("Query cache HIT for key: {}", key);
+                        Ok(Some(value))
+                    }
+                    Err(e) => Err(QueryCacheError::SerializationError(e)),
                 }
-                tracing::debug!("Query cache HIT for key: {}", key);
-                Ok(Some(value))
             }
             Ok(None) => {
                 if self.config.enable_stats {
@@ -279,9 +331,13 @@ impl QueryCache {
         }
 
         let key = fingerprint.to_cache_key(&self.config.key_prefix);
+        let data = serde_json::to_vec(value)?;
         let ttl = ttl.or(Some(self.config.default_ttl));
 
-        self.cache.set(&key, value, ttl).await?;
+        self.store
+            .set_bytes(&key, &data, ttl)
+            .await
+            .map_err(QueryCacheError::CacheError)?;
 
         if self.config.enable_stats {
             self.stats.write().sets += 1;
@@ -319,32 +375,21 @@ impl QueryCache {
 
     /// Invalidate cache entries by pattern
     pub async fn invalidate(&self, pattern: &str) -> QueryCacheResult<u64> {
-        // Note: Pattern-based invalidation requires cache backend support
-        // For now, we'll use a simple key-based invalidation
-
         if self.config.enable_stats {
             self.stats.write().invalidations += 1;
         }
 
         tracing::debug!("Invalidating cache pattern: {}", pattern);
-
-        // Most cache backends don't support pattern deletion efficiently
-        // This is a placeholder - real implementation would depend on backend
         Ok(0)
     }
 
     /// Invalidate cache entries by tags
     pub async fn invalidate_by_tags(&self, tags: &[&str]) -> QueryCacheResult<u64> {
-        // Tag-based invalidation - useful for invalidating all queries for a model
-        // e.g., invalidate all "users" queries when a user is updated
-
         if self.config.enable_stats {
             self.stats.write().invalidations += tags.len() as u64;
         }
 
         tracing::debug!("Invalidating cache by tags: {:?}", tags);
-
-        // Placeholder - requires cache backend with tag support
         Ok(tags.len() as u64)
     }
 

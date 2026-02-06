@@ -9,7 +9,7 @@
 use async_trait::async_trait;
 use axum::{
     extract::{Json, Path, State},
-    response::Response,
+    response::{IntoResponse, Response},
 };
 use serde_json::Value;
 
@@ -118,27 +118,27 @@ pub trait Controller: Send + Sync + 'static {
 
     /// List all resources.
     async fn index(&self, _state: State<Self::State>) -> Response {
-        unimplemented!("index action not implemented")
+        axum::http::StatusCode::METHOD_NOT_ALLOWED.into_response()
     }
 
     /// Show create form.
     async fn create(&self, _state: State<Self::State>) -> Response {
-        unimplemented!("create action not implemented")
+        axum::http::StatusCode::METHOD_NOT_ALLOWED.into_response()
     }
 
     /// Store a new resource.
     async fn store(&self, _state: State<Self::State>, _payload: Json<Value>) -> Response {
-        unimplemented!("store action not implemented")
+        axum::http::StatusCode::METHOD_NOT_ALLOWED.into_response()
     }
 
     /// Show a specific resource.
     async fn show(&self, _state: State<Self::State>, _id: Path<String>) -> Response {
-        unimplemented!("show action not implemented")
+        axum::http::StatusCode::METHOD_NOT_ALLOWED.into_response()
     }
 
     /// Show edit form.
     async fn edit(&self, _state: State<Self::State>, _id: Path<String>) -> Response {
-        unimplemented!("edit action not implemented")
+        axum::http::StatusCode::METHOD_NOT_ALLOWED.into_response()
     }
 
     /// Update a resource.
@@ -148,12 +148,12 @@ pub trait Controller: Send + Sync + 'static {
         _id: Path<String>,
         _payload: Json<Value>,
     ) -> Response {
-        unimplemented!("update action not implemented")
+        axum::http::StatusCode::METHOD_NOT_ALLOWED.into_response()
     }
 
     /// Delete a resource.
     async fn destroy(&self, _state: State<Self::State>, _id: Path<String>) -> Response {
-        unimplemented!("destroy action not implemented")
+        axum::http::StatusCode::METHOD_NOT_ALLOWED.into_response()
     }
 }
 

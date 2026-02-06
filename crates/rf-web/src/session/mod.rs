@@ -11,6 +11,9 @@ pub mod driver;
 pub mod middleware;
 pub mod store;
 
-pub use driver::{CookieSessionDriver, DatabaseSessionDriver, RedisSessionDriver, SessionDriver};
+pub use driver::{
+    CookieSessionDriver, DatabaseSessionDriver, MemorySessionDriver, RedisSessionDriver,
+    SessionDriver,
+};
 pub use middleware::{SessionConfig, SessionMiddleware};
 pub use store::{Session, SessionStore};

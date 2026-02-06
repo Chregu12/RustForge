@@ -16,7 +16,7 @@ categories = ["database"]
 rf-core = { path = "../rf-core" }
 rf-config = { path = "../rf-config" }
 rf-model-macro = { path = "../rf-model-macro" }
-# rf-cache = { path = "../rf-cache" } # Temporarily disabled - API migration needed
+# rf-cache integration uses decoupled QueryCacheStore trait (no direct dependency needed)
 rf-metrics = { path = "../rf-metrics", optional = true }
 
 # SeaORM
