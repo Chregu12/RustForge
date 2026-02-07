@@ -4,6 +4,8 @@
 
 # Test projects (can be regenerated with `foundry new`)
 /test-project
+/framework-test
+/starter-template
 
 # IDE
 .idea

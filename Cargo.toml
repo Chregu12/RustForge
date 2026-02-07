@@ -105,9 +105,8 @@ members = [
     "examples/laravel-syntax-complete",
     "examples/laravel-syntax-simple",
     "examples/facades-demo",
-    # Framework Test
+    # Benchmarks
     "benchmarks",
-    # "framework-test", # Excluded - incomplete
     # Legacy CLI (kept as foundry-cli)
     # "crates/foundry-cli", # Temporarily disabled - requires rf-application
     # All other packages now use rf-* prefix
@@ -148,7 +147,6 @@ members = [
     "crates/rf-mcp",
     "crates/rf-nightwatch",
 ]
-exclude = ["starter-template"]
 resolver = "2"
 
 [workspace.package]
