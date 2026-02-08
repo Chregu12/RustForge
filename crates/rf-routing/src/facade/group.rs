@@ -309,7 +309,7 @@ impl RouteGroupFacade {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::registry::global_router;
+    use crate::facade::registry::global_router;
 
     #[test]
     fn test_group_builder_new() {

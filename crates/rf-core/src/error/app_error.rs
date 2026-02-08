@@ -267,8 +267,8 @@ mod tests {
 
     #[test]
     fn test_internal_error_hides_details_in_production() {
-        std::env::set_var("APP_ENV", "production");
-        let ctx = RequestContext::new("/api/users", "GET");
+        use crate::context::Environment;
+        let ctx = RequestContext::with_environment("/api/users", "GET", Environment::Production);
 
         let error = AppError::Internal(anyhow::anyhow!("Database password: secret123"));
         let problem = error.to_problem_details(&ctx);
@@ -277,14 +277,12 @@ mod tests {
         assert!(!problem.detail.contains("secret123"));
         assert!(problem.detail.contains("contact support"));
         assert!(problem.extensions.is_empty());
-
-        std::env::remove_var("APP_ENV");
     }
 
     #[test]
     fn test_internal_error_shows_details_in_development() {
-        std::env::set_var("APP_ENV", "development");
-        let ctx = RequestContext::new("/api/users", "GET");
+        use crate::context::Environment;
+        let ctx = RequestContext::with_environment("/api/users", "GET", Environment::Development);
 
         let error = AppError::Internal(anyhow::anyhow!("Connection timeout"));
         let problem = error.to_problem_details(&ctx);
@@ -292,8 +290,6 @@ mod tests {
         assert_eq!(problem.status, 500);
         assert!(problem.detail.contains("Connection timeout"));
         assert!(problem.extensions.contains_key("backtrace"));
-
-        std::env::remove_var("APP_ENV");
     }
 
     #[test]

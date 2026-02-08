@@ -11,7 +11,7 @@
 //! ## Quick Start
 //!
 //! ```rust,no_run
-//! use crate::Mail;
+//! use rf_mail::facade::Mail;
 //!
 //! # fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! // Send mail to specific address
@@ -60,7 +60,7 @@ impl Mail {
     /// # Examples
     ///
     /// ```rust
-    /// use crate::Mail;
+    /// use rf_mail::facade::Mail;
     ///
     /// let mailer = Mail::to("user@example.com");
     /// ```

@@ -3,8 +3,9 @@
 
 use async_trait::async_trait;
 use rf_plugins::{
-    CachePort, CommandError, DomainEvent, EventPort, QueueJob, QueuePort, StoragePort,
-    StoredFile, ValidationPort, ValidationRules, ValidationReport,
+    ArtifactPort, CachePort, CommandError, DomainEvent, EventPort, MigrationPort, MigrationRun,
+    QueueJob, QueuePort, SeedPort, SeedRun, StoragePort, StoredFile, ValidationPort,
+    ValidationRules, ValidationReport,
 };
 use serde_json::Value;
 use std::collections::HashMap;
@@ -115,6 +116,7 @@ impl StoragePort for FileStorageAdapter {
 // ============================================================================
 
 /// Simple validation service
+#[derive(Default)]
 pub struct SimpleValidationService;
 
 #[async_trait]
@@ -229,5 +231,129 @@ impl EventPort for InMemoryEventBus {
             .map_err(|e| CommandError::Message(format!("Event error: {}", e)))?;
         events.push(event);
         Ok(())
+    }
+}
+
+// ============================================================================
+// Artifact Port (no-op stub for tests)
+// ============================================================================
+
+/// Local artifact port that writes files to the filesystem
+#[derive(Default)]
+#[allow(dead_code)]
+pub struct LocalArtifactPort;
+
+impl ArtifactPort for LocalArtifactPort {
+    fn write_file(&self, _path: &str, _contents: &str, _force: bool) -> Result<(), CommandError> {
+        Ok(())
+    }
+}
+
+// ============================================================================
+// Migration Service (no-op stub for tests)
+// ============================================================================
+
+/// SeaORM migration service stub
+#[derive(Default)]
+#[allow(dead_code)]
+pub struct SeaOrmMigrationService;
+
+#[async_trait]
+impl MigrationPort for SeaOrmMigrationService {
+    async fn apply(&self, _config: &Value, _dry_run: bool) -> Result<MigrationRun, CommandError> {
+        Ok(MigrationRun::default())
+    }
+
+    async fn rollback(
+        &self,
+        _config: &Value,
+        _dry_run: bool,
+    ) -> Result<MigrationRun, CommandError> {
+        Ok(MigrationRun::default())
+    }
+}
+
+// ============================================================================
+// Seed Service (no-op stub for tests)
+// ============================================================================
+
+/// SeaORM seed service stub
+#[derive(Default)]
+#[allow(dead_code)]
+pub struct SeaOrmSeedService;
+
+#[async_trait]
+impl SeedPort for SeaOrmSeedService {
+    async fn run(&self, _config: &Value, _dry_run: bool) -> Result<SeedRun, CommandError> {
+        Ok(SeedRun::default())
+    }
+}
+
+// ============================================================================
+// In-Memory Storage (no-op stub for tests)
+// ============================================================================
+
+/// In-memory storage that implements StoragePort without filesystem access
+#[derive(Default)]
+#[allow(dead_code)]
+pub struct InMemoryStorage {
+    data: RwLock<HashMap<String, Vec<u8>>>,
+}
+
+#[async_trait]
+impl StoragePort for InMemoryStorage {
+    async fn put(
+        &self,
+        disk: &str,
+        path: &str,
+        contents: Vec<u8>,
+    ) -> Result<StoredFile, CommandError> {
+        let key = format!("{}/{}", disk, path);
+        let size = contents.len() as u64;
+        let mut data = self
+            .data
+            .write()
+            .map_err(|e| CommandError::Message(format!("Storage error: {}", e)))?;
+        data.insert(key, contents);
+        Ok(StoredFile {
+            disk: disk.to_string(),
+            path: path.to_string(),
+            size,
+            url: None,
+        })
+    }
+
+    async fn get(&self, disk: &str, path: &str) -> Result<Vec<u8>, CommandError> {
+        let key = format!("{}/{}", disk, path);
+        let data = self
+            .data
+            .read()
+            .map_err(|e| CommandError::Message(format!("Storage error: {}", e)))?;
+        data.get(&key)
+            .cloned()
+            .ok_or_else(|| CommandError::Message(format!("File not found: {}", key)))
+    }
+
+    async fn delete(&self, disk: &str, path: &str) -> Result<(), CommandError> {
+        let key = format!("{}/{}", disk, path);
+        let mut data = self
+            .data
+            .write()
+            .map_err(|e| CommandError::Message(format!("Storage error: {}", e)))?;
+        data.remove(&key);
+        Ok(())
+    }
+
+    async fn exists(&self, disk: &str, path: &str) -> Result<bool, CommandError> {
+        let key = format!("{}/{}", disk, path);
+        let data = self
+            .data
+            .read()
+            .map_err(|e| CommandError::Message(format!("Storage error: {}", e)))?;
+        Ok(data.contains_key(&key))
+    }
+
+    async fn url(&self, disk: &str, path: &str) -> Result<String, CommandError> {
+        Ok(format!("/storage/{}/{}", disk, path))
     }
 }

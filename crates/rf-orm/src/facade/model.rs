@@ -368,20 +368,29 @@ macro_rules! define_simple_model {
 mod tests {
     use super::*;
 
-    // Define test models
-    define_simple_model!(User, "users");
-    define_simple_model!(Post, "posts");
+    // Define test models by directly implementing the facade Model trait
+    pub struct User;
+
+    impl Model for User {
+        const TABLE: &'static str = "users";
+    }
+
+    pub struct Post;
+
+    impl Model for Post {
+        const TABLE: &'static str = "posts";
+    }
 
     #[test]
     fn test_model_table_name() {
-        assert_eq!(User::TABLE, "users");
-        assert_eq!(Post::TABLE, "posts");
+        assert_eq!(<User as Model>::TABLE, "users");
+        assert_eq!(<Post as Model>::TABLE, "posts");
     }
 
     #[tokio::test]
     async fn test_model_where() {
         let query = User::r#where("active", true);
-        let results = query.get().await;
+        let results: Result<Vec<Value>, String> = query.get().await;
         assert!(results.is_ok());
     }
 

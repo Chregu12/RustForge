@@ -4,13 +4,20 @@
 //!
 //! # Quick Start
 //!
-//! ```rust
+//! ```rust,no_run
 //! use rf_facades::{facade, Facade};
 //!
+//! struct DatabaseFacade;
+//!
+//! impl Facade for DatabaseFacade {
+//!     fn instance() -> &'static Self {
+//!         static INSTANCE: DatabaseFacade = DatabaseFacade;
+//!         &INSTANCE
+//!     }
+//! }
+//!
 //! // Define a facade
-//! facade!(DB, DatabaseFacade, {
-//!     // Facade implementation
-//! });
+//! facade!(DB, DatabaseFacade);
 //!
 //! // Use the facade
 //! // DB!().query("SELECT * FROM users");

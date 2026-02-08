@@ -14,7 +14,7 @@ static MAIL_FAKE: Mutex<Option<Arc<MailFake>>> = Mutex::new(None);
 ///
 /// # Example
 ///
-/// ```
+/// ```no_run
 /// use rf_mail::testing::{fake, restore, assert_sent};
 ///
 /// fake();

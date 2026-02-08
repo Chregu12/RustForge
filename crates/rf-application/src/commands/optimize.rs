@@ -303,21 +303,14 @@ mod tests {
             metadata: Value::Null,
             config: Value::Null,
             options: Default::default(),
-            artifacts: std::sync::Arc::new(rf_infra::LocalArtifactPort::default()),
-            migrations: std::sync::Arc::new(rf_infra::SeaOrmMigrationService::default()),
-            seeds: std::sync::Arc::new(rf_infra::SeaOrmSeedService::default()),
-            validation: std::sync::Arc::new(rf_infra::SimpleValidationService::default()),
-            storage: std::sync::Arc::new(rf_infra::FileStorageAdapter::new(
-                std::sync::Arc::new(
-                    rf_storage::manager::StorageManager::new(
-                        rf_storage::config::StorageConfig::from_env(),
-                    )
-                    .unwrap(),
-                ),
-            )),
-            cache: std::sync::Arc::new(rf_infra::InMemoryCacheStore::default()),
-            queue: std::sync::Arc::new(rf_infra::InMemoryQueue::default()),
-            events: std::sync::Arc::new(rf_infra::InMemoryEventBus::default()),
+            artifacts: std::sync::Arc::new(crate::stubs::LocalArtifactPort::default()),
+            migrations: std::sync::Arc::new(crate::stubs::SeaOrmMigrationService::default()),
+            seeds: std::sync::Arc::new(crate::stubs::SeaOrmSeedService::default()),
+            validation: std::sync::Arc::new(crate::stubs::SimpleValidationService::default()),
+            storage: std::sync::Arc::new(crate::stubs::InMemoryStorage::default()),
+            cache: std::sync::Arc::new(crate::stubs::InMemoryCacheStore::default()),
+            queue: std::sync::Arc::new(crate::stubs::InMemoryQueue::default()),
+            events: std::sync::Arc::new(crate::stubs::InMemoryEventBus::default()),
         }
     }
 

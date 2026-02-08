@@ -10,7 +10,7 @@ categories = ["web-programming", "api-bindings"]
 
 [dependencies]
 # Stripe API
-stripe = { package = "async-stripe", version = "0.39", features = ["runtime-tokio-hyper"] }
+stripe = { package = "async-stripe", version = "0.41", features = ["runtime-tokio-hyper-rustls"] }
 
 # Async
 tokio = { version = "1.37", features = ["macros", "rt-multi-thread"] }

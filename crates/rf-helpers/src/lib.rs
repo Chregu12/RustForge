@@ -11,7 +11,7 @@
 //!
 //! ## Usage
 //!
-//! ```rust
+//! ```rust,no_run
 //! use rf_helpers::*;
 //!
 //! // String helpers
@@ -23,6 +23,8 @@
 //! let first = arr::first(&items, |&x| x > 2); // Some(&3)
 //!
 //! // Debug helpers
+//! let some_value = "debug me";
+//! let another_value = 42;
 //! dd!(some_value); // Dump and die
 //! dump!(another_value); // Dump without dying
 //! ```

@@ -21,7 +21,7 @@ reqwest.workspace = true
 
 # Stripe API (most common payment provider)
 # Features: billing (subscriptions, invoices), checkout, connect, webhook-events
-stripe = { package = "async-stripe", version = "0.39", default-features = false, features = [
+stripe = { package = "async-stripe", version = "0.41", default-features = false, features = [
     "runtime-tokio-hyper-rustls",
     "billing",          # Subscriptions, Invoices, Plans, Prices
     "checkout",         # Checkout Sessions

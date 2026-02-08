@@ -11,10 +11,16 @@ use std::time::Duration;
 ///
 /// # Examples
 ///
-/// ```rust
+/// ```rust,no_run
+/// use rf_cache::facade::Cache;
+/// use std::time::Duration;
+///
+/// # fn example() -> Result<(), Box<dyn std::error::Error>> {
 /// // Both work:
-/// Cache::put("key", &"value", 3600).await?;           // seconds
-/// Cache::put("key", &"value", Duration::from_secs(3600)).await?;  // Duration
+/// Cache::put("key", &"value", 3600)?;           // seconds
+/// Cache::put("key", &"value", Duration::from_secs(3600))?;  // Duration
+/// # Ok(())
+/// # }
 /// ```
 pub trait IntoTtl {
     fn into_duration(self) -> Duration;
@@ -55,7 +61,7 @@ impl IntoTtl for Duration {
 /// # Examples
 ///
 /// ```rust,no_run
-/// use rf_cache::Cache;
+/// use rf_cache::facade::Cache;
 ///
 /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
 /// // Put a value - Laravel style with seconds!
@@ -68,7 +74,7 @@ impl IntoTtl for Duration {
 ///
 /// // Remember pattern
 /// let value = Cache::remember("expensive", 60, || async {
-///     Ok::<_, String>("computed".to_string())
+///     Ok::<_, rf_cache::CacheError>("computed".to_string())
 /// })?;
 /// # Ok(())
 /// # }
@@ -81,7 +87,7 @@ impl Cache {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// use rf_cache::Cache;
+    /// use rf_cache::facade::Cache;
     ///
     /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// if let Some(value) = Cache::get::<String>("key")? {
@@ -102,7 +108,7 @@ impl Cache {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// use rf_cache::Cache;
+    /// use rf_cache::facade::Cache;
     ///
     /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// // Laravel style - just pass seconds!
@@ -128,7 +134,7 @@ impl Cache {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// use rf_cache::Cache;
+    /// use rf_cache::facade::Cache;
     ///
     /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// Cache::forever("key", "value")?;
@@ -145,7 +151,7 @@ impl Cache {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// use rf_cache::Cache;
+    /// use rf_cache::facade::Cache;
     ///
     /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// Cache::forget("key")?;
@@ -162,7 +168,7 @@ impl Cache {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// use rf_cache::Cache;
+    /// use rf_cache::facade::Cache;
     ///
     /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// if Cache::has("key")? {
@@ -181,7 +187,7 @@ impl Cache {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// use rf_cache::Cache;
+    /// use rf_cache::facade::Cache;
     ///
     /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// Cache::flush()?;
@@ -200,12 +206,12 @@ impl Cache {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// use rf_cache::Cache;
+    /// use rf_cache::facade::Cache;
     ///
     /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// // Laravel style - just pass seconds!
     /// let users = Cache::remember("users", 3600, || async {
-    ///     Ok::<_, String>("computed".to_string())
+    ///     Ok::<_, rf_cache::CacheError>("computed".to_string())
     /// })?;
     /// # Ok(())
     /// # }
@@ -229,11 +235,11 @@ impl Cache {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// use rf_cache::Cache;
+    /// use rf_cache::facade::Cache;
     ///
     /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let value = Cache::remember_forever("key", || async {
-    ///     Ok::<_, String>("computed".to_string())
+    ///     Ok::<_, rf_cache::CacheError>("computed".to_string())
     /// })?;
     /// # Ok(())
     /// # }
@@ -256,7 +262,7 @@ impl Cache {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// use rf_cache::Cache;
+    /// use rf_cache::facade::Cache;
     ///
     /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// if let Some(value) = Cache::pull::<String>("key")? {
@@ -276,7 +282,7 @@ impl Cache {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// use rf_cache::Cache;
+    /// use rf_cache::facade::Cache;
     ///
     /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// // Laravel style
@@ -301,7 +307,7 @@ impl Cache {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// use rf_cache::Cache;
+    /// use rf_cache::facade::Cache;
     /// use std::time::Duration;
     ///
     /// # fn example() -> Result<(), Box<dyn std::error::Error>> {

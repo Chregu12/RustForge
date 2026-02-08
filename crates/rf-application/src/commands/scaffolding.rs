@@ -1966,7 +1966,7 @@ fn register_auth_modules(ctx: &CommandContext) -> Result<(), CommandError> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rf_infra::{
+    use crate::stubs::{
         InMemoryCacheStore, InMemoryEventBus, InMemoryQueue, InMemoryStorage,
         SimpleValidationService,
     };

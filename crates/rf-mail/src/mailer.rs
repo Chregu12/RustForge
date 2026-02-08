@@ -33,23 +33,20 @@ pub trait Mailer: Send + Sync {
 /// # Example
 ///
 /// ```
-/// use rf_mail::{Mailable, Message, MessageBuilder, Address, MailError};
-/// use async_trait::async_trait;
+/// use rf_mail::{Mailable, MailBuilder, Address, MailError};
 ///
 /// struct WelcomeEmail {
 ///     to: Address,
 ///     name: String,
 /// }
 ///
-/// #[async_trait]
 /// impl Mailable for WelcomeEmail {
-///     async fn build(&self) -> Result<Message, MailError> {
-///         Ok(MessageBuilder::new()
+///     fn build(&self) -> MailBuilder {
+///         MailBuilder::new()
 ///             .from(Address::new("noreply@example.com"))
 ///             .to(self.to.clone())
 ///             .subject("Welcome!")
 ///             .text(format!("Welcome, {}!", self.name))
-///             .build()?)
 ///     }
 /// }
 /// ```

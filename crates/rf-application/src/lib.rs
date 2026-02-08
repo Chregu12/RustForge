@@ -5,7 +5,7 @@ mod commands;
 mod error;
 pub mod lazy_config;
 mod registry;
-mod stubs;
+pub(crate) mod stubs;
 
 pub use commands::{ListCommand, TestCommand};
 pub use error::ApplicationError;

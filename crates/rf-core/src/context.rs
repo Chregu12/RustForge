@@ -126,6 +126,20 @@ impl RequestContext {
     pub fn is_production(&self) -> bool {
         self.environment == Environment::Production
     }
+
+    /// Create a context with a specific environment (useful for testing)
+    pub fn with_environment(
+        path: impl Into<String>,
+        method: impl Into<String>,
+        environment: Environment,
+    ) -> Self {
+        Self {
+            trace_id: Uuid::new_v4().to_string(),
+            path: path.into(),
+            method: method.into(),
+            environment,
+        }
+    }
 }
 
 #[cfg(test)]

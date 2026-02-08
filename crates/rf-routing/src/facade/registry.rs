@@ -156,7 +156,7 @@ pub fn global_router() -> &'static GlobalRouter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rf_routing::HttpMethod;
+    use crate::HttpMethod;
 
     #[test]
     fn test_global_router_register() {
