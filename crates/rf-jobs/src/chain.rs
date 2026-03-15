@@ -34,7 +34,7 @@ pub struct JobChain {
 
 /// Serialized job wrapper for storage
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub(crate) struct SerializedJob {
+pub struct SerializedJob {
     job_type: String,
     data: serde_json::Value,
     queue: String,

@@ -15,7 +15,8 @@ struct ScheduledJob {
     /// Cron schedule
     schedule: Schedule,
 
-    /// Job factory function
+    /// Job factory function - stored for future registry-based dispatch
+    #[allow(dead_code)]
     job_factory: Box<dyn Fn() -> Box<dyn std::any::Any + Send> + Send + Sync>,
 
     /// Job name for logging
@@ -200,15 +201,6 @@ impl Scheduler {
 
         tracing::info!("Scheduler shutdown complete");
         Ok(())
-    }
-}
-
-impl ScheduledJob {
-    fn clone_schedules(schedules: &[ScheduledJob]) -> Vec<(Schedule, String)> {
-        schedules
-            .iter()
-            .map(|s| (s.schedule.clone(), s.name.clone()))
-            .collect()
     }
 }
 

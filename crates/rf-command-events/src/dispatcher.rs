@@ -44,9 +44,13 @@ impl EventDispatcher {
         let entries = listeners.entry(type_id).or_insert_with(Vec::new);
 
         let id = entries.len();
+        // Store as Arc<Box<dyn EventListener<E>>> so it can be downcast later.
+        // `Box<dyn EventListener<E>>` is Sized + Any + Send + Sync, making
+        // Arc::downcast::<Box<dyn EventListener<E>>>() possible at dispatch time.
+        let boxed: Box<dyn EventListener<E>> = Box::new(listener);
         let entry = ListenerEntry {
             id,
-            listener: Arc::new(listener),
+            listener: Arc::new(boxed) as Arc<dyn std::any::Any + Send + Sync>,
             priority,
             once,
         };
@@ -101,39 +105,39 @@ impl EventDispatcher {
         let type_id = TypeId::of::<E>();
         debug!("Dispatching event: {}", event.event_name());
 
-        let listeners = self.listeners.read().await;
-        let Some(entries) = listeners.get(&type_id) else {
-            debug!("No listeners registered for event type {:?}", type_id);
-            return Ok(());
+        // Clone listener Arcs while holding the read lock, then release it so
+        // we don't hold the lock across async handler calls.
+        let entries: Vec<(usize, Arc<dyn std::any::Any + Send + Sync>, bool)> = {
+            let listeners = self.listeners.read().await;
+            let Some(entries) = listeners.get(&type_id) else {
+                debug!("No listeners registered for event type {:?}", type_id);
+                return Ok(());
+            };
+            entries
+                .iter()
+                .map(|e| (e.id, Arc::clone(&e.listener), e.once))
+                .collect()
         };
-
-        let entries: Vec<_> = entries.iter().collect();
-        drop(listeners); // Release read lock
 
         let mut to_remove = Vec::new();
 
-        for entry in entries {
-            let listener = entry.listener.clone();
-            let listener = listener
+        for (id, listener_arc, once) in entries {
+            let listener = listener_arc
                 .downcast::<Box<dyn EventListener<E>>>()
-                .or_else(|arc| {
-                    // Try downcasting to the actual listener type
-                    arc.downcast::<dyn EventListener<E>>()
-                })
                 .map_err(|_| EventError::DispatchError("Failed to downcast listener".to_string()))?;
 
             match listener.handle(&event).await {
                 Ok(_) => {
-                    debug!("Listener {} handled event successfully", entry.id);
+                    debug!("Listener {} handled event successfully", id);
                 }
                 Err(e) => {
-                    warn!("Listener {} failed: {}", entry.id, e);
+                    warn!("Listener {} failed: {}", id, e);
                     // Continue to next listener - don't break the chain
                 }
             }
 
-            if entry.once {
-                to_remove.push(entry.id);
+            if once {
+                to_remove.push(id);
             }
         }
 

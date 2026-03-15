@@ -66,7 +66,10 @@ impl WorkerConfig {
 /// Worker pool for job processing
 pub struct WorkerPool {
     config: WorkerConfig,
+    // Retained for potential future use (e.g., dynamic worker scaling, stats)
+    #[allow(dead_code)]
     queue_manager: Arc<QueueManager>,
+    #[allow(dead_code)]
     registry: Arc<JobRegistry>,
     workers: Vec<Worker>,
     shutdown_tx: broadcast::Sender<()>,
