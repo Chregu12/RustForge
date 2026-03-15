@@ -42,6 +42,8 @@ across the RustForge framework. Issues are organized by severity and crate.
 | 31 | `rf-ratelimit` | Tests called `redis_available()` which was never defined — would cause test compilation failure; helper function added | latest |
 | 32 | `rf-validation` | `MinLengthRule` and `MaxLengthRule` used `str.len()` (byte count) instead of `str.chars().count()` (character count) — multi-byte Unicode characters (e.g. emojis) failed or passed incorrectly | latest |
 | 33 | `rf-mail` | `MailgunMailer::send_via_api()` looped over recipients and called `form.insert("to", addr)` in each iteration — `HashMap::insert` overwrites the previous value so only the **last** recipient was actually sent; fixed by joining all addresses into a comma-separated string | latest |
+| 34 | `rf-search` | `InMemoryEngine::search()` called `partial_cmp().unwrap()` when sorting results by score — panics if any score is NaN; replaced with `unwrap_or(Ordering::Equal)` | latest |
+| 35 | `rf-search` | **SECURITY**: `PostgresSearchDriver` interpolated `T::index_name()` directly into SQL `DELETE`/`TRUNCATE`/`COUNT` via `format!()` — SQL injection if implementor returns a malicious identifier; added `validate_identifier()` that rejects anything not `[a-zA-Z0-9_]` | latest |
 
 ---
 
@@ -311,9 +313,4 @@ Five different error systems with no unified trait:
 
 | Crate | Status | Reason |
 |-------|--------|--------|
-| `rf-oauth` | Re-enabled | Was incorrectly disabled - compiles fine |
-| `rf-oauth-server` | Re-enabled | Was incorrectly disabled - compiles fine |
-| `rf-oauth2-server` | Active | Preferred OAuth2 implementation |
-
-> **Note**: `rf-oauth-server` and `rf-oauth2-server` provide overlapping functionality.
-> Consider consolidating into a single crate.
+| `rf-oauth` | Re-enabled

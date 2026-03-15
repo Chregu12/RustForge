@@ -34,6 +34,22 @@ impl PostgresSearchDriver {
         }
     }
 
+    /// Validate that a table/column name contains only safe identifier characters.
+    /// Prevents SQL injection via user-supplied identifier strings.
+    fn validate_identifier(name: &str) -> Result<()> {
+        if name.is_empty()
+            || !name
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || c == '_')
+        {
+            return Err(SearchError::ConfigError(format!(
+                "Invalid identifier '{}': only alphanumeric characters and underscores are allowed",
+                name
+            )));
+        }
+        Ok(())
+    }
+
     /// Create a driver with a custom language configuration
     pub fn with_language(pool: PgPool, language: impl Into<String>) -> Self {
         Self {
@@ -254,6 +270,7 @@ impl SearchDriver for PostgresSearchDriver {
 
     async fn delete<T: Searchable>(&self, id: &str) -> Result<()> {
         let table = T::index_name();
+        Self::validate_identifier(&table)?;
         let query = format!("DELETE FROM {} WHERE id = $1", table);
 
         sqlx::query(&query)
@@ -267,6 +284,7 @@ impl SearchDriver for PostgresSearchDriver {
 
     async fn clear_index<T: Searchable>(&self) -> Result<()> {
         let table = T::index_name();
+        Self::validate_identifier(&table)?;
         let query = format!("TRUNCATE TABLE {}", table);
 
         sqlx::query(&query)
@@ -279,6 +297,7 @@ impl SearchDriver for PostgresSearchDriver {
 
     async fn count<T: Searchable>(&self) -> Result<usize> {
         let table = T::index_name();
+        Self::validate_identifier(&table)?;
         let query = format!("SELECT COUNT(*) as count FROM {}", table);
 
         let count: i64 = sqlx::query(&query)
