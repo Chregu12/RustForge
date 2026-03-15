@@ -41,6 +41,7 @@ across the RustForge framework. Issues are organized by severity and crate.
 | 30 | `rf-encryption` | **SECURITY**: `EncryptorBuilder::key()` fell back to treating raw input bytes as the key if base64 decoding failed — predictable low-entropy keys; fallback removed, only base64 input accepted | latest |
 | 31 | `rf-ratelimit` | Tests called `redis_available()` which was never defined — would cause test compilation failure; helper function added | latest |
 | 32 | `rf-validation` | `MinLengthRule` and `MaxLengthRule` used `str.len()` (byte count) instead of `str.chars().count()` (character count) — multi-byte Unicode characters (e.g. emojis) failed or passed incorrectly | latest |
+| 33 | `rf-mail` | `MailgunMailer::send_via_api()` looped over recipients and called `form.insert("to", addr)` in each iteration — `HashMap::insert` overwrites the previous value so only the **last** recipient was actually sent; fixed by joining all addresses into a comma-separated string | latest |
 
 ---
 
@@ -206,6 +207,21 @@ and pushes it to `rf-queue`, falling back to inline `tokio::spawn` when no queue
 
 The scheduler sleeps 30 seconds between checks but only dispatches if `current_minute != last_minute`,
 effectively limiting precision to 1-minute granularity. Sub-minute cron expressions are silently ignored.
+
+---
+
+### `rf-mail/src/backends/ses.rs` - AWS SES Uses SHA-256 Instead of HMAC-SHA256
+**Severity**: High
+**File**: `crates/rf-mail/src/backends/ses.rs:240-275`
+
+The `sign_request()` method constructs an AWS Signature Version 4 authorization header but
+uses plain `Sha256::digest()` instead of HMAC-SHA256. The comment in the code acknowledges
+the gap ("in production use proper HMAC"). Every API request will fail with AWS authentication
+errors (HTTP 403).
+
+**Fix needed**: Replace `Sha256::digest(string_to_sign)` with a proper HMAC-SHA256 derivation
+using the `hmac` crate (same as used in `rf-broadcasting`), following the AWS SigV4
+key derivation steps: `HMAC(HMAC(HMAC(HMAC("AWS4"+secret, date), region), service), "aws4_request")`.
 
 ---
 

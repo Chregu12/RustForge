@@ -160,34 +160,52 @@ impl MailgunMailer {
         };
         form.insert("from", from_address);
 
-        // To addresses
-        for to in &mail.to {
-            let to_address = if let Some(name) = &to.name {
-                format!("{} <{}>", name, to.email)
-            } else {
-                to.email.clone()
-            };
-            form.insert("to", to_address);
+        // To addresses — Mailgun accepts comma-separated recipients
+        let to_list: Vec<String> = mail
+            .to
+            .iter()
+            .map(|to| {
+                if let Some(name) = &to.name {
+                    format!("{} <{}>", name, to.email)
+                } else {
+                    to.email.clone()
+                }
+            })
+            .collect();
+        if !to_list.is_empty() {
+            form.insert("to", to_list.join(", "));
         }
 
         // CC addresses
-        for cc in &mail.cc {
-            let cc_address = if let Some(name) = &cc.name {
-                format!("{} <{}>", name, cc.email)
-            } else {
-                cc.email.clone()
-            };
-            form.insert("cc", cc_address);
+        let cc_list: Vec<String> = mail
+            .cc
+            .iter()
+            .map(|cc| {
+                if let Some(name) = &cc.name {
+                    format!("{} <{}>", name, cc.email)
+                } else {
+                    cc.email.clone()
+                }
+            })
+            .collect();
+        if !cc_list.is_empty() {
+            form.insert("cc", cc_list.join(", "));
         }
 
         // BCC addresses
-        for bcc in &mail.bcc {
-            let bcc_address = if let Some(name) = &bcc.name {
-                format!("{} <{}>", name, bcc.email)
-            } else {
-                bcc.email.clone()
-            };
-            form.insert("bcc", bcc_address);
+        let bcc_list: Vec<String> = mail
+            .bcc
+            .iter()
+            .map(|bcc| {
+                if let Some(name) = &bcc.name {
+                    format!("{} <{}>", name, bcc.email)
+                } else {
+                    bcc.email.clone()
+                }
+            })
+            .collect();
+        if !bcc_list.is_empty() {
+            form.insert("bcc", bcc_list.join(", "));
         }
 
         // Subject
