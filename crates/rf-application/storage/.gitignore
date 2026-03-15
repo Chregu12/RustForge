@@ -1,0 +1,4 @@
+# Runtime-generated cache and framework files
+framework/
+logs/
+app/
