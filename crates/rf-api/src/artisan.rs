@@ -253,25 +253,8 @@ mod tests {
     use super::*;
 
     #[test]
+    #[ignore = "requires a running FoundryApp; use integration tests instead"]
     fn test_command_builder_creation() {
-        // This is a basic test to ensure types are correct
         // Full integration tests require a running FoundryApp
-        let captured = Arc::new(Mutex::new(Vec::new()));
-
-        let builder = CommandBuilder {
-            invoker: {
-                // Mock invoker - in real tests, use actual instance
-                panic!("Use integration tests instead")
-            },
-            command: "test".to_string(),
-            args: vec!["arg1".to_string()],
-            captured_output: captured,
-            format: ResponseFormat::Json,
-            dry_run: false,
-            force: false,
-        };
-
-        assert_eq!(builder.command, "test");
-        assert_eq!(builder.args.len(), 1);
     }
 }

@@ -295,6 +295,13 @@ impl ClientRepository for PostgresClientRepository {
 mod tests {
     use super::*;
 
+    /// Check if PostgreSQL is reachable (used to skip integration tests in CI without a DB)
+    async fn postgres_available() -> bool {
+        let url = std::env::var("DATABASE_URL")
+            .unwrap_or_else(|_| "postgres://localhost/test".to_string());
+        sqlx::PgPool::connect(&url).await.is_ok()
+    }
+
     async fn setup_test_db() -> PgPool {
         // This would require a test database
         // For now, this is a placeholder

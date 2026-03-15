@@ -214,11 +214,11 @@ pub struct QueueManager {
 }
 
 impl QueueManager {
-    /// Create a new queue manager
+    /// Create a new queue manager with a "default" queue pre-created
     pub fn new() -> Self {
-        Self {
-            queues: std::collections::HashMap::new(),
-        }
+        let mut queues = std::collections::HashMap::new();
+        queues.insert("default".to_string(), CommandQueue::new("default"));
+        Self { queues }
     }
 
     /// Add a queue
