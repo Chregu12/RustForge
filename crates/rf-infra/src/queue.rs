@@ -2,7 +2,7 @@ use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
 use rf_plugins::{CommandError, QueueJob, QueuePort};
-use rf_jobs::{Job, QueueManager}; // Using rf-jobs instead of rf-queue
+use rf_jobs::{JobPayload, QueueManager};
 use tracing::info;
 
 #[derive(Clone, Default)]
@@ -37,9 +37,12 @@ impl RedisQueue {
         Self { manager }
     }
 
-    /// Create from environment variables
-    pub fn from_env() -> Result<Self, CommandError> {
-        let manager = QueueManager::from_env()
+    /// Create from environment variables (reads REDIS_URL)
+    pub async fn from_env() -> Result<Self, CommandError> {
+        let redis_url = std::env::var("REDIS_URL")
+            .unwrap_or_else(|_| "redis://localhost:6379".to_string());
+        let manager = QueueManager::new(&redis_url)
+            .await
             .map_err(|e| CommandError::Message(format!("Failed to create queue manager: {}", e)))?;
         Ok(Self::new(manager))
     }
@@ -55,19 +58,26 @@ impl QueuePort for RedisQueue {
     async fn dispatch(&self, job: QueueJob) -> Result<(), CommandError> {
         info!(name = %job.name, "Queue job dispatched to Redis");
 
-        // Convert QueueJob to foundry_queue::Job
-        let queue_job = Job::new(&job.name).with_payload(job.payload);
-
-        // Apply delay if specified
-        let queue_job = if let Some(delay_seconds) = job.delay_seconds {
-            queue_job.with_delay(std::time::Duration::from_secs(delay_seconds))
+        let available_at = if let Some(delay_seconds) = job.delay_seconds {
+            chrono::Utc::now() + chrono::Duration::seconds(delay_seconds as i64)
         } else {
-            queue_job
+            chrono::Utc::now()
         };
 
-        // Dispatch to queue
+        let payload = JobPayload {
+            id: uuid::Uuid::new_v4(),
+            queue: "default".to_string(),
+            job_type: job.name.clone(),
+            data: job.payload,
+            attempt: 0,
+            max_attempts: 3,
+            dispatched_at: chrono::Utc::now(),
+            available_at,
+            backoff_seconds: 60,
+        };
+
         self.manager
-            .dispatch(queue_job)
+            .push_raw("default", payload)
             .await
             .map_err(|e| CommandError::Message(format!("Queue dispatch failed: {}", e)))?;
 

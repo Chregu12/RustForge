@@ -39,8 +39,8 @@ pub struct AppState {
 
 impl AppState {
     pub fn new(invoker: FoundryInvoker) -> Self {
-        let storage_manager = invoker.app().storage_manager();
-        let file_service = Arc::new(FileService::new(storage_manager));
+        let storage = invoker.app().storage();
+        let file_service = Arc::new(FileService::new(storage));
         let validation = invoker.app().validation();
 
         Self {

@@ -2,17 +2,17 @@ mod commands;
 
 use clap::{Parser, ValueEnum};
 use color_eyre::eyre::{bail, eyre, Result, WrapErr};
-use foundry_api::http::HttpServer;
-use foundry_api::invocation::FoundryInvoker;
-use foundry_api::mcp::McpServer;
-use foundry_application::FoundryApp;
-use foundry_console::{info as console_info, success, warning};
-use foundry_infra::{
+use rf_api::http::HttpServer;
+use rf_api::invocation::FoundryInvoker;
+use rf_api::mcp::McpServer;
+use rf_application::FoundryApp;
+use rf_console::{info as console_info, success, warning};
+use rf_infra::{
     AuditRecord, ConfigError, ConfigProvider, DotenvProvider, JsonlAuditLogger, LocalArtifactPort,
     SeaOrmMigrationService, SeaOrmSeedService,
 };
-use foundry_interactive::{ask_with_default, choice, confirm, SelectOption};
-use foundry_plugins::{CommandResult, CommandStatus, ExecutionOptions, ResponseFormat};
+use rf_interactive::{ask_with_default, choice, confirm, SelectOption};
+use rf_plugins::{CommandResult, CommandStatus, ExecutionOptions, ResponseFormat};
 use serde_json::Value;
 use std::fs;
 use std::net::SocketAddr;
@@ -243,7 +243,7 @@ fn run_init() -> Result<()> {
                 .map_err(|e| eyre!("Failed to get port: {}", e))?;
             let username = ask_with_default("Username", "postgres")
                 .map_err(|e| eyre!("Failed to get username: {}", e))?;
-            let password = foundry_interactive::password("Password")
+            let password = rf_interactive::password("Password")
                 .map_err(|e| eyre!("Failed to get password: {}", e))?;
             let db_name = ask_with_default("Database name", "foundry")
                 .map_err(|e| eyre!("Failed to get database name: {}", e))?;

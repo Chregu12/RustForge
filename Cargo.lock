@@ -3432,7 +3432,9 @@ dependencies = [
  "dialoguer",
  "indicatif",
  "rf-api",
+ "rf-application",
  "rf-console",
+ "rf-infra",
  "rf-interactive",
  "rf-plugins",
  "serde",
@@ -7352,6 +7354,7 @@ dependencies = [
  "lazy_static",
  "once_cell",
  "prometheus",
+ "rf-application",
  "rf-domain",
  "rf-plugins",
  "rf-storage",
@@ -8213,6 +8216,7 @@ dependencies = [
  "toml 0.8.23",
  "tracing",
  "url",
+ "uuid 1.18.1",
 ]
 
 [[package]]
@@ -9045,6 +9049,7 @@ dependencies = [
  "chrono",
  "futures",
  "once_cell",
+ "rf-plugins",
  "serde",
  "serde_json",
  "tempfile",

@@ -11,7 +11,7 @@ pub enum PipelineError {
     CommandFailed { command: String, reason: String },
 
     /// Multiple commands failed
-    #[error("Pipeline failed with {0} error(s)")]
+    #[error("Pipeline failed with multiple errors")]
     MultipleFailed(Vec<String>),
 
     /// Pipeline was stopped due to error

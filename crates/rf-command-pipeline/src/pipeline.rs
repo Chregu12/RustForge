@@ -129,7 +129,10 @@ impl<E: CommandExecutor> PipelineBuilder<E> {
     }
 
     /// Execute multiple commands in parallel
-    pub async fn execute_parallel(&self, commands: Vec<(&str, Vec<String>)>) -> PipelineResult<ExecutionSummary> {
+    pub async fn execute_parallel(&self, commands: Vec<(&str, Vec<String>)>) -> PipelineResult<ExecutionSummary>
+    where
+        E: 'static,
+    {
         let mut handles = Vec::new();
 
         for (command, args) in commands {
@@ -224,7 +227,10 @@ impl<E: CommandExecutor> Pipeline<E> {
     }
 
     /// Execute commands in parallel
-    pub async fn parallel(&self, commands: Vec<(&str, Vec<String>)>) -> PipelineResult<ExecutionSummary> {
+    pub async fn parallel(&self, commands: Vec<(&str, Vec<String>)>) -> PipelineResult<ExecutionSummary>
+    where
+        E: 'static,
+    {
         self.builder.execute_parallel(commands).await
     }
 }
@@ -329,9 +335,10 @@ mod tests {
             .then("ok2", vec![]);
 
         let result = pipeline.execute().await;
-        assert!(result.is_err()); // Still returns error, but executes all commands
-
-        // We would need to access the summary to verify all commands ran
-        // In a real implementation, you might want to return Result<Summary, Vec<Error>>
+        // With stop_on_error=false, pipeline returns Ok(summary) even when commands fail
+        assert!(result.is_ok());
+        let summary = result.unwrap();
+        // All 3 commands were attempted; 1 fails, 2 succeed (ok1 and ok2 always succeed in FailingExecutor when name != "fail")
+        assert_eq!(summary.total, 3);
     }
 }
