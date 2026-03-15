@@ -4,15 +4,16 @@
 //! against Cross-Site Request Forgery attacks.
 
 use axum::{
-    body::Body,
-    extract::{FromRequestParts, Request},
-    http::{header, StatusCode},
+    extract::Request,
+    http::StatusCode,
     middleware::Next,
     response::{IntoResponse, Response},
 };
 use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::sync::Arc;
+use tokio::sync::RwLock;
 use tower::Layer;
 
 /// CSRF token with creation timestamp
@@ -134,10 +135,57 @@ impl CsrfConfig {
     }
 }
 
+/// Server-side store for valid CSRF tokens.
+///
+/// Tokens are stored by their string value and automatically expired during
+/// validation to prevent memory growth.
+#[derive(Clone, Default)]
+pub struct CsrfTokenStore {
+    tokens: Arc<RwLock<HashMap<String, CsrfToken>>>,
+}
+
+impl CsrfTokenStore {
+    /// Create a new empty token store.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Register a newly generated token in the store.
+    pub async fn register(&self, token: &CsrfToken) {
+        let mut store = self.tokens.write().await;
+        store.insert(token.token().to_string(), token.clone());
+    }
+
+    /// Validate a submitted token string against the store.
+    ///
+    /// Uses constant-time comparison to prevent timing attacks.
+    /// Removes the token after successful validation (one-time use).
+    /// Also purges expired tokens on every call.
+    pub async fn validate(&self, submitted: &str, lifetime_hours: i64) -> bool {
+        let mut store = self.tokens.write().await;
+        let duration = Duration::hours(lifetime_hours);
+
+        // Purge expired tokens
+        store.retain(|_, t| !t.is_expired_with_duration(duration));
+
+        // Look up the submitted token
+        if let Some(stored) = store.get(submitted) {
+            if stored.verify(submitted) {
+                // One-time use: remove after successful validation
+                store.remove(submitted);
+                return true;
+            }
+        }
+
+        false
+    }
+}
+
 /// CSRF middleware for protecting routes
 #[derive(Clone)]
 pub struct CsrfMiddleware {
     config: Arc<CsrfConfig>,
+    token_store: CsrfTokenStore,
 }
 
 impl CsrfMiddleware {
@@ -145,6 +193,7 @@ impl CsrfMiddleware {
     pub fn new() -> Self {
         Self {
             config: Arc::new(CsrfConfig::default()),
+            token_store: CsrfTokenStore::new(),
         }
     }
 
@@ -152,7 +201,24 @@ impl CsrfMiddleware {
     pub fn with_config(config: CsrfConfig) -> Self {
         Self {
             config: Arc::new(config),
+            token_store: CsrfTokenStore::new(),
         }
+    }
+
+    /// Create a new CSRF middleware sharing an existing token store.
+    ///
+    /// Use this when you need to register tokens (e.g. from a handler) and
+    /// validate them in the middleware within the same request lifecycle.
+    pub fn with_store(config: CsrfConfig, token_store: CsrfTokenStore) -> Self {
+        Self {
+            config: Arc::new(config),
+            token_store,
+        }
+    }
+
+    /// Get a reference to the token store so handlers can register tokens.
+    pub fn token_store(&self) -> &CsrfTokenStore {
+        &self.token_store
     }
 
     /// Check if a route is exempt from CSRF protection
@@ -199,11 +265,19 @@ impl CsrfMiddleware {
         }
 
         // Extract token from request
-        let token = self.extract_token(&mut req).await;
+        let submitted = self.extract_token(&mut req).await;
 
-        // TODO: Validate token against session token
-        // For now, we'll just check if a token exists
-        if token.is_none() {
+        // Validate submitted token against the server-side token store
+        let valid = match submitted {
+            Some(ref value) => {
+                self.token_store
+                    .validate(value, self.config.token_lifetime_hours)
+                    .await
+            }
+            None => false,
+        };
+
+        if !valid {
             return (StatusCode::FORBIDDEN, "CSRF token mismatch").into_response();
         }
 
@@ -236,6 +310,11 @@ impl CsrfLayer {
         Self {
             middleware: CsrfMiddleware::with_config(config),
         }
+    }
+
+    /// Get the shared token store so handlers can register generated tokens.
+    pub fn token_store(&self) -> &CsrfTokenStore {
+        self.middleware.token_store()
     }
 }
 
@@ -302,10 +381,24 @@ where
                 return inner.call(req).await;
             }
 
-            // Check for CSRF token in headers
-            let has_token = req.headers().get(&middleware.config.header_name).is_some();
+            // Extract and validate CSRF token
+            let submitted = req
+                .headers()
+                .get(&middleware.config.header_name)
+                .and_then(|v| v.to_str().ok())
+                .map(|s| s.to_string());
 
-            if !has_token {
+            let valid = match submitted {
+                Some(ref value) => {
+                    middleware
+                        .token_store
+                        .validate(value, middleware.config.token_lifetime_hours)
+                        .await
+                }
+                None => false,
+            };
+
+            if !valid {
                 let response = (StatusCode::FORBIDDEN, "CSRF token mismatch").into_response();
                 return Ok(response);
             }
@@ -422,5 +515,48 @@ mod tests {
         let token2 = CsrfToken::regenerate();
 
         assert_ne!(token1.token(), token2.token());
+    }
+
+    #[tokio::test]
+    async fn test_csrf_token_store_validate_valid() {
+        let store = CsrfTokenStore::new();
+        let token = CsrfToken::generate();
+        let value = token.token().to_string();
+
+        store.register(&token).await;
+        assert!(store.validate(&value, 2).await);
+    }
+
+    #[tokio::test]
+    async fn test_csrf_token_store_validate_invalid() {
+        let store = CsrfTokenStore::new();
+        assert!(!store.validate("bogus_token", 2).await);
+    }
+
+    #[tokio::test]
+    async fn test_csrf_token_store_one_time_use() {
+        let store = CsrfTokenStore::new();
+        let token = CsrfToken::generate();
+        let value = token.token().to_string();
+
+        store.register(&token).await;
+        // First use succeeds
+        assert!(store.validate(&value, 2).await);
+        // Second use fails (token was consumed)
+        assert!(!store.validate(&value, 2).await);
+    }
+
+    #[tokio::test]
+    async fn test_csrf_token_store_expired_token_rejected() {
+        let store = CsrfTokenStore::new();
+        let mut token = CsrfToken::generate();
+        let value = token.token().to_string();
+
+        // Backdate the token so it is already expired
+        token.created_at = Utc::now() - Duration::hours(3);
+        store.register(&token).await;
+
+        // Validate with a 2-hour lifetime → expired
+        assert!(!store.validate(&value, 2).await);
     }
 }
