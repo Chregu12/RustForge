@@ -155,14 +155,11 @@ impl EncryptorBuilder {
     pub fn key(mut self, key: impl AsRef<str>) -> Self {
         let key_str = key.as_ref();
 
-        // Handle "base64:" prefix
+        // Accept "base64:<data>" prefix or plain base64 string; never treat raw input as key bytes
         let decoded = if key_str.starts_with("base64:") {
             base64::decode(&key_str[7..]).ok()
         } else {
-            // Assume it's already raw bytes or hex
-            base64::decode(key_str)
-                .ok()
-                .or_else(|| Some(key_str.as_bytes().to_vec()))
+            base64::decode(key_str).ok()
         };
 
         self.key = decoded;
@@ -174,11 +171,16 @@ impl EncryptorBuilder {
         self
     }
 
-    pub fn build(self) -> Encryptor {
-        Encryptor {
-            key: self.key.unwrap_or_else(|| vec![0u8; 32]),
+    pub fn build(self) -> Result<Encryptor> {
+        let key = self.key.ok_or_else(|| {
+            EncryptionError::InvalidKey(
+                "No encryption key provided — call .key() before .build()".to_string(),
+            )
+        })?;
+        Ok(Encryptor {
+            key,
             cipher: self.cipher,
-        }
+        })
     }
 }
 
@@ -194,11 +196,11 @@ impl Default for EncryptorBuilder {
 // Convenience methods that return the builder as the encryptor
 impl EncryptorBuilder {
     pub fn encrypt(&self, data: &str) -> Result<String> {
-        self.clone().build().encrypt(data)
+        self.clone().build()?.encrypt(data)
     }
 
     pub fn decrypt(&self, encrypted: &str) -> Result<String> {
-        self.clone().build().decrypt(encrypted)
+        self.clone().build()?.decrypt(encrypted)
     }
 }
 
@@ -239,7 +241,7 @@ mod tests {
     #[test]
     fn test_encrypt_decrypt() {
         let key = Encryptor::generate_key();
-        let encryptor = Encryptor::new().key(&key).build();
+        let encryptor = Encryptor::new().key(&key).build().unwrap();
 
         let plaintext = "Hello, World!";
         let encrypted = encryptor.encrypt(plaintext).unwrap();
@@ -252,7 +254,7 @@ mod tests {
     #[test]
     fn test_encrypt_different_each_time() {
         let key = Encryptor::generate_key();
-        let encryptor = Encryptor::new().key(&key).build();
+        let encryptor = Encryptor::new().key(&key).build().unwrap();
 
         let plaintext = "Test";
         let encrypted1 = encryptor.encrypt(plaintext).unwrap();
@@ -269,7 +271,7 @@ mod tests {
     #[test]
     fn test_decrypt_invalid() {
         let key = Encryptor::generate_key();
-        let encryptor = Encryptor::new().key(&key).build();
+        let encryptor = Encryptor::new().key(&key).build().unwrap();
 
         let result = encryptor.decrypt("invalid-data");
         assert!(result.is_err());
@@ -280,8 +282,8 @@ mod tests {
         let key1 = Encryptor::generate_key();
         let key2 = Encryptor::generate_key();
 
-        let encryptor1 = Encryptor::new().key(&key1).build();
-        let encryptor2 = Encryptor::new().key(&key2).build();
+        let encryptor1 = Encryptor::new().key(&key1).build().unwrap();
+        let encryptor2 = Encryptor::new().key(&key2).build().unwrap();
 
         let encrypted = encryptor1.encrypt("secret").unwrap();
         let result = encryptor2.decrypt(&encrypted);

@@ -37,6 +37,10 @@ across the RustForge framework. Issues are organized by severity and crate.
 | 26 | `rf-queue` | `RedisQueue::retry()` re-enqueued job without first removing it from the processing list — same job existed in both processing AND delayed queues simultaneously | latest |
 | 27 | `rf-oauth2-server` | **SECURITY**: `Client::verify_secret()` used `==` string comparison (timing side-channel) — replaced with SHA-256 digest comparison over fixed-length outputs | latest |
 | 28 | `rf-oauth` | **SECURITY**: Facebook provider sent access token in URL query string — token logged in HTTP access logs and proxies; replaced with `Authorization: Bearer` header | latest |
+| 29 | `rf-encryption` | **SECURITY**: `EncryptorBuilder::build()` silently used a 32-byte zero key when no key was provided — all default-built instances were identically vulnerable; `build()` now returns `Result` and fails explicitly | latest |
+| 30 | `rf-encryption` | **SECURITY**: `EncryptorBuilder::key()` fell back to treating raw input bytes as the key if base64 decoding failed — predictable low-entropy keys; fallback removed, only base64 input accepted | latest |
+| 31 | `rf-ratelimit` | Tests called `redis_available()` which was never defined — would cause test compilation failure; helper function added | latest |
+| 32 | `rf-validation` | `MinLengthRule` and `MaxLengthRule` used `str.len()` (byte count) instead of `str.chars().count()` (character count) — multi-byte Unicode characters (e.g. emojis) failed or passed incorrectly | latest |
 
 ---
 
@@ -215,6 +219,22 @@ all codes within a short window.
 
 **Fix needed**: Implement per-user attempt counting (e.g. in Redis with TTL) and lock out
 after N failed attempts within the TOTP window.
+
+---
+
+### `rf-session-facade` - Global Session State Unusable in Web Context
+**Severity**: High (architecture)
+**File**: `crates/rf-session-facade/src/lib.rs:12-14`
+
+The facade uses a process-global `Lazy<RwLock<HashMap<String, Value>>>` for all session data,
+shared across every concurrent HTTP request. This means:
+- Different users' requests see and overwrite each other's session data
+- Flash messages affect all active users simultaneously
+- No session isolation by request ID
+
+**Fix needed**: This facade must not be used in web applications. Replace with the
+properly request-scoped session from `rf-web`, or redesign the facade to accept
+a request-scoped context parameter rather than using global state.
 
 ---
 

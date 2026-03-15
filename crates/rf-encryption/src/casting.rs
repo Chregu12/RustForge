@@ -121,7 +121,7 @@ mod tests {
 
     #[test]
     fn test_encrypt_decrypt() {
-        let encryptor = Encryptor::new().key(Encryptor::generate_key()).build();
+        let encryptor = Encryptor::new().key(Encryptor::generate_key()).build().unwrap();
 
         let mut encrypted = Encrypted::new("secret".to_string());
         let encrypted_str = encrypted.encrypt(&encryptor).unwrap();
@@ -132,7 +132,7 @@ mod tests {
 
     #[test]
     fn test_encrypted_numbers() {
-        let encryptor = Encryptor::new().key(Encryptor::generate_key()).build();
+        let encryptor = Encryptor::new().key(Encryptor::generate_key()).build().unwrap();
 
         let mut encrypted = Encrypted::new(42);
         let encrypted_str = encrypted.encrypt(&encryptor).unwrap();
