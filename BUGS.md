@@ -32,6 +32,11 @@ across the RustForge framework. Issues are organized by severity and crate.
 | 21 | `rf-scheduler` | Overlap prevention only guarded tasks with `prevent_overlap() = true`; non-overlapping tasks were never inserted into `running_tasks` leaving them completely untracked | latest |
 | 22 | `rf-broadcasting` | `AuthToken::sign()` used `std::collections::hash_map::DefaultHasher` (non-deterministic, non-cryptographic) for token signing — replaced with proper HMAC-SHA256 (RFC 2104) | latest |
 | 23 | `rf-broadcasting` | `WebSocketHandler` spawned forwarding tasks on subscribe but never stored their `JoinHandle` — unsubscribing or disconnecting left orphaned tasks running; now aborts on unsubscribe/disconnect | latest |
+| 24 | `rf-queue` | `RedisQueue::complete()` deleted job data but never removed the entry from the Redis processing list — processed jobs accumulated in `processing:{queue}` forever | latest |
+| 25 | `rf-queue` | `RedisQueue::fail()` moved job to failed list but never removed it from processing list or deleted the original `job:{id}` key | latest |
+| 26 | `rf-queue` | `RedisQueue::retry()` re-enqueued job without first removing it from the processing list — same job existed in both processing AND delayed queues simultaneously | latest |
+| 27 | `rf-oauth2-server` | **SECURITY**: `Client::verify_secret()` used `==` string comparison (timing side-channel) — replaced with SHA-256 digest comparison over fixed-length outputs | latest |
+| 28 | `rf-oauth` | **SECURITY**: Facebook provider sent access token in URL query string — token logged in HTTP access logs and proxies; replaced with `Authorization: Bearer` header | latest |
 
 ---
 
@@ -85,6 +90,34 @@ The `_optimized` variant likely supersedes the original but both are exported.
 
 **Fix needed**: Deprecate or remove `eager_loading.rs`, promote `eager_loading_optimized.rs`
 as the canonical implementation.
+
+---
+
+### `rf-oauth2-server/src/middleware.rs` - Token Validation Not Implemented
+**Severity**: Critical (security)
+**File**: `crates/rf-oauth2-server/src/middleware.rs:82-103`
+
+The `extract_bearer_token()` middleware extracts a token from the `Authorization` header but has
+a `TODO` comment explicitly stating it does **not** validate the token against the database:
+```
+// TODO: Validate token against database/cache
+// For now, just pass it through
+```
+Any bearer token string (including fabricated ones) passes the middleware check.
+
+**Fix needed**: Implement database/cache lookup for the token, verify expiry, load scopes,
+and reject with `401 Unauthorized` if the token is invalid.
+
+---
+
+### `rf-queue/src/redis.rs` - No Job Timeout Enforcement
+**Severity**: Medium
+**File**: `crates/rf-queue/src/worker.rs:118-178`
+
+`JobMetadata` has a `timeout_secs` field but `process_job()` never wraps the handler in a
+`tokio::time::timeout()`. A hanging job will block a worker thread indefinitely.
+
+**Fix needed**: Wrap handler call in `tokio::time::timeout(Duration::from_secs(metadata.timeout_secs))`.
 
 ---
 
@@ -169,6 +202,34 @@ and pushes it to `rf-queue`, falling back to inline `tokio::spawn` when no queue
 
 The scheduler sleeps 30 seconds between checks but only dispatches if `current_minute != last_minute`,
 effectively limiting precision to 1-minute granularity. Sub-minute cron expressions are silently ignored.
+
+---
+
+### `rf-2fa` - No Rate Limiting on TOTP Verification
+**Severity**: High (security)
+**File**: `crates/rf-2fa/src/lib.rs:85-90`
+
+The `verify()` method has no rate limiting or attempt throttling. A 6-digit TOTP code has
+only 1,000,000 possible values; without brute-force protection, an attacker can enumerate
+all codes within a short window.
+
+**Fix needed**: Implement per-user attempt counting (e.g. in Redis with TTL) and lock out
+after N failed attempts within the TOTP window.
+
+---
+
+### `rf-oauth` vs `rf-oauth-server` vs `rf-oauth2-server` — Crate Duplication
+**Severity**: Medium (maintainability)
+
+Three overlapping OAuth crates exist:
+- `rf-oauth`: OAuth2 **client** (social login providers)
+- `rf-oauth-server`: Full OAuth2 authorization **server** with database repositories
+- `rf-oauth2-server`: Simpler in-memory OAuth2 authorization **server** with security gaps
+
+`rf-oauth-server` and `rf-oauth2-server` provide redundant server-side functionality.
+`rf-oauth-server` is more complete and uses constant-time secret comparison.
+
+**Fix needed**: Consolidate into one server crate or clearly differentiate their roles in documentation.
 
 ---
 

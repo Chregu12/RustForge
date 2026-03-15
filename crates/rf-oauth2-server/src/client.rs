@@ -38,10 +38,17 @@ impl Client {
         self.scopes.iter().any(|s| s == scope)
     }
 
-    /// Verify client secret
+    /// Verify client secret using constant-time comparison to prevent timing attacks
     pub fn verify_secret(&self, secret: &str) -> bool {
+        use sha2::{Digest, Sha256};
+
         match &self.secret {
-            Some(s) => s == secret,
+            Some(s) => {
+                // Hash both sides so comparison is constant-time over fixed-length digests
+                let expected = Sha256::digest(s.as_bytes());
+                let provided = Sha256::digest(secret.as_bytes());
+                expected == provided
+            }
             None => false,
         }
     }
