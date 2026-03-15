@@ -144,7 +144,8 @@ impl WebSocketServer {
             .map_err(|e| BroadcastError::WebSocket(e.to_string()))?;
 
         let (mut ws_sender, mut ws_receiver) = ws_stream.split();
-        let mut subscriptions: HashMap<String, broadcast::Receiver<String>> = HashMap::new();
+        // Map from channel name to the forwarding task; abort on unsubscribe to prevent leaks
+        let mut subscriptions: HashMap<String, tokio::task::JoinHandle<()>> = HashMap::new();
 
         // Channel for sending messages to this client
         let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<String>();
@@ -194,10 +195,11 @@ impl WebSocketServer {
             }
         }
 
-        // Cleanup
+        // Cleanup: abort all forwarding tasks and unregister channels
         send_task.abort();
-        for channel in subscriptions.keys() {
-            self.registry.cleanup(channel).await;
+        for (channel, handle) in subscriptions.drain() {
+            handle.abort();
+            self.registry.cleanup(&channel).await;
         }
 
         tracing::info!(addr = %addr, "Connection closed");
@@ -209,7 +211,7 @@ impl WebSocketServer {
         &self,
         text: &str,
         tx: &tokio::sync::mpsc::UnboundedSender<String>,
-        subscriptions: &mut HashMap<String, broadcast::Receiver<String>>,
+        subscriptions: &mut HashMap<String, tokio::task::JoinHandle<()>>,
         addr: SocketAddr,
     ) -> BroadcastResult<()> {
         let message: ClientMessage = serde_json::from_str(text)?;
@@ -233,11 +235,11 @@ impl WebSocketServer {
 
                 tracing::info!(channel = %channel, addr = %addr, "Client subscribed");
 
-                // Spawn task to forward broadcasts to this client
+                // Spawn forwarding task and store the handle so we can abort on unsubscribe
                 let tx_clone = tx.clone();
                 let channel_clone = channel.clone();
-                let mut rx_clone = broadcast_rx.resubscribe();
-                tokio::spawn(async move {
+                let mut rx_clone = broadcast_rx;
+                let handle = tokio::spawn(async move {
                     while let Ok(message) = rx_clone.recv().await {
                         if tx_clone.send(message).is_err() {
                             break;
@@ -246,10 +248,13 @@ impl WebSocketServer {
                     tracing::debug!(channel = %channel_clone, "Subscription task ended");
                 });
 
-                subscriptions.insert(channel, broadcast_rx);
+                subscriptions.insert(channel, handle);
             }
             ClientMessage::Unsubscribe { channel } => {
-                subscriptions.remove(&channel);
+                // Abort forwarding task to release resources immediately
+                if let Some(handle) = subscriptions.remove(&channel) {
+                    handle.abort();
+                }
 
                 let response = ServerMessage::Unsubscribed {
                     channel: channel.clone(),

@@ -26,6 +26,12 @@ across the RustForge framework. Issues are organized by severity and crate.
 | 15 | `rf-web` | Unused imports: `HeaderValue`, `async_trait` in versioning.rs | latest |
 | 16 | `rf-validation-derive` | `field.ident.as_ref().unwrap()` panics on tuple struct fields | latest |
 | 17 | Workspace | `rf-command-events`, `rf-command-pipeline`, `rf-advanced-input`, `rf-infra`, `rf-api`, `rf-oauth`, `rf-oauth-server`, `foundry-cli` incorrectly disabled - all compile cleanly | latest |
+| 18 | `rf-cache` | `MemoryCache::delete()` did not remove key from tag sets — orphaned tag references accumulated forever | latest |
+| 19 | `rf-cache` | `Cache::increment()`/`decrement()` default impl always reset TTL to hardcoded 86400s; `MemoryCache` now overrides to preserve the remaining TTL of the original entry | latest |
+| 20 | `rf-scheduler` | `ScheduledTask.running` flag was set to `false` immediately after `tokio::spawn()` before the spawned task completed — race condition allowed duplicate concurrent execution | latest |
+| 21 | `rf-scheduler` | Overlap prevention only guarded tasks with `prevent_overlap() = true`; non-overlapping tasks were never inserted into `running_tasks` leaving them completely untracked | latest |
+| 22 | `rf-broadcasting` | `AuthToken::sign()` used `std::collections::hash_map::DefaultHasher` (non-deterministic, non-cryptographic) for token signing — replaced with proper HMAC-SHA256 (RFC 2104) | latest |
+| 23 | `rf-broadcasting` | `WebSocketHandler` spawned forwarding tasks on subscribe but never stored their `JoinHandle` — unsubscribing or disconnecting left orphaned tasks running; now aborts on unsubscribe/disconnect | latest |
 
 ---
 
@@ -110,13 +116,28 @@ parsing that preserves the body for downstream handlers.
 
 ---
 
-### `rf-cache` - In-Memory Cache Has No Eviction Policy
+### `rf-cache` - In-Memory Cache Has No Background Eviction
 **Severity**: Medium
 
-The in-memory cache backend has no LRU, TTL-based, or size-limited eviction policy. Long-running
-applications will accumulate entries indefinitely.
+The in-memory cache backend has no proactive TTL expiration. Expired entries are only removed
+lazily when `get()` is called on them — entries set with `set_with_ttl()` and never read again
+will occupy memory forever in long-running applications.
 
-**Fix needed**: Implement LRU eviction or cap total entries with configurable max size.
+**Fix needed**: Spawn a background cleanup task on `MemoryCache::new()` that periodically
+sweeps `entries` and removes all items where `entry.is_expired()`.
+
+---
+
+### `rf-broadcasting/src/auth.rs` - Channel Authorization Not Enforced in WebSocket Handler
+**Severity**: High (security)
+**File**: `crates/rf-broadcasting/src/websocket.rs:218-222`
+
+The `Subscribe` handler has a `TODO` comment acknowledging that auth tokens for private/presence
+channels are logged but never validated. Any client can subscribe to `private-*` or
+`presence-*` channels without providing a valid authorization token.
+
+**Fix needed**: Call `authorize_channel()` from `rf-broadcasting::auth` when `channel` starts
+with `"private-"` or `"presence-"`, reject the subscription with an `Error` message if authorization fails.
 
 ---
 
@@ -129,6 +150,19 @@ counts this creates lock contention. Consider `DashMap` or sharding by channel p
 ---
 
 ## Open Issues - Low Priority
+
+### `rf-scheduler` - No Queue Integration
+**Severity**: Medium
+**File**: `crates/rf-scheduler/src/lib.rs:244-273`
+
+`Scheduler::start()` runs tasks directly via `tokio::spawn()`. If the process crashes mid-run,
+the task is lost with no persistence or retry. Laravel-style schedulers dispatch to a persistent
+queue (like `rf-jobs`) so workers can retry on failure.
+
+**Fix needed**: Add an optional `queue_dispatch` mode that serializes the task into a `JobPayload`
+and pushes it to `rf-queue`, falling back to inline `tokio::spawn` when no queue is configured.
+
+---
 
 ### `rf-jobs/src/scheduler.rs` - Scheduler Only Checks Once Per Minute
 **Severity**: Low
