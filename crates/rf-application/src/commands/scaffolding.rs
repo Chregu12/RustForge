@@ -506,9 +506,24 @@ impl FoundryCommand for MakeModelCommand {
     }
 
     async fn execute(&self, ctx: CommandContext) -> Result<CommandResult, CommandError> {
-        let input = serde_json::json!({
-            "name": ctx.args.first().cloned().unwrap_or_default(),
-        });
+        let name_arg = ctx.args.first().cloned().unwrap_or_default();
+
+        // Validate name format: must start with a letter, contain only [A-Za-z0-9_], 3-40 chars
+        let name_valid = name_arg.len() >= 3
+            && name_arg.len() <= 40
+            && name_arg.chars().next().map(|c| c.is_ascii_alphabetic()).unwrap_or(false)
+            && name_arg.chars().all(|c| c.is_ascii_alphanumeric() || c == '_');
+        if !name_valid {
+            let error = AppError::new("VALIDATION_FAILED", "Model creation validation failed")
+                .with_status(422)
+                .with_context(
+                    "name",
+                    "invalid name: must start with a letter and contain only letters, digits, and underscores (3-40 chars)",
+                );
+            return Ok(CommandResult::failure(error));
+        }
+
+        let input = serde_json::json!({ "name": name_arg });
         let validation_rules = ValidationRules {
             rules: serde_json::json!({
                 "required": ["name"],
