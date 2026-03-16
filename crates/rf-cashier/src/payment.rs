@@ -66,12 +66,12 @@ impl PaymentMethodBuilder {
         let client = crate::config::get_config().stripe_client();
 
         let params = stripe::AttachPaymentMethod {
-            customer: customer_id.parse().unwrap(),
+            customer: customer_id.parse().map_err(|_| CashierError::StripeError("Invalid Stripe ID format".to_string()))?,
         };
 
         let pm = stripe::PaymentMethod::attach(
             &client,
-            &self.payment_method_id.parse().unwrap(),
+            &self.payment_method_id.parse().map_err(|_| CashierError::StripeError("Invalid Stripe ID format".to_string()))?,
             params,
         )
         .await
@@ -84,7 +84,7 @@ impl PaymentMethodBuilder {
                 ..Default::default()
             });
 
-            stripe::Customer::update(&client, &customer_id.parse().unwrap(), update_params)
+            stripe::Customer::update(&client, &customer_id.parse().map_err(|_| CashierError::StripeError("Invalid Stripe ID format".to_string()))?, update_params)
                 .await
                 .map_err(|e| CashierError::StripeError(e.to_string()))?;
         }

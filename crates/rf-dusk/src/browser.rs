@@ -280,7 +280,9 @@ impl Browser {
 
     /// Select an option from a dropdown
     pub async fn select(&self, selector: &str, value: &str) -> DuskResult<&Self> {
-        let option_selector = format!("{} option[value=\"{}\"]", selector, value);
+        // Escape special CSS characters in value to prevent selector injection
+        let escaped_value = value.replace('\\', "\\\\").replace('"', "\\\"");
+        let option_selector = format!("{} option[value=\"{}\"]", selector, escaped_value);
         self.click(&option_selector).await
     }
 

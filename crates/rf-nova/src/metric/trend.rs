@@ -73,7 +73,10 @@ impl TrendData {
         while current <= range.end {
             let value = f(current).await?;
             data = data.add(current.format("%Y-%m-%d").to_string(), value);
-            current = current.succ_opt().unwrap();
+            current = match current.succ_opt() {
+                Some(next) => next,
+                None => break, // date overflow — stop iteration
+            };
         }
 
         Ok(data.calculate_trend())

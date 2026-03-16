@@ -66,7 +66,7 @@ pub trait BillableExt: Billable {
         if let Some(stripe_id) = self.stripe_id() {
             // Get existing customer
             let client = crate::config::get_config().stripe_client();
-            let customer = stripe::Customer::retrieve(&client, &stripe_id.parse().unwrap(), &[])
+            let customer = stripe::Customer::retrieve(&client, &stripe_id.parse().map_err(|_| CashierError::StripeError("Invalid Stripe ID format".to_string()))?, &[])
                 .await
                 .map_err(|e| CashierError::StripeError(e.to_string()))?;
             Ok(customer)
@@ -100,7 +100,7 @@ pub trait BillableExt: Billable {
         let stripe_id = self.stripe_id().ok_or(CashierError::NotBillable)?;
         let client = crate::config::get_config().stripe_client();
 
-        stripe::Customer::retrieve(&client, &stripe_id.parse().unwrap(), &[])
+        stripe::Customer::retrieve(&client, &stripe_id.parse().map_err(|_| CashierError::StripeError("Invalid Stripe ID format".to_string()))?, &[])
             .await
             .map_err(|e| CashierError::StripeError(e.to_string()))
     }
@@ -136,8 +136,8 @@ pub trait BillableExt: Billable {
         let client = crate::config::get_config().stripe_client();
 
         let mut params = stripe::CreatePaymentIntent::new(amount, stripe::Currency::USD);
-        params.customer = Some(stripe_id.parse().unwrap());
-        params.payment_method = Some(payment_method.parse().unwrap());
+        params.customer = Some(stripe_id.parse().map_err(|_| CashierError::StripeError("Invalid Stripe ID format".to_string()))?);
+        params.payment_method = Some(payment_method.parse().map_err(|_| CashierError::StripeError("Invalid Stripe ID format".to_string()))?);
         params.confirm = Some(true);
         params.off_session = Some(stripe::PaymentIntentOffSession::exists(true));
 
@@ -174,7 +174,7 @@ pub trait BillableExt: Billable {
         let client = crate::config::get_config().stripe_client();
 
         let params = stripe::ListPaymentMethods {
-            customer: Some(stripe_id.parse().unwrap()),
+            customer: Some(stripe_id.parse().map_err(|_| CashierError::StripeError("Invalid Stripe ID format".to_string()))?),
             type_: Some(stripe::PaymentMethodTypeFilter::Card),
             ..Default::default()
         };
@@ -197,7 +197,7 @@ pub trait BillableExt: Billable {
             ..Default::default()
         });
 
-        stripe::Customer::update(&client, &stripe_id.parse().unwrap(), params)
+        stripe::Customer::update(&client, &stripe_id.parse().map_err(|_| CashierError::StripeError("Invalid Stripe ID format".to_string()))?, params)
             .await
             .map_err(|e| CashierError::StripeError(e.to_string()))?;
 

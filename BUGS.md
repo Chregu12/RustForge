@@ -88,6 +88,9 @@ across the RustForge framework. Issues are organized by severity and crate.
 | 77 | `rf-macros` | Panic in `to_snake_case()` — `c.to_lowercase().next().unwrap()` panics if lowercase iterator is empty for certain Unicode characters; fixed with `.unwrap_or(c)` in 3 files | latest |
 | 78 | `rf-scaffold` | UTF-8 panic in `pluralize()`/`singularize()` — byte-offset string slicing panics on multi-byte characters; replaced with char-based and `strip_suffix` operations | latest |
 | 79 | `rf-stub-system` | Panic in `CaseConverter::plural()`/`singular()` — byte-offset slicing `&s[..s.len()-N]` panics on single-char inputs or multi-byte UTF-8; replaced with `strip_suffix` operations | latest |
+| 80 | `rf-cashier` | Panics on invalid Stripe IDs — 20+ instances of `.parse().unwrap()` across 6 files (billable.rs, subscription.rs, invoice.rs, checkout.rs, portal.rs, payment.rs); if stored Stripe ID is corrupted/wrong format, app panics instead of returning error; replaced with `.map_err()` | latest |
+| 81 | `rf-nova` | Panic in `TrendData::by_days()` — `.succ_opt().unwrap()` panics at max date boundary; replaced with match + break | latest |
+| 82 | `rf-dusk` | CSS selector injection in `select()` — user-provided value interpolated directly into CSS attribute selector without escaping; special chars like `"` could break the selector; added escaping | latest |
 
 ---
 

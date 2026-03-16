@@ -75,7 +75,7 @@ impl InvoiceBuilder {
         let client = crate::config::get_config().stripe_client();
 
         // Create invoice item first
-        let mut item_params = stripe::CreateInvoiceItem::new(customer_id.parse().unwrap());
+        let mut item_params = stripe::CreateInvoiceItem::new(customer_id.parse().map_err(|_| CashierError::StripeError("Invalid Stripe ID format".to_string()))?);
         item_params.amount = Some(self.amount);
         item_params.currency = Some(stripe::Currency::USD); // Default to USD
         item_params.description = Some(&self.description);
@@ -91,7 +91,7 @@ impl InvoiceBuilder {
         };
 
         let mut params = stripe::CreateInvoice::new();
-        params.customer = Some(customer_id.parse().unwrap());
+        params.customer = Some(customer_id.parse().map_err(|_| CashierError::StripeError("Invalid Stripe ID format".to_string()))?);
         params.auto_advance = Some(self.auto_advance);
         params.collection_method = Some(collection);
 

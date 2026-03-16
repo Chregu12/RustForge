@@ -111,7 +111,7 @@ impl CheckoutBuilder {
         };
 
         let mut params = stripe::CreateCheckoutSession::new();
-        params.customer = Some(customer_id.parse().unwrap());
+        params.customer = Some(customer_id.parse().map_err(|_| CashierError::StripeError("Invalid Stripe ID format".to_string()))?);
         params.mode = Some(mode);
         params.line_items = Some(vec![line_item]);
         params.success_url = self.success_url.as_deref();
