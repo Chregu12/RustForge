@@ -50,9 +50,9 @@ impl Default for OffsetPaginationInput {
 impl OffsetPaginationInput {
     /// Calculate the offset
     pub fn offset(&self) -> i64 {
-        let page = self.page.unwrap_or(0).max(0);
-        let per_page = self.per_page.unwrap_or(10).max(1);
-        (page * per_page) as i64
+        let page = self.page.unwrap_or(0).max(0) as i64;
+        let per_page = self.per_page.unwrap_or(10).max(1) as i64;
+        page * per_page
     }
 
     /// Get the limit
@@ -218,6 +218,7 @@ where
 impl<T> PaginatedResult<T> {
     /// Create a new paginated result
     pub fn new(data: Vec<T>, page: i32, per_page: i32, total: i64) -> Self {
+        let per_page = per_page.max(1);
         let total_pages = ((total as f64) / (per_page as f64)).ceil() as i32;
 
         Self {

@@ -47,6 +47,10 @@ across the RustForge framework. Issues are organized by severity and crate.
 | 36 | `rf-forms` | **CRITICAL SECURITY**: `FormRenderer` interpolated all user-controlled values (field names, labels, values, placeholders, help text, error messages, form action/name) directly into HTML without escaping — XSS via any form field; added `html_escape()` helper that encodes `& < > " '` and applied it to all interpolation points | latest |
 | 37 | `rf-forms` | `FormRenderer` emitted hardcoded `value="TOKEN_HERE"` for CSRF hidden input instead of an actual token — CSRF protection was non-functional; added `csrf_token: Option<String>` field to `Form`/`FormBuilder` so the renderer uses the real token | latest |
 | 38 | `rf-pagination` | `Paginator::offset()` computed `(current_page - 1) * per_page` using wrapping arithmetic — integer overflow with large page/per_page values could produce negative offsets or wrap to unexpected values; replaced with `saturating_mul` and `saturating_add` | latest |
+| 39 | `rf-graphql` | `OffsetPaginationInput::offset()` multiplied `page * per_page` as `i32` before casting to `i64` — overflows and panics in debug or wraps in release for large values; cast to `i64` before multiplying | latest |
+| 40 | `rf-graphql` | `PaginatedResult::new()` accepted `per_page=0` causing division by zero in float arithmetic — `(total as f64) / (0 as f64)` produces `inf`/`NaN`, yielding `i32::MAX` or `0` for `total_pages`; clamped `per_page` to minimum of 1 | latest |
+| 41 | `rf-upload` | **DATA LOSS**: `FileUpload::store()` comment says "Generate unique filename" but code used the sanitized original name directly — two uploads with the same filename silently overwrite each other; prepended nanosecond timestamp to filename | latest |
+| 42 | `rf-upload` | **SECURITY**: MIME type validation used `starts_with` prefix matching — `"image/jpegscript"` would pass validation when `"image/jpeg"` was allowed; changed to exact match for specific types, prefix match only for category wildcards ending in `/` | latest |
 
 ---
 
