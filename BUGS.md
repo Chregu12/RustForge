@@ -117,6 +117,8 @@ across the RustForge framework. Issues are organized by severity and crate.
 | 106 | `rf-forms` | **SECURITY**: Timing attack on CSRF token validation — `validate()` compared tokens with `==`, vulnerable to timing side-channel; replaced with constant-time XOR comparison | latest |
 | 107 | `rf-sanctum` | **SECURITY**: Timing attack on SPA CSRF token verification — `verify_csrf_token()` compared tokens with `!=`, vulnerable to timing side-channel; replaced with constant-time XOR comparison | latest |
 | 108 | `rf-passport` | **SECURITY**: Timing attack on OAuth client secret verification — `verify_secret()` compared hashed secrets with `==`; replaced with constant-time XOR comparison | latest |
+| 109 | `rf-envoy` | **SECURITY**: Shell injection in systemd task presets — `service`, `app_dir`, `branch` parameters interpolated directly into shell commands (`sudo systemctl restart $service`); fixed with single-quote escaping | latest |
+| 110 | `rf-queue` | Panic in `new_delayed()` — `Duration::from_std(delay).unwrap()` panics if delay duration is too large; replaced with proper `map_err` error propagation | latest |
 
 ---
 
