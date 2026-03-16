@@ -123,7 +123,7 @@ impl TestOutput {
 
     /// Print progress bar (for long-running tests)
     pub fn print_progress(&self, current: usize, total: usize) {
-        let percentage = (current as f64 / total as f64 * 100.0) as usize;
+        let percentage = if total > 0 { (current as f64 / total as f64 * 100.0) as usize } else { 0 };
         let filled = percentage / 5;
         let empty = 20 - filled;
 

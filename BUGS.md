@@ -100,6 +100,12 @@ across the RustForge framework. Issues are organized by severity and crate.
 | 89 | `rf-tinker` | UTF-8 panic in `formatter.rs` — `&cell[..self.max_column_width - 3]` byte-offset slicing panics on multi-byte UTF-8 characters; replaced with `cell.chars().take()` | latest |
 | 90 | `rf-views` | **SECURITY**: XSS in `components.rs` — alert, card, and form input components interpolated user-controlled values (`message`, `title`, `content`, `value`, `error`, `name`, `label`, etc.) directly into HTML without escaping; added `escape_html()` to all interpolated values | latest |
 | 91 | `rf-mail` | **SECURITY**: XSS in `markdown.rs` — `@button`, `@table`, and `@panel` components interpolated URL, text, header, and cell values directly into HTML email without escaping; added `escape_html()` to all interpolated values in email template rendering | latest |
+| 92 | `rf-nova` | Division by zero in `PaginationMeta::new()` when `per_page` is 0 — f64 division produces infinity, which casts to broken `u64` value; fixed with `.max(1)` | latest |
+| 93 | `rf-pest` | NaN/infinity in `print_progress()` when `total` is 0 — division by zero in progress bar percentage calculation; added zero-guard | latest |
+| 94 | `rf-infra` | Panic in `MetricAggregate::from_metrics()` — `partial_cmp().unwrap()` panics when sorting metrics containing NaN values; fixed with `.unwrap_or(Ordering::Equal)` | latest |
+| 95 | `rf-horizon` | Division by zero in `update_processing_time()` — when `jobs_processed` is 0, division by zero produces NaN average; fixed with `.max(1)` | latest |
+| 96 | `rf-db-facade` | Division by zero panic in `paginate()` — integer division by `per_page` when `per_page` is 0 causes panic; fixed with `.max(1)` | latest |
+| 97 | `rf-orm` | Division by zero panic in `QueryBuilder::paginate()` and `FacadeQueryBuilder::paginate()` — `per_page = 0` causes integer division panic or infinity; fixed with `.max(1)` in both implementations | latest |
 
 ---
 

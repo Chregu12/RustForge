@@ -279,6 +279,7 @@ pub struct PaginationMeta {
 
 impl PaginationMeta {
     pub fn new(current_page: u64, per_page: u64, total: u64) -> Self {
+        let per_page = per_page.max(1);
         let last_page = (total as f64 / per_page as f64).ceil() as u64;
         let from = if total > 0 {
             Some((current_page - 1) * per_page + 1)
