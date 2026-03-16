@@ -112,6 +112,11 @@ across the RustForge framework. Issues are organized by severity and crate.
 | 101 | `rf-collections` | Panic in `chunk(0)` and `sliding(0)` — `slice::chunks(0)` and `slice::windows(0)` panic with zero size; fixed with `.max(1)` guard | latest |
 | 102 | `rf-maintenance` | **SECURITY**: Timing attack on maintenance mode secret — `verify_secret()` used `==` string comparison vulnerable to timing side-channel; replaced with constant-time byte-by-byte XOR comparison | latest |
 | 103 | `rf-spark` | Panic on invalid Stripe IDs — 35+ `.parse().unwrap()` calls across `payment.rs`, `customer.rs`, `subscription.rs`, and `invoice.rs` panic if Stripe ID strings are malformed; replaced all with `.parse().map_err(...)` returning `SparkError::InvalidRequest` | latest |
+| 104 | `rf-api-resources` | Division by zero in `PaginationMeta::new()` when `per_page` is 0 — f64 division produces infinity, `ceil() as u32` gives garbage; fixed with `.max(1)` | latest |
+| 105 | `rf-resources` | Division by zero in `total_pages()` when `per_page` is 0 — f64 division produces infinity, `ceil() as u64` gives garbage; fixed with `.max(1)` guard | latest |
+| 106 | `rf-forms` | **SECURITY**: Timing attack on CSRF token validation — `validate()` compared tokens with `==`, vulnerable to timing side-channel; replaced with constant-time XOR comparison | latest |
+| 107 | `rf-sanctum` | **SECURITY**: Timing attack on SPA CSRF token verification — `verify_csrf_token()` compared tokens with `!=`, vulnerable to timing side-channel; replaced with constant-time XOR comparison | latest |
+| 108 | `rf-passport` | **SECURITY**: Timing attack on OAuth client secret verification — `verify_secret()` compared hashed secrets with `==`; replaced with constant-time XOR comparison | latest |
 
 ---
 
