@@ -12,7 +12,7 @@ pub enum ValidationError {
     FieldError { field: String, message: String },
 
     /// Multiple field validation errors
-    #[error("Validation failed with {0} error(s)")]
+    #[error("Validation failed with multiple errors")]
     MultipleErrors(HashMap<String, Vec<String>>),
 
     /// Custom validation error

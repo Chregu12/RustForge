@@ -107,6 +107,8 @@ impl Stub {
                 '{' if !in_placeholder => {
                     in_placeholder = true;
                 }
+                // Second '{' in double-brace syntax: skip it if current is still empty
+                '{' if in_placeholder && current.is_empty() => {}
                 '}' if in_placeholder => {
                     if !current.is_empty() {
                         placeholders.push(current.clone());

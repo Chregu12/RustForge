@@ -80,6 +80,10 @@ impl FoundryApp {
         self.storage_manager.clone()
     }
 
+    pub fn storage(&self) -> Arc<dyn StoragePort> {
+        self.storage.clone()
+    }
+
     pub fn validation(&self) -> Arc<dyn ValidationPort> {
         self.validation.clone()
     }

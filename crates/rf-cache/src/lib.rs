@@ -188,6 +188,7 @@ pub trait Cache: Send + Sync {
     async fn increment(&self, key: &str, amount: i64) -> CacheResult<i64> {
         let current: i64 = self.get(key).await?.unwrap_or(0);
         let new_val = current + amount;
+        // Default TTL of 1 day; concrete impls can override to preserve original TTL
         self.set(key, &new_val, Duration::from_secs(86400)).await?;
         Ok(new_val)
     }
@@ -215,6 +216,16 @@ impl CacheEntry {
 
     fn is_expired(&self) -> bool {
         std::time::Instant::now() > self.expires_at
+    }
+
+    /// Returns the remaining TTL; returns zero if already expired
+    fn remaining_ttl(&self) -> Duration {
+        let now = std::time::Instant::now();
+        if self.expires_at > now {
+            self.expires_at - now
+        } else {
+            Duration::ZERO
+        }
     }
 }
 
@@ -371,6 +382,13 @@ impl Cache for MemoryCache {
     async fn delete(&self, key: &str) -> CacheResult<()> {
         let mut entries = self.entries.write().await;
         entries.remove(key);
+        drop(entries);
+        // Remove key from all tag sets to prevent dangling references
+        let mut tags = self.tags.write().await;
+        for keys in tags.values_mut() {
+            keys.remove(key);
+        }
+        drop(tags);
         self.stats.write().await.deletes += 1;
         Ok(())
     }
@@ -390,6 +408,22 @@ impl Cache for MemoryCache {
         let mut tags = self.tags.write().await;
         tags.clear();
         Ok(())
+    }
+
+    /// Override to preserve the original TTL of an existing entry
+    async fn increment(&self, key: &str, amount: i64) -> CacheResult<i64> {
+        let remaining = {
+            let entries = self.entries.read().await;
+            entries
+                .get(key)
+                .filter(|e| !e.is_expired())
+                .map(|e| e.remaining_ttl())
+        };
+        let current: i64 = self.get(key).await?.unwrap_or(0);
+        let new_val = current + amount;
+        let ttl = remaining.unwrap_or(Duration::from_secs(86400));
+        self.set(key, &new_val, ttl).await?;
+        Ok(new_val)
     }
 }
 

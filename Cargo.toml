@@ -108,21 +108,21 @@ members = [
     # Benchmarks
     "benchmarks",
     # Legacy CLI (kept as foundry-cli)
-    # "crates/foundry-cli", # Temporarily disabled - requires rf-application
+    "crates/foundry-cli",
     # All other packages now use rf-* prefix
     "crates/rf-application",
     "crates/rf-domain",
-    # "crates/rf-infra", # Temporarily disabled - requires dependency migration
+    "crates/rf-infra",
     "crates/rf-plugins",
-    # "crates/rf-api", # Temporarily disabled - requires rf-application
+    "crates/rf-api",
     "crates/rf-interactive",
     "crates/rf-console",
     "crates/rf-scheduling",
     "crates/rf-service-container",
     "crates/rf-resources",
     "crates/rf-soft-deletes",
-    # "crates/rf-oauth", # Temporarily disabled - requires dependency migration
-    # "crates/rf-oauth-server", # Temporarily disabled - use rf-oauth2-server
+    "crates/rf-oauth",
+    "crates/rf-oauth-server",
     "crates/rf-auth-scaffolding",
     "crates/rf-forms",
     "crates/rf-http-client",
@@ -131,11 +131,11 @@ members = [
     "crates/rf-env",
     "crates/rf-assets",
     "crates/rf-command-executor",
-    # "crates/rf-command-events", # Temporarily disabled - type errors
-    # "crates/rf-command-pipeline", # Temporarily disabled - may depend on rf-command-events
+    "crates/rf-command-events",
+    "crates/rf-command-pipeline",
     "crates/rf-signal-handler",
     "crates/rf-observability",
-    # "crates/rf-advanced-input", # Temporarily disabled - compile errors
+    "crates/rf-advanced-input",
     "crates/rf-stub-system",
     "crates/rf-verbosity",
     # Phase 21: Complete Laravel Parity (Dusk, Echo, Envoy, Sail, Spark)

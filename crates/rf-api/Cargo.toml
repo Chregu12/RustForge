@@ -16,7 +16,7 @@ tracing.workspace = true
 tokio.workspace = true
 bytes = "1.0"
 chrono.workspace = true
-# rf-application = { path = "../rf-application" }
+rf-application = { path = "../rf-application" }
 rf-plugins = { path = "../rf-plugins" }
 rf-domain = { path = "../rf-domain" }
 rf-storage = { path = "../rf-storage" }

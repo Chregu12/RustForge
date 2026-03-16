@@ -52,6 +52,7 @@ use serde_json::Value;
 ///     let user = User::find(1).await.unwrap();
 /// }
 /// ```
+#[allow(async_fn_in_trait)]
 pub trait Model: Sized {
     /// The database table name for this model
     const TABLE: &'static str;

@@ -196,6 +196,16 @@ mod tests {
     use super::*;
     use std::time::Duration;
 
+    /// Returns true if a Redis server is reachable on localhost:6379
+    async fn redis_available() -> bool {
+        let url = std::env::var("REDIS_URL")
+            .unwrap_or_else(|_| "redis://localhost:6379".to_string());
+        match redis::Client::open(url.as_str()) {
+            Ok(client) => client.get_multiplexed_async_connection().await.is_ok(),
+            Err(_) => false,
+        }
+    }
+
     // Note: These tests require a running Redis instance
     // Run with: docker run -d -p 6379:6379 redis
 

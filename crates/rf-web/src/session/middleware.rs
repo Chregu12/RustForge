@@ -2,9 +2,7 @@
 
 use super::driver::SessionDriver;
 use super::store::{Session, SessionStore};
-use async_trait::async_trait;
 use axum::{
-    body::Body,
     extract::{FromRequestParts, Request},
     http::{header, request::Parts, StatusCode},
     middleware::Next,
@@ -176,13 +174,18 @@ impl SessionMiddleware {
     pub async fn handle(&self, mut req: Request, next: Next) -> Response {
         // Extract or create session
         let session_id = self.extract_session_id(&req);
-        let mut session = if let Some(id) = session_id {
-            self.store.load(id).await.unwrap_or_else(|_| {
-                // Create new session if load fails
-                futures::executor::block_on(async { self.store.create().await.unwrap() })
-            })
-        } else {
-            self.store.create().await.unwrap()
+        let mut session = match session_id {
+            Some(id) => match self.store.load(id).await {
+                Ok(s) => s,
+                Err(_) => match self.store.create().await {
+                    Ok(s) => s,
+                    Err(_) => return (StatusCode::INTERNAL_SERVER_ERROR, "Session error").into_response(),
+                },
+            },
+            None => match self.store.create().await {
+                Ok(s) => s,
+                Err(_) => return (StatusCode::INTERNAL_SERVER_ERROR, "Session error").into_response(),
+            },
         };
 
         // Age flash data before request
@@ -200,11 +203,13 @@ impl SessionMiddleware {
             let _ = session.save().await;
         }
 
-        // Set cookie in response
+        // Set cookie in response - use append() to preserve other Set-Cookie headers
         let cookie = self.build_cookie(&session_id);
-        response
-            .headers_mut()
-            .insert(header::SET_COOKIE, cookie.parse().unwrap());
+        if let Ok(cookie_value) = cookie.parse() {
+            response
+                .headers_mut()
+                .append(header::SET_COOKIE, cookie_value);
+        }
 
         response
     }

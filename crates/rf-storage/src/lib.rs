@@ -36,6 +36,7 @@ mod local;
 mod manager;
 mod memory;
 mod s3;
+pub mod service;
 mod storage;
 pub mod storage_manager;
 mod stream;

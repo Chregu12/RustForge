@@ -101,7 +101,6 @@ struct ScheduledTask {
     schedule: Schedule,
     task: Arc<dyn Task>,
     last_run: Option<DateTime<Utc>>,
-    running: bool,
 }
 
 /// Task scheduler
@@ -135,7 +134,6 @@ impl Scheduler {
             schedule,
             task: Arc::new(task),
             last_run: None,
-            running: false,
         };
 
         let mut tasks = self.tasks.lock().await;
@@ -213,7 +211,7 @@ impl Scheduler {
             for scheduled in tasks.iter_mut() {
                 // Check if task should run
                 if let Some(next) = scheduled.schedule.upcoming(Utc).next() {
-                    if next <= now && !scheduled.running {
+                    if next <= now {
                         // Check if task ran recently
                         if let Some(last) = scheduled.last_run {
                             if (now - last).num_seconds() < 60 {
@@ -221,10 +219,12 @@ impl Scheduler {
                             }
                         }
 
-                        // Check overlap
-                        if scheduled.task.prevent_overlap() {
+                        // Check overlap prevention; always track in running_tasks
+                        {
                             let mut running = self.running_tasks.lock().await;
-                            if running.get(scheduled.task.name()).copied().unwrap_or(false) {
+                            let is_running =
+                                running.get(scheduled.task.name()).copied().unwrap_or(false);
+                            if is_running && scheduled.task.prevent_overlap() {
                                 tracing::warn!(
                                     task = scheduled.task.name(),
                                     "Task still running, skipping"
@@ -235,7 +235,6 @@ impl Scheduler {
                         }
 
                         // Run task
-                        scheduled.running = true;
                         scheduled.last_run = Some(now);
 
                         let task = Arc::clone(&scheduled.task);
@@ -271,8 +270,6 @@ impl Scheduler {
                             let mut running = running_tasks.lock().await;
                             running.remove(&task_name);
                         });
-
-                        scheduled.running = false;
                     }
                 }
             }

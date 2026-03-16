@@ -35,10 +35,9 @@
 //!     .route("/users", get(handler));
 //! ```
 
-use async_trait::async_trait;
 use axum::{
     extract::FromRequestParts,
-    http::{header, request::Parts, HeaderValue, StatusCode},
+    http::{header, request::Parts, StatusCode},
     response::{IntoResponse, Response},
 };
 use std::fmt;

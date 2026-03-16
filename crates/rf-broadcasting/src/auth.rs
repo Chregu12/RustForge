@@ -150,18 +150,18 @@ impl AuthToken {
         now - self.timestamp > 3600 // 1 hour
     }
 
-    /// Generate a signed token (simplified - use HMAC in production)
+    /// Generate a signed token using HMAC-SHA256 (RFC 2104 compliant)
     pub fn sign(&self, secret: &str) -> String {
-        use std::collections::hash_map::DefaultHasher;
-        use std::hash::{Hash, Hasher};
+        use hmac::{Hmac, Mac};
+        use sha2::Sha256;
 
-        let mut hasher = DefaultHasher::new();
-        self.user_id.hash(&mut hasher);
-        self.channel.hash(&mut hasher);
-        self.timestamp.hash(&mut hasher);
-        secret.hash(&mut hasher);
+        // Build the message: user_id:channel:timestamp
+        let message = format!("{}:{}:{}", self.user_id, self.channel, self.timestamp);
 
-        format!("{:x}", hasher.finish())
+        let mut mac =
+            Hmac::<Sha256>::new_from_slice(secret.as_bytes()).expect("HMAC accepts any key length");
+        mac.update(message.as_bytes());
+        hex::encode(mac.finalize().into_bytes())
     }
 
     /// Verify a signed token

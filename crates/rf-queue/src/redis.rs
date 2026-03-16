@@ -277,16 +277,34 @@ impl Queue for RedisQueue {
             .await
             .map_err(|e| QueueError::ConnectionError(e.to_string()))?;
 
-        // Remove from processing list (we don't know the queue name, so we need to check all)
-        // In production, you might want to store queue name in job metadata
         let job_key = self.job_key(job_id);
+
+        // Read job data first so we can remove the entry from the processing list
+        let job_data: Option<Vec<u8>> = conn
+            .get(&job_key)
+            .await
+            .map_err(|e| QueueError::Backend(e.to_string()))?;
+
+        if let Some(data) = job_data {
+            let metadata = JobMetadata::from_bytes(&data)?;
+            let processing_key = self.processing_key(&metadata.queue);
+
+            // Remove job from the processing list (count=1 removes the first match)
+            let _: i64 = redis::cmd("LREM")
+                .arg(&processing_key)
+                .arg(1i64)
+                .arg(String::from_utf8_lossy(&data).as_ref())
+                .query_async(&mut *conn)
+                .await
+                .map_err(|e| QueueError::Backend(e.to_string()))?;
+        }
 
         // Delete job data
         conn.del(&job_key)
             .await
             .map_err(|e| QueueError::Backend(e.to_string()))?;
 
-        tracing::debug!(job_id = %job_id, "Job completed and removed");
+        tracing::debug!(job_id = %job_id, "Job completed and removed from processing list");
 
         Ok(())
     }
@@ -308,9 +326,19 @@ impl Queue for RedisQueue {
 
         if let Some(data) = job_data {
             let mut metadata = JobMetadata::from_bytes(&data)?;
+            let processing_key = self.processing_key(&metadata.queue);
+            let failed_key = self.failed_key(&metadata.queue);
+
             metadata.mark_error(error.to_string());
 
-            let failed_key = self.failed_key(&metadata.queue);
+            // Remove from processing list before moving to failed queue
+            let _: i64 = redis::cmd("LREM")
+                .arg(&processing_key)
+                .arg(1i64)
+                .arg(String::from_utf8_lossy(&data).as_ref())
+                .query_async(&mut *conn)
+                .await
+                .map_err(|e| QueueError::Backend(e.to_string()))?;
 
             // Store in failed queue
             let failed_data = metadata.to_bytes()?;
@@ -318,11 +346,16 @@ impl Queue for RedisQueue {
                 .await
                 .map_err(|e| QueueError::Backend(e.to_string()))?;
 
+            // Delete original job data
+            conn.del(&self.job_key(job_id))
+                .await
+                .map_err(|e| QueueError::Backend(e.to_string()))?;
+
             tracing::warn!(
                 job_id = %job_id,
                 error = %error,
                 queue = %metadata.queue,
-                "Job marked as failed"
+                "Job marked as failed and removed from processing list"
             );
         }
 
@@ -332,6 +365,28 @@ impl Queue for RedisQueue {
     async fn retry(&self, mut metadata: JobMetadata) -> QueueResult<()> {
         if !metadata.can_retry() {
             return Err(QueueError::JobFailed("Max retries exceeded".to_string()));
+        }
+
+        // Remove from processing list before re-enqueuing to avoid duplicates
+        {
+            let mut conn = self
+                .pool
+                .get()
+                .await
+                .map_err(|e| QueueError::ConnectionError(e.to_string()))?;
+
+            let processing_key = self.processing_key(&metadata.queue);
+            let current_data = metadata
+                .to_bytes()
+                .and_then(|b| String::from_utf8(b).map_err(|e| QueueError::SerializationError(e.to_string())))?;
+
+            let _: i64 = redis::cmd("LREM")
+                .arg(&processing_key)
+                .arg(1i64)
+                .arg(&current_data)
+                .query_async(&mut *conn)
+                .await
+                .map_err(|e| QueueError::Backend(e.to_string()))?;
         }
 
         metadata.mark_attempt();

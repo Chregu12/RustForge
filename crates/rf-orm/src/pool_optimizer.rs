@@ -450,7 +450,7 @@ impl PoolOptimizer {
         // Execute a simple query to verify database connectivity
         let backend = self.db.get_database_backend();
         let stmt = Statement::from_string(backend, "SELECT 1".to_string());
-        let result = self
+        let _result = self
             .db
             .execute(stmt)
             .await

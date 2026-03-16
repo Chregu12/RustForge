@@ -302,11 +302,11 @@ impl Rule for MinLengthRule {
         }
 
         match value.as_str() {
-            Some(s) if s.len() >= self.min => Ok(()),
+            Some(s) if s.chars().count() >= self.min => Ok(()),
             Some(s) => Err(format!(
                 "This field must be at least {} characters (currently {})",
                 self.min,
-                s.len()
+                s.chars().count()
             )),
             None => Err("Value must be a string".to_string()),
         }
@@ -348,11 +348,11 @@ impl Rule for MaxLengthRule {
         }
 
         match value.as_str() {
-            Some(s) if s.len() <= self.max => Ok(()),
+            Some(s) if s.chars().count() <= self.max => Ok(()),
             Some(s) => Err(format!(
                 "This field must not exceed {} characters (currently {})",
                 self.max,
-                s.len()
+                s.chars().count()
             )),
             None => Err("Value must be a string".to_string()),
         }

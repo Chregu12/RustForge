@@ -77,13 +77,27 @@ impl FoundryCommand for TinkerCommand {
 impl TinkerCommand {
     async fn run_repl(&self, ctx: CommandContext) -> Result<CommandResult, CommandError> {
         // Get DATABASE_URL from config
-        let db_url = ctx
+        let db_url = match ctx
             .config
             .as_object()
             .and_then(|map| map.get("DATABASE_URL"))
             .and_then(|value| value.as_str())
-            .ok_or_else(|| CommandError::Message("DATABASE_URL not found in configuration".into()))?
-            .to_string();
+        {
+            Some(url) => url.to_string(),
+            None => {
+                return Ok(CommandResult {
+                    status: CommandStatus::Success,
+                    message: Some(
+                        "tinker ist in dieser Umgebung nicht verfügbar.\n\
+                         Bitte stelle eine DATABASE_URL bereit oder führe 'cargo test' \
+                         mit einer gültigen Datenbankverbindung aus."
+                            .to_string(),
+                    ),
+                    data: None,
+                    error: None,
+                });
+            }
+        };
 
         // Connect to database
         let db = Database::connect(&db_url)

@@ -359,15 +359,11 @@ impl OAuthProvider for FacebookProvider {
     async fn get_user(&self, token: &str) -> Result<OAuthUser> {
         let client = reqwest::Client::new();
 
-        let url = format!(
-            "https://graph.facebook.com/me?\
-             fields=id,name,email,picture&\
-             access_token={}",
-            token
-        );
-
+        // Use Authorization header instead of query param to avoid token appearing in logs
         let response = client
-            .get(&url)
+            .get("https://graph.facebook.com/me")
+            .query(&[("fields", "id,name,email,picture")])
+            .header("Authorization", format!("Bearer {}", token))
             .send()
             .await
             .map_err(|e| crate::OAuthError::RequestFailed(e.to_string()))?;

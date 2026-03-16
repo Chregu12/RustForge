@@ -64,6 +64,12 @@ pub enum OAuthError {
 
     #[error("Token refresh failed: {0}")]
     RefreshError(String),
+
+    #[error("HTTP request failed: {0}")]
+    RequestFailed(String),
+
+    #[error("Invalid response from provider: {0}")]
+    InvalidResponse(String),
 }
 
 pub type Result<T> = std::result::Result<T, OAuthError>;

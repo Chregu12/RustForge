@@ -336,8 +336,12 @@ mod in_memory {
                 })
                 .collect();
 
-            // Sort by score descending
-            hits.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap());
+            // Sort by score descending; treat NaN as equal to avoid panic
+            hits.sort_by(|a, b| {
+                b.score
+                    .partial_cmp(&a.score)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            });
 
             // Apply pagination
             let start = query.offset;

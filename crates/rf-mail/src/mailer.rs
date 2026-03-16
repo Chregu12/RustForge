@@ -1,6 +1,6 @@
-//! Mailer trait and Mailable trait definitions
+//! Mailer trait definitions
 
-use crate::{Mail, MailError, Message};
+use crate::{Mail, MailError};
 use async_trait::async_trait;
 
 /// Mailer backend trait
@@ -26,75 +26,5 @@ pub trait Mailer: Send + Sync {
     }
 }
 
-/// Mailable trait for types that can be sent as email
-///
-/// This trait allows you to create reusable email types.
-///
-/// # Example
-///
-/// ```
-/// use rf_mail::{Mailable, MailBuilder, Address, MailError};
-///
-/// struct WelcomeEmail {
-///     to: Address,
-///     name: String,
-/// }
-///
-/// impl Mailable for WelcomeEmail {
-///     fn build(&self) -> MailBuilder {
-///         MailBuilder::new()
-///             .from(Address::new("noreply@example.com"))
-///             .to(self.to.clone())
-///             .subject("Welcome!")
-///             .text(format!("Welcome, {}!", self.name))
-///     }
-/// }
-/// ```
-#[async_trait]
-pub trait Mailable: Send + Sync {
-    /// Build the email message
-    async fn build(&self) -> Result<Message, MailError>;
-
-    /// Send the email using the provided mailer
-    async fn send(&self, mailer: &dyn Mailer) -> Result<(), MailError> {
-        let message = self.build().await?;
-        mailer.send(message.into()).await
-    }
-
-    /// Queue name for background sending (optional)
-    fn queue(&self) -> Option<&str> {
-        None
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::{Address, MessageBuilder};
-
-    struct TestMailable {
-        to: String,
-    }
-
-    #[async_trait]
-    impl Mailable for TestMailable {
-        async fn build(&self) -> Result<Message, MailError> {
-            Ok(MessageBuilder::new()
-                .from(Address::new("test@example.com"))
-                .to(Address::new(&self.to))
-                .subject("Test")
-                .text("Test")
-                .build()?)
-        }
-    }
-
-    #[tokio::test]
-    async fn test_mailable_build() {
-        let mailable = TestMailable {
-            to: "user@example.com".into(),
-        };
-
-        let message = mailable.build().await.unwrap();
-        assert_eq!(message.to[0].email, "user@example.com");
-    }
-}
+// Note: The async Mailable trait has been moved to mailable.rs as MailableAsync.
+// Use rf_mail::MailableAsync for async mail building, or rf_mail::Mailable for sync.

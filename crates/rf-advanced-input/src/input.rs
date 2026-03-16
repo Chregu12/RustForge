@@ -182,7 +182,7 @@ impl ValidatedInput {
     }
 
     /// Get a field value or a default
-    pub fn get_or(&self, key: &str, default: &str) -> &str {
+    pub fn get_or<'a>(&'a self, key: &str, default: &'a str) -> &'a str {
         self.get(key).unwrap_or(default)
     }
 }
@@ -202,14 +202,16 @@ mod tests {
     fn test_input_array_from_csv() {
         let mut input = Input::new();
         input.set_array_from_csv("tags", "rust,web,cli");
-        assert_eq!(input.get_array("tags"), Some(["rust", "web", "cli"].as_ref()));
+        let expected: Vec<String> = vec!["rust".into(), "web".into(), "cli".into()];
+        assert_eq!(input.get_array("tags"), Some(expected.as_slice()));
     }
 
     #[test]
     fn test_input_array_direct() {
         let mut input = Input::new();
         input.set_array("ids", vec!["1", "2", "3"]);
-        assert_eq!(input.get_array("ids"), Some(["1", "2", "3"].as_ref()));
+        let expected: Vec<String> = vec!["1".into(), "2".into(), "3".into()];
+        assert_eq!(input.get_array("ids"), Some(expected.as_slice()));
     }
 
     #[test]

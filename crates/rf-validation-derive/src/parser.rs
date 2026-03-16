@@ -59,7 +59,12 @@ impl FieldInfo {
     /// Parse field information from Field
     /// Returns None if field has no validation attributes
     pub fn from_field(field: &Field) -> Result<Option<Self>, syn::Error> {
-        let name = field.ident.as_ref().unwrap().clone();
+        let name = field.ident.as_ref()
+            .ok_or_else(|| syn::Error::new_spanned(
+                field,
+                "Validate derive only supports named struct fields, not tuple fields",
+            ))?
+            .clone();
         let ty = field.ty.clone();
 
         // Check if field type is Option<T>

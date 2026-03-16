@@ -58,6 +58,8 @@ default = []
 # Migration support (separate feature to avoid build time increase)
 migrate = ["sea-orm-migration"]
 metrics = ["rf-metrics"]
+# Enable integration tests that require a live database connection
+integration-tests = []
 
 [dependencies.sea-orm-migration]
 version = "0.12"
