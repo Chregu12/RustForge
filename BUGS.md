@@ -143,6 +143,8 @@ across the RustForge framework. Issues are organized by severity and crate.
 | 132 | `rf-socialite` | Silent empty user ID from OAuth — `user_data.id.unwrap_or_default()` silently creates users with empty ID when OAuth provider omits user ID field, causing downstream auth/identity failures; changed to return error | latest |
 | 133 | `rf-echo` | Presence channel always sends empty `channel_data` — `join()` calls `authenticate()` (returns only auth token) instead of `authenticate_presence()` (returns auth + channel_data), so presence channel subscriptions never include user identity data | latest |
 | 134 | `rf-search` | SQL injection in PostgreSQL search filter fields — `build_where_clause()` interpolates filter field names directly into SQL without validation; added `validate_identifier()` check for all filter field names | latest |
+| 135 | `rf-health` | PingCheck uses port 80 for HTTPS URLs — after stripping `https://` prefix, always defaults to port 80 instead of 443, causing health checks against HTTPS endpoints to fail | latest |
+| 136 | `rf-2fa` | Wrong error for already-used backup codes — `use_code()` returns `BackupCodeNotFound` instead of distinguishing between non-existent and already-used codes; added `BackupCodeAlreadyUsed` variant | latest |
 
 ---
 
