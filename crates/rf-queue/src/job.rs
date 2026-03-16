@@ -126,7 +126,8 @@ impl JobMetadata {
     /// Create delayed job metadata
     pub fn new_delayed<J: Job>(job: &J, delay: Duration) -> Result<Self, QueueError> {
         let mut metadata = Self::new(job)?;
-        metadata.execute_at = Some(chrono::Utc::now() + chrono::Duration::from_std(delay).unwrap());
+        metadata.execute_at = Some(chrono::Utc::now() + chrono::Duration::from_std(delay)
+            .map_err(|e| QueueError::SerializationError(format!("Invalid delay duration: {}", e)))?);
         Ok(metadata)
     }
 

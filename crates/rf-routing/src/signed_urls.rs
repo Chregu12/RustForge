@@ -55,7 +55,17 @@ impl SignedUrl {
     pub fn verify(&self, secret: &str) -> bool {
         let expected_sig = Self::generate_signature(&self.url, secret, self.expires_at.as_ref());
 
-        if self.signature != expected_sig {
+        // Use constant-time comparison to prevent timing attacks
+        let sig_bytes = self.signature.as_bytes();
+        let expected_bytes = expected_sig.as_bytes();
+        if sig_bytes.len() != expected_bytes.len() {
+            return false;
+        }
+        let mut result = 0u8;
+        for (a, b) in sig_bytes.iter().zip(expected_bytes.iter()) {
+            result |= a ^ b;
+        }
+        if result != 0 {
             return false;
         }
 
@@ -143,7 +153,7 @@ impl SignedUrlBuilder {
 /// Parse a signed URL from a string.
 pub fn parse_signed_url(url: &str, _secret: &str) -> Option<SignedUrl> {
     // Extract query parameters
-    let parts: Vec<&str> = url.split('?').collect();
+    let parts: Vec<&str> = url.splitn(2, '?').collect();
     if parts.len() != 2 {
         return None;
     }
@@ -153,7 +163,7 @@ pub fn parse_signed_url(url: &str, _secret: &str) -> Option<SignedUrl> {
 
     let mut params: HashMap<String, String> = HashMap::new();
     for param in query.split('&') {
-        let kv: Vec<&str> = param.split('=').collect();
+        let kv: Vec<&str> = param.splitn(2, '=').collect();
         if kv.len() == 2 {
             params.insert(kv[0].to_string(), kv[1].to_string());
         }
@@ -165,8 +175,21 @@ pub fn parse_signed_url(url: &str, _secret: &str) -> Option<SignedUrl> {
         .and_then(|s| s.parse::<i64>().ok())
         .map(|timestamp| DateTime::from_timestamp(timestamp, 0).unwrap_or_else(|| Utc::now()));
 
+    // Reconstruct the original URL preserving query params other than signature/expires
+    let original_params: Vec<String> = params
+        .iter()
+        .filter(|(k, _)| k.as_str() != "signature" && k.as_str() != "expires")
+        .map(|(k, v)| format!("{}={}", k, v))
+        .collect();
+
+    let original_url = if original_params.is_empty() {
+        base_url.to_string()
+    } else {
+        format!("{}?{}", base_url, original_params.join("&"))
+    };
+
     Some(SignedUrl {
-        url: base_url.to_string(),
+        url: original_url,
         signature,
         expires_at,
     })

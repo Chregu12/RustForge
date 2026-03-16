@@ -26,6 +26,9 @@ pub enum TwoFactorError {
     #[error("Backup code not found")]
     BackupCodeNotFound,
 
+    #[error("Backup code already used")]
+    BackupCodeAlreadyUsed,
+
     #[error("Device not trusted")]
     DeviceNotTrusted,
 }
@@ -150,7 +153,7 @@ impl BackupCodes {
     /// Use a backup code
     pub fn use_code(&mut self, code: &str) -> TwoFactorResult<()> {
         if self.used.contains(&code.to_string()) {
-            return Err(TwoFactorError::BackupCodeNotFound);
+            return Err(TwoFactorError::BackupCodeAlreadyUsed);
         }
 
         let index = self

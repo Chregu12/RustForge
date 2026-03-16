@@ -103,8 +103,9 @@ impl OutputFormatter {
         for row in &table_data {
             print!("  ");
             for cell in row {
-                let truncated = if cell.len() > self.max_column_width {
-                    format!("{}...", &cell[..self.max_column_width - 3])
+                let truncated = if cell.chars().count() > self.max_column_width {
+                    let truncated_str: String = cell.chars().take(self.max_column_width - 3).collect();
+                    format!("{}...", truncated_str)
                 } else {
                     cell.clone()
                 };

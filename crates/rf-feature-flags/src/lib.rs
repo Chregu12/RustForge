@@ -253,39 +253,43 @@ impl FeatureFlags {
         self.storage.set(config).await
     }
 
-    /// Disable a flag for all users
+    /// Disable a flag for all users (preserves existing targeting rules)
     pub async fn disable(&self, flag: &str) -> FeatureFlagResult<()> {
-        let config = FlagConfig::new(flag).disable();
+        let mut config = self.storage.get(flag).await?.unwrap_or_else(|| FlagConfig::new(flag));
+        config.enabled = false;
         self.storage.set(config).await
     }
 
-    /// Set percentage rollout
+    /// Set percentage rollout (preserves existing targeting rules)
     pub async fn set_percentage(&self, flag: &str, percentage: f64) -> FeatureFlagResult<()> {
         if !(0.0..=100.0).contains(&percentage) {
             return Err(FeatureFlagError::InvalidPercentage(percentage));
         }
 
-        let config = FlagConfig::new(flag).percentage(percentage);
+        let mut config = self.storage.get(flag).await?.unwrap_or_else(|| FlagConfig::new(flag));
+        config.percentage = Some(percentage);
         self.storage.set(config).await
     }
 
-    /// Enable for specific users
+    /// Enable for specific users (preserves existing targeting rules)
     pub async fn enable_for_users(
         &self,
         flag: &str,
         user_ids: Vec<String>,
     ) -> FeatureFlagResult<()> {
-        let config = FlagConfig::new(flag).for_users(user_ids);
+        let mut config = self.storage.get(flag).await?.unwrap_or_else(|| FlagConfig::new(flag));
+        config.user_ids = user_ids;
         self.storage.set(config).await
     }
 
-    /// Enable for specific groups
+    /// Enable for specific groups (preserves existing targeting rules)
     pub async fn enable_for_groups(
         &self,
         flag: &str,
         groups: Vec<String>,
     ) -> FeatureFlagResult<()> {
-        let config = FlagConfig::new(flag).for_groups(groups);
+        let mut config = self.storage.get(flag).await?.unwrap_or_else(|| FlagConfig::new(flag));
+        config.groups = groups;
         self.storage.set(config).await
     }
 

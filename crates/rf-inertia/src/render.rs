@@ -169,12 +169,26 @@ impl Inertia {
             }
         }
 
+        // For non-partial requests, exclude deferred props from initial response
+        if !InertiaResponse::is_partial_request(headers) && !self.deferred_keys.is_empty() {
+            for key in &self.deferred_keys {
+                props.remove(key);
+            }
+        }
+
         let response = InertiaResponse::new(
             self.component,
             props,
             self.url.unwrap_or_else(|| url.to_string()),
             self.version.unwrap_or_else(|| version.to_string()),
         );
+
+        // Set deferred props metadata so the frontend knows to fetch them later
+        let response = if !self.deferred_keys.is_empty() {
+            response.with_deferred_props(self.deferred_keys)
+        } else {
+            response
+        };
 
         // Apply partial filtering if needed
         let response = response.filter_partial_props(headers);

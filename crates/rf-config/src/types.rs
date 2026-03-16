@@ -161,7 +161,7 @@ fn default_timeout() -> u64 {
 }
 
 /// Database configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct DatabaseConfig {
     /// Database URL
     pub url: String,
@@ -177,6 +177,17 @@ pub struct DatabaseConfig {
     /// Connection timeout in seconds
     #[serde(default = "default_connect_timeout")]
     pub connect_timeout: u64,
+}
+
+impl std::fmt::Debug for DatabaseConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("DatabaseConfig")
+            .field("url", &"[REDACTED]")
+            .field("max_connections", &self.max_connections)
+            .field("min_connections", &self.min_connections)
+            .field("connect_timeout", &self.connect_timeout)
+            .finish()
+    }
 }
 
 impl Default for DatabaseConfig {
@@ -203,7 +214,7 @@ fn default_connect_timeout() -> u64 {
 }
 
 /// Authentication configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct AuthConfig {
     /// JWT secret key
     pub jwt_secret: String,
@@ -215,6 +226,16 @@ pub struct AuthConfig {
     /// Session timeout in minutes
     #[serde(default = "default_session_timeout")]
     pub session_timeout_minutes: u64,
+}
+
+impl std::fmt::Debug for AuthConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("AuthConfig")
+            .field("jwt_secret", &"[REDACTED]")
+            .field("token_expiry_hours", &self.token_expiry_hours)
+            .field("session_timeout_minutes", &self.session_timeout_minutes)
+            .finish()
+    }
 }
 
 impl Default for AuthConfig {

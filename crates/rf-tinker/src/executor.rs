@@ -31,6 +31,14 @@ pub enum ExecutionResult {
 /// Query executor
 pub struct QueryExecutor;
 
+/// Validate that an identifier (table/column name) contains only safe characters
+fn validate_sql_identifier(name: &str) -> bool {
+    !name.is_empty()
+        && name
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '_')
+}
+
 impl QueryExecutor {
     pub fn new() -> Self {
         Self
@@ -110,6 +118,11 @@ impl QueryExecutor {
         let table_regex = regex::Regex::new(r#"DB::table\s*\(\s*"([^"]+)"\s*\)"#).ok()?;
         let table_name = table_regex.captures(input)?.get(1)?.as_str();
 
+        // Validate table name to prevent SQL injection
+        if !validate_sql_identifier(table_name) {
+            return None;
+        }
+
         let mut query = format!("SELECT * FROM {}", table_name);
         let mut conditions: Vec<String> = Vec::new();
         let mut limit_clause = String::new();
@@ -119,16 +132,32 @@ impl QueryExecutor {
         let where_regex = regex::Regex::new(r#"\.where\s*\(\s*"([^"]+)"\s*,\s*([^)]+)\)"#).ok()?;
         for cap in where_regex.captures_iter(input) {
             let column = cap.get(1)?.as_str();
+            if !validate_sql_identifier(column) {
+                return None;
+            }
             let value = cap.get(2)?.as_str().trim();
-            conditions.push(format!("{} = {}", column, value));
+            // Escape the value as a string literal
+            let escaped_value = value.replace('\'', "''");
+            conditions.push(format!("{} = '{}'", column, escaped_value));
         }
 
         // Parse .whereIn() clauses
         let where_in_regex = regex::Regex::new(r#"\.whereIn\s*\(\s*"([^"]+)"\s*,\s*\[([^\]]+)\]\s*\)"#).ok()?;
         for cap in where_in_regex.captures_iter(input) {
             let column = cap.get(1)?.as_str();
+            if !validate_sql_identifier(column) {
+                return None;
+            }
             let values = cap.get(2)?.as_str();
-            conditions.push(format!("{} IN ({})", column, values));
+            // Escape each value in the IN clause
+            let escaped_values: Vec<String> = values
+                .split(',')
+                .map(|v| {
+                    let trimmed = v.trim().trim_matches('"').trim_matches('\'');
+                    format!("'{}'", trimmed.replace('\'', "''"))
+                })
+                .collect();
+            conditions.push(format!("{} IN ({})", column, escaped_values.join(", ")));
         }
 
         // Parse .limit()
@@ -141,6 +170,9 @@ impl QueryExecutor {
         let order_regex = regex::Regex::new(r#"\.orderBy\s*\(\s*"([^"]+)"\s*(?:,\s*"(asc|desc)")?\s*\)"#).ok()?;
         if let Some(cap) = order_regex.captures(input) {
             let column = cap.get(1)?.as_str();
+            if !validate_sql_identifier(column) {
+                return None;
+            }
             let dir = cap.get(2).map(|m| m.as_str()).unwrap_or("asc");
             order_clause = format!(" ORDER BY {} {}", column, dir.to_uppercase());
         }

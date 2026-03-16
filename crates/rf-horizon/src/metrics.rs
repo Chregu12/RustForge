@@ -62,7 +62,7 @@ impl QueueMetrics {
 
     fn update_processing_time(&mut self, new_time_ms: f64) {
         // Simple moving average
-        let total_jobs = self.jobs_processed as f64;
+        let total_jobs = self.jobs_processed.max(1) as f64;
         self.average_processing_time_ms =
             ((self.average_processing_time_ms * (total_jobs - 1.0)) + new_time_ms) / total_jobs;
     }

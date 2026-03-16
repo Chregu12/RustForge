@@ -346,22 +346,29 @@ impl Echo {
     pub async fn join(&self, name: &str) -> EchoResult<Arc<PresenceChannel>> {
         let channel_name = format!("presence-{}", name);
 
-        // Authenticate first
+        // Authenticate with presence data
         let socket_id = self.socket_id.read().await;
         let socket_id = socket_id.as_ref().ok_or_else(|| {
             EchoError::AuthError("Not connected, no socket ID available".to_string())
         })?;
 
-        let auth = self
+        let user_info = auth::PresenceUserInfo {
+            user_id: socket_id.clone(),
+            user_info: serde_json::json!({}),
+        };
+
+        let presence_auth = self
             .auth_provider
-            .authenticate(&channel_name, socket_id)
+            .authenticate_presence(&channel_name, socket_id, &user_info)
             .await?;
 
-        let channel = Arc::new(PresenceChannel::new(
+        let mut channel = PresenceChannel::new(
             channel_name.clone(),
             self.event_tx.subscribe(),
-            auth,
-        ));
+            presence_auth.auth,
+        );
+        channel.channel_data = presence_auth.channel_data;
+        let channel = Arc::new(channel);
 
         self.subscribe_to_presence_channel(&channel_name, &channel.auth, &channel.channel_data)
             .await?;

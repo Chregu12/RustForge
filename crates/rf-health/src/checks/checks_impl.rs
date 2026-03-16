@@ -229,12 +229,14 @@ impl HealthCheck for PingCheck {
             self.timeout,
             async {
                 // Use a simple TCP connection check
+                let is_https = self.url.starts_with("https://");
                 let url = self.url.trim_start_matches("http://").trim_start_matches("https://");
                 let host = url.split('/').next().unwrap_or(url);
                 let addr = if host.contains(':') {
                     host.to_string()
                 } else {
-                    format!("{}:80", host)
+                    let default_port = if is_https { 443 } else { 80 };
+                    format!("{}:{}", host, default_port)
                 };
                 tokio::net::TcpStream::connect(&addr).await
             },

@@ -4,6 +4,15 @@ use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 use tera::{Function, Result as TeraResult};
 
+/// Escape HTML special characters to prevent XSS
+fn escape_html(s: &str) -> String {
+    s.replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;")
+        .replace('\'', "&#x27;")
+}
+
 /// Type alias for component renderer function
 pub type ComponentRenderer = Arc<dyn Fn(&Context) -> ViewResult<String> + Send + Sync>;
 
@@ -140,7 +149,7 @@ pub fn alert_component() -> ComponentRenderer {
             .and_then(|v| v.as_bool())
             .unwrap_or(false);
 
-        let mut html = format!(r#"<div class="alert alert-{}" role="alert">"#, alert_type);
+        let mut html = format!(r#"<div class="alert alert-{}" role="alert">"#, escape_html(alert_type));
 
         if dismissible {
             html.push_str(
@@ -148,7 +157,7 @@ pub fn alert_component() -> ComponentRenderer {
             );
         }
 
-        html.push_str(&format!("{}</div>", message));
+        html.push_str(&format!("{}</div>", escape_html(message)));
 
         Ok(html)
     })
@@ -171,14 +180,14 @@ pub fn card_component() -> ComponentRenderer {
         if let Some(title) = title {
             html.push_str(&format!(
                 r#"<div class="card-header"><h3>{}</h3></div>"#,
-                title
+                escape_html(title)
             ));
         }
 
-        html.push_str(&format!(r#"<div class="card-body">{}</div>"#, content));
+        html.push_str(&format!(r#"<div class="card-body">{}</div>"#, escape_html(content)));
 
         if let Some(footer) = footer {
-            html.push_str(&format!(r#"<div class="card-footer">{}</div>"#, footer));
+            html.push_str(&format!(r#"<div class="card-footer">{}</div>"#, escape_html(footer)));
         }
 
         html.push_str("</div>");
@@ -254,20 +263,20 @@ pub fn input_component() -> ComponentRenderer {
         let mut html = String::from(r#"<div class="form-group">"#);
 
         if let Some(label_text) = label {
-            html.push_str(&format!(r#"<label for="{}">{}</label>"#, name, label_text));
+            html.push_str(&format!(r#"<label for="{}">{}</label>"#, escape_html(name), escape_html(label_text)));
         }
 
         html.push_str(&format!(
             r#"<input type="{}" name="{}" id="{}" class="form-control"#,
-            input_type, name, name
+            escape_html(input_type), escape_html(name), escape_html(name)
         ));
 
         if !value.is_empty() {
-            html.push_str(&format!(r#" value="{}""#, value));
+            html.push_str(&format!(r#" value="{}""#, escape_html(value)));
         }
 
         if let Some(ph) = placeholder {
-            html.push_str(&format!(r#" placeholder="{}""#, ph));
+            html.push_str(&format!(r#" placeholder="{}""#, escape_html(ph)));
         }
 
         if required {
@@ -277,7 +286,7 @@ pub fn input_component() -> ComponentRenderer {
         html.push_str(">");
 
         if let Some(err) = error {
-            html.push_str(&format!(r#"<span class="error-message">{}</span>"#, err));
+            html.push_str(&format!(r#"<span class="error-message">{}</span>"#, escape_html(err)));
         }
 
         html.push_str("</div>");

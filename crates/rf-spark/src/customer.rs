@@ -35,7 +35,7 @@ pub async fn create_or_get(
 pub async fn get_customer(client: &stripe::Client, customer_id: &str) -> SparkResult<Customer> {
     use stripe::Customer as StripeCustomer;
 
-    let customer = StripeCustomer::retrieve(client, &customer_id.parse().unwrap(), &[])
+    let customer = StripeCustomer::retrieve(client, &customer_id.parse().map_err(|_| SparkError::InvalidRequest("Invalid Stripe ID format".into()))?, &[])
         .await
         .map_err(|e| SparkError::StripeError(e.to_string()))?;
 
@@ -93,7 +93,7 @@ pub async fn update_customer(
     params.email = email;
     params.name = name;
 
-    let customer = StripeCustomer::update(client, &customer_id.parse().unwrap(), params)
+    let customer = StripeCustomer::update(client, &customer_id.parse().map_err(|_| SparkError::InvalidRequest("Invalid Stripe ID format".into()))?, params)
         .await
         .map_err(|e| SparkError::StripeError(e.to_string()))?;
 
@@ -115,7 +115,7 @@ pub async fn update_customer(
 pub async fn delete_customer(client: &stripe::Client, customer_id: &str) -> SparkResult<()> {
     use stripe::Customer as StripeCustomer;
 
-    StripeCustomer::delete(client, &customer_id.parse().unwrap())
+    StripeCustomer::delete(client, &customer_id.parse().map_err(|_| SparkError::InvalidRequest("Invalid Stripe ID format".into()))?)
         .await
         .map_err(|e| SparkError::StripeError(e.to_string()))?;
 
@@ -131,9 +131,9 @@ pub async fn apply_coupon(
     use stripe::{Customer as StripeCustomer, UpdateCustomer};
 
     let mut params = UpdateCustomer::default();
-    params.coupon = Some(coupon_code.parse().unwrap());
+    params.coupon = Some(coupon_code.parse().map_err(|_| SparkError::InvalidRequest("Invalid Stripe ID format".into()))?);
 
-    StripeCustomer::update(client, &customer_id.parse().unwrap(), params)
+    StripeCustomer::update(client, &customer_id.parse().map_err(|_| SparkError::InvalidRequest("Invalid Stripe ID format".into()))?, params)
         .await
         .map_err(|e| SparkError::StripeError(e.to_string()))?;
 
@@ -148,7 +148,7 @@ pub async fn create_billing_portal_session(
 ) -> SparkResult<String> {
     use stripe::{BillingPortalSession, CreateBillingPortalSession};
 
-    let mut params = CreateBillingPortalSession::new(customer_id.parse().unwrap());
+    let mut params = CreateBillingPortalSession::new(customer_id.parse().map_err(|_| SparkError::InvalidRequest("Invalid Stripe ID format".into()))?);
     params.return_url = Some(return_url);
 
     let session = BillingPortalSession::create(client, params)
@@ -177,7 +177,7 @@ pub async fn adjust_balance(
 
     let transaction = StripeCustomer::create_balance_transaction(
         client,
-        &customer_id.parse().unwrap(),
+        &customer_id.parse().map_err(|_| SparkError::InvalidRequest("Invalid Stripe ID format".into()))?,
         params,
     )
     .await

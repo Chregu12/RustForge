@@ -76,6 +76,7 @@ impl<T> Collection<T> {
     where
         T: Clone,
     {
+        let size = size.max(1);
         self.items
             .chunks(size)
             .map(|chunk| Collection::new(chunk.to_vec()))
@@ -318,6 +319,7 @@ impl<T> Collection<T> {
     where
         T: Clone,
     {
+        let offset = offset.min(self.items.len());
         let end = length
             .map(|l| (offset + l).min(self.items.len()))
             .unwrap_or(self.items.len());
@@ -469,7 +471,7 @@ impl<T> Collection<T> {
     where
         T: Clone,
     {
-        let offset = (page - 1) * per_page;
+        let offset = page.saturating_sub(1) * per_page;
         self.slice(offset, Some(per_page))
     }
 
@@ -573,6 +575,7 @@ impl<T> Collection<T> {
     where
         F: FnMut(&[T]),
     {
+        let size = size.max(1);
         for window in self.items.windows(size) {
             f(window);
         }
@@ -633,7 +636,9 @@ impl<T> Collection<T> {
 
     /// Replace items at specified indices
     pub fn splice(mut self, start: usize, length: usize, replacement: Vec<T>) -> Self {
-        self.items.splice(start..start + length, replacement);
+        let start = start.min(self.items.len());
+        let end = (start + length).min(self.items.len());
+        self.items.splice(start..end, replacement);
         self
     }
 

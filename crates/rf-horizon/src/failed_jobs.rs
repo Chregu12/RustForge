@@ -84,8 +84,9 @@ impl RetryStrategy {
                 Duration::seconds((retry_count as i64) * (*base_delay_seconds as i64))
             }
             RetryStrategy::Exponential { base_delay_seconds } => {
-                let multiplier = 2_u64.pow(retry_count);
-                Duration::seconds((*base_delay_seconds as i64) * (multiplier as i64))
+                let multiplier = 2_u64.checked_pow(retry_count).unwrap_or(u64::MAX);
+                let seconds = (*base_delay_seconds).saturating_mul(multiplier).min(604800); // cap at 7 days
+                Duration::seconds(seconds as i64)
             }
         }
     }

@@ -89,6 +89,10 @@ pub fn init_logging(config: LogConfig) -> Result<(), Box<dyn std::error::Error>>
         FmtSpan::NONE
     };
 
+    if !config.stdout && config.file.is_none() && config.log_dir.is_none() {
+        return Err("No log output configured: stdout is disabled and no file/log_dir specified".into());
+    }
+
     match config.format {
         LogFormat::Json => {
             if config.stdout {

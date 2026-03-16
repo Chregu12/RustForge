@@ -139,23 +139,30 @@ impl Histogram {
     /// Get the minimum value
     pub fn min(&self) -> Option<f64> {
         let values = self.values.read().unwrap();
-        values.iter().cloned().min_by(|a, b| a.partial_cmp(b).unwrap())
+        values.iter().cloned()
+            .filter(|v| !v.is_nan())
+            .min_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
     }
 
     /// Get the maximum value
     pub fn max(&self) -> Option<f64> {
         let values = self.values.read().unwrap();
-        values.iter().cloned().max_by(|a, b| a.partial_cmp(b).unwrap())
+        values.iter().cloned()
+            .filter(|v| !v.is_nan())
+            .max_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
     }
 
     /// Get a percentile
     pub fn percentile(&self, p: f64) -> Option<f64> {
-        let mut values = self.values.read().unwrap().clone();
+        let values = self.values.read().unwrap();
+        let mut values: Vec<f64> = values.iter().copied().filter(|v| !v.is_nan()).collect();
         if values.is_empty() {
             return None;
         }
-        values.sort_by(|a, b| a.partial_cmp(b).unwrap());
-        let idx = ((p / 100.0) * (values.len() - 1) as f64) as usize;
+        values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+        let max_idx = values.len() - 1;
+        let idx = ((p / 100.0) * max_idx as f64) as usize;
+        let idx = idx.min(max_idx);
         Some(values[idx])
     }
 

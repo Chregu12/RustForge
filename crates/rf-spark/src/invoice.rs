@@ -112,15 +112,19 @@ impl<'a> InvoiceBuilder<'a> {
         mut self,
         amount: Decimal,
         description: impl Into<String>,
-    ) -> Self {
-        let amount_cents = (amount * Decimal::from(100)).to_string().parse::<i64>().unwrap_or(0);
+    ) -> SparkResult<Self> {
+        let amount_cents = (amount * Decimal::from(100))
+            .round_dp(0)
+            .to_string()
+            .parse::<i64>()
+            .map_err(|_| SparkError::InvalidRequest(format!("Invalid invoice amount: {}", amount)))?;
         self.items.push(InvoiceItemParams {
             price_id: None,
             amount: Some(amount_cents),
             description: description.into(),
             quantity: 1,
         });
-        self
+        Ok(self)
     }
 
     /// Set auto advance
@@ -153,10 +157,10 @@ impl<'a> InvoiceBuilder<'a> {
 
         // Create invoice items first
         for item in &self.items {
-            let mut params = CreateInvoiceItem::new(self.customer_id.parse().unwrap());
+            let mut params = CreateInvoiceItem::new(self.customer_id.parse().map_err(|_| SparkError::InvalidRequest("Invalid Stripe ID format".into()))?);
 
             if let Some(ref price_id) = item.price_id {
-                params.price = Some(price_id.parse().unwrap());
+                params.price = Some(price_id.parse().map_err(|_| SparkError::InvalidRequest("Invalid Stripe ID format".into()))?);
                 params.quantity = Some(item.quantity as u64);
             } else if let Some(amount) = item.amount {
                 params.amount = Some(amount);
@@ -171,7 +175,7 @@ impl<'a> InvoiceBuilder<'a> {
 
         // Create the invoice
         let mut params = CreateInvoice::new();
-        params.customer = Some(self.customer_id.parse().unwrap());
+        params.customer = Some(self.customer_id.parse().map_err(|_| SparkError::InvalidRequest("Invalid Stripe ID format".into()))?);
         params.auto_advance = Some(self.auto_advance);
         params.collection_method = Some(match self.collection_method {
             CollectionMethod::ChargeAutomatically => {
@@ -204,7 +208,7 @@ pub async fn list_invoices(
     use stripe::{Invoice as StripeInvoice, ListInvoices};
 
     let mut params = ListInvoices::default();
-    params.customer = Some(customer_id.parse().unwrap());
+    params.customer = Some(customer_id.parse().map_err(|_| SparkError::InvalidRequest("Invalid Stripe ID format".into()))?);
 
     let invoices = StripeInvoice::list(client, &params)
         .await
@@ -220,7 +224,7 @@ pub async fn get_upcoming(
 ) -> SparkResult<Option<Invoice>> {
     use stripe::{Invoice as StripeInvoice, RetrieveUpcomingInvoice};
 
-    let params = RetrieveUpcomingInvoice::new(customer_id.parse().unwrap());
+    let params = RetrieveUpcomingInvoice::new(customer_id.parse().map_err(|_| SparkError::InvalidRequest("Invalid Stripe ID format".into()))?);
 
     match StripeInvoice::upcoming(client, params).await {
         Ok(invoice) => Ok(Some(convert_invoice(invoice))),
@@ -238,7 +242,7 @@ pub async fn get_pdf_url(
 ) -> SparkResult<String> {
     use stripe::Invoice as StripeInvoice;
 
-    let invoice = StripeInvoice::retrieve(client, &invoice_id.parse().unwrap(), &[])
+    let invoice = StripeInvoice::retrieve(client, &invoice_id.parse().map_err(|_| SparkError::InvalidRequest("Invalid Stripe ID format".into()))?, &[])
         .await
         .map_err(|e| SparkError::StripeError(e.to_string()))?;
 
@@ -254,7 +258,7 @@ pub async fn pay_invoice(
 ) -> SparkResult<Invoice> {
     use stripe::Invoice as StripeInvoice;
 
-    let invoice = StripeInvoice::pay(client, &invoice_id.parse().unwrap())
+    let invoice = StripeInvoice::pay(client, &invoice_id.parse().map_err(|_| SparkError::InvalidRequest("Invalid Stripe ID format".into()))?)
         .await
         .map_err(|e| SparkError::StripeError(e.to_string()))?;
 
@@ -268,7 +272,7 @@ pub async fn void_invoice(
 ) -> SparkResult<Invoice> {
     use stripe::Invoice as StripeInvoice;
 
-    let invoice = StripeInvoice::void(client, &invoice_id.parse().unwrap())
+    let invoice = StripeInvoice::void(client, &invoice_id.parse().map_err(|_| SparkError::InvalidRequest("Invalid Stripe ID format".into()))?)
         .await
         .map_err(|e| SparkError::StripeError(e.to_string()))?;
 
@@ -283,7 +287,7 @@ pub async fn finalize_invoice(
     use stripe::{Invoice as StripeInvoice, FinalizeInvoiceParams};
 
     let params = FinalizeInvoiceParams::default();
-    let invoice = StripeInvoice::finalize(client, &invoice_id.parse().unwrap(), params)
+    let invoice = StripeInvoice::finalize(client, &invoice_id.parse().map_err(|_| SparkError::InvalidRequest("Invalid Stripe ID format".into()))?, params)
         .await
         .map_err(|e| SparkError::StripeError(e.to_string()))?;
 

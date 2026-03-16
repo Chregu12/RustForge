@@ -1448,6 +1448,7 @@ impl QueryBuilder {
     /// }
     /// ```
     pub async fn paginate(self, per_page: usize, page: usize) -> Result<PaginatedResult, String> {
+        let per_page = per_page.max(1);
         let offset = (page.saturating_sub(1)) * per_page;
         let data = self.clone().limit(per_page).offset(offset).get().await?;
         let total = self.count().await?;

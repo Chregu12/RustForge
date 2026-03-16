@@ -344,7 +344,7 @@ mod in_memory {
             });
 
             // Apply pagination
-            let start = query.offset;
+            let start = query.offset.min(hits.len());
             let end = (query.offset + query.limit).min(hits.len());
             Ok(hits[start..end].to_vec())
         }

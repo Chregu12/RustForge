@@ -178,7 +178,7 @@ impl Filter for TruncateFilter {
 
         let suffix = args.get("suffix").and_then(|v| v.as_str()).unwrap_or("...");
 
-        if text.len() <= length {
+        if text.chars().count() <= length {
             Ok(Value::String(text.to_string()))
         } else {
             let truncated = text.chars().take(length).collect::<String>();

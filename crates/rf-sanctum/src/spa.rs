@@ -64,8 +64,19 @@ pub async fn verify_csrf_token(
         .and_then(|v| v.to_str().ok())
         .ok_or(StatusCode::FORBIDDEN)?;
 
-    // Verify tokens match
-    if cookie_token != header_token {
+    // Verify tokens match (constant-time comparison to prevent timing attacks)
+    let cookie_bytes = cookie_token.as_bytes();
+    let header_bytes = header_token.as_bytes();
+    let tokens_match = if cookie_bytes.len() != header_bytes.len() {
+        false
+    } else {
+        let mut result = 0u8;
+        for (a, b) in cookie_bytes.iter().zip(header_bytes.iter()) {
+            result |= a ^ b;
+        }
+        result == 0
+    };
+    if !tokens_match {
         return Err(StatusCode::FORBIDDEN);
     }
 

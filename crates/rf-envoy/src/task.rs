@@ -169,29 +169,32 @@ pub mod presets {
     /// Restart application (systemd)
     pub fn restart_systemd(service: &str) -> TaskBuilder {
         TaskBuilder::new("restart")
-            .run(format!("sudo systemctl restart {}", service))
+            .run(format!("sudo systemctl restart '{}'", service.replace('\'', "'\\''")))
     }
 
     /// Check application status
     pub fn status_systemd(service: &str) -> TaskBuilder {
         TaskBuilder::new("status")
-            .run(format!("sudo systemctl status {}", service))
+            .run(format!("sudo systemctl status '{}'", service.replace('\'', "'\\''")))
     }
 
     /// View logs
     pub fn logs_systemd(service: &str, lines: u32) -> TaskBuilder {
         TaskBuilder::new("logs")
-            .run(format!("sudo journalctl -u {} -n {} --no-pager", service, lines))
+            .run(format!("sudo journalctl -u '{}' -n {} --no-pager", service.replace('\'', "'\\''"), lines))
     }
 
     /// Zero-downtime deploy
     pub fn zero_downtime_deploy(app_dir: &str, service: &str, branch: &str) -> TaskBuilder {
+        let escaped_dir = app_dir.replace('\'', "'\\''");
+        let escaped_branch = branch.replace('\'', "'\\''");
+        let escaped_service = service.replace('\'', "'\\''");
         TaskBuilder::new("deploy")
-            .run(format!("cd {}", app_dir))
-            .run(format!("git pull origin {}", branch))
+            .run(format!("cd '{}'", escaped_dir))
+            .run(format!("git pull origin '{}'", escaped_branch))
             .run("cargo build --release")
             .run("cargo run --release -- migrate")
-            .run(format!("sudo systemctl reload {}", service))
+            .run(format!("sudo systemctl reload '{}'", escaped_service))
     }
 }
 

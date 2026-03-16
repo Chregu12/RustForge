@@ -181,7 +181,10 @@ impl RequestBuilder {
                         last_error = Some(e);
                         attempts += 1;
                         if attempts <= retry_config.max_retries {
-                            tokio::time::sleep(retry_config.delay).await;
+                            let delay = retry_config.delay.mul_f64(
+                                (retry_config.backoff_multiplier as f64).powi((attempts - 1) as i32),
+                            );
+                            tokio::time::sleep(delay).await;
                         }
                     }
                 },

@@ -456,7 +456,8 @@ impl Migrator {
     /// Remove a migration record
     async fn remove_migration(&self, name: &str) -> MigrationResult<()> {
         let backend = self.db.get_database_backend();
-        let delete_sql = format!("DELETE FROM migrations WHERE migration = '{}'", name);
+        let escaped_name = name.replace('\'', "''");
+        let delete_sql = format!("DELETE FROM migrations WHERE migration = '{}'", escaped_name);
 
         self.db
             .execute(Statement::from_string(backend, delete_sql))

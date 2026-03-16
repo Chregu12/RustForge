@@ -15,7 +15,7 @@ impl PortalSession {
     pub async fn create(customer_id: &str, return_url: &str) -> CashierResult<Self> {
         let client = crate::config::get_config().stripe_client();
 
-        let mut params = stripe::CreateBillingPortalSession::new(customer_id.parse().unwrap());
+        let mut params = stripe::CreateBillingPortalSession::new(customer_id.parse().map_err(|_| CashierError::StripeError("Invalid Stripe ID format".to_string()))?);
         params.return_url = Some(return_url);
 
         let session = stripe::BillingPortalSession::create(&client, params)

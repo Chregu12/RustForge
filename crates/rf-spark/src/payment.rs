@@ -80,10 +80,10 @@ pub async fn add_payment_method(
     use stripe::{AttachPaymentMethod, PaymentMethod as StripePM};
 
     let params = AttachPaymentMethod {
-        customer: customer_id.parse().unwrap(),
+        customer: customer_id.parse().map_err(|_| SparkError::InvalidRequest(format!("Invalid customer ID: {}", customer_id)))?,
     };
 
-    let pm = StripePM::attach(client, &payment_method_id.parse().unwrap(), params)
+    let pm = StripePM::attach(client, &payment_method_id.parse().map_err(|_| SparkError::InvalidRequest(format!("Invalid payment method ID: {}", payment_method_id)))?, params)
         .await
         .map_err(|e| SparkError::StripeError(e.to_string()))?;
 
@@ -97,7 +97,7 @@ pub async fn get_default_payment_method(
 ) -> SparkResult<Option<PaymentMethod>> {
     use stripe::Customer;
 
-    let customer = Customer::retrieve(client, &customer_id.parse().unwrap(), &[])
+    let customer = Customer::retrieve(client, &customer_id.parse().map_err(|_| SparkError::InvalidRequest(format!("Invalid customer ID: {}", customer_id)))?, &[])
         .await
         .map_err(|e| SparkError::StripeError(e.to_string()))?;
 
@@ -126,7 +126,7 @@ pub async fn set_default_payment_method(
     let mut params = UpdateCustomer::default();
     params.invoice_settings = Some(invoice_settings);
 
-    Customer::update(client, &customer_id.parse().unwrap(), params)
+    Customer::update(client, &customer_id.parse().map_err(|_| SparkError::InvalidRequest(format!("Invalid customer ID: {}", customer_id)))?, params)
         .await
         .map_err(|e| SparkError::StripeError(e.to_string()))?;
 
@@ -141,7 +141,7 @@ pub async fn list_payment_methods(
     use stripe::{ListPaymentMethods, PaymentMethod as StripePM};
 
     let mut params = ListPaymentMethods::new();
-    params.customer = Some(customer_id.parse().unwrap());
+    params.customer = Some(customer_id.parse().map_err(|_| SparkError::InvalidRequest(format!("Invalid customer ID: {}", customer_id)))?);
     params.type_ = Some(stripe::PaymentMethodTypeFilter::Card);
 
     let pms = StripePM::list(client, &params)
@@ -170,7 +170,7 @@ pub async fn delete_payment_method(
 ) -> SparkResult<()> {
     use stripe::PaymentMethod as StripePM;
 
-    StripePM::detach(client, &payment_method_id.parse().unwrap())
+    StripePM::detach(client, &payment_method_id.parse().map_err(|_| SparkError::InvalidRequest(format!("Invalid payment method ID: {}", payment_method_id)))?)
         .await
         .map_err(|e| SparkError::StripeError(e.to_string()))?;
 
@@ -187,11 +187,15 @@ pub async fn create_charge(
 ) -> SparkResult<PaymentIntent> {
     use stripe::{CreatePaymentIntent, PaymentIntent as StripePI};
 
-    // Convert to cents
-    let amount_cents = (amount * Decimal::from(100)).to_string().parse::<i64>().unwrap_or(0);
+    // Convert to cents (round to avoid fractional cent issues, then error on invalid amounts)
+    let amount_cents = (amount * Decimal::from(100))
+        .round_dp(0)
+        .to_string()
+        .parse::<i64>()
+        .map_err(|_| SparkError::InvalidRequest(format!("Invalid payment amount: {}", amount)))?;
 
-    let mut params = CreatePaymentIntent::new(amount_cents, currency.parse().unwrap());
-    params.customer = Some(customer_id.parse().unwrap());
+    let mut params = CreatePaymentIntent::new(amount_cents, currency.parse().map_err(|_| SparkError::InvalidRequest(format!("Invalid currency: {}", currency)))?);
+    params.customer = Some(customer_id.parse().map_err(|_| SparkError::InvalidRequest(format!("Invalid customer ID: {}", customer_id)))?);
     params.description = Some(description);
     params.confirm = Some(true);
 
@@ -217,10 +221,14 @@ pub async fn create_refund(
     use stripe::{CreateRefund, Refund};
 
     let mut params = CreateRefund::default();
-    params.payment_intent = Some(payment_intent_id.parse().unwrap());
+    params.payment_intent = Some(payment_intent_id.parse().map_err(|_| SparkError::InvalidRequest(format!("Invalid payment intent ID: {}", payment_intent_id)))?);
 
     if let Some(amt) = amount {
-        let amount_cents = (amt * Decimal::from(100)).to_string().parse::<i64>().unwrap_or(0);
+        let amount_cents = (amt * Decimal::from(100))
+            .round_dp(0)
+            .to_string()
+            .parse::<i64>()
+            .map_err(|_| SparkError::InvalidRequest(format!("Invalid refund amount: {}", amt)))?;
         params.amount = Some(amount_cents);
     }
 
@@ -239,7 +247,7 @@ pub async fn create_setup_intent(
     use stripe::{CreateSetupIntent, SetupIntent};
 
     let mut params = CreateSetupIntent::default();
-    params.customer = Some(customer_id.parse().unwrap());
+    params.customer = Some(customer_id.parse().map_err(|_| SparkError::InvalidRequest(format!("Invalid customer ID: {}", customer_id)))?);
     // Usage is set automatically by Stripe
 
     let intent = SetupIntent::create(client, params)

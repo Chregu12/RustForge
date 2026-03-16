@@ -24,6 +24,7 @@ pub struct Form {
     pub fields: Vec<Field>,
     pub submit_text: String,
     pub csrf_enabled: bool,
+    pub csrf_token: Option<String>,
     pub enctype: Option<String>,
 }
 
@@ -76,6 +77,7 @@ pub struct FormBuilder {
     fields: Vec<Field>,
     submit_text: String,
     csrf_enabled: bool,
+    csrf_token: Option<String>,
     enctype: Option<String>,
 }
 
@@ -88,6 +90,7 @@ impl FormBuilder {
             fields: Vec::new(),
             submit_text: "Submit".to_string(),
             csrf_enabled: true,
+            csrf_token: None,
             enctype: None,
         }
     }
@@ -117,6 +120,11 @@ impl FormBuilder {
         self
     }
 
+    pub fn csrf_token(mut self, token: impl Into<String>) -> Self {
+        self.csrf_token = Some(token.into());
+        self
+    }
+
     pub fn multipart(mut self) -> Self {
         self.enctype = Some("multipart/form-data".to_string());
         self
@@ -130,6 +138,7 @@ impl FormBuilder {
             fields: self.fields,
             submit_text: self.submit_text,
             csrf_enabled: self.csrf_enabled,
+            csrf_token: self.csrf_token,
             enctype: self.enctype,
         }
     }

@@ -609,7 +609,9 @@ impl Compiler {
 
             Expr::String(s) => Ok(Value::String(s.clone())),
 
-            Expr::Number(n) => Ok(Value::Number(serde_json::Number::from_f64(*n).unwrap())),
+            Expr::Number(n) => Ok(serde_json::Number::from_f64(*n)
+                .map(Value::Number)
+                .unwrap_or(Value::Null)),
 
             Expr::Bool(b) => Ok(Value::Bool(*b)),
 

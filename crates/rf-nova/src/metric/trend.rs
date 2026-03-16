@@ -44,7 +44,9 @@ impl TrendData {
     }
 
     pub fn calculate_trend(mut self) -> Self {
-        let values: Vec<f64> = self.data.values().copied().collect();
+        let mut entries: Vec<(&String, &f64)> = self.data.iter().collect();
+        entries.sort_by(|a, b| a.0.cmp(b.0));
+        let values: Vec<f64> = entries.iter().map(|(_, v)| **v).collect();
         if values.len() >= 2 {
             let first = values[0];
             let last = values[values.len() - 1];
@@ -73,7 +75,10 @@ impl TrendData {
         while current <= range.end {
             let value = f(current).await?;
             data = data.add(current.format("%Y-%m-%d").to_string(), value);
-            current = current.succ_opt().unwrap();
+            current = match current.succ_opt() {
+                Some(next) => next,
+                None => break, // date overflow — stop iteration
+            };
         }
 
         Ok(data.calculate_trend())

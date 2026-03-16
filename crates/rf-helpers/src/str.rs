@@ -78,11 +78,14 @@ pub fn plural(word: &str) -> String {
     {
         format!("{}es", word)
     } else if lower.ends_with("y") && !is_vowel(lower.chars().rev().nth(1).unwrap_or('a')) {
-        format!("{}ies", &word[..word.len() - 1])
+        let stem: String = word.chars().take(word.chars().count().saturating_sub(1)).collect();
+        format!("{}ies", stem)
     } else if lower.ends_with("f") {
-        format!("{}ves", &word[..word.len() - 1])
+        let stem: String = word.chars().take(word.chars().count().saturating_sub(1)).collect();
+        format!("{}ves", stem)
     } else if lower.ends_with("fe") {
-        format!("{}ves", &word[..word.len() - 2])
+        let stem: String = word.chars().take(word.chars().count().saturating_sub(2)).collect();
+        format!("{}ves", stem)
     } else {
         format!("{}s", word)
     }
@@ -109,18 +112,20 @@ pub fn singular(word: &str) -> String {
     }
 
     // Basic singularization rules
-    if lower.ends_with("ies") && word.len() > 3 {
-        format!("{}y", &word[..word.len() - 3])
+    if lower.ends_with("ies") && word.chars().count() > 3 {
+        let stem: String = word.chars().take(word.chars().count() - 3).collect();
+        format!("{}y", stem)
     } else if lower.ends_with("ves") {
-        if word.len() > 3 {
-            format!("{}f", &word[..word.len() - 3])
+        if word.chars().count() > 3 {
+            let stem: String = word.chars().take(word.chars().count() - 3).collect();
+            format!("{}f", stem)
         } else {
             word.to_string()
         }
     } else if lower.ends_with("ses") || lower.ends_with("xes") || lower.ends_with("zes") {
-        word[..word.len() - 2].to_string()
-    } else if lower.ends_with("s") && word.len() > 1 {
-        word[..word.len() - 1].to_string()
+        word.chars().take(word.chars().count().saturating_sub(2)).collect()
+    } else if lower.ends_with("s") && word.chars().count() > 1 {
+        word.chars().take(word.chars().count() - 1).collect()
     } else {
         word.to_string()
     }

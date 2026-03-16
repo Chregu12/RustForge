@@ -94,20 +94,28 @@ impl MailMessage {
 
     /// Render to HTML
     pub fn to_html(&self) -> String {
+        fn escape_html(s: &str) -> String {
+            s.replace('&', "&amp;")
+                .replace('<', "&lt;")
+                .replace('>', "&gt;")
+                .replace('"', "&quot;")
+                .replace('\'', "&#x27;")
+        }
+
         let mut html = String::from("<html><body>");
 
         if let Some(greeting) = &self.greeting {
-            html.push_str(&format!("<h1>{}</h1>", greeting));
+            html.push_str(&format!("<h1>{}</h1>", escape_html(greeting)));
         }
 
         for line in &self.lines {
-            html.push_str(&format!("<p>{}</p>", line));
+            html.push_str(&format!("<p>{}</p>", escape_html(line)));
         }
 
         if let Some(action) = &self.action {
             html.push_str(&format!(
                 r#"<p><a href="{}" style="background-color: #3490dc; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">{}</a></p>"#,
-                action.url, action.text
+                escape_html(&action.url), escape_html(&action.text)
             ));
         }
 

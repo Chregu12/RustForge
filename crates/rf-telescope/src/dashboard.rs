@@ -506,6 +506,11 @@ const DASHBOARD_HTML: &str = r#"<!DOCTYPE html>
             }
         }
 
+        function escapeHtml(str) {
+            if (str === null || str === undefined) return '';
+            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#x27;');
+        }
+
         async function loadEntries() {
             const res = await fetch('/api/entries');
             const data = await res.json();
@@ -519,10 +524,10 @@ const DASHBOARD_HTML: &str = r#"<!DOCTYPE html>
             list.innerHTML = data.entries.map(entry => `
                 <li class="entry-item">
                     <div class="entry-header">
-                        <div class="entry-title">${entry.entry_type}</div>
-                        <div class="entry-time">${new Date(entry.created_at).toLocaleString()}</div>
+                        <div class="entry-title">${escapeHtml(entry.entry_type)}</div>
+                        <div class="entry-time">${escapeHtml(new Date(entry.created_at).toLocaleString())}</div>
                     </div>
-                    <div class="entry-content">${JSON.stringify(entry.content, null, 2).substring(0, 200)}...</div>
+                    <div class="entry-content">${escapeHtml(JSON.stringify(entry.content, null, 2).substring(0, 200))}...</div>
                 </li>
             `).join('');
         }
@@ -544,15 +549,15 @@ const DASHBOARD_HTML: &str = r#"<!DOCTYPE html>
                     <li class="entry-item">
                         <div class="entry-header">
                             <div>
-                                <span class="badge ${statusClass}">${req.status}</span>
-                                <strong>${req.method}</strong> ${req.path}
+                                <span class="badge ${statusClass}">${escapeHtml(req.status)}</span>
+                                <strong>${escapeHtml(req.method)}</strong> ${escapeHtml(req.path)}
                             </div>
                             <div class="entry-time">
-                                <span class="duration">${req.duration_ms}ms</span> •
-                                ${new Date(entry.created_at).toLocaleString()}
+                                <span class="duration">${escapeHtml(req.duration_ms)}ms</span> •
+                                ${escapeHtml(new Date(entry.created_at).toLocaleString())}
                             </div>
                         </div>
-                        <div class="entry-content">IP: ${req.ip_address}</div>
+                        <div class="entry-content">IP: ${escapeHtml(req.ip_address)}</div>
                     </li>
                 `;
             }).join('');
@@ -574,14 +579,14 @@ const DASHBOARD_HTML: &str = r#"<!DOCTYPE html>
                 return `
                     <li class="entry-item">
                         <div class="entry-header">
-                            <div class="entry-title">${query.connection}</div>
+                            <div class="entry-title">${escapeHtml(query.connection)}</div>
                             <div class="entry-time">
-                                <span class="duration ${slowClass}">${query.duration_ms.toFixed(2)}ms</span> •
-                                ${new Date(entry.created_at).toLocaleString()}
+                                <span class="duration ${slowClass}">${escapeHtml(query.duration_ms.toFixed(2))}ms</span> •
+                                ${escapeHtml(new Date(entry.created_at).toLocaleString())}
                             </div>
                         </div>
-                        <div class="code-block">${query.sql}</div>
-                        ${query.bindings.length > 0 ? `<div class="entry-content">Bindings: ${JSON.stringify(query.bindings)}</div>` : ''}
+                        <div class="code-block">${escapeHtml(query.sql)}</div>
+                        ${query.bindings.length > 0 ? `<div class="entry-content">Bindings: ${escapeHtml(JSON.stringify(query.bindings))}</div>` : ''}
                     </li>
                 `;
             }).join('');
@@ -603,13 +608,13 @@ const DASHBOARD_HTML: &str = r#"<!DOCTYPE html>
                     <li class="entry-item">
                         <div class="entry-header">
                             <div>
-                                <span class="badge error">${exc.exception_type}</span>
-                                <strong>${exc.message}</strong>
+                                <span class="badge error">${escapeHtml(exc.exception_type)}</span>
+                                <strong>${escapeHtml(exc.message)}</strong>
                             </div>
-                            <div class="entry-time">${new Date(entry.created_at).toLocaleString()}</div>
+                            <div class="entry-time">${escapeHtml(new Date(entry.created_at).toLocaleString())}</div>
                         </div>
-                        ${exc.file ? `<div class="entry-content">${exc.file}:${exc.line}</div>` : ''}
-                        ${exc.stack_trace && exc.stack_trace.length > 0 ? `<div class="code-block">${exc.stack_trace.join('\n')}</div>` : ''}
+                        ${exc.file ? `<div class="entry-content">${escapeHtml(exc.file)}:${escapeHtml(exc.line)}</div>` : ''}
+                        ${exc.stack_trace && exc.stack_trace.length > 0 ? `<div class="code-block">${escapeHtml(exc.stack_trace.join('\n'))}</div>` : ''}
                     </li>
                 `;
             }).join('');
@@ -632,16 +637,16 @@ const DASHBOARD_HTML: &str = r#"<!DOCTYPE html>
                     <li class="entry-item">
                         <div class="entry-header">
                             <div>
-                                <span class="badge ${statusClass}">${job.status}</span>
-                                <strong>${job.job_name}</strong>
+                                <span class="badge ${statusClass}">${escapeHtml(job.status)}</span>
+                                <strong>${escapeHtml(job.job_name)}</strong>
                             </div>
                             <div class="entry-time">
-                                ${job.duration_ms ? `<span class="duration">${job.duration_ms}ms</span> •` : ''}
-                                ${new Date(entry.created_at).toLocaleString()}
+                                ${job.duration_ms ? `<span class="duration">${escapeHtml(job.duration_ms)}ms</span> •` : ''}
+                                ${escapeHtml(new Date(entry.created_at).toLocaleString())}
                             </div>
                         </div>
-                        <div class="entry-content">Queue: ${job.queue}</div>
-                        ${job.error ? `<div class="entry-content" style="color: #e53e3e;">Error: ${job.error}</div>` : ''}
+                        <div class="entry-content">Queue: ${escapeHtml(job.queue)}</div>
+                        ${job.error ? `<div class="entry-content" style="color: #e53e3e;">Error: ${escapeHtml(job.error)}</div>` : ''}
                     </li>
                 `;
             }).join('');
@@ -663,13 +668,13 @@ const DASHBOARD_HTML: &str = r#"<!DOCTYPE html>
                     <li class="entry-item">
                         <div class="entry-header">
                             <div>
-                                <strong>${mail.subject}</strong>
+                                <strong>${escapeHtml(mail.subject)}</strong>
                             </div>
-                            <div class="entry-time">${new Date(entry.created_at).toLocaleString()}</div>
+                            <div class="entry-time">${escapeHtml(new Date(entry.created_at).toLocaleString())}</div>
                         </div>
                         <div class="entry-content">
-                            From: ${mail.from}<br>
-                            To: ${mail.to.join(', ')}<br>
+                            From: ${escapeHtml(mail.from)}<br>
+                            To: ${escapeHtml(mail.to.join(', '))}<br>
                             ${mail.attachments.length > 0 ? `Attachments: ${mail.attachments.length}` : ''}
                         </div>
                     </li>

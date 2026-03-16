@@ -157,6 +157,14 @@ impl ErrorFunction {
         }
     }
 
+    pub fn add_errors(&self, errors: HashMap<String, Vec<String>>) {
+        if let Ok(mut errs) = self.errors.write() {
+            for (field, messages) in errors {
+                errs.entry(field).or_insert_with(Vec::new).extend(messages);
+            }
+        }
+    }
+
     pub fn clear_errors(&self) {
         if let Ok(mut errors) = self.errors.write() {
             errors.clear();
@@ -204,6 +212,14 @@ impl ErrorsFunction {
             *errs = errors;
         }
     }
+
+    pub fn add_errors(&self, errors: HashMap<String, Vec<String>>) {
+        if let Ok(mut errs) = self.errors.write() {
+            for (field, messages) in errors {
+                errs.entry(field).or_insert_with(Vec::new).extend(messages);
+            }
+        }
+    }
 }
 
 impl Function for ErrorsFunction {
@@ -246,6 +262,14 @@ impl HasErrorFunction {
     pub fn set_errors(&self, errors: HashMap<String, Vec<String>>) {
         if let Ok(mut errs) = self.errors.write() {
             *errs = errors;
+        }
+    }
+
+    pub fn add_errors(&self, errors: HashMap<String, Vec<String>>) {
+        if let Ok(mut errs) = self.errors.write() {
+            for (field, messages) in errors {
+                errs.entry(field).or_insert_with(Vec::new).extend(messages);
+            }
         }
     }
 }

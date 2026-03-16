@@ -1187,6 +1187,7 @@ where
         page: u64,
         per_page: u64,
     ) -> Result<PaginatedResults<E::Model>, sea_orm::DbErr> {
+        let per_page = per_page.max(1);
         // Calculate total count
         let count_query = Self::from_select(self.select.clone(), self.db.clone());
         let total = count_query.count().await?;

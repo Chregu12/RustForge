@@ -54,7 +54,20 @@ impl CsrfProtection {
         let tokens = self.tokens.read().unwrap();
 
         if let Some(stored_token) = tokens.get(session_id) {
-            stored_token.is_valid() && stored_token.token == token
+            if !stored_token.is_valid() {
+                return false;
+            }
+            // Constant-time comparison to prevent timing attacks
+            let stored_bytes = stored_token.token.as_bytes();
+            let provided_bytes = token.as_bytes();
+            if stored_bytes.len() != provided_bytes.len() {
+                return false;
+            }
+            let mut result = 0u8;
+            for (a, b) in stored_bytes.iter().zip(provided_bytes.iter()) {
+                result |= a ^ b;
+            }
+            result == 0
         } else {
             false
         }

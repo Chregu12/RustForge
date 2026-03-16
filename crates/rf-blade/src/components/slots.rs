@@ -60,7 +60,14 @@ impl Slot {
     pub fn attributes_html(&self) -> String {
         self.attributes
             .iter()
-            .map(|(k, v)| format!("{}=\"{}\"", k, v))
+            .map(|(k, v)| {
+                let escaped = v
+                    .replace('&', "&amp;")
+                    .replace('"', "&quot;")
+                    .replace('<', "&lt;")
+                    .replace('>', "&gt;");
+                format!("{}=\"{}\"", k, escaped)
+            })
             .collect::<Vec<_>>()
             .join(" ")
     }

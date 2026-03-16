@@ -277,6 +277,24 @@ impl<E: ValidatableEntity + 'static> Rule for UniqueRule<E> {
 // Simple String-based Database Rules (for dynamic use)
 // ============================================================================
 
+/// Validate that a SQL identifier (table/column name) contains only safe characters.
+/// Prevents SQL injection through identifier names.
+fn validate_sql_identifier(name: &str) -> Result<(), String> {
+    if name.is_empty() {
+        return Err("SQL identifier cannot be empty".to_string());
+    }
+    if !name
+        .chars()
+        .all(|c| c.is_ascii_alphanumeric() || c == '_')
+    {
+        return Err(format!(
+            "SQL identifier '{}' contains invalid characters",
+            name
+        ));
+    }
+    Ok(())
+}
+
 /// Simple exists rule using raw SQL queries
 ///
 /// This is a simplified version that can work without concrete entity types,
@@ -321,6 +339,10 @@ impl Rule for SimpleExistsRule {
         if value.is_null() {
             return Ok(());
         }
+
+        // Validate identifiers to prevent SQL injection
+        validate_sql_identifier(&self.table)?;
+        validate_sql_identifier(&self.column)?;
 
         // Extract value and build query
         use sea_orm::{DbBackend, Statement, TryGetable};
@@ -451,6 +473,11 @@ impl Rule for SimpleUniqueRule {
         if value.is_null() {
             return Ok(());
         }
+
+        // Validate identifiers to prevent SQL injection
+        validate_sql_identifier(&self.table)?;
+        validate_sql_identifier(&self.column)?;
+        validate_sql_identifier(&self.id_column)?;
 
         // Extract value and build query
         use sea_orm::{DbBackend, Statement, TryGetable};

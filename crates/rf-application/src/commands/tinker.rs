@@ -352,7 +352,13 @@ impl TinkerSession {
 
         let obj = data.as_object().ok_or("Data must be a JSON object")?;
 
+        // Validate column names to prevent SQL injection
         let columns: Vec<String> = obj.keys().map(|k| k.clone()).collect();
+        for col in &columns {
+            if col.is_empty() || !col.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
+                return Err(format!("Invalid column name '{}': only alphanumeric characters and underscores are allowed", col));
+            }
+        }
         let values: Vec<String> = obj
             .values()
             .map(|v| match v {
@@ -365,10 +371,11 @@ impl TinkerSession {
             .collect();
 
         let backend = self.db.get_database_backend();
+        let quoted_columns: Vec<String> = columns.iter().map(|c| format!("\"{}\"", c)).collect();
         let sql = format!(
             "INSERT INTO \"{}\" ({}) VALUES ({});",
             table,
-            columns.join(", "),
+            quoted_columns.join(", "),
             values.join(", ")
         );
 
@@ -396,6 +403,13 @@ impl TinkerSession {
         self.validate_table(table).await?;
 
         let obj = data.as_object().ok_or("Data must be a JSON object")?;
+
+        // Validate column names to prevent SQL injection
+        for col in obj.keys() {
+            if col.is_empty() || !col.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
+                return Err(format!("Invalid column name '{}': only alphanumeric characters and underscores are allowed", col));
+            }
+        }
 
         let updates: Vec<String> = obj
             .iter()

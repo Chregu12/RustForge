@@ -41,7 +41,8 @@ impl CaseConverter {
     /// Get plural form (simple implementation)
     pub fn plural(s: &str) -> String {
         if s.ends_with('y') && !s.ends_with("ay") && !s.ends_with("ey") && !s.ends_with("oy") && !s.ends_with("uy") {
-            format!("{}ies", &s[..s.len() - 1])
+            let stem = s.strip_suffix('y').unwrap_or(s);
+            format!("{}ies", stem)
         } else if s.ends_with('s') || s.ends_with("sh") || s.ends_with("ch") || s.ends_with('x') || s.ends_with('z') {
             format!("{}es", s)
         } else {
@@ -51,12 +52,12 @@ impl CaseConverter {
 
     /// Get singular form (simple implementation)
     pub fn singular(s: &str) -> String {
-        if s.ends_with("ies") {
-            format!("{}y", &s[..s.len() - 3])
-        } else if s.ends_with("es") {
-            s[..s.len() - 2].to_string()
+        if let Some(stem) = s.strip_suffix("ies") {
+            format!("{}y", stem)
+        } else if let Some(stem) = s.strip_suffix("es") {
+            stem.to_string()
         } else if s.ends_with('s') && !s.ends_with("ss") {
-            s[..s.len() - 1].to_string()
+            s.strip_suffix('s').unwrap_or(s).to_string()
         } else {
             s.to_string()
         }

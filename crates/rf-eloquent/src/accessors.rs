@@ -334,10 +334,11 @@ pub mod common_accessors {
 
     /// Truncate accessor
     pub fn truncate(value: &str, length: usize) -> String {
-        if value.len() <= length {
+        if value.chars().count() <= length {
             value.to_string()
         } else {
-            format!("{}...", &value[..length])
+            let truncated: String = value.chars().take(length).collect();
+            format!("{}...", truncated)
         }
     }
 

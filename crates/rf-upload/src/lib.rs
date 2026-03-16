@@ -119,7 +119,15 @@ impl FileUpload {
         }
 
         let mime_str = self.mime_type.to_string();
-        if allowed.iter().any(|&a| mime_str.starts_with(a)) {
+        if allowed.iter().any(|&a| {
+            if a.ends_with('/') {
+                // Category match (e.g. "image/")
+                mime_str.starts_with(a)
+            } else {
+                // Exact match (e.g. "image/jpeg")
+                mime_str == a
+            }
+        }) {
             Ok(self)
         } else {
             Err(UploadError::InvalidMimeType(mime_str))
@@ -156,8 +164,16 @@ impl FileUpload {
         let dir = directory.as_ref();
         tokio::fs::create_dir_all(dir).await?;
 
-        // Generate unique filename
-        let filename = sanitize_filename(&self.filename);
+        // Generate unique filename to prevent overwrites
+        let sanitized = sanitize_filename(&self.filename);
+        let filename = format!(
+            "{}_{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_nanos(),
+            sanitized
+        );
         let path = dir.join(&filename);
 
         // Write file

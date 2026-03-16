@@ -93,7 +93,7 @@ impl Subscription {
         let mut params = stripe::UpdateSubscription::new();
         params.cancel_at_period_end = Some(true);
 
-        let sub = stripe::Subscription::update(&client, &self.stripe_id.parse().unwrap(), params)
+        let sub = stripe::Subscription::update(&client, &self.stripe_id.parse().map_err(|_| CashierError::StripeError("Invalid Stripe ID format".to_string()))?, params)
             .await
             .map_err(|e| CashierError::StripeError(e.to_string()))?;
 
@@ -108,7 +108,7 @@ impl Subscription {
     pub async fn cancel_now(&mut self) -> CashierResult<()> {
         let client = crate::config::get_config().stripe_client();
 
-        stripe::Subscription::cancel(&client, &self.stripe_id.parse().unwrap(), stripe::CancelSubscription::default())
+        stripe::Subscription::cancel(&client, &self.stripe_id.parse().map_err(|_| CashierError::StripeError("Invalid Stripe ID format".to_string()))?, stripe::CancelSubscription::default())
             .await
             .map_err(|e| CashierError::StripeError(e.to_string()))?;
 
@@ -129,7 +129,7 @@ impl Subscription {
         let mut params = stripe::UpdateSubscription::new();
         params.cancel_at_period_end = Some(false);
 
-        stripe::Subscription::update(&client, &self.stripe_id.parse().unwrap(), params)
+        stripe::Subscription::update(&client, &self.stripe_id.parse().map_err(|_| CashierError::StripeError("Invalid Stripe ID format".to_string()))?, params)
             .await
             .map_err(|e| CashierError::StripeError(e.to_string()))?;
 
@@ -143,7 +143,7 @@ impl Subscription {
         let client = crate::config::get_config().stripe_client();
 
         // Get current subscription to find item ID
-        let sub = stripe::Subscription::retrieve(&client, &self.stripe_id.parse().unwrap(), &[])
+        let sub = stripe::Subscription::retrieve(&client, &self.stripe_id.parse().map_err(|_| CashierError::StripeError("Invalid Stripe ID format".to_string()))?, &[])
             .await
             .map_err(|e| CashierError::StripeError(e.to_string()))?;
 
@@ -161,7 +161,7 @@ impl Subscription {
         params.items = Some(items);
         // Proration is enabled by default, we'll skip explicit setting
 
-        stripe::Subscription::update(&client, &self.stripe_id.parse().unwrap(), params)
+        stripe::Subscription::update(&client, &self.stripe_id.parse().map_err(|_| CashierError::StripeError("Invalid Stripe ID format".to_string()))?, params)
             .await
             .map_err(|e| CashierError::StripeError(e.to_string()))?;
 
@@ -174,7 +174,7 @@ impl Subscription {
     pub async fn update_quantity(&mut self, quantity: i32) -> CashierResult<()> {
         let client = crate::config::get_config().stripe_client();
 
-        let sub = stripe::Subscription::retrieve(&client, &self.stripe_id.parse().unwrap(), &[])
+        let sub = stripe::Subscription::retrieve(&client, &self.stripe_id.parse().map_err(|_| CashierError::StripeError("Invalid Stripe ID format".to_string()))?, &[])
             .await
             .map_err(|e| CashierError::StripeError(e.to_string()))?;
 
@@ -191,7 +191,7 @@ impl Subscription {
         let mut params = stripe::UpdateSubscription::new();
         params.items = Some(items);
 
-        stripe::Subscription::update(&client, &self.stripe_id.parse().unwrap(), params)
+        stripe::Subscription::update(&client, &self.stripe_id.parse().map_err(|_| CashierError::StripeError("Invalid Stripe ID format".to_string()))?, params)
             .await
             .map_err(|e| CashierError::StripeError(e.to_string()))?;
 
