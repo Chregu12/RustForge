@@ -141,6 +141,7 @@ across the RustForge framework. Issues are organized by severity and crate.
 | 130 | `rf-spark` | Silent data loss in financial amount conversion — `(amount * 100).to_string().parse::<i64>().unwrap_or(0)` fails for most decimal amounts (e.g., `"1999.00"` doesn't parse as i64), silently charging $0.00; fixed with `round_dp(0)` and proper error propagation in `payment.rs` and `invoice.rs` | latest |
 | 131 | `rf-testing` | Broken base64 encoding in HTTP test client — `base64::encode()` mock returned `"base64:{input}"` placeholder instead of actual base64, producing invalid Basic Auth headers; replaced with proper base64 implementation | latest |
 | 132 | `rf-socialite` | Silent empty user ID from OAuth — `user_data.id.unwrap_or_default()` silently creates users with empty ID when OAuth provider omits user ID field, causing downstream auth/identity failures; changed to return error | latest |
+| 133 | `rf-echo` | Presence channel always sends empty `channel_data` — `join()` calls `authenticate()` (returns only auth token) instead of `authenticate_presence()` (returns auth + channel_data), so presence channel subscriptions never include user identity data | latest |
 
 ---
 
