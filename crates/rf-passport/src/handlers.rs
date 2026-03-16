@@ -107,7 +107,7 @@ pub async fn token_endpoint<V: PasswordVerifier>(
 /// Revoke token endpoint - DELETE /oauth/tokens/{token_id}
 pub async fn revoke_token(
     State(state): State<PassportState>,
-    PassportAuth(user_id, _): PassportAuth,
+    PassportAuth(user_id, requesting_token): PassportAuth,
     token_id: String,
 ) -> Result<impl IntoResponse, PassportError> {
     // Only allow users to revoke their own tokens
@@ -120,6 +120,13 @@ pub async fn revoke_token(
     if token.user_id != user_id {
         return Err(PassportError::AccessDenied(
             "Cannot revoke another user's token".to_string(),
+        ));
+    }
+
+    // For client-credentials tokens (user_id is None), also verify client_id matches
+    if token.user_id.is_none() && token.client_id != requesting_token.client_id {
+        return Err(PassportError::AccessDenied(
+            "Cannot revoke another client's token".to_string(),
         ));
     }
 

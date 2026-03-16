@@ -58,6 +58,9 @@ across the RustForge framework. Issues are organized by severity and crate.
 | 47 | `rf-telescope` | `CacheInfo::with_value()` truncated at byte index 1000 via `&val[..1000]` — panics on multi-byte UTF-8 characters when byte 1000 falls mid-character; replaced with char-boundary-aware truncation | latest |
 | 48 | `rf-telescope` | **CRITICAL SECURITY**: Dashboard JavaScript rendered all dynamic content (`req.path`, `exc.message`, `query.sql`, `mail.subject`, etc.) via template literals into `.innerHTML` without escaping — stored XSS via crafted request paths, exception messages, or SQL queries; added `escapeHtml()` function applied to all dynamic interpolations | latest |
 | 49 | `rf-logging` | `init_logging()` silently returned `Ok(())` when `stdout: false` and no file output configured — all log output silently discarded; now returns an error when no output target is configured | latest |
+| 50 | `rf-storage` | **SECURITY**: `LocalStorage::resolve_path()` canonicalized only existing files — for new files (`put`), the symlink-based traversal check was silently skipped, allowing writes outside storage root; now canonicalizes parent directory for non-existent paths | latest |
+| 51 | `rf-passport` | **SECURITY**: `revoke_token` handler compared only `user_id` — client-credentials tokens (where `user_id` is `None`) from any client could revoke any other client's tokens; added `client_id` check for client-credentials tokens | latest |
+| 52 | `rf-passport` | Refresh token scope validation used `Vec::contains()` instead of `has_scope()` — wildcard scope `"*"` not honored during token refresh, preventing scope narrowing on wildcard tokens; switched to `has_scope()` which handles `"*"` | latest |
 
 ---
 

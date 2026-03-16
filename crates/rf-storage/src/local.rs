@@ -62,19 +62,30 @@ impl LocalStorage {
 
         let full_path = self.root.join(normalized);
 
-        // Double check: Ensure path starts with root
-        // Use canonicalize only for the root to avoid issues with non-existent files
+        // Canonicalize the root for comparison
         let canonical_root = self
             .root
             .canonicalize()
             .unwrap_or_else(|_| self.root.clone());
 
-        // Check if full_path would be under root when canonicalized
+        // For existing paths, canonicalize and verify
         if let Ok(canonical_full) = full_path.canonicalize() {
             if !canonical_full.starts_with(&canonical_root) {
                 return Err(StorageError::InvalidPath(
                     "Path outside storage root".into(),
                 ));
+            }
+        } else {
+            // For non-existent paths (e.g. put), canonicalize the parent directory
+            // to catch symlink-based traversal attacks
+            if let Some(parent) = full_path.parent() {
+                if let Ok(canonical_parent) = parent.canonicalize() {
+                    if !canonical_parent.starts_with(&canonical_root) {
+                        return Err(StorageError::InvalidPath(
+                            "Path outside storage root".into(),
+                        ));
+                    }
+                }
             }
         }
 

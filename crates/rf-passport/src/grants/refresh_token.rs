@@ -85,10 +85,8 @@ impl<'a> RefreshTokenGrant<'a> {
                 .map(|s| s.to_string())
                 .collect();
 
-            let original_scopes = original_access_token.get_scopes();
-
             for scope in &requested {
-                if !original_scopes.contains(scope) {
+                if !original_access_token.has_scope(scope) {
                     return Err(PassportError::InvalidScope(format!(
                         "Scope '{}' was not in original token",
                         scope
