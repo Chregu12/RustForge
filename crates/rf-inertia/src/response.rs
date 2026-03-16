@@ -88,6 +88,19 @@ impl InertiaResponse {
     pub fn into_html_response(self, root_view: &str) -> Result<Response> {
         let json_data = serde_json::to_string(&self)?;
 
+        // Escape for safe embedding in HTML attribute
+        let escaped_json = json_data
+            .replace('&', "&amp;")
+            .replace('\'', "&#x27;")
+            .replace('<', "&lt;")
+            .replace('>', "&gt;");
+
+        let escaped_root_view = root_view
+            .replace('&', "&amp;")
+            .replace('<', "&lt;")
+            .replace('>', "&gt;")
+            .replace('"', "&quot;");
+
         let html = format!(
             r#"<!DOCTYPE html>
 <html>
@@ -100,7 +113,7 @@ impl InertiaResponse {
     <div id="{}" data-page='{}'></div>
 </body>
 </html>"#,
-            root_view, root_view, json_data
+            escaped_root_view, escaped_root_view, escaped_json
         );
 
         Ok((StatusCode::OK, Html(html)).into_response())

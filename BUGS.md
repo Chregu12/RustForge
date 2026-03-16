@@ -75,6 +75,7 @@ across the RustForge framework. Issues are organized by severity and crate.
 | 64 | `rf-routing` | `QueryStringBuilder::build()` did not URL-encode keys or values — special characters (`&`, `=`, spaces, etc.) in query params produced malformed/ambiguous URLs; added percent-encoding | latest |
 | 65 | `rf-config` | **SECURITY**: `AuthConfig` derived `Debug` which prints `jwt_secret` in plain text to logs/errors; replaced with manual `Debug` impl that redacts the secret | latest |
 | 66 | `rf-config` | **SECURITY**: `DatabaseConfig` derived `Debug` which prints database URL (including credentials) in plain text to logs/errors; replaced with manual `Debug` impl that redacts the URL | latest |
+| 67 | `rf-inertia` | **SECURITY**: `into_html_response()` embedded JSON `data-page` in single-quoted attribute without escaping — single quotes in JSON values could break attribute and inject HTML/JS; added HTML entity escaping for both JSON data and root_view | latest |
 
 ---
 
