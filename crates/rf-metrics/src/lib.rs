@@ -168,10 +168,16 @@ pub async fn metrics_handler() -> impl IntoResponse {
         );
     }
 
-    let output = String::from_utf8(buffer).unwrap_or_else(|e| {
-        eprintln!("Failed to convert metrics to string: {}", e);
-        String::new()
-    });
+    let output = match String::from_utf8(buffer) {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("Failed to convert metrics to string: {}", e);
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Failed to encode metrics to UTF-8".to_string(),
+            );
+        }
+    };
 
     (StatusCode::OK, output)
 }

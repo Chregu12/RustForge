@@ -1078,12 +1078,33 @@ impl ValidationRuleTrait for Date {
                         "date",
                     ));
                 }
-                // Basic validation for month and day ranges
+                // Validate month and day ranges including month-specific limits
                 let parts: Vec<&str> = v.split('-').collect();
                 if parts.len() == 3 {
-                    if let (Ok(month), Ok(day)) = (parts[1].parse::<u32>(), parts[2].parse::<u32>())
-                    {
-                        if month == 0 || month > 12 || day == 0 || day > 31 {
+                    if let (Ok(year), Ok(month), Ok(day)) = (
+                        parts[0].parse::<u32>(),
+                        parts[1].parse::<u32>(),
+                        parts[2].parse::<u32>(),
+                    ) {
+                        if month == 0 || month > 12 || day == 0 {
+                            return Err(ValidationError::new(
+                                field,
+                                format!("The {} field must be a valid date.", field),
+                                "date",
+                            ));
+                        }
+                        let max_day = match month {
+                            2 => {
+                                if (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0) {
+                                    29
+                                } else {
+                                    28
+                                }
+                            }
+                            4 | 6 | 9 | 11 => 30,
+                            _ => 31,
+                        };
+                        if day > max_day {
                             return Err(ValidationError::new(
                                 field,
                                 format!("The {} field must be a valid date.", field),

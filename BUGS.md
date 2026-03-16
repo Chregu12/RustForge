@@ -145,6 +145,8 @@ across the RustForge framework. Issues are organized by severity and crate.
 | 134 | `rf-search` | SQL injection in PostgreSQL search filter fields — `build_where_clause()` interpolates filter field names directly into SQL without validation; added `validate_identifier()` check for all filter field names | latest |
 | 135 | `rf-health` | PingCheck uses port 80 for HTTPS URLs — after stripping `https://` prefix, always defaults to port 80 instead of 443, causing health checks against HTTPS endpoints to fail | latest |
 | 136 | `rf-2fa` | Wrong error for already-used backup codes — `use_code()` returns `BackupCodeNotFound` instead of distinguishing between non-existent and already-used codes; added `BackupCodeAlreadyUsed` variant | latest |
+| 137 | `rf-metrics` | Metrics handler returns HTTP 200 OK with empty body on UTF-8 encoding failure — `String::from_utf8` error silently swallowed with `unwrap_or_else` returning empty string; changed to return 500 Internal Server Error | latest |
+| 138 | `rf-forms` | Date validation accepts invalid dates like Feb 31 — only checks `day <= 31` without month-specific limits; added per-month day validation with leap year handling | latest |
 
 ---
 
