@@ -175,6 +175,7 @@ pub struct AdminList {
 
 impl AdminList {
     pub fn new(data: Vec<serde_json::Value>, total: u64, page: u32, per_page: u32) -> Self {
+        let per_page = per_page.max(1);
         let last_page = ((total as f64) / (per_page as f64)).ceil() as u32;
         Self {
             data,

@@ -126,9 +126,11 @@ pub async fn generate_key_pair(key_type: KeyType, comment: &str) -> EnvoyResult<
 pub async fn authorize_key(server: &Server, public_key: &str) -> EnvoyResult<()> {
     let session = SshSession::new(server.clone());
 
+    // Escape single quotes in the public key to prevent shell injection
+    let escaped_key = public_key.trim().replace('\'', "'\\''");
     let command = format!(
         "mkdir -p ~/.ssh && chmod 700 ~/.ssh && echo '{}' >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys",
-        public_key.trim()
+        escaped_key
     );
 
     session.exec(&command).await?;

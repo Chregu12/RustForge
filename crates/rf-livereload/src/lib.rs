@@ -126,50 +126,27 @@ impl LiveReload {
     /// Add a directory to watch
     pub fn watch<P: AsRef<Path>>(self, path: P) -> Self {
         let path = path.as_ref().to_path_buf();
-        let config = self.config.clone();
-
-        tokio::spawn(async move {
-            let mut cfg = config.write().await;
-            cfg.watch_paths.push(path);
-        });
-
+        // Use blocking_write to ensure config is set before returning,
+        // preventing race conditions when chaining .watch().pattern().start()
+        self.config.blocking_write().watch_paths.push(path);
         self
     }
 
     /// Add a file pattern to watch
     pub fn pattern(self, pattern: impl Into<String>) -> Self {
-        let pattern = pattern.into();
-        let config = self.config.clone();
-
-        tokio::spawn(async move {
-            let mut cfg = config.write().await;
-            cfg.patterns.push(pattern);
-        });
-
+        self.config.blocking_write().patterns.push(pattern.into());
         self
     }
 
     /// Set debounce duration
     pub fn debounce_ms(self, ms: u64) -> Self {
-        let config = self.config.clone();
-
-        tokio::spawn(async move {
-            let mut cfg = config.write().await;
-            cfg.debounce_ms = ms;
-        });
-
+        self.config.blocking_write().debounce_ms = ms;
         self
     }
 
     /// Set WebSocket port
     pub fn port(self, port: u16) -> Self {
-        let config = self.config.clone();
-
-        tokio::spawn(async move {
-            let mut cfg = config.write().await;
-            cfg.port = port;
-        });
-
+        self.config.blocking_write().port = port;
         self
     }
 

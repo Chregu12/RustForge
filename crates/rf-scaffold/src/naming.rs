@@ -71,7 +71,7 @@ impl NamingConvention {
                 {
                     result.push('_');
                 }
-                result.push(ch.to_lowercase().next().unwrap());
+                result.push(ch.to_lowercase().next().unwrap_or(ch));
                 prev_uppercase = true;
                 prev_lowercase = false;
             } else {
@@ -160,19 +160,21 @@ impl NamingConvention {
         }
 
         if lower.ends_with('y') && lower.len() > 1 {
-            let before_y = lower.chars().nth(lower.len() - 2).unwrap();
-            if !"aeiou".contains(before_y) {
-                // consonant + y -> ies
-                return format!("{}ies", &word[..word.len() - 1]);
+            if let Some(before_y) = lower.chars().rev().nth(1) {
+                if !"aeiou".contains(before_y) {
+                    // consonant + y -> ies
+                    let stem = word.strip_suffix('y').or_else(|| word.strip_suffix('Y')).unwrap_or(word);
+                    return format!("{}ies", stem);
+                }
             }
         }
 
-        if lower.ends_with("fe") {
-            return format!("{}ves", &word[..word.len() - 2]);
+        if let Some(stem) = word.strip_suffix("fe").or_else(|| word.strip_suffix("FE")) {
+            return format!("{}ves", stem);
         }
 
-        if lower.ends_with('f') {
-            return format!("{}ves", &word[..word.len() - 1]);
+        if let Some(stem) = word.strip_suffix('f').or_else(|| word.strip_suffix('F')) {
+            return format!("{}ves", stem);
         }
 
         // Default: add 's'
@@ -225,17 +227,19 @@ impl NamingConvention {
             }
         }
 
-        // Special endings
-        if lower.ends_with("ies") && lower.len() > 3 {
-            return format!("{}y", &word[..word.len() - 3]);
+        // Special endings — use char-based operations to avoid UTF-8 panics
+        if lower.ends_with("ies") && word.chars().count() > 3 {
+            let stem: String = word.chars().take(word.chars().count() - 3).collect();
+            return format!("{}y", stem);
         }
 
-        if lower.ends_with("ves") && lower.len() > 3 {
-            return format!("{}f", &word[..word.len() - 3]);
+        if lower.ends_with("ves") && word.chars().count() > 3 {
+            let stem: String = word.chars().take(word.chars().count() - 3).collect();
+            return format!("{}f", stem);
         }
 
-        if lower.ends_with("ses") && lower.len() > 3 {
-            return word[..word.len() - 2].to_string();
+        if lower.ends_with("ses") && word.chars().count() > 3 {
+            return word.chars().take(word.chars().count() - 2).collect();
         }
 
         if lower.ends_with("ches")
@@ -243,11 +247,11 @@ impl NamingConvention {
             || lower.ends_with("xes")
             || lower.ends_with("zes")
         {
-            return word[..word.len() - 2].to_string();
+            return word.chars().take(word.chars().count() - 2).collect();
         }
 
         if lower.ends_with('s') && !lower.ends_with("ss") {
-            return word[..word.len() - 1].to_string();
+            return word.chars().take(word.chars().count() - 1).collect();
         }
 
         word.to_string()

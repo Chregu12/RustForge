@@ -43,9 +43,10 @@ impl TaskRunner {
     fn build_script(&self, commands: &[String]) -> String {
         let mut script = String::from("set -e\n");
 
-        // Add working directory change if configured
+        // Add working directory change if configured (quote path to prevent injection)
         if let Some(ref dir) = self.server.working_dir {
-            script.push_str(&format!("cd {}\n", dir));
+            let escaped_dir = dir.replace('\'', "'\\''");
+            script.push_str(&format!("cd '{}'\n", escaped_dir));
         }
 
         // Add each command

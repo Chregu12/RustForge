@@ -80,6 +80,14 @@ across the RustForge framework. Issues are organized by severity and crate.
 | 69 | `rf-validation` | **CRITICAL SECURITY**: `SimpleExistsRule` and `SimpleUniqueRule` interpolated `table`, `column`, and `id_column` directly into SQL query strings without validation — SQL injection via identifier names; added `validate_sql_identifier()` that rejects non-alphanumeric/underscore characters | latest |
 | 70 | `rf-oauth2-server` | **CRITICAL SECURITY**: PKCE verification compared `code_challenge` directly to `code_verifier` instead of hashing the verifier with SHA-256 and base64url-encoding per RFC 7636 — PKCE completely non-functional | latest |
 | 71 | `rf-oauth2-server` | **SECURITY**: `exchange_code()` only validated client secret if caller provided one — confidential clients (with a secret) could be accessed without authentication by omitting `client_secret`; now requires authentication for clients with secrets | latest |
+| 72 | `rf-envoy` | **CRITICAL SECURITY**: `authorize_key()` interpolated public key into shell command with single quotes — a key containing `'` could escape the quotes and execute arbitrary commands; added proper shell escaping | latest |
+| 73 | `rf-envoy` | **CRITICAL SECURITY**: `build_script()` interpolated `working_dir` into shell script without quoting — directory paths with shell metacharacters could execute arbitrary commands; now properly quoted | latest |
+| 74 | `rf-admin` | Division by zero panic in `AdminList::new()` when `per_page` is 0 — calculation of `last_page` used `per_page` as divisor without validation; fixed with `.max(1)` | latest |
+| 75 | `rf-helpers` | UTF-8 panic in `plural()`/`singular()` — byte-offset string slicing (`&word[..word.len()-N]`) panics on multi-byte characters; replaced with char-based operations | latest |
+| 76 | `rf-livereload` | Race condition in builder methods — `watch()`, `pattern()`, `debounce_ms()`, `port()` used `tokio::spawn()` to modify config asynchronously but returned `self` immediately, so `start()` would read default config; replaced with synchronous `blocking_write()` | latest |
+| 77 | `rf-macros` | Panic in `to_snake_case()` — `c.to_lowercase().next().unwrap()` panics if lowercase iterator is empty for certain Unicode characters; fixed with `.unwrap_or(c)` in 3 files | latest |
+| 78 | `rf-scaffold` | UTF-8 panic in `pluralize()`/`singularize()` — byte-offset string slicing panics on multi-byte characters; replaced with char-based and `strip_suffix` operations | latest |
+| 79 | `rf-stub-system` | Panic in `CaseConverter::plural()`/`singular()` — byte-offset slicing `&s[..s.len()-N]` panics on single-char inputs or multi-byte UTF-8; replaced with `strip_suffix` operations | latest |
 
 ---
 
