@@ -103,11 +103,12 @@ impl PostgresSearchDriver {
     }
 
     /// Build a WHERE clause from search options
-    fn build_where_clause(&self, options: &SearchOptions) -> (String, Vec<String>) {
+    fn build_where_clause(&self, options: &SearchOptions) -> Result<(String, Vec<String>)> {
         let mut conditions = Vec::new();
         let mut values = Vec::new();
 
         for (i, (field, value)) in options.filters.iter().enumerate() {
+            Self::validate_identifier(field)?;
             conditions.push(format!("{} = ${}", field, i + 2)); // Start from $2 since $1 is query
             values.push(value.clone());
         }
@@ -118,7 +119,7 @@ impl PostgresSearchDriver {
             format!(" AND {}", conditions.join(" AND "))
         };
 
-        (where_clause, values)
+        Ok((where_clause, values))
     }
 
     /// Count total matching documents for a query
@@ -130,7 +131,7 @@ impl PostgresSearchDriver {
         options: &SearchOptions,
     ) -> Result<i64> {
         let searchable_columns = columns.join(" || ' ' || ");
-        let (where_clause, filter_values) = self.build_where_clause(options);
+        let (where_clause, filter_values) = self.build_where_clause(options)?;
 
         let count_sql = format!(
             "SELECT COUNT(*) as count
@@ -166,7 +167,7 @@ impl PostgresSearchDriver {
         let column_list = columns.join(", ");
         let searchable_columns = columns.join(" || ' ' || ");
 
-        let (where_clause, filter_values) = self.build_where_clause(&options);
+        let (where_clause, filter_values) = self.build_where_clause(&options)?;
 
         // Build the ORDER BY clause
         let order_by = if let Some((field, ascending)) = &options.sort {
@@ -370,7 +371,7 @@ mod tests {
         };
 
         let options = SearchOptions::new();
-        let (clause, values) = driver.build_where_clause(&options);
+        let (clause, values) = driver.build_where_clause(&options).unwrap();
 
         assert_eq!(clause, "");
         assert_eq!(values.len(), 0);
