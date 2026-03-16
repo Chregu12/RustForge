@@ -77,6 +77,7 @@ across the RustForge framework. Issues are organized by severity and crate.
 | 66 | `rf-config` | **SECURITY**: `DatabaseConfig` derived `Debug` which prints database URL (including credentials) in plain text to logs/errors; replaced with manual `Debug` impl that redacts the URL | latest |
 | 67 | `rf-inertia` | **SECURITY**: `into_html_response()` embedded JSON `data-page` in single-quoted attribute without escaping — single quotes in JSON values could break attribute and inject HTML/JS; added HTML entity escaping for both JSON data and root_view | latest |
 | 68 | `rf-broadcasting` | **SECURITY**: `AuthToken::verify()` used `==` string comparison for HMAC signature verification — timing side-channel leaks signature bytes; replaced with `hmac::Mac::verify_slice()` for constant-time comparison | latest |
+| 69 | `rf-validation` | **CRITICAL SECURITY**: `SimpleExistsRule` and `SimpleUniqueRule` interpolated `table`, `column`, and `id_column` directly into SQL query strings without validation — SQL injection via identifier names; added `validate_sql_identifier()` that rejects non-alphanumeric/underscore characters | latest |
 
 ---
 
