@@ -136,6 +136,8 @@ across the RustForge framework. Issues are organized by severity and crate.
 | 125 | `rf-search` | **SECURITY**: SQL injection in `create_fts_index()` and `drop_fts_index()` — `table` and `columns` parameters not validated before interpolation into DDL statements; added `validate_identifier()` calls | latest |
 | 126 | `rf-cms` | **SECURITY**: XSS/JS injection in `EditorConfig::init_script()` — `selector` parameter embedded directly into JavaScript string literals without escaping; added JS string escaping for `\`, `'`, `\n`, `\r` | latest |
 | 127 | `rf-nova` | Non-deterministic trend direction in `TrendMetric::calculate_trend()` — iterates `HashMap` values (undefined order) to determine trend; fixed by sorting entries by key before comparison | latest |
+| 128 | `rf-nightwatch` | Panic in `Histogram::min()`/`max()` — `partial_cmp().unwrap()` panics when NaN values are recorded; added NaN filtering and fallback ordering | latest |
+| 129 | `rf-nightwatch` | Panic in `Histogram::percentile()` — NaN causes sort panic, and floating-point index can exceed bounds; added NaN filtering and index clamping | latest |
 
 ---
 
