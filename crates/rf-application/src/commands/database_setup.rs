@@ -239,25 +239,40 @@ impl DatabaseCreateCommand {
 
         println!("\n✓ Setting up database...");
 
+        // Validate database identifiers to prevent SQL injection
+        fn is_valid_identifier(s: &str) -> bool {
+            !s.is_empty() && s.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
+        }
+        fn shell_escape(s: &str) -> String {
+            format!("'{}'", s.replace('\'', "'\\''"))
+        }
+
+        if !is_valid_identifier(&db_name) {
+            return Err(CommandError::Message("Invalid database name: only alphanumeric characters and underscores are allowed".to_string()));
+        }
+        if !is_valid_identifier(&db_user) {
+            return Err(CommandError::Message("Invalid database user: only alphanumeric characters and underscores are allowed".to_string()));
+        }
+
         // Connect to MySQL with root and create database
         let create_db_command = if root_password.is_empty() {
             format!(
                 "mysql -u {} -h {} -P {} -e \"CREATE DATABASE IF NOT EXISTS {};\" ",
-                root_user, host, port, db_name
+                shell_escape(&root_user), shell_escape(&host), shell_escape(&port), db_name
             )
         } else {
             format!(
-                "mysql -u {} -p'{}' -h {} -P {} -e \"CREATE DATABASE IF NOT EXISTS {}; \
-                 CREATE USER IF NOT EXISTS '{}' IDENTIFIED BY '{}'; \
-                 GRANT ALL PRIVILEGES ON {}.* TO '{}'; \
+                "mysql -u {} -p{} -h {} -P {} -e \"CREATE DATABASE IF NOT EXISTS {}; \
+                 CREATE USER IF NOT EXISTS '{}'@'%%' IDENTIFIED BY '{}'; \
+                 GRANT ALL PRIVILEGES ON {}.* TO '{}'@'%%'; \
                  FLUSH PRIVILEGES;\"",
-                root_user,
-                root_password,
-                host,
-                port,
+                shell_escape(&root_user),
+                shell_escape(&root_password),
+                shell_escape(&host),
+                shell_escape(&port),
                 db_name,
                 db_user,
-                db_password,
+                db_password.replace('\'', "''").replace('\\', "\\\\"),
                 db_name,
                 db_user
             )

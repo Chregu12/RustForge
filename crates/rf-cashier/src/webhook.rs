@@ -141,7 +141,17 @@ fn verify_signature(payload: &[u8], signature: &str, secret: &str) -> CashierRes
 
     let expected = hex::encode(mac.finalize().into_bytes());
 
-    if expected != *sig {
+    // Constant-time comparison to prevent timing attacks
+    let expected_bytes = expected.as_bytes();
+    let sig_bytes = sig.as_bytes();
+    if expected_bytes.len() != sig_bytes.len() {
+        return Err(CashierError::InvalidWebhookSignature);
+    }
+    let mut result = 0u8;
+    for (a, b) in expected_bytes.iter().zip(sig_bytes.iter()) {
+        result |= a ^ b;
+    }
+    if result != 0 {
         return Err(CashierError::InvalidWebhookSignature);
     }
 

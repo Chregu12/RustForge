@@ -127,6 +127,11 @@ across the RustForge framework. Issues are organized by severity and crate.
 | 116 | `rf-views` | Data loss in `ViewEngine::set_error()` — each call creates a new HashMap and overwrites all previous errors in `errors_function` and `has_error_function` via `set_errors()`; fixed by using `add_errors()` to merge instead of replace | latest |
 | 117 | `rf-blade` | Silent parse error in `read_directive_args()` — unterminated parentheses (missing closing `)`) causes the lexer to silently succeed and return truncated args instead of an error; added `depth > 0` check after loop | latest |
 | 118 | `rf-inertia` | Deferred props included in initial response — `build()` never filters deferred props from initial page load and never sets `deferred_props` metadata; fixed by removing deferred keys from props on non-partial requests and calling `with_deferred_props()` | latest |
+| 119 | `rf-application` | **SECURITY**: Shell injection + SQL injection in `DatabaseCreateCommand` — `db_name`, `db_user`, `root_password`, `host` from user input interpolated directly into shell commands and SQL; added identifier validation and shell escaping | latest |
+| 120 | `rf-auth-scaffolding` | Panic in `send_email()` — `.parse().unwrap()` on `from_email` config and `to` address panics on invalid email; replaced with `?` error propagation | latest |
+| 121 | `rf-routing` | **SECURITY**: Timing attack in `SignedUrl::verify()` — URL signature compared with `!=` allowing timing side-channel; replaced with constant-time XOR comparison | latest |
+| 122 | `rf-broadcast` | **SECURITY**: Timing attack in `PusherBroadcaster::verify_webhook()` — HMAC signature compared with `==` (comment incorrectly says "Constant-time comparison"); replaced with XOR comparison | latest |
+| 123 | `rf-cashier` | **SECURITY**: Timing attack in Stripe webhook `verify_signature()` — HMAC signature compared with `!=`; replaced with constant-time XOR comparison | latest |
 
 ---
 

@@ -16,6 +16,9 @@ pub enum EmailError {
 
     #[error("Failed to send email: {0}")]
     SendError(#[from] lettre::transport::smtp::Error),
+
+    #[error("Invalid email address: {0}")]
+    AddressError(#[from] lettre::address::AddressError),
 }
 
 pub type EmailResult<T> = Result<T, EmailError>;
@@ -117,8 +120,8 @@ Regards,
 
     fn send_email(&self, to: &str, subject: &str, body: &str) -> EmailResult<()> {
         let email = Message::builder()
-            .from(self.config.from_email.parse().unwrap())
-            .to(to.parse().unwrap())
+            .from(self.config.from_email.parse()?)
+            .to(to.parse()?)
             .subject(subject)
             .header(ContentType::TEXT_PLAIN)
             .body(body.to_string())?;

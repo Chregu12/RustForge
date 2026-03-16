@@ -346,8 +346,17 @@ impl PusherBroadcaster {
 
         let computed = hex::encode(mac.finalize().into_bytes());
 
-        // Constant-time comparison
-        computed == signature
+        // Constant-time comparison to prevent timing attacks
+        let computed_bytes = computed.as_bytes();
+        let sig_bytes = signature.as_bytes();
+        if computed_bytes.len() != sig_bytes.len() {
+            return false;
+        }
+        let mut result = 0u8;
+        for (a, b) in computed_bytes.iter().zip(sig_bytes.iter()) {
+            result |= a ^ b;
+        }
+        result == 0
     }
 }
 

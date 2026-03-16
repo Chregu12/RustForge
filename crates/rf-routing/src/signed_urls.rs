@@ -55,7 +55,17 @@ impl SignedUrl {
     pub fn verify(&self, secret: &str) -> bool {
         let expected_sig = Self::generate_signature(&self.url, secret, self.expires_at.as_ref());
 
-        if self.signature != expected_sig {
+        // Use constant-time comparison to prevent timing attacks
+        let sig_bytes = self.signature.as_bytes();
+        let expected_bytes = expected_sig.as_bytes();
+        if sig_bytes.len() != expected_bytes.len() {
+            return false;
+        }
+        let mut result = 0u8;
+        for (a, b) in sig_bytes.iter().zip(expected_bytes.iter()) {
+            result |= a ^ b;
+        }
+        if result != 0 {
             return false;
         }
 
