@@ -150,6 +150,12 @@ across the RustForge framework. Issues are organized by severity and crate.
 | 139 | `rf-routing` | `parse_signed_url` used `HashMap` to collect query params, causing non-deterministic iteration order when reconstructing the original URL — signature verification always failed for URLs with multiple query params; fixed by using `Vec` to preserve original parameter order | latest |
 | 140 | `rf-queue` | Exponential backoff in `retry()` used `2u64.pow(attempts - 1)` without bounds — overflows and panics in debug (or wraps to 0 in release) once `attempts >= 65`; capped exponent at 62 with `saturating_mul` | latest |
 | 141 | `rf-oauth2-server` | **SECURITY**: `verify_secret()` comment claimed "constant-time over fixed-length digests" but `==` on `GenericArray` (SHA-256 output) is NOT guaranteed constant-time — replaced with XOR-based constant-time comparison | latest |
+| 142 | `rf-cache-facade` | Integer overflow in `Cache::increment()` and `Cache::decrement()` — `unwrap_or(0) + value` panics on overflow in debug builds (wraps silently in release); `decrement` delegated to `increment(-value)` which overflows for `i64::MIN`; replaced with `saturating_add`/`saturating_sub` | latest |
+| 143 | `rf-global-helpers` | **SECURITY**: Timing attack on CSRF token verification — `verify_csrf_token()` compared tokens with `==`, vulnerable to timing side-channel; replaced with constant-time XOR byte comparison | latest |
+| 144 | `rf-global-helpers` | Panic in `RedirectResponse::into_response()` — `format!("session_id={}", session_id).parse().unwrap()` panics if `session_id` contains invalid HTTP header characters (e.g. newlines); replaced with `if let Ok(...)` | latest |
+| 145 | `rf-global-helpers` | URL injection in `Redirect::route()` — query parameter keys and values were formatted directly into the URL without percent-encoding, allowing special characters (`&`, `=`, `#`, etc.) to break URL structure; added `urlencoding::encode()` for all params | latest |
+| 146 | `rf-request` | DoS via unbounded request body in `FromRequest` extractor — `axum::body::to_bytes(body, usize::MAX)` accepts arbitrarily large bodies, allowing memory exhaustion; capped at 10 MiB | latest |
+| 147 | `rf-providers` | Undefined behaviour in `Container::make_type()` — `Arc::from_raw(Arc::into_raw(boxed) as *const T)` casts `*const Box<dyn Any>` (fat pointer, 2 words) to `*const T` (thin pointer), reinterpreting vtable+data as T; replaced by storing `Arc<dyn Any + Send + Sync>` in `type_singletons` and using safe `Arc::downcast::<T>()` | latest |
 
 ---
 
@@ -203,6 +209,21 @@ The `_optimized` variant likely supersedes the original but both are exported.
 
 **Fix needed**: Deprecate or remove `eager_loading.rs`, promote `eager_loading_optimized.rs`
 as the canonical implementation.
+
+---
+
+### `rf-auth` - `attempt()` Authenticates Any Credentials
+**Severity**: Critical (security stub)
+**File**: `crates/rf-auth/src/auth_manager.rs:84-104`
+
+The `attempt()` method is an unfinished stub: it logs in any user that provides an email and
+password field, regardless of whether the password is correct. No database lookup, no password
+hash verification is performed. Any caller with both fields present is granted authenticated
+access.
+
+**Fix needed**: Integrate with the ORM layer to query the user by email and verify the provided
+password against the stored hash using a password-hashing crate (e.g. `argon2` or `bcrypt`).
+Until then, this crate must not be used in production.
 
 ---
 

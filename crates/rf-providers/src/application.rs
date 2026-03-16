@@ -8,6 +8,8 @@ use tokio::sync::RwLock;
 
 type BoxedService = Box<dyn Any + Send + Sync>;
 type Factory = Arc<dyn Fn() -> BoxedService + Send + Sync>;
+// Type-erased singleton storage: Arc<dyn Any + Send + Sync> allows safe Arc::downcast::<T>()
+type ArcService = Arc<dyn Any + Send + Sync>;
 
 /// Service container for dependency injection
 #[derive(Clone)]
@@ -15,7 +17,7 @@ pub struct Container {
     bindings: Arc<RwLock<HashMap<String, Factory>>>,
     singletons: Arc<RwLock<HashMap<String, Arc<BoxedService>>>>,
     type_bindings: Arc<RwLock<HashMap<TypeId, Factory>>>,
-    type_singletons: Arc<RwLock<HashMap<TypeId, Arc<BoxedService>>>>,
+    type_singletons: Arc<RwLock<HashMap<TypeId, ArcService>>>,
 }
 
 impl Container {
@@ -69,8 +71,9 @@ impl Container {
         T: Any + Send + Sync + 'static,
         F: Fn() -> T + Send + Sync + 'static,
     {
-        let service = Arc::new(Box::new(factory()) as BoxedService);
-        let mut singletons: tokio::sync::RwLockWriteGuard<'_, HashMap<TypeId, Arc<BoxedService>>> =
+        // Store as Arc<dyn Any + Send + Sync> so make_type can safely downcast with Arc::downcast
+        let service: ArcService = Arc::new(factory());
+        let mut singletons: tokio::sync::RwLockWriteGuard<'_, HashMap<TypeId, ArcService>> =
             self.type_singletons.write().await;
         singletons.insert(TypeId::of::<T>(), service);
     }
@@ -102,14 +105,12 @@ impl Container {
 
         // Check singletons first
         {
-            let singletons: tokio::sync::RwLockReadGuard<'_, HashMap<TypeId, Arc<BoxedService>>> =
+            let singletons: tokio::sync::RwLockReadGuard<'_, HashMap<TypeId, ArcService>> =
                 self.type_singletons.read().await;
             if let Some(service) = singletons.get(&type_id) {
-                let boxed = Arc::clone(service);
-                if let Some(concrete) =
-                    Arc::downcast::<T>(unsafe { Arc::from_raw(Arc::into_raw(boxed) as *const T) })
-                        .ok()
-                {
+                // Safe: Arc<dyn Any + Send + Sync>::downcast is the correct API —
+                // no raw pointer casting needed, the TypeId check is done by downcast internally.
+                if let Ok(concrete) = Arc::clone(service).downcast::<T>() {
                     return Some(concrete);
                 }
             }

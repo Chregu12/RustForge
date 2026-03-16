@@ -103,7 +103,17 @@ pub fn verify_csrf_token(session_id: &str, token: &str) -> bool {
         if stored_token.is_expired(TOKEN_TTL) {
             return false;
         }
-        return stored_token.token == token;
+        // Constant-time comparison to prevent timing side-channel attacks
+        let a = stored_token.token.as_bytes();
+        let b = token.as_bytes();
+        if a.len() != b.len() {
+            return false;
+        }
+        let mut result = 0u8;
+        for (x, y) in a.iter().zip(b.iter()) {
+            result |= x ^ y;
+        }
+        return result == 0;
     }
 
     false
