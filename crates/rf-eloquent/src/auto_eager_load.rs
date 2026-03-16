@@ -193,7 +193,10 @@ impl QueryTracker {
         };
 
         if should_warn {
-            let pattern = self.create_pattern(key);
+            let pattern = {
+                let grouped = self.grouped.lock().unwrap();
+                grouped.get(key).and_then(Self::create_pattern_from)
+            };
             if let Some(pattern) = pattern {
                 tracing::warn!("{}", pattern.warning_message());
 
@@ -209,12 +212,8 @@ impl QueryTracker {
         }
     }
 
-    /// Create an N+1 pattern from a key
-    fn create_pattern(&self, key: &str) -> Option<NPlusOnePattern> {
-        let grouped = self.grouped.lock().unwrap();
-        let log = grouped.get(key)?;
-
-        // Skip if it's a primary query (no relation)
+    /// Create an N+1 pattern from a query log entry
+    fn create_pattern_from(log: &QueryLog) -> Option<NPlusOnePattern> {
         let relation = log.relation.as_ref()?;
 
         let duration = log.last_seen.duration_since(log.first_seen);
@@ -233,9 +232,9 @@ impl QueryTracker {
         let grouped = self.grouped.lock().unwrap();
         let mut patterns = Vec::new();
 
-        for (key, log) in grouped.iter() {
+        for (_key, log) in grouped.iter() {
             if log.count >= self.threshold && log.relation.is_some() {
-                if let Some(pattern) = self.create_pattern(key) {
+                if let Some(pattern) = Self::create_pattern_from(log) {
                     patterns.push(pattern);
                 }
             }
@@ -251,7 +250,7 @@ impl QueryTracker {
 
         grouped
             .get(&key)
-            .map(|log| log.count > self.threshold)
+            .map(|log| log.count >= self.threshold)
             .unwrap_or(false)
     }
 
@@ -269,11 +268,8 @@ impl QueryTracker {
 
     /// Get query statistics
     pub fn stats(&self) -> QueryStats {
-        let queries = self.queries.lock().unwrap();
-        let grouped = self.grouped.lock().unwrap();
-
-        let total_queries = queries.len();
-        let unique_patterns = grouped.len();
+        let total_queries = self.queries.lock().unwrap().len();
+        let unique_patterns = self.grouped.lock().unwrap().len();
         let detected_patterns = self.detect_n_plus_one().len();
 
         QueryStats {

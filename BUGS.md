@@ -66,6 +66,11 @@ across the RustForge framework. Issues are organized by severity and crate.
 | 55 | `rf-horizon` | `RetryStrategy::Exponential::delay()` panicked on overflow via `2_u64.pow(retry_count)` for retry counts >= 64 — replaced with `checked_pow`/`saturating_mul` and capped at 7 days | latest |
 | 56 | `rf-feature-flags` | `set_percentage()`/`enable_for_users()`/`enable_for_groups()` each created a brand-new `FlagConfig`, silently erasing all other targeting rules — now fetches existing config first and merges the update | latest |
 | 57 | `rf-feature-flags` | `disable()` replaced entire flag config with a fresh disabled one, destroying user/group/percentage rules — now preserves existing config and only sets `enabled = false` | latest |
+| 58 | `rf-eloquent` | `truncate` accessor panicked on multi-byte UTF-8 via `&value[..length]` byte slicing — replaced with `chars().take(length)` | latest |
+| 59 | `rf-eloquent` | `detect_n_plus_one()` and `stats()` caused guaranteed deadlock — `detect_n_plus_one` held `grouped` mutex then called `create_pattern` which tried to lock it again; refactored to avoid re-locking | latest |
+| 60 | `rf-eloquent` | `should_eager_load()` used `>` threshold comparison while `detect_n_plus_one()` used `>=` — off-by-one at boundary meant N+1 detected but eager load not triggered; fixed to `>=` | latest |
+| 61 | `rf-http-client` | Retry logic used constant `retry_config.delay` on every attempt — `backoff_multiplier` field was silently ignored; now applies exponential backoff using the multiplier | latest |
+| 62 | `rf-notifications` | **SECURITY**: `MailMessage::to_html()` interpolated greeting, lines, action URL/text directly into HTML without escaping — XSS via user-controlled content in email templates; added `escape_html()` | latest |
 
 ---
 
