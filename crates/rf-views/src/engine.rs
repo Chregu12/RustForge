@@ -207,13 +207,16 @@ impl ViewEngine {
 
     /// Normalize template name (add .tera extension if needed, convert dots to slashes)
     fn normalize_template_name(&self, template: &str) -> String {
-        let name = template.replace('.', "/");
+        let ext_suffix = format!(".{}", self.config.extension);
 
-        if name.ends_with(&format!(".{}", self.config.extension)) {
-            name
+        // Strip extension first if present, then convert dots to slashes, then re-add extension
+        let base = if template.ends_with(&ext_suffix) {
+            &template[..template.len() - ext_suffix.len()]
         } else {
-            format!("{}.{}", name, self.config.extension)
-        }
+            template
+        };
+
+        format!("{}{}", base.replace('.', "/"), ext_suffix)
     }
 
     /// Check if a template exists

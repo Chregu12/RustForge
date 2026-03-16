@@ -216,8 +216,8 @@ impl Expr {
         // Remove $ prefix if present
         let s = s.strip_prefix('$').unwrap_or(s);
 
-        // Check for string literals
-        if (s.starts_with('"') && s.ends_with('"')) || (s.starts_with('\'') && s.ends_with('\'')) {
+        // Check for string literals (need at least 2 chars for open+close quotes)
+        if s.len() >= 2 && ((s.starts_with('"') && s.ends_with('"')) || (s.starts_with('\'') && s.ends_with('\''))) {
             return Self::String(s[1..s.len() - 1].to_string());
         }
 
