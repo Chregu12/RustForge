@@ -134,6 +134,8 @@ across the RustForge framework. Issues are organized by severity and crate.
 | 123 | `rf-cashier` | **SECURITY**: Timing attack in Stripe webhook `verify_signature()` — HMAC signature compared with `!=`; replaced with constant-time XOR comparison | latest |
 | 124 | `rf-orm` | SQL injection in `remove_migration()` — migration name interpolated directly into `DELETE FROM migrations WHERE migration = '{}'` without escaping quotes; added single-quote escaping | latest |
 | 125 | `rf-search` | **SECURITY**: SQL injection in `create_fts_index()` and `drop_fts_index()` — `table` and `columns` parameters not validated before interpolation into DDL statements; added `validate_identifier()` calls | latest |
+| 126 | `rf-cms` | **SECURITY**: XSS/JS injection in `EditorConfig::init_script()` — `selector` parameter embedded directly into JavaScript string literals without escaping; added JS string escaping for `\`, `'`, `\n`, `\r` | latest |
+| 127 | `rf-nova` | Non-deterministic trend direction in `TrendMetric::calculate_trend()` — iterates `HashMap` values (undefined order) to determine trend; fixed by sorting entries by key before comparison | latest |
 
 ---
 

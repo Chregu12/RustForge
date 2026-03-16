@@ -86,6 +86,13 @@ impl EditorConfig {
 
     /// Generate initialization JavaScript
     pub fn init_script(&self, selector: &str) -> String {
+        // Escape selector for safe embedding in JavaScript string literals
+        let escaped_selector = selector
+            .replace('\\', "\\\\")
+            .replace('\'', "\\'")
+            .replace('\n', "\\n")
+            .replace('\r', "\\r");
+
         match self.editor_type {
             EditorType::TinyMCE => {
                 format!(
@@ -95,7 +102,7 @@ impl EditorConfig {
     plugins: '{}',
     height: {}
 }});"#,
-                    selector,
+                    escaped_selector,
                     self.toolbar.join(" | "),
                     self.plugins.join(" "),
                     self.height.unwrap_or(400)
@@ -107,7 +114,7 @@ impl EditorConfig {
     toolbar: [{}],
     height: '{}'
 }});"#,
-                    selector,
+                    escaped_selector,
                     self.toolbar
                         .iter()
                         .map(|t| format!("'{}'", t))
@@ -124,7 +131,7 @@ impl EditorConfig {
         toolbar: [{}]
     }}
 }});"#,
-                    selector,
+                    escaped_selector,
                     self.toolbar
                         .iter()
                         .map(|t| format!("'{}'", t))
