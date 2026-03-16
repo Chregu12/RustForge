@@ -173,10 +173,11 @@ impl ViewEngine {
         self.error_function
             .set_error(field_str.clone(), error_str.clone());
 
+        // Add to existing errors instead of replacing them
         let mut errors = std::collections::HashMap::new();
         errors.insert(field_str.clone(), vec![error_str]);
-        self.errors_function.set_errors(errors.clone());
-        self.has_error_function.set_errors(errors);
+        self.errors_function.add_errors(errors.clone());
+        self.has_error_function.add_errors(errors);
     }
 
     /// Set all validation errors

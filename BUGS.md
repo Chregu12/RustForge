@@ -124,6 +124,9 @@ across the RustForge framework. Issues are organized by severity and crate.
 | 113 | `rf-blade` | Panic in `Expr::parse()` — single-character quote string `"` or `'` causes `s[1..0]` byte index panic; added `s.len() >= 2` guard | latest |
 | 114 | `rf-views` | Unicode bug in `TruncateFilter` — `text.len()` (byte count) compared against character length, causing incorrect truncation of multi-byte strings; fixed with `text.chars().count()` | latest |
 | 115 | `rf-views` | Logic bug in `normalize_template_name()` — `replace('.', "/")` corrupts file extensions (e.g., `test.tera` → `test/tera.tera`); fixed by stripping extension before dot-to-slash conversion | latest |
+| 116 | `rf-views` | Data loss in `ViewEngine::set_error()` — each call creates a new HashMap and overwrites all previous errors in `errors_function` and `has_error_function` via `set_errors()`; fixed by using `add_errors()` to merge instead of replace | latest |
+| 117 | `rf-blade` | Silent parse error in `read_directive_args()` — unterminated parentheses (missing closing `)`) causes the lexer to silently succeed and return truncated args instead of an error; added `depth > 0` check after loop | latest |
+| 118 | `rf-inertia` | Deferred props included in initial response — `build()` never filters deferred props from initial page load and never sets `deferred_props` metadata; fixed by removing deferred keys from props on non-partial requests and calling `with_deferred_props()` | latest |
 
 ---
 

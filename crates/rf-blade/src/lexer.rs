@@ -334,6 +334,12 @@ impl Lexer {
             }
         }
 
+        if depth > 0 {
+            return Err(LexerError::InvalidDirective(
+                "Unterminated directive arguments: missing closing ')'".to_string(),
+            ));
+        }
+
         Ok(args.trim().to_string())
     }
 
