@@ -5,6 +5,22 @@ use crate::field::{Field, FieldType, InputType};
 use crate::theme::Theme;
 use crate::{FormData, FormErrors};
 
+/// Escape a string for safe inclusion in HTML content and attribute values.
+fn html_escape(input: &str) -> String {
+    let mut escaped = String::with_capacity(input.len());
+    for ch in input.chars() {
+        match ch {
+            '&' => escaped.push_str("&amp;"),
+            '<' => escaped.push_str("&lt;"),
+            '>' => escaped.push_str("&gt;"),
+            '"' => escaped.push_str("&quot;"),
+            '\'' => escaped.push_str("&#x27;"),
+            _ => escaped.push(ch),
+        }
+    }
+    escaped
+}
+
 /// Form renderer
 pub struct FormRenderer {
     theme: Theme,
@@ -36,13 +52,13 @@ impl FormRenderer {
         let enctype = form
             .enctype
             .as_deref()
-            .map(|e| format!(r#" enctype="{}""#, e))
+            .map(|e| format!(r#" enctype="{}""#, html_escape(e)))
             .unwrap_or_default();
 
         html.push_str(&format!(
             r#"<form name="{}" action="{}" method="{}" class="{}"{}>"#,
-            form.name,
-            form.action,
+            html_escape(&form.name),
+            html_escape(&form.action),
             method,
             self.theme.form_class(),
             enctype
@@ -50,7 +66,11 @@ impl FormRenderer {
 
         // CSRF token
         if form.csrf_enabled {
-            html.push_str(r#"<input type="hidden" name="_csrf" value="TOKEN_HERE">"#);
+            let token = form.csrf_token.as_deref().unwrap_or("");
+            html.push_str(&format!(
+                r#"<input type="hidden" name="_csrf" value="{}">"#,
+                html_escape(token)
+            ));
         }
 
         // Method spoofing for PUT/PATCH/DELETE
@@ -77,7 +97,7 @@ impl FormRenderer {
             r#"<div class="{}"><button type="submit" class="{}">{}</button></div>"#,
             self.theme.field_wrapper_class(),
             self.theme.submit_class(),
-            form.submit_text
+            html_escape(&form.submit_text)
         ));
 
         html.push_str("</form>");
@@ -101,7 +121,8 @@ impl FormRenderer {
                 .unwrap_or("");
             html.push_str(&format!(
                 r#"<input type="hidden" name="{}" value="{}">"#,
-                field.name, value
+                html_escape(&field.name),
+                html_escape(value)
             ));
             return Ok(html);
         }
@@ -115,9 +136,9 @@ impl FormRenderer {
         if let Some(label) = &field.label {
             html.push_str(&format!(
                 r#"<label for="{}" class="{}">{}</label>"#,
-                field.name,
+                html_escape(&field.name),
                 self.theme.label_class(),
-                label
+                html_escape(label)
             ));
         }
 
@@ -158,12 +179,17 @@ impl FormRenderer {
                 let placeholder = field
                     .placeholder
                     .as_ref()
-                    .map(|p| format!(r#" placeholder="{}""#, p))
+                    .map(|p| format!(r#" placeholder="{}""#, html_escape(p)))
                     .unwrap_or_default();
 
                 html.push_str(&format!(
                     r#"<input type="{}" id="{}" name="{}" value="{}" class="{}"{}>"#,
-                    type_str, field.name, field.name, value, input_class, placeholder
+                    type_str,
+                    html_escape(&field.name),
+                    html_escape(&field.name),
+                    html_escape(value),
+                    input_class,
+                    placeholder
                 ));
             }
             FieldType::TextArea { rows } => {
@@ -179,14 +205,18 @@ impl FormRenderer {
 
                 html.push_str(&format!(
                     r#"<textarea id="{}" name="{}" rows="{}" class="{}">{}</textarea>"#,
-                    field.name, field.name, rows, textarea_class, value
+                    html_escape(&field.name),
+                    html_escape(&field.name),
+                    rows,
+                    textarea_class,
+                    html_escape(value)
                 ));
             }
             FieldType::Select { options, .. } => {
                 html.push_str(&format!(
                     r#"<select id="{}" name="{}" class="{}">"#,
-                    field.name,
-                    field.name,
+                    html_escape(&field.name),
+                    html_escape(&field.name),
                     self.theme.select_class()
                 ));
                 for option in options {
@@ -197,7 +227,9 @@ impl FormRenderer {
                     };
                     html.push_str(&format!(
                         r#"<option value="{}"{}>{}></option>"#,
-                        option.value, selected, option.label
+                        html_escape(&option.value),
+                        selected,
+                        html_escape(&option.label)
                     ));
                 }
                 html.push_str("</select>");
@@ -205,21 +237,21 @@ impl FormRenderer {
             FieldType::Checkbox { .. } => {
                 html.push_str(&format!(
                     r#"<input type="checkbox" id="{}" name="{}" class="{}">"#,
-                    field.name,
-                    field.name,
+                    html_escape(&field.name),
+                    html_escape(&field.name),
                     self.theme.checkbox_class()
                 ));
             }
             FieldType::File { accept, multiple } => {
                 let accept_attr = accept
                     .as_ref()
-                    .map(|a| format!(r#" accept="{}""#, a))
+                    .map(|a| format!(r#" accept="{}""#, html_escape(a)))
                     .unwrap_or_default();
                 let multiple_attr = if *multiple { " multiple" } else { "" };
                 html.push_str(&format!(
                     r#"<input type="file" id="{}" name="{}" class="{}"{}{}">"#,
-                    field.name,
-                    field.name,
+                    html_escape(&field.name),
+                    html_escape(&field.name),
                     self.theme.input_class(),
                     accept_attr,
                     multiple_attr
@@ -233,7 +265,7 @@ impl FormRenderer {
             html.push_str(&format!(
                 r#"<div class="{}">{}</div>"#,
                 self.theme.help_class(),
-                help
+                html_escape(help)
             ));
         }
 
@@ -243,7 +275,7 @@ impl FormRenderer {
                 html.push_str(&format!(
                     r#"<div class="{}">{}</div>"#,
                     self.theme.error_class(),
-                    error
+                    html_escape(error)
                 ));
             }
         }

@@ -44,6 +44,9 @@ across the RustForge framework. Issues are organized by severity and crate.
 | 33 | `rf-mail` | `MailgunMailer::send_via_api()` looped over recipients and called `form.insert("to", addr)` in each iteration — `HashMap::insert` overwrites the previous value so only the **last** recipient was actually sent; fixed by joining all addresses into a comma-separated string | latest |
 | 34 | `rf-search` | `InMemoryEngine::search()` called `partial_cmp().unwrap()` when sorting results by score — panics if any score is NaN; replaced with `unwrap_or(Ordering::Equal)` | latest |
 | 35 | `rf-search` | **SECURITY**: `PostgresSearchDriver` interpolated `T::index_name()` directly into SQL `DELETE`/`TRUNCATE`/`COUNT` via `format!()` — SQL injection if implementor returns a malicious identifier; added `validate_identifier()` that rejects anything not `[a-zA-Z0-9_]` | latest |
+| 36 | `rf-forms` | **CRITICAL SECURITY**: `FormRenderer` interpolated all user-controlled values (field names, labels, values, placeholders, help text, error messages, form action/name) directly into HTML without escaping — XSS via any form field; added `html_escape()` helper that encodes `& < > " '` and applied it to all interpolation points | latest |
+| 37 | `rf-forms` | `FormRenderer` emitted hardcoded `value="TOKEN_HERE"` for CSRF hidden input instead of an actual token — CSRF protection was non-functional; added `csrf_token: Option<String>` field to `Form`/`FormBuilder` so the renderer uses the real token | latest |
+| 38 | `rf-pagination` | `Paginator::offset()` computed `(current_page - 1) * per_page` using wrapping arithmetic — integer overflow with large page/per_page values could produce negative offsets or wrap to unexpected values; replaced with `saturating_mul` and `saturating_add` | latest |
 
 ---
 

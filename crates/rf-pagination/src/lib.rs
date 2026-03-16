@@ -57,7 +57,7 @@ impl Paginator {
 
     /// Get the offset for SQL queries
     pub fn offset(&self) -> i64 {
-        (self.current_page - 1) * self.per_page
+        (self.current_page - 1).saturating_mul(self.per_page)
     }
 
     /// Get the limit for SQL queries
@@ -104,7 +104,7 @@ impl Paginator {
 
     /// Get ending item number (1-indexed)
     pub fn to(&self) -> i64 {
-        let end = self.offset() + self.per_page;
+        let end = self.offset().saturating_add(self.per_page);
         if end > self.total {
             self.total
         } else {
