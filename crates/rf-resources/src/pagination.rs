@@ -32,7 +32,8 @@ impl Pagination {
 
     /// Calculate total pages
     pub fn total_pages(&self, total: u64) -> u64 {
-        (total as f64 / self.per_page as f64).ceil() as u64
+        let per_page = self.per_page.max(1);
+        (total as f64 / per_page as f64).ceil() as u64
     }
 
     /// Check if there's a next page
