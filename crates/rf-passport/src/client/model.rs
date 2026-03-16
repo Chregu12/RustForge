@@ -79,11 +79,20 @@ impl Model {
         hex::encode(hasher.finalize())
     }
 
-    /// Verify client secret
+    /// Verify client secret (constant-time comparison)
     pub fn verify_secret(&self, secret: &str) -> bool {
         if let Some(stored_secret) = &self.secret {
             let hashed = Self::hash_secret(secret);
-            stored_secret == &hashed
+            let stored_bytes = stored_secret.as_bytes();
+            let hashed_bytes = hashed.as_bytes();
+            if stored_bytes.len() != hashed_bytes.len() {
+                return false;
+            }
+            let mut result = 0u8;
+            for (a, b) in stored_bytes.iter().zip(hashed_bytes.iter()) {
+                result |= a ^ b;
+            }
+            result == 0
         } else {
             false
         }
