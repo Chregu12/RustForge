@@ -91,6 +91,13 @@ across the RustForge framework. Issues are organized by severity and crate.
 | 80 | `rf-cashier` | Panics on invalid Stripe IDs — 20+ instances of `.parse().unwrap()` across 6 files (billable.rs, subscription.rs, invoice.rs, checkout.rs, portal.rs, payment.rs); if stored Stripe ID is corrupted/wrong format, app panics instead of returning error; replaced with `.map_err()` | latest |
 | 81 | `rf-nova` | Panic in `TrendData::by_days()` — `.succ_opt().unwrap()` panics at max date boundary; replaced with match + break | latest |
 | 82 | `rf-dusk` | CSS selector injection in `select()` — user-provided value interpolated directly into CSS attribute selector without escaping; special chars like `"` could break the selector; added escaping | latest |
+| 83 | `rf-tinker` | **CRITICAL SECURITY**: SQL injection in `parse_db_table_call()` — table name, column names, where values, and orderBy columns from user input regex capture interpolated directly into SQL strings without validation; added `validate_sql_identifier()` and value escaping | latest |
+| 84 | `rf-application` | **SECURITY**: SQL injection via column names in `create_record()` and `update_record()` — JSON object keys used as column names interpolated directly into SQL INSERT/UPDATE without validation; added identifier validation rejecting non-alphanumeric/underscore characters | latest |
+| 85 | `rf-application` | Panic in `to_snake_case()` (graphql.rs) — `ch.to_lowercase().next().unwrap()` panics on edge-case Unicode characters; fixed with `.unwrap_or(ch)` | latest |
+| 86 | `rf-application` | Panic in `pascal_to_snake()` (event.rs) — same `to_lowercase().next().unwrap()` panic; fixed with `.unwrap_or(ch)` | latest |
+| 87 | `rf-cli-gen` | Panic in `to_snake_case()` — `c.to_lowercase().next().unwrap()` panics on edge-case Unicode; fixed with `.unwrap_or(c)` | latest |
+| 88 | `foundry-cli` | Panic in `to_snake_case()` (policy.rs, provider.rs) — `ch.to_lowercase().next().unwrap()` panics on edge-case Unicode; fixed with `.unwrap_or(ch)` in both files | latest |
+| 89 | `rf-tinker` | UTF-8 panic in `formatter.rs` — `&cell[..self.max_column_width - 3]` byte-offset slicing panics on multi-byte UTF-8 characters; replaced with `cell.chars().take()` | latest |
 
 ---
 

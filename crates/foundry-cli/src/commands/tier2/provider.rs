@@ -312,7 +312,7 @@ mod tests {{
                 if i > 0 {
                     result.push('_');
                 }
-                result.push(ch.to_lowercase().next().unwrap());
+                result.push(ch.to_lowercase().next().unwrap_or(ch));
             } else {
                 result.push(ch);
             }

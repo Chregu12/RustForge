@@ -348,7 +348,7 @@ fn to_snake_case(s: &str) -> String {
             if i > 0 && !prev_upper {
                 result.push('_');
             }
-            result.push(c.to_lowercase().next().unwrap());
+            result.push(c.to_lowercase().next().unwrap_or(c));
             prev_upper = true;
         } else {
             result.push(c);
