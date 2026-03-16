@@ -119,6 +119,11 @@ across the RustForge framework. Issues are organized by severity and crate.
 | 108 | `rf-passport` | **SECURITY**: Timing attack on OAuth client secret verification — `verify_secret()` compared hashed secrets with `==`; replaced with constant-time XOR comparison | latest |
 | 109 | `rf-envoy` | **SECURITY**: Shell injection in systemd task presets — `service`, `app_dir`, `branch` parameters interpolated directly into shell commands (`sudo systemctl restart $service`); fixed with single-quote escaping | latest |
 | 110 | `rf-queue` | Panic in `new_delayed()` — `Duration::from_std(delay).unwrap()` panics if delay duration is too large; replaced with proper `map_err` error propagation | latest |
+| 111 | `rf-blade` | **SECURITY**: XSS in `Slot::attributes_html()` — attribute values rendered directly into HTML without escaping `"`, `<`, `>`, `&`; added HTML escaping to all attribute values | latest |
+| 112 | `rf-blade` | Panic in compiler — `serde_json::Number::from_f64(*n).unwrap()` panics on NaN/Infinity float values; replaced with `.unwrap_or(Value::Null)` | latest |
+| 113 | `rf-blade` | Panic in `Expr::parse()` — single-character quote string `"` or `'` causes `s[1..0]` byte index panic; added `s.len() >= 2` guard | latest |
+| 114 | `rf-views` | Unicode bug in `TruncateFilter` — `text.len()` (byte count) compared against character length, causing incorrect truncation of multi-byte strings; fixed with `text.chars().count()` | latest |
+| 115 | `rf-views` | Logic bug in `normalize_template_name()` — `replace('.', "/")` corrupts file extensions (e.g., `test.tera` → `test/tera.tera`); fixed by stripping extension before dot-to-slash conversion | latest |
 
 ---
 
