@@ -149,6 +149,7 @@ across the RustForge framework. Issues are organized by severity and crate.
 | 138 | `rf-forms` | Date validation accepts invalid dates like Feb 31 — only checks `day <= 31` without month-specific limits; added per-month day validation with leap year handling | latest |
 | 139 | `rf-routing` | `parse_signed_url` used `HashMap` to collect query params, causing non-deterministic iteration order when reconstructing the original URL — signature verification always failed for URLs with multiple query params; fixed by using `Vec` to preserve original parameter order | latest |
 | 140 | `rf-queue` | Exponential backoff in `retry()` used `2u64.pow(attempts - 1)` without bounds — overflows and panics in debug (or wraps to 0 in release) once `attempts >= 65`; capped exponent at 62 with `saturating_mul` | latest |
+| 141 | `rf-oauth2-server` | **SECURITY**: `verify_secret()` comment claimed "constant-time over fixed-length digests" but `==` on `GenericArray` (SHA-256 output) is NOT guaranteed constant-time — replaced with XOR-based constant-time comparison | latest |
 
 ---
 
@@ -358,6 +359,22 @@ shared across every concurrent HTTP request. This means:
 **Fix needed**: This facade must not be used in web applications. Replace with the
 properly request-scoped session from `rf-web`, or redesign the facade to accept
 a request-scoped context parameter rather than using global state.
+
+---
+
+### `rf-auth-facade` - Global Auth State Unusable in Web Context
+**Severity**: High (architecture/security)
+**File**: `crates/rf-auth-facade/src/manager.rs:10-12`
+
+The facade uses a process-global `Lazy<RwLock<AuthManager>>` to hold the currently
+authenticated user. In a concurrent web application this is critically broken:
+- All concurrent requests share one `current_user` field
+- User A logs in → `GLOBAL_AUTH.write().login(user_a)` → User B appears logged in
+- Authentication state is not isolated per request
+
+**Fix needed**: This facade must not be used in web applications. Replace with
+request-scoped authentication via Axum extractors or equivalent, or redesign the
+facade to accept a request-scoped context parameter.
 
 ---
 
