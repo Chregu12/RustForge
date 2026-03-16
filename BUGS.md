@@ -61,6 +61,11 @@ across the RustForge framework. Issues are organized by severity and crate.
 | 50 | `rf-storage` | **SECURITY**: `LocalStorage::resolve_path()` canonicalized only existing files — for new files (`put`), the symlink-based traversal check was silently skipped, allowing writes outside storage root; now canonicalizes parent directory for non-existent paths | latest |
 | 51 | `rf-passport` | **SECURITY**: `revoke_token` handler compared only `user_id` — client-credentials tokens (where `user_id` is `None`) from any client could revoke any other client's tokens; added `client_id` check for client-credentials tokens | latest |
 | 52 | `rf-passport` | Refresh token scope validation used `Vec::contains()` instead of `has_scope()` — wildcard scope `"*"` not honored during token refresh, preventing scope narrowing on wildcard tokens; switched to `has_scope()` which handles `"*"` | latest |
+| 53 | `rf-horizon` | `ChainHandle::wait()` looped forever when a chain job failed — `is_finished()` only checked `completed >= total` but `completed` was never incremented on failure; added `chain_done` flag set when spawned task exits (success or failure) | latest |
+| 54 | `rf-horizon` | Division by zero panic in jobs API handler when `per_page=0` in query string — clamped `per_page` to minimum 1 | latest |
+| 55 | `rf-horizon` | `RetryStrategy::Exponential::delay()` panicked on overflow via `2_u64.pow(retry_count)` for retry counts >= 64 — replaced with `checked_pow`/`saturating_mul` and capped at 7 days | latest |
+| 56 | `rf-feature-flags` | `set_percentage()`/`enable_for_users()`/`enable_for_groups()` each created a brand-new `FlagConfig`, silently erasing all other targeting rules — now fetches existing config first and merges the update | latest |
+| 57 | `rf-feature-flags` | `disable()` replaced entire flag config with a fresh disabled one, destroying user/group/percentage rules — now preserves existing config and only sets `enabled = false` | latest |
 
 ---
 

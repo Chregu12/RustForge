@@ -33,9 +33,11 @@ impl Chain {
         let handle = ChainHandle {
             total_jobs: jobs.len(),
             completed_jobs: Arc::new(tokio::sync::RwLock::new(0)),
+            chain_done: Arc::new(tokio::sync::RwLock::new(false)),
         };
 
         let completed_clone = Arc::clone(&handle.completed_jobs);
+        let done_clone = Arc::clone(&handle.chain_done);
 
         tokio::spawn(async move {
             for job in jobs {
@@ -51,6 +53,8 @@ impl Chain {
                     }
                 }
             }
+            let mut done = done_clone.write().await;
+            *done = true;
         });
 
         Ok(handle)
@@ -77,6 +81,7 @@ impl Default for Chain {
 pub struct ChainHandle {
     total_jobs: usize,
     completed_jobs: Arc<tokio::sync::RwLock<usize>>,
+    chain_done: Arc<tokio::sync::RwLock<bool>>,
 }
 
 impl ChainHandle {
@@ -90,9 +95,9 @@ impl ChainHandle {
         self.total_jobs
     }
 
-    /// Check if chain is finished
+    /// Check if chain is finished (all jobs completed or chain stopped due to failure)
     pub async fn is_finished(&self) -> bool {
-        self.completed().await >= self.total_jobs
+        *self.chain_done.read().await
     }
 
     /// Wait for chain to complete
