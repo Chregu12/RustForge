@@ -156,36 +156,16 @@ across the RustForge framework. Issues are organized by severity and crate.
 | 145 | `rf-global-helpers` | URL injection in `Redirect::route()` — query parameter keys and values were formatted directly into the URL without percent-encoding, allowing special characters (`&`, `=`, `#`, etc.) to break URL structure; added `urlencoding::encode()` for all params | latest |
 | 146 | `rf-request` | DoS via unbounded request body in `FromRequest` extractor — `axum::body::to_bytes(body, usize::MAX)` accepts arbitrarily large bodies, allowing memory exhaustion; capped at 10 MiB | latest |
 | 147 | `rf-providers` | Undefined behaviour in `Container::make_type()` — `Arc::from_raw(Arc::into_raw(boxed) as *const T)` casts `*const Box<dyn Any>` (fat pointer, 2 words) to `*const T` (thin pointer), reinterpreting vtable+data as T; replaced by storing `Arc<dyn Any + Send + Sync>` in `type_singletons` and using safe `Arc::downcast::<T>()` | latest |
+| 148 | `rf-queue` | No job timeout enforcement — `process_job()` called `handler(metadata.data.clone()).await` directly without any timeout, so a hanging job blocked a worker indefinitely; wrapped with `tokio::time::timeout(Duration::from_secs(metadata.timeout_secs.max(1)), ...)` and return `QueueError::Timeout` on expiry | latest |
+| 149 | `rf-mail` | AWS SES `sign_request()` used `Sha256::digest(string_to_sign)` for the final signature instead of HMAC-SHA256 — every SES API request would fail AWS authentication (HTTP 403); replaced with proper SigV4 key derivation: `HMAC(HMAC(HMAC(HMAC("AWS4"+secret, date), region), "ses"), "aws4_request")` then `HMAC(signing_key, string_to_sign)` | latest |
+| 150 | `rf-broadcasting` | **SECURITY**: WebSocket `Subscribe` handler logged auth token for private/presence channels but never validated it — any client could subscribe to `private-*` or `presence-*` channels without authentication; added `ChannelType::requires_auth()` check and call to `authorize_channel()` rejecting unauthenticated subscriptions | latest |
+| 151 | `rf-cache` | `MemoryCache` had no background eviction — expired entries were only removed lazily on `get()`, so entries set with `set_with_ttl()` and never read again would occupy memory forever; added background `tokio::spawn` task (if in tokio context) that sweeps `entries` every 60s removing expired items and cleaning orphaned tag references | latest |
+| 152 | `rf-jobs` | `Scheduler` stored `job_factory` closures but `clone_schedules()` discarded them, passing only `(Schedule, String)` to `run_scheduler()` — the loop always logged "Job dispatching not yet implemented"; changed `ScheduledJob` to store a `DispatchFn` (`Arc<dyn Fn(Arc<QueueManager>) -> BoxFuture<...>>`) that calls `QueueManager::dispatch()`, updated `clone_schedules()` and `run_scheduler()` to carry and invoke it | latest |
+| 153 | `rf-application` | `DatabaseUserProvider::create_user()` did not insert anything — it called `retrieve_by_credentials()` assuming the user existed; `find_by_email()` returned `Ok(None)` unconditionally; `retrieve_by_id()` returned `Ok(None)` unconditionally — all registration flows always failed; implemented `create_user()` with raw SQL `INSERT`, `find_by_email()` with raw SQL `SELECT`, and `retrieve_by_id()` with raw SQL `SELECT` using backend-aware placeholders | latest |
 
 ---
 
 ## Open Issues - High Priority
-
-### `rf-jobs/src/scheduler.rs` - Scheduler Cannot Dispatch Jobs
-**Severity**: High
-**File**: `crates/rf-jobs/src/scheduler.rs:162-176`
-
-The `Scheduler` stores `job_factory` closures in `ScheduledJob` but the `run_scheduler()` loop
-only extracts `(Schedule, String)` pairs via `clone_schedules()`, discarding the factory. This means
-scheduled jobs are never actually dispatched. The code explicitly logs:
-```
-"Job dispatching not yet implemented (needs job registry)"
-```
-**Fix needed**: Integrate `JobRegistry` into `Scheduler` and call `registry.execute()` when a cron
-trigger fires, similar to how `Worker::execute_job_payload()` works.
-
----
-
-### `rf-application/src/auth/database.rs` - User Creation Not Implemented
-**Severity**: High
-**File**: `crates/rf-application/src/auth/database.rs:87`
-
-The `create_user()` method does not actually create users in the database. It attempts to retrieve
-a user as a workaround, returning an error if not found. Affects all registration flows.
-
-**Fix needed**: Implement proper SeaORM entity-based user creation using `ActiveModel`.
-
----
 
 ### `rf-application/src/commands/tier3/admin.rs` - Admin CRUD Stubs
 **Severity**: Medium
@@ -244,17 +224,6 @@ and reject with `401 Unauthorized` if the token is invalid.
 
 ---
 
-### `rf-queue/src/redis.rs` - No Job Timeout Enforcement
-**Severity**: Medium
-**File**: `crates/rf-queue/src/worker.rs:118-178`
-
-`JobMetadata` has a `timeout_secs` field but `process_job()` never wraps the handler in a
-`tokio::time::timeout()`. A hanging job will block a worker thread indefinitely.
-
-**Fix needed**: Wrap handler call in `tokio::time::timeout(Duration::from_secs(metadata.timeout_secs))`.
-
----
-
 ### `rf-queue` - No Exponential Backoff for Connection Retries
 **Severity**: Medium
 **Files**: `crates/rf-queue/src/redis.rs`, `crates/rf-jobs/src/queue.rs`
@@ -283,30 +252,9 @@ parsing that preserves the body for downstream handlers.
 
 ---
 
-### `rf-cache` - In-Memory Cache Has No Background Eviction
-**Severity**: Medium
-
-The in-memory cache backend has no proactive TTL expiration. Expired entries are only removed
-lazily when `get()` is called on them — entries set with `set_with_ttl()` and never read again
-will occupy memory forever in long-running applications.
-
-**Fix needed**: Spawn a background cleanup task on `MemoryCache::new()` that periodically
-sweeps `entries` and removes all items where `entry.is_expired()`.
-
----
-
 ### `rf-broadcasting/src/auth.rs` - Channel Authorization Not Enforced in WebSocket Handler
 **Severity**: High (security)
 **File**: `crates/rf-broadcasting/src/websocket.rs:218-222`
-
-The `Subscribe` handler has a `TODO` comment acknowledging that auth tokens for private/presence
-channels are logged but never validated. Any client can subscribe to `private-*` or
-`presence-*` channels without providing a valid authorization token.
-
-**Fix needed**: Call `authorize_channel()` from `rf-broadcasting::auth` when `channel` starts
-with `"private-"` or `"presence-"`, reject the subscription with an `Error` message if authorization fails.
-
----
 
 ### `rf-broadcasting/src/websocket.rs` - Channel Registry Not Sharded
 **Severity**: Medium
@@ -336,21 +284,6 @@ and pushes it to `rf-queue`, falling back to inline `tokio::spawn` when no queue
 
 The scheduler sleeps 30 seconds between checks but only dispatches if `current_minute != last_minute`,
 effectively limiting precision to 1-minute granularity. Sub-minute cron expressions are silently ignored.
-
----
-
-### `rf-mail/src/backends/ses.rs` - AWS SES Uses SHA-256 Instead of HMAC-SHA256
-**Severity**: High
-**File**: `crates/rf-mail/src/backends/ses.rs:240-275`
-
-The `sign_request()` method constructs an AWS Signature Version 4 authorization header but
-uses plain `Sha256::digest()` instead of HMAC-SHA256. The comment in the code acknowledges
-the gap ("in production use proper HMAC"). Every API request will fail with AWS authentication
-errors (HTTP 403).
-
-**Fix needed**: Replace `Sha256::digest(string_to_sign)` with a proper HMAC-SHA256 derivation
-using the `hmac` crate (same as used in `rf-broadcasting`), following the AWS SigV4
-key derivation steps: `HMAC(HMAC(HMAC(HMAC("AWS4"+secret, date), region), service), "aws4_request")`.
 
 ---
 

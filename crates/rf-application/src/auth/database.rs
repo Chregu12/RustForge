@@ -71,39 +71,120 @@ impl DatabaseUserProvider {
         Self { db }
     }
 
-    /// Create a new user
+    /// Create a new user using raw SQL INSERT
     pub async fn create_user(
         &self,
         email: String,
-        _name: String,
+        name: String,
         password: String,
     ) -> Result<DbUser, AuthError> {
-        let _password_hash = DbUser::hash_password(&password)?;
-        let _now = Utc::now();
+        use sea_orm::{ConnectionTrait, DbBackend, Statement};
 
-        // For demo purposes, using raw SQL
-        // In production, use proper SeaORM entities
-        // Note: This query building is commented out as it requires proper SeaORM entity setup
-        // TODO: Implement proper entity-based user creation
+        let password_hash = DbUser::hash_password(&password)?;
+        let now = Utc::now();
+        let now_str = now.format("%Y-%m-%d %H:%M:%S").to_string();
 
-        // Placeholder: In a real implementation, you would use SeaORM's ActiveModel
-        // For now, we'll try to retrieve the user assuming it was created externally
+        let backend = self.db.get_database_backend();
+        let (p1, p2, p3, p4, p5) = match backend {
+            DbBackend::Postgres => ("$1", "$2", "$3", "$4", "$5"),
+            _ => ("?", "?", "?", "?", "?"),
+        };
 
-        // Note: This is simplified. In production, use proper SeaORM entities
-        self.retrieve_by_credentials(&Credentials {
-            email: email.clone(),
-            password,
-            remember_me: false,
-        })
-        .await?
-        .ok_or_else(|| AuthError::Internal("Failed to create user".to_string()))
+        let sql = format!(
+            "INSERT INTO users (email, name, password_hash, is_active, created_at, updated_at) \
+             VALUES ({p1}, {p2}, {p3}, true, {p4}, {p5})"
+        );
+
+        self.db
+            .execute(Statement::from_sql_and_values(
+                backend,
+                &sql,
+                [
+                    sea_orm::Value::String(Some(Box::new(email.clone()))),
+                    sea_orm::Value::String(Some(Box::new(name))),
+                    sea_orm::Value::String(Some(Box::new(password_hash))),
+                    sea_orm::Value::String(Some(Box::new(now_str.clone()))),
+                    sea_orm::Value::String(Some(Box::new(now_str))),
+                ],
+            ))
+            .await
+            .map_err(|e| AuthError::Internal(format!("Failed to create user: {}", e)))?;
+
+        self.find_by_email(&email)
+            .await?
+            .ok_or_else(|| AuthError::Internal("User not found after creation".to_string()))
     }
 
-    /// Find user by email
-    pub async fn find_by_email(&self, _email: &str) -> Result<Option<DbUser>, AuthError> {
-        // Simplified implementation using raw query
-        // In production, use SeaORM entities
-        Ok(None)
+    /// Find user by email using raw SQL SELECT
+    pub async fn find_by_email(&self, email: &str) -> Result<Option<DbUser>, AuthError> {
+        use sea_orm::{ConnectionTrait, DbBackend, Statement};
+
+        let backend = self.db.get_database_backend();
+        let placeholder = match backend {
+            DbBackend::Postgres => "$1",
+            _ => "?",
+        };
+
+        let sql = format!(
+            "SELECT id, email, name, password_hash, is_active, email_verified_at, \
+             remember_token, created_at, updated_at \
+             FROM users WHERE email = {placeholder} LIMIT 1"
+        );
+
+        let result = self
+            .db
+            .query_one(Statement::from_sql_and_values(
+                backend,
+                &sql,
+                [sea_orm::Value::String(Some(Box::new(email.to_string())))],
+            ))
+            .await
+            .map_err(|e| AuthError::Internal(format!("Database error: {}", e)))?;
+
+        match result {
+            None => Ok(None),
+            Some(row) => {
+                let id: i64 = row
+                    .try_get("", "id")
+                    .map_err(|e| AuthError::Internal(format!("Column error: {}", e)))?;
+                let email: String = row
+                    .try_get("", "email")
+                    .map_err(|e| AuthError::Internal(format!("Column error: {}", e)))?;
+                let name: String = row
+                    .try_get("", "name")
+                    .map_err(|e| AuthError::Internal(format!("Column error: {}", e)))?;
+                let password_hash: String = row
+                    .try_get("", "password_hash")
+                    .map_err(|e| AuthError::Internal(format!("Column error: {}", e)))?;
+                let is_active: bool = row
+                    .try_get("", "is_active")
+                    .map_err(|e| AuthError::Internal(format!("Column error: {}", e)))?;
+                let email_verified_at: Option<DateTime<Utc>> = row
+                    .try_get("", "email_verified_at")
+                    .unwrap_or(None);
+                let remember_token: Option<String> = row
+                    .try_get("", "remember_token")
+                    .unwrap_or(None);
+                let created_at: DateTime<Utc> = row
+                    .try_get("", "created_at")
+                    .unwrap_or_else(|_| Utc::now());
+                let updated_at: DateTime<Utc> = row
+                    .try_get("", "updated_at")
+                    .unwrap_or_else(|_| Utc::now());
+
+                Ok(Some(DbUser {
+                    id,
+                    email,
+                    name,
+                    password_hash,
+                    is_active,
+                    email_verified_at,
+                    remember_token,
+                    created_at,
+                    updated_at,
+                }))
+            }
+        }
     }
 
     /// Update user
@@ -124,35 +205,46 @@ impl Provider for DatabaseUserProvider {
     type User = DbUser;
 
     async fn retrieve_by_id(&self, id: i64) -> Result<Option<Self::User>, AuthError> {
-        // Simplified implementation
-        // In production, use proper SeaORM queries
-        // Example:
-        // use domain::models::prelude::*;
-        // let user = Users::find_by_id(id)
-        //     .one(&*self.db)
-        //     .await
-        //     .map_err(|e| AuthError::Internal(e.to_string()))?;
+        use sea_orm::{ConnectionTrait, DbBackend, Statement};
 
-        // For now, return None as placeholder
-        Ok(None)
+        let backend = self.db.get_database_backend();
+        let placeholder = match backend {
+            DbBackend::Postgres => "$1",
+            _ => "?",
+        };
+
+        let sql = format!(
+            "SELECT id, email, name, password_hash, is_active, email_verified_at, \
+             remember_token, created_at, updated_at \
+             FROM users WHERE id = {placeholder} LIMIT 1"
+        );
+
+        let result = self
+            .db
+            .query_one(Statement::from_sql_and_values(
+                backend,
+                &sql,
+                [sea_orm::Value::BigInt(Some(id))],
+            ))
+            .await
+            .map_err(|e| AuthError::Internal(format!("Database error: {}", e)))?;
+
+        match result {
+            None => Ok(None),
+            Some(row) => {
+                let email: String = row
+                    .try_get("", "email")
+                    .map_err(|e| AuthError::Internal(format!("Column error: {}", e)))?;
+                self.find_by_email(&email).await
+            }
+        }
     }
 
     async fn retrieve_by_credentials(
         &self,
         credentials: &Credentials,
     ) -> Result<Option<Self::User>, AuthError> {
-        // Simplified implementation
-        // In production, use proper SeaORM queries
-        // Example:
-        // use domain::models::prelude::*;
-        // let user = Users::find()
-        //     .filter(users::Column::Email.eq(&credentials.email))
-        //     .one(&*self.db)
-        //     .await
-        //     .map_err(|e| AuthError::Internal(e.to_string()))?;
-
-        // For now, return None as placeholder
-        Ok(None)
+        self.find_by_email(&credentials.email).await
     }
 
     async fn validate_credentials(&self, user: &Self::User, password: &str) -> bool {

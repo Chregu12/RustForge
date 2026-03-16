@@ -36,6 +36,7 @@ reqwest = { version = "0.11", default-features = false, features = ["json", "rus
 base64 = { version = "0.21", optional = true }
 hex = { version = "0.4", optional = true }
 sha2 = { version = "0.10", optional = true }
+hmac = { version = "0.12", optional = true }
 urlencoding = { version = "2.1", optional = true }
 
 [dev-dependencies]
@@ -51,7 +52,7 @@ view = ["rf-view"]
 postmark = ["reqwest", "base64"]
 mailgun = ["reqwest", "base64"]
 sendgrid = ["reqwest", "base64"]
-ses = ["reqwest", "base64", "hex", "sha2", "urlencoding"]
+ses = ["reqwest", "base64", "hex", "sha2", "dep:hmac", "urlencoding"]
 
 # Enable all production drivers
 all-drivers = ["postmark", "mailgun", "sendgrid", "ses"]
