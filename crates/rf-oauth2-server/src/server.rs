@@ -122,22 +122,28 @@ impl OAuth2Server {
             ));
         }
 
-        // Verify PKCE if present
+        // Verify PKCE if present (RFC 7636: S256 method)
         if let Some(challenge) = auth_code.code_challenge {
             let verifier = code_verifier
                 .ok_or_else(|| OAuth2Error::InvalidRequest("Code verifier required".to_string()))?;
 
-            // Simple verification (in production, use proper PKCE)
-            if challenge != verifier {
+            // Hash verifier with SHA-256 and base64url-encode per RFC 7636
+            use base64::Engine;
+            use sha2::{Digest, Sha256};
+            let hash = Sha256::digest(verifier.as_bytes());
+            let computed_challenge = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(hash);
+
+            if challenge != computed_challenge {
                 return Err(OAuth2Error::InvalidGrant(
                     "Invalid code verifier".to_string(),
                 ));
             }
         }
 
-        // Verify client credentials
+        // Verify client credentials — confidential clients MUST authenticate
         let client = self.get_client(client_id).await?;
-        if let Some(secret) = client_secret {
+        if client.secret.is_some() {
+            let secret = client_secret.ok_or(OAuth2Error::UnauthorizedClient)?;
             if !client.verify_secret(secret) {
                 return Err(OAuth2Error::UnauthorizedClient);
             }

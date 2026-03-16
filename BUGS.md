@@ -78,6 +78,8 @@ across the RustForge framework. Issues are organized by severity and crate.
 | 67 | `rf-inertia` | **SECURITY**: `into_html_response()` embedded JSON `data-page` in single-quoted attribute without escaping — single quotes in JSON values could break attribute and inject HTML/JS; added HTML entity escaping for both JSON data and root_view | latest |
 | 68 | `rf-broadcasting` | **SECURITY**: `AuthToken::verify()` used `==` string comparison for HMAC signature verification — timing side-channel leaks signature bytes; replaced with `hmac::Mac::verify_slice()` for constant-time comparison | latest |
 | 69 | `rf-validation` | **CRITICAL SECURITY**: `SimpleExistsRule` and `SimpleUniqueRule` interpolated `table`, `column`, and `id_column` directly into SQL query strings without validation — SQL injection via identifier names; added `validate_sql_identifier()` that rejects non-alphanumeric/underscore characters | latest |
+| 70 | `rf-oauth2-server` | **CRITICAL SECURITY**: PKCE verification compared `code_challenge` directly to `code_verifier` instead of hashing the verifier with SHA-256 and base64url-encoding per RFC 7636 — PKCE completely non-functional | latest |
+| 71 | `rf-oauth2-server` | **SECURITY**: `exchange_code()` only validated client secret if caller provided one — confidential clients (with a secret) could be accessed without authentication by omitting `client_secret`; now requires authentication for clients with secrets | latest |
 
 ---
 
