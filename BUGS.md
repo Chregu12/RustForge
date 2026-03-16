@@ -55,6 +55,9 @@ across the RustForge framework. Issues are organized by severity and crate.
 | 44 | `rf-collections` | `slice()` panicked when `offset > items.len()` — added `offset.min(self.items.len())` bounds clamp | latest |
 | 45 | `rf-collections` | `splice()` panicked on out-of-bounds `start` or `start + length` — added bounds clamping for both | latest |
 | 46 | `rf-container` | `bind_with_scope()` resolved types against a brand-new empty `ServiceRegistry` instead of the actual registry — any type with dependencies panicked on resolution; fixed by cloning `self` (which shares the underlying `Arc<Mutex<…>>` map) into the closure | latest |
+| 47 | `rf-telescope` | `CacheInfo::with_value()` truncated at byte index 1000 via `&val[..1000]` — panics on multi-byte UTF-8 characters when byte 1000 falls mid-character; replaced with char-boundary-aware truncation | latest |
+| 48 | `rf-telescope` | **CRITICAL SECURITY**: Dashboard JavaScript rendered all dynamic content (`req.path`, `exc.message`, `query.sql`, `mail.subject`, etc.) via template literals into `.innerHTML` without escaping — stored XSS via crafted request paths, exception messages, or SQL queries; added `escapeHtml()` function applied to all dynamic interpolations | latest |
+| 49 | `rf-logging` | `init_logging()` silently returned `Ok(())` when `stdout: false` and no file output configured — all log output silently discarded; now returns an error when no output target is configured | latest |
 
 ---
 

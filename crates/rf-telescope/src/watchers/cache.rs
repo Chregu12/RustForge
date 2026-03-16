@@ -100,7 +100,12 @@ impl CacheInfo {
         let val = value.into();
         // Truncate large values for storage
         self.value = Some(if val.len() > 1000 {
-            format!("{}... ({} bytes)", &val[..1000], val.len())
+            // Find a valid char boundary at or before byte 1000
+            let mut end = 1000;
+            while !val.is_char_boundary(end) && end > 0 {
+                end -= 1;
+            }
+            format!("{}... ({} bytes)", &val[..end], val.len())
         } else {
             val
         });
