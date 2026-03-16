@@ -5,6 +5,15 @@ use pulldown_cmark::{html, Options, Parser};
 use regex::Regex;
 use std::sync::OnceLock;
 
+/// Escape HTML special characters
+fn escape_html(s: &str) -> String {
+    s.replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;")
+        .replace('\'', "&#x27;")
+}
+
 /// Render markdown to HTML
 ///
 /// # Example
@@ -85,8 +94,8 @@ fn process_buttons(markdown: &str) -> Result<String, MailError> {
         .get_or_init(|| Regex::new(r"@button\(([^\)]+)\)\s*\n?(.*?)\n?@endbutton").unwrap());
 
     let result = re.replace_all(markdown, |caps: &regex::Captures| {
-        let url = &caps[1];
-        let text = &caps[2].trim();
+        let url = escape_html(&caps[1]);
+        let text = escape_html(caps[2].trim());
 
         format!(
             r#"<table width="100%" cellpadding="0" cellspacing="0" style="margin: 20px 0;">
@@ -169,7 +178,7 @@ fn process_tables(markdown: &str) -> Result<String, MailError> {
             html.push_str(&format!(
                 r#"
             <th style="padding: 12px; text-align: left; border-bottom: 2px solid #E5E7EB; font-weight: 600;">{}</th>"#,
-                header
+                escape_html(header)
             ));
         }
 
@@ -187,7 +196,7 @@ fn process_tables(markdown: &str) -> Result<String, MailError> {
                 html.push_str(&format!(
                     r#"
             <td style="padding: 12px;">{}</td>"#,
-                    cell
+                    escape_html(cell)
                 ));
             }
             html.push_str(
