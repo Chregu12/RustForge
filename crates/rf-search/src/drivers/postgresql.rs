@@ -165,6 +165,10 @@ impl PostgresSearchDriver {
 
         // Build the ORDER BY clause
         let order_by = if let Some((field, ascending)) = &options.sort {
+            // Validate sort field to prevent SQL injection
+            if !field.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
+                return Err(SearchError::InvalidQuery(format!("Invalid sort field: {}", field)));
+            }
             let direction = if *ascending { "ASC" } else { "DESC" };
             format!("ORDER BY {} {}, rank DESC", field, direction)
         } else {

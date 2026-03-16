@@ -65,10 +65,19 @@ impl MaintenanceState {
             .unwrap_or_else(|| "Service Temporarily Unavailable".to_string())
     }
 
-    /// Check if secret matches
+    /// Check if secret matches (constant-time comparison to prevent timing attacks)
     pub fn verify_secret(&self, provided: &str) -> bool {
         if let Some(secret) = &self.secret {
-            secret == provided
+            let secret_bytes = secret.as_bytes();
+            let provided_bytes = provided.as_bytes();
+            if secret_bytes.len() != provided_bytes.len() {
+                return false;
+            }
+            let mut result = 0u8;
+            for (a, b) in secret_bytes.iter().zip(provided_bytes.iter()) {
+                result |= a ^ b;
+            }
+            result == 0
         } else {
             false
         }

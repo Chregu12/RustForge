@@ -134,7 +134,7 @@ impl<'a> SubscriptionBuilder<'a> {
         items.price = Some(self.price_id.clone());
         items.quantity = Some(self.quantity as u64);
 
-        let mut params = CreateSubscription::new(customer_id.parse().unwrap());
+        let mut params = CreateSubscription::new(customer_id.parse().map_err(|_| SparkError::InvalidRequest("Invalid Stripe ID format".into()))?);
         params.items = Some(vec![items]);
         params.cancel_at_period_end = Some(self.cancel_at_period_end);
 
@@ -143,7 +143,7 @@ impl<'a> SubscriptionBuilder<'a> {
         }
 
         if let Some(ref coupon) = self.coupon {
-            params.coupon = Some(coupon.parse().unwrap());
+            params.coupon = Some(coupon.parse().map_err(|_| SparkError::InvalidRequest("Invalid Stripe ID format".into()))?);
         }
 
         // Add metadata
@@ -225,7 +225,7 @@ pub async fn list_subscriptions(
     use stripe::{ListSubscriptions, Subscription as StripeSub};
 
     let mut params = ListSubscriptions::new();
-    params.customer = Some(customer_id.parse().unwrap());
+    params.customer = Some(customer_id.parse().map_err(|_| SparkError::InvalidRequest("Invalid Stripe ID format".into()))?);
 
     let subscriptions = StripeSub::list(client, &params)
         .await
@@ -254,7 +254,7 @@ pub async fn cancel(
     use stripe::Subscription as StripeSub;
 
     if let Some(sub) = get_subscription(client, customer_id, name).await? {
-        StripeSub::cancel(client, &sub.stripe_id.parse().unwrap(), stripe::CancelSubscription::default())
+        StripeSub::cancel(client, &sub.stripe_id.parse().map_err(|_| SparkError::InvalidRequest("Invalid Stripe ID format".into()))?, stripe::CancelSubscription::default())
             .await
             .map_err(|e| SparkError::StripeError(e.to_string()))?;
     }
@@ -274,7 +274,7 @@ pub async fn resume(
         let mut params = UpdateSubscription::default();
         params.cancel_at_period_end = Some(false);
 
-        StripeSub::update(client, &sub.stripe_id.parse().unwrap(), params)
+        StripeSub::update(client, &sub.stripe_id.parse().map_err(|_| SparkError::InvalidRequest("Invalid Stripe ID format".into()))?, params)
             .await
             .map_err(|e| SparkError::StripeError(e.to_string()))?;
     }
@@ -305,7 +305,7 @@ pub async fn swap(
     // Note: proration_behavior setting may require additional type handling in new async-stripe API
     // For now, default behavior is used
 
-    let updated = StripeSub::update(client, &sub.stripe_id.parse().unwrap(), params)
+    let updated = StripeSub::update(client, &sub.stripe_id.parse().map_err(|_| SparkError::InvalidRequest("Invalid Stripe ID format".into()))?, params)
         .await
         .map_err(|e| SparkError::StripeError(e.to_string()))?;
 

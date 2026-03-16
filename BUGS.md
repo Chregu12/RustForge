@@ -106,6 +106,12 @@ across the RustForge framework. Issues are organized by severity and crate.
 | 95 | `rf-horizon` | Division by zero in `update_processing_time()` — when `jobs_processed` is 0, division by zero produces NaN average; fixed with `.max(1)` | latest |
 | 96 | `rf-db-facade` | Division by zero panic in `paginate()` — integer division by `per_page` when `per_page` is 0 causes panic; fixed with `.max(1)` | latest |
 | 97 | `rf-orm` | Division by zero panic in `QueryBuilder::paginate()` and `FacadeQueryBuilder::paginate()` — `per_page = 0` causes integer division panic or infinity; fixed with `.max(1)` in both implementations | latest |
+| 98 | `rf-passport` | **SECURITY**: Authorization bypass in token revocation — when `token.user_id` is `None` (client-credentials token), comparison `None != None` is false, allowing any client to revoke another client's tokens; fixed by checking client-credentials tokens first via `token.user_id.is_none()` branch | latest |
+| 99 | `rf-search` | Out-of-bounds panic in `search()` — when `query.offset >= hits.len()`, slice indexing `hits[start..end]` panics; fixed with `start = query.offset.min(hits.len())` | latest |
+| 100 | `rf-search` | **SECURITY**: SQL injection in PostgreSQL search driver — `options.sort` field interpolated directly into `ORDER BY` clause without validation; added alphanumeric/underscore validation | latest |
+| 101 | `rf-collections` | Panic in `chunk(0)` and `sliding(0)` — `slice::chunks(0)` and `slice::windows(0)` panic with zero size; fixed with `.max(1)` guard | latest |
+| 102 | `rf-maintenance` | **SECURITY**: Timing attack on maintenance mode secret — `verify_secret()` used `==` string comparison vulnerable to timing side-channel; replaced with constant-time byte-by-byte XOR comparison | latest |
+| 103 | `rf-spark` | Panic on invalid Stripe IDs — 35+ `.parse().unwrap()` calls across `payment.rs`, `customer.rs`, `subscription.rs`, and `invoice.rs` panic if Stripe ID strings are malformed; replaced all with `.parse().map_err(...)` returning `SparkError::InvalidRequest` | latest |
 
 ---
 

@@ -76,6 +76,7 @@ impl<T> Collection<T> {
     where
         T: Clone,
     {
+        let size = size.max(1);
         self.items
             .chunks(size)
             .map(|chunk| Collection::new(chunk.to_vec()))
@@ -574,6 +575,7 @@ impl<T> Collection<T> {
     where
         F: FnMut(&[T]),
     {
+        let size = size.max(1);
         for window in self.items.windows(size) {
             f(window);
         }
