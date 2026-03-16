@@ -173,7 +173,7 @@ mod tests {
         let script = runner.build_script(&["git pull".to_string(), "cargo build".to_string()]);
 
         assert!(script.contains("set -e"));
-        assert!(script.contains("cd /var/www"));
+        assert!(script.contains("cd '/var/www'"));
         assert!(script.contains("git pull"));
         assert!(script.contains("cargo build"));
     }
