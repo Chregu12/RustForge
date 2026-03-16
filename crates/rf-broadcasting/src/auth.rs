@@ -164,9 +164,25 @@ impl AuthToken {
         hex::encode(mac.finalize().into_bytes())
     }
 
-    /// Verify a signed token
+    /// Verify a signed token using constant-time comparison
     pub fn verify(&self, signature: &str, secret: &str) -> bool {
-        !self.is_expired() && self.sign(secret) == signature
+        use hmac::{Hmac, Mac};
+        use sha2::Sha256;
+
+        if self.is_expired() {
+            return false;
+        }
+
+        let message = format!("{}:{}:{}", self.user_id, self.channel, self.timestamp);
+        let mut mac =
+            Hmac::<Sha256>::new_from_slice(secret.as_bytes()).expect("HMAC accepts any key length");
+        mac.update(message.as_bytes());
+
+        // Use constant-time comparison to prevent timing attacks
+        match hex::decode(signature) {
+            Ok(sig_bytes) => mac.verify_slice(&sig_bytes).is_ok(),
+            Err(_) => false,
+        }
     }
 }
 
