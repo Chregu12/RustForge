@@ -51,6 +51,10 @@ across the RustForge framework. Issues are organized by severity and crate.
 | 40 | `rf-graphql` | `PaginatedResult::new()` accepted `per_page=0` causing division by zero in float arithmetic — `(total as f64) / (0 as f64)` produces `inf`/`NaN`, yielding `i32::MAX` or `0` for `total_pages`; clamped `per_page` to minimum of 1 | latest |
 | 41 | `rf-upload` | **DATA LOSS**: `FileUpload::store()` comment says "Generate unique filename" but code used the sanitized original name directly — two uploads with the same filename silently overwrite each other; prepended nanosecond timestamp to filename | latest |
 | 42 | `rf-upload` | **SECURITY**: MIME type validation used `starts_with` prefix matching — `"image/jpegscript"` would pass validation when `"image/jpeg"` was allowed; changed to exact match for specific types, prefix match only for category wildcards ending in `/` | latest |
+| 43 | `rf-collections` | `for_page(0, n)` caused `usize` underflow panic via `(page - 1) * per_page` — replaced with `saturating_sub(1)` | latest |
+| 44 | `rf-collections` | `slice()` panicked when `offset > items.len()` — added `offset.min(self.items.len())` bounds clamp | latest |
+| 45 | `rf-collections` | `splice()` panicked on out-of-bounds `start` or `start + length` — added bounds clamping for both | latest |
+| 46 | `rf-container` | `bind_with_scope()` resolved types against a brand-new empty `ServiceRegistry` instead of the actual registry — any type with dependencies panicked on resolution; fixed by cloning `self` (which shares the underlying `Arc<Mutex<…>>` map) into the closure | latest |
 
 ---
 

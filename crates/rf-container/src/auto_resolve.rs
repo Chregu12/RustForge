@@ -291,21 +291,12 @@ impl ServiceRegistry {
     /// let logger = registry.resolve::<RequestLogger>().unwrap();
     /// ```
     pub fn bind_with_scope<T: Resolvable>(&mut self, scope: Scope) {
-        // Create a resolver for this registration
-        // Note: We can't share the resolver across registrations because each
-        // registration needs to create its own closure
+        let registry_clone = self.clone();
         self.register(scope, move || {
-            let registry_clone = ServiceRegistry::new();
-
-            // This is a limitation: we can't access the parent registry here
-            // In a real implementation, we'd need to pass the registry through
-            // For now, we'll use a simpler approach
             match T::resolve(&registry_clone) {
                 Ok(instance) => Arc::new(instance),
-                Err(_) => {
-                    // If resolution fails, we'll create a basic instance
-                    // This is a workaround - in production, we'd handle this better
-                    panic!("Failed to resolve type during factory call");
+                Err(e) => {
+                    panic!("Failed to resolve type during factory call: {}", e);
                 }
             }
         });
