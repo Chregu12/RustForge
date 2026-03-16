@@ -391,8 +391,10 @@ impl Queue for RedisQueue {
 
         metadata.mark_attempt();
 
-        // Calculate exponential backoff delay
-        let delay_secs = 2u64.pow(metadata.attempts - 1) * 60; // 1min, 2min, 4min, etc.
+        // Calculate exponential backoff delay, capping the exponent to prevent overflow.
+        // At attempt 63+ the cap kicks in and keeps the delay at ~4.6×10^15 seconds (effectively infinite).
+        let exp = (metadata.attempts.saturating_sub(1)).min(62);
+        let delay_secs = (2u64.pow(exp)).saturating_mul(60); // 1min, 2min, 4min, etc.
         let execute_at = chrono::Utc::now() + chrono::Duration::seconds(delay_secs as i64);
         metadata.execute_at = Some(execute_at);
 

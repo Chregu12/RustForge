@@ -148,6 +148,7 @@ across the RustForge framework. Issues are organized by severity and crate.
 | 137 | `rf-metrics` | Metrics handler returns HTTP 200 OK with empty body on UTF-8 encoding failure — `String::from_utf8` error silently swallowed with `unwrap_or_else` returning empty string; changed to return 500 Internal Server Error | latest |
 | 138 | `rf-forms` | Date validation accepts invalid dates like Feb 31 — only checks `day <= 31` without month-specific limits; added per-month day validation with leap year handling | latest |
 | 139 | `rf-routing` | `parse_signed_url` used `HashMap` to collect query params, causing non-deterministic iteration order when reconstructing the original URL — signature verification always failed for URLs with multiple query params; fixed by using `Vec` to preserve original parameter order | latest |
+| 140 | `rf-queue` | Exponential backoff in `retry()` used `2u64.pow(attempts - 1)` without bounds — overflows and panics in debug (or wraps to 0 in release) once `attempts >= 65`; capped exponent at 62 with `saturating_mul` | latest |
 
 ---
 
