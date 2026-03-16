@@ -71,6 +71,10 @@ across the RustForge framework. Issues are organized by severity and crate.
 | 60 | `rf-eloquent` | `should_eager_load()` used `>` threshold comparison while `detect_n_plus_one()` used `>=` — off-by-one at boundary meant N+1 detected but eager load not triggered; fixed to `>=` | latest |
 | 61 | `rf-http-client` | Retry logic used constant `retry_config.delay` on every attempt — `backoff_multiplier` field was silently ignored; now applies exponential backoff using the multiplier | latest |
 | 62 | `rf-notifications` | **SECURITY**: `MailMessage::to_html()` interpolated greeting, lines, action URL/text directly into HTML without escaping — XSS via user-controlled content in email templates; added `escape_html()` | latest |
+| 63 | `rf-routing` | `parse_signed_url()` discarded all original query parameters when reconstructing the URL — any signed URL with extra query params (e.g. `?page=1`) would lose them, causing signature verification to fail | latest |
+| 64 | `rf-routing` | `QueryStringBuilder::build()` did not URL-encode keys or values — special characters (`&`, `=`, spaces, etc.) in query params produced malformed/ambiguous URLs; added percent-encoding | latest |
+| 65 | `rf-config` | **SECURITY**: `AuthConfig` derived `Debug` which prints `jwt_secret` in plain text to logs/errors; replaced with manual `Debug` impl that redacts the secret | latest |
+| 66 | `rf-config` | **SECURITY**: `DatabaseConfig` derived `Debug` which prints database URL (including credentials) in plain text to logs/errors; replaced with manual `Debug` impl that redacts the URL | latest |
 
 ---
 

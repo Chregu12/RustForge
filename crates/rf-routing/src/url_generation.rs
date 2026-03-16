@@ -98,10 +98,25 @@ impl QueryStringBuilder {
             return String::new();
         }
 
+        fn url_encode(s: &str) -> String {
+            let mut encoded = String::with_capacity(s.len());
+            for byte in s.bytes() {
+                match byte {
+                    b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
+                        encoded.push(byte as char);
+                    }
+                    _ => {
+                        encoded.push_str(&format!("%{:02X}", byte));
+                    }
+                }
+            }
+            encoded
+        }
+
         let pairs: Vec<String> = self
             .params
             .iter()
-            .map(|(k, v)| format!("{}={}", k, v))
+            .map(|(k, v)| format!("{}={}", url_encode(k), url_encode(v)))
             .collect();
 
         format!("?{}", pairs.join("&"))
