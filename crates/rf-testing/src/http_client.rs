@@ -378,12 +378,37 @@ impl TestResponseBuilder {
     }
 }
 
-// Mock base64 encode for basic auth (in production, use base64 crate)
 mod base64 {
+    const CHARS: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
     pub fn encode(input: String) -> String {
-        // In a real implementation, use the base64 crate
-        // For now, just return a placeholder
-        format!("base64:{}", input)
+        let bytes = input.as_bytes();
+        let mut result = String::with_capacity((bytes.len() + 2) / 3 * 4);
+
+        for chunk in bytes.chunks(3) {
+            let b0 = chunk[0] as u32;
+            let b1 = if chunk.len() > 1 { chunk[1] as u32 } else { 0 };
+            let b2 = if chunk.len() > 2 { chunk[2] as u32 } else { 0 };
+
+            let triple = (b0 << 16) | (b1 << 8) | b2;
+
+            result.push(CHARS[((triple >> 18) & 0x3F) as usize] as char);
+            result.push(CHARS[((triple >> 12) & 0x3F) as usize] as char);
+
+            if chunk.len() > 1 {
+                result.push(CHARS[((triple >> 6) & 0x3F) as usize] as char);
+            } else {
+                result.push('=');
+            }
+
+            if chunk.len() > 2 {
+                result.push(CHARS[(triple & 0x3F) as usize] as char);
+            } else {
+                result.push('=');
+            }
+        }
+
+        result
     }
 }
 

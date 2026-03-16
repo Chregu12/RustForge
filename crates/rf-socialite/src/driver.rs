@@ -137,8 +137,11 @@ impl Driver {
 
         let user_data: UserData = response.json().await?;
 
+        let user_id = user_data.id.clone()
+            .ok_or_else(|| SocialiteError::OAuthError("OAuth provider returned no user ID".to_string()))?;
+
         Ok(User {
-            id: user_data.id.clone().unwrap_or_default(),
+            id: user_id,
             name: user_data.name.clone().unwrap_or_default(),
             email: user_data.email.clone(),
             avatar: user_data.avatar_url.clone(),
