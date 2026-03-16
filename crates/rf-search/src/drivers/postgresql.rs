@@ -68,6 +68,10 @@ impl PostgresSearchDriver {
     /// driver.create_fts_index("posts", vec!["title", "content"]).await?;
     /// ```
     pub async fn create_fts_index(&self, table: &str, columns: Vec<&str>) -> Result<()> {
+        Self::validate_identifier(table)?;
+        for col in &columns {
+            Self::validate_identifier(col)?;
+        }
         let column_list = columns.join(" || ' ' || ");
         let index_name = format!("{}_fts_idx", table);
 
@@ -86,6 +90,7 @@ impl PostgresSearchDriver {
 
     /// Drop the full-text search index
     pub async fn drop_fts_index(&self, table: &str) -> Result<()> {
+        Self::validate_identifier(table)?;
         let index_name = format!("{}_fts_idx", table);
         let query = format!("DROP INDEX IF EXISTS {}", index_name);
 

@@ -132,6 +132,8 @@ across the RustForge framework. Issues are organized by severity and crate.
 | 121 | `rf-routing` | **SECURITY**: Timing attack in `SignedUrl::verify()` — URL signature compared with `!=` allowing timing side-channel; replaced with constant-time XOR comparison | latest |
 | 122 | `rf-broadcast` | **SECURITY**: Timing attack in `PusherBroadcaster::verify_webhook()` — HMAC signature compared with `==` (comment incorrectly says "Constant-time comparison"); replaced with XOR comparison | latest |
 | 123 | `rf-cashier` | **SECURITY**: Timing attack in Stripe webhook `verify_signature()` — HMAC signature compared with `!=`; replaced with constant-time XOR comparison | latest |
+| 124 | `rf-orm` | SQL injection in `remove_migration()` — migration name interpolated directly into `DELETE FROM migrations WHERE migration = '{}'` without escaping quotes; added single-quote escaping | latest |
+| 125 | `rf-search` | **SECURITY**: SQL injection in `create_fts_index()` and `drop_fts_index()` — `table` and `columns` parameters not validated before interpolation into DDL statements; added `validate_identifier()` calls | latest |
 
 ---
 
