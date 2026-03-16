@@ -112,15 +112,19 @@ impl<'a> InvoiceBuilder<'a> {
         mut self,
         amount: Decimal,
         description: impl Into<String>,
-    ) -> Self {
-        let amount_cents = (amount * Decimal::from(100)).to_string().parse::<i64>().unwrap_or(0);
+    ) -> SparkResult<Self> {
+        let amount_cents = (amount * Decimal::from(100))
+            .round_dp(0)
+            .to_string()
+            .parse::<i64>()
+            .map_err(|_| SparkError::InvalidRequest(format!("Invalid invoice amount: {}", amount)))?;
         self.items.push(InvoiceItemParams {
             price_id: None,
             amount: Some(amount_cents),
             description: description.into(),
             quantity: 1,
         });
-        self
+        Ok(self)
     }
 
     /// Set auto advance

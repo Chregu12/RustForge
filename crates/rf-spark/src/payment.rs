@@ -187,8 +187,12 @@ pub async fn create_charge(
 ) -> SparkResult<PaymentIntent> {
     use stripe::{CreatePaymentIntent, PaymentIntent as StripePI};
 
-    // Convert to cents
-    let amount_cents = (amount * Decimal::from(100)).to_string().parse::<i64>().unwrap_or(0);
+    // Convert to cents (round to avoid fractional cent issues, then error on invalid amounts)
+    let amount_cents = (amount * Decimal::from(100))
+        .round_dp(0)
+        .to_string()
+        .parse::<i64>()
+        .map_err(|_| SparkError::InvalidRequest(format!("Invalid payment amount: {}", amount)))?;
 
     let mut params = CreatePaymentIntent::new(amount_cents, currency.parse().map_err(|_| SparkError::InvalidRequest(format!("Invalid currency: {}", currency)))?);
     params.customer = Some(customer_id.parse().map_err(|_| SparkError::InvalidRequest(format!("Invalid customer ID: {}", customer_id)))?);
@@ -220,7 +224,11 @@ pub async fn create_refund(
     params.payment_intent = Some(payment_intent_id.parse().map_err(|_| SparkError::InvalidRequest(format!("Invalid payment intent ID: {}", payment_intent_id)))?);
 
     if let Some(amt) = amount {
-        let amount_cents = (amt * Decimal::from(100)).to_string().parse::<i64>().unwrap_or(0);
+        let amount_cents = (amt * Decimal::from(100))
+            .round_dp(0)
+            .to_string()
+            .parse::<i64>()
+            .map_err(|_| SparkError::InvalidRequest(format!("Invalid refund amount: {}", amt)))?;
         params.amount = Some(amount_cents);
     }
 

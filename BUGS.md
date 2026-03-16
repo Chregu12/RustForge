@@ -138,6 +138,7 @@ across the RustForge framework. Issues are organized by severity and crate.
 | 127 | `rf-nova` | Non-deterministic trend direction in `TrendMetric::calculate_trend()` — iterates `HashMap` values (undefined order) to determine trend; fixed by sorting entries by key before comparison | latest |
 | 128 | `rf-nightwatch` | Panic in `Histogram::min()`/`max()` — `partial_cmp().unwrap()` panics when NaN values are recorded; added NaN filtering and fallback ordering | latest |
 | 129 | `rf-nightwatch` | Panic in `Histogram::percentile()` — NaN causes sort panic, and floating-point index can exceed bounds; added NaN filtering and index clamping | latest |
+| 130 | `rf-spark` | Silent data loss in financial amount conversion — `(amount * 100).to_string().parse::<i64>().unwrap_or(0)` fails for most decimal amounts (e.g., `"1999.00"` doesn't parse as i64), silently charging $0.00; fixed with `round_dp(0)` and proper error propagation in `payment.rs` and `invoice.rs` | latest |
 
 ---
 
