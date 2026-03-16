@@ -98,6 +98,7 @@ across the RustForge framework. Issues are organized by severity and crate.
 | 87 | `rf-cli-gen` | Panic in `to_snake_case()` — `c.to_lowercase().next().unwrap()` panics on edge-case Unicode; fixed with `.unwrap_or(c)` | latest |
 | 88 | `foundry-cli` | Panic in `to_snake_case()` (policy.rs, provider.rs) — `ch.to_lowercase().next().unwrap()` panics on edge-case Unicode; fixed with `.unwrap_or(ch)` in both files | latest |
 | 89 | `rf-tinker` | UTF-8 panic in `formatter.rs` — `&cell[..self.max_column_width - 3]` byte-offset slicing panics on multi-byte UTF-8 characters; replaced with `cell.chars().take()` | latest |
+| 90 | `rf-views` | **SECURITY**: XSS in `components.rs` — alert, card, and form input components interpolated user-controlled values (`message`, `title`, `content`, `value`, `error`, `name`, `label`, etc.) directly into HTML without escaping; added `escape_html()` to all interpolated values | latest |
 
 ---
 
