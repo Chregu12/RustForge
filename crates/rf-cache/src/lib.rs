@@ -239,14 +239,40 @@ pub struct MemoryCache {
 }
 
 impl MemoryCache {
-    /// Create new memory cache
+    /// Create new memory cache with background eviction
     pub fn new() -> Self {
-        Self {
-            entries: Arc::new(RwLock::new(HashMap::new())),
-            tags: Arc::new(RwLock::new(HashMap::new())),
-            locks: Arc::new(Mutex::new(HashMap::new())),
-            stats: Arc::new(RwLock::new(CacheStats::default())),
+        let entries: Arc<RwLock<HashMap<String, CacheEntry>>> =
+            Arc::new(RwLock::new(HashMap::new()));
+        let tags: Arc<RwLock<HashMap<String, HashSet<String>>>> =
+            Arc::new(RwLock::new(HashMap::new()));
+        let locks: Arc<Mutex<HashMap<String, Arc<Mutex<()>>>>> =
+            Arc::new(Mutex::new(HashMap::new()));
+        let stats = Arc::new(RwLock::new(CacheStats::default()));
+
+        // Spawn a background task to evict expired entries every 60 seconds.
+        // Only runs when called from within a Tokio runtime context.
+        if let Ok(handle) = tokio::runtime::Handle::try_current() {
+            let entries_bg = Arc::clone(&entries);
+            let tags_bg = Arc::clone(&tags);
+            handle.spawn(async move {
+                loop {
+                    tokio::time::sleep(Duration::from_secs(60)).await;
+                    // Remove expired entries
+                    let mut entries = entries_bg.write().await;
+                    entries.retain(|_, v| !v.is_expired());
+                    // Clean up tag sets — remove keys that were evicted
+                    let active_keys: HashSet<String> = entries.keys().cloned().collect();
+                    drop(entries);
+                    let mut tags = tags_bg.write().await;
+                    for key_set in tags.values_mut() {
+                        key_set.retain(|k| active_keys.contains(k));
+                    }
+                    tags.retain(|_, v| !v.is_empty());
+                }
+            });
         }
+
+        Self { entries, tags, locks, stats }
     }
 
     /// Get cache statistics

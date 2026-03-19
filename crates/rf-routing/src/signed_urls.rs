@@ -2,7 +2,6 @@
 
 use chrono::{DateTime, Duration, Utc};
 use sha2::{Digest, Sha256};
-use std::collections::HashMap;
 
 /// A signed URL.
 #[derive(Debug, Clone)]
@@ -161,22 +160,28 @@ pub fn parse_signed_url(url: &str, _secret: &str) -> Option<SignedUrl> {
     let base_url = parts[0];
     let query = parts[1];
 
-    let mut params: HashMap<String, String> = HashMap::new();
+    // Use Vec to preserve original parameter order so the reconstructed URL matches
+    // the URL that was signed (HashMap iteration order is non-deterministic).
+    let mut params_ordered: Vec<(String, String)> = Vec::new();
     for param in query.split('&') {
         let kv: Vec<&str> = param.splitn(2, '=').collect();
         if kv.len() == 2 {
-            params.insert(kv[0].to_string(), kv[1].to_string());
+            params_ordered.push((kv[0].to_string(), kv[1].to_string()));
         }
     }
 
-    let signature = params.get("signature")?.clone();
-    let expires_at = params
-        .get("expires")
-        .and_then(|s| s.parse::<i64>().ok())
+    let signature = params_ordered
+        .iter()
+        .find(|(k, _)| k == "signature")
+        .map(|(_, v)| v.clone())?;
+    let expires_at = params_ordered
+        .iter()
+        .find(|(k, _)| k == "expires")
+        .and_then(|(_, s)| s.parse::<i64>().ok())
         .map(|timestamp| DateTime::from_timestamp(timestamp, 0).unwrap_or_else(|| Utc::now()));
 
-    // Reconstruct the original URL preserving query params other than signature/expires
-    let original_params: Vec<String> = params
+    // Reconstruct the original URL preserving the original parameter order.
+    let original_params: Vec<String> = params_ordered
         .iter()
         .filter(|(k, _)| k.as_str() != "signature" && k.as_str() != "expires")
         .map(|(k, v)| format!("{}={}", k, v))

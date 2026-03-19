@@ -44,10 +44,14 @@ impl Client {
 
         match &self.secret {
             Some(s) => {
-                // Hash both sides so comparison is constant-time over fixed-length digests
                 let expected = Sha256::digest(s.as_bytes());
                 let provided = Sha256::digest(secret.as_bytes());
-                expected == provided
+                // `==` on GenericArray is NOT guaranteed constant-time; use XOR-based comparison.
+                let mut result = 0u8;
+                for (a, b) in expected.iter().zip(provided.iter()) {
+                    result |= a ^ b;
+                }
+                result == 0
             }
             None => false,
         }

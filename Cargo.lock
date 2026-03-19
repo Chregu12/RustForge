@@ -8066,6 +8066,7 @@ dependencies = [
  "serde_json",
  "tokio",
  "tower 0.4.13",
+ "urlencoding",
  "uuid 1.18.1",
 ]
 
@@ -8309,6 +8310,7 @@ dependencies = [
  "chrono",
  "handlebars",
  "hex",
+ "hmac",
  "lettre",
  "once_cell",
  "parking_lot",

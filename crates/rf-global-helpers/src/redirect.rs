@@ -94,7 +94,13 @@ impl RedirectResponse {
             path.push('?');
             let query = params
                 .iter()
-                .map(|(k, v)| format!("{}={}", k, v))
+                .map(|(k, v)| {
+                    format!(
+                        "{}={}",
+                        urlencoding::encode(k),
+                        urlencoding::encode(v)
+                    )
+                })
                 .collect::<Vec<_>>()
                 .join("&");
             path.push_str(&query);
@@ -223,10 +229,9 @@ impl IntoResponse for RedirectResponse {
         }
 
         // Add session cookie (simplified)
-        response.headers_mut().insert(
-            header::SET_COOKIE,
-            format!("session_id={}", session_id).parse().unwrap(),
-        );
+        if let Ok(cookie) = format!("session_id={}", session_id).parse() {
+            response.headers_mut().insert(header::SET_COOKIE, cookie);
+        }
 
         response
     }

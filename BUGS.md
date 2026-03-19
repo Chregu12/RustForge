@@ -147,36 +147,25 @@ across the RustForge framework. Issues are organized by severity and crate.
 | 136 | `rf-2fa` | Wrong error for already-used backup codes — `use_code()` returns `BackupCodeNotFound` instead of distinguishing between non-existent and already-used codes; added `BackupCodeAlreadyUsed` variant | latest |
 | 137 | `rf-metrics` | Metrics handler returns HTTP 200 OK with empty body on UTF-8 encoding failure — `String::from_utf8` error silently swallowed with `unwrap_or_else` returning empty string; changed to return 500 Internal Server Error | latest |
 | 138 | `rf-forms` | Date validation accepts invalid dates like Feb 31 — only checks `day <= 31` without month-specific limits; added per-month day validation with leap year handling | latest |
+| 139 | `rf-routing` | `parse_signed_url` used `HashMap` to collect query params, causing non-deterministic iteration order when reconstructing the original URL — signature verification always failed for URLs with multiple query params; fixed by using `Vec` to preserve original parameter order | latest |
+| 140 | `rf-queue` | Exponential backoff in `retry()` used `2u64.pow(attempts - 1)` without bounds — overflows and panics in debug (or wraps to 0 in release) once `attempts >= 65`; capped exponent at 62 with `saturating_mul` | latest |
+| 141 | `rf-oauth2-server` | **SECURITY**: `verify_secret()` comment claimed "constant-time over fixed-length digests" but `==` on `GenericArray` (SHA-256 output) is NOT guaranteed constant-time — replaced with XOR-based constant-time comparison | latest |
+| 142 | `rf-cache-facade` | Integer overflow in `Cache::increment()` and `Cache::decrement()` — `unwrap_or(0) + value` panics on overflow in debug builds (wraps silently in release); `decrement` delegated to `increment(-value)` which overflows for `i64::MIN`; replaced with `saturating_add`/`saturating_sub` | latest |
+| 143 | `rf-global-helpers` | **SECURITY**: Timing attack on CSRF token verification — `verify_csrf_token()` compared tokens with `==`, vulnerable to timing side-channel; replaced with constant-time XOR byte comparison | latest |
+| 144 | `rf-global-helpers` | Panic in `RedirectResponse::into_response()` — `format!("session_id={}", session_id).parse().unwrap()` panics if `session_id` contains invalid HTTP header characters (e.g. newlines); replaced with `if let Ok(...)` | latest |
+| 145 | `rf-global-helpers` | URL injection in `Redirect::route()` — query parameter keys and values were formatted directly into the URL without percent-encoding, allowing special characters (`&`, `=`, `#`, etc.) to break URL structure; added `urlencoding::encode()` for all params | latest |
+| 146 | `rf-request` | DoS via unbounded request body in `FromRequest` extractor — `axum::body::to_bytes(body, usize::MAX)` accepts arbitrarily large bodies, allowing memory exhaustion; capped at 10 MiB | latest |
+| 147 | `rf-providers` | Undefined behaviour in `Container::make_type()` — `Arc::from_raw(Arc::into_raw(boxed) as *const T)` casts `*const Box<dyn Any>` (fat pointer, 2 words) to `*const T` (thin pointer), reinterpreting vtable+data as T; replaced by storing `Arc<dyn Any + Send + Sync>` in `type_singletons` and using safe `Arc::downcast::<T>()` | latest |
+| 148 | `rf-queue` | No job timeout enforcement — `process_job()` called `handler(metadata.data.clone()).await` directly without any timeout, so a hanging job blocked a worker indefinitely; wrapped with `tokio::time::timeout(Duration::from_secs(metadata.timeout_secs.max(1)), ...)` and return `QueueError::Timeout` on expiry | latest |
+| 149 | `rf-mail` | AWS SES `sign_request()` used `Sha256::digest(string_to_sign)` for the final signature instead of HMAC-SHA256 — every SES API request would fail AWS authentication (HTTP 403); replaced with proper SigV4 key derivation: `HMAC(HMAC(HMAC(HMAC("AWS4"+secret, date), region), "ses"), "aws4_request")` then `HMAC(signing_key, string_to_sign)` | latest |
+| 150 | `rf-broadcasting` | **SECURITY**: WebSocket `Subscribe` handler logged auth token for private/presence channels but never validated it — any client could subscribe to `private-*` or `presence-*` channels without authentication; added `ChannelType::requires_auth()` check and call to `authorize_channel()` rejecting unauthenticated subscriptions | latest |
+| 151 | `rf-cache` | `MemoryCache` had no background eviction — expired entries were only removed lazily on `get()`, so entries set with `set_with_ttl()` and never read again would occupy memory forever; added background `tokio::spawn` task (if in tokio context) that sweeps `entries` every 60s removing expired items and cleaning orphaned tag references | latest |
+| 152 | `rf-jobs` | `Scheduler` stored `job_factory` closures but `clone_schedules()` discarded them, passing only `(Schedule, String)` to `run_scheduler()` — the loop always logged "Job dispatching not yet implemented"; changed `ScheduledJob` to store a `DispatchFn` (`Arc<dyn Fn(Arc<QueueManager>) -> BoxFuture<...>>`) that calls `QueueManager::dispatch()`, updated `clone_schedules()` and `run_scheduler()` to carry and invoke it | latest |
+| 153 | `rf-application` | `DatabaseUserProvider::create_user()` did not insert anything — it called `retrieve_by_credentials()` assuming the user existed; `find_by_email()` returned `Ok(None)` unconditionally; `retrieve_by_id()` returned `Ok(None)` unconditionally — all registration flows always failed; implemented `create_user()` with raw SQL `INSERT`, `find_by_email()` with raw SQL `SELECT`, and `retrieve_by_id()` with raw SQL `SELECT` using backend-aware placeholders | latest |
 
 ---
 
 ## Open Issues - High Priority
-
-### `rf-jobs/src/scheduler.rs` - Scheduler Cannot Dispatch Jobs
-**Severity**: High
-**File**: `crates/rf-jobs/src/scheduler.rs:162-176`
-
-The `Scheduler` stores `job_factory` closures in `ScheduledJob` but the `run_scheduler()` loop
-only extracts `(Schedule, String)` pairs via `clone_schedules()`, discarding the factory. This means
-scheduled jobs are never actually dispatched. The code explicitly logs:
-```
-"Job dispatching not yet implemented (needs job registry)"
-```
-**Fix needed**: Integrate `JobRegistry` into `Scheduler` and call `registry.execute()` when a cron
-trigger fires, similar to how `Worker::execute_job_payload()` works.
-
----
-
-### `rf-application/src/auth/database.rs` - User Creation Not Implemented
-**Severity**: High
-**File**: `crates/rf-application/src/auth/database.rs:87`
-
-The `create_user()` method does not actually create users in the database. It attempts to retrieve
-a user as a workaround, returning an error if not found. Affects all registration flows.
-
-**Fix needed**: Implement proper SeaORM entity-based user creation using `ActiveModel`.
-
----
 
 ### `rf-application/src/commands/tier3/admin.rs` - Admin CRUD Stubs
 **Severity**: Medium
@@ -203,6 +192,21 @@ as the canonical implementation.
 
 ---
 
+### `rf-auth` - `attempt()` Authenticates Any Credentials
+**Severity**: Critical (security stub)
+**File**: `crates/rf-auth/src/auth_manager.rs:84-104`
+
+The `attempt()` method is an unfinished stub: it logs in any user that provides an email and
+password field, regardless of whether the password is correct. No database lookup, no password
+hash verification is performed. Any caller with both fields present is granted authenticated
+access.
+
+**Fix needed**: Integrate with the ORM layer to query the user by email and verify the provided
+password against the stored hash using a password-hashing crate (e.g. `argon2` or `bcrypt`).
+Until then, this crate must not be used in production.
+
+---
+
 ### `rf-oauth2-server/src/middleware.rs` - Token Validation Not Implemented
 **Severity**: Critical (security)
 **File**: `crates/rf-oauth2-server/src/middleware.rs:82-103`
@@ -217,17 +221,6 @@ Any bearer token string (including fabricated ones) passes the middleware check.
 
 **Fix needed**: Implement database/cache lookup for the token, verify expiry, load scopes,
 and reject with `401 Unauthorized` if the token is invalid.
-
----
-
-### `rf-queue/src/redis.rs` - No Job Timeout Enforcement
-**Severity**: Medium
-**File**: `crates/rf-queue/src/worker.rs:118-178`
-
-`JobMetadata` has a `timeout_secs` field but `process_job()` never wraps the handler in a
-`tokio::time::timeout()`. A hanging job will block a worker thread indefinitely.
-
-**Fix needed**: Wrap handler call in `tokio::time::timeout(Duration::from_secs(metadata.timeout_secs))`.
 
 ---
 
@@ -259,30 +252,9 @@ parsing that preserves the body for downstream handlers.
 
 ---
 
-### `rf-cache` - In-Memory Cache Has No Background Eviction
-**Severity**: Medium
-
-The in-memory cache backend has no proactive TTL expiration. Expired entries are only removed
-lazily when `get()` is called on them — entries set with `set_with_ttl()` and never read again
-will occupy memory forever in long-running applications.
-
-**Fix needed**: Spawn a background cleanup task on `MemoryCache::new()` that periodically
-sweeps `entries` and removes all items where `entry.is_expired()`.
-
----
-
 ### `rf-broadcasting/src/auth.rs` - Channel Authorization Not Enforced in WebSocket Handler
 **Severity**: High (security)
 **File**: `crates/rf-broadcasting/src/websocket.rs:218-222`
-
-The `Subscribe` handler has a `TODO` comment acknowledging that auth tokens for private/presence
-channels are logged but never validated. Any client can subscribe to `private-*` or
-`presence-*` channels without providing a valid authorization token.
-
-**Fix needed**: Call `authorize_channel()` from `rf-broadcasting::auth` when `channel` starts
-with `"private-"` or `"presence-"`, reject the subscription with an `Error` message if authorization fails.
-
----
 
 ### `rf-broadcasting/src/websocket.rs` - Channel Registry Not Sharded
 **Severity**: Medium
@@ -315,21 +287,6 @@ effectively limiting precision to 1-minute granularity. Sub-minute cron expressi
 
 ---
 
-### `rf-mail/src/backends/ses.rs` - AWS SES Uses SHA-256 Instead of HMAC-SHA256
-**Severity**: High
-**File**: `crates/rf-mail/src/backends/ses.rs:240-275`
-
-The `sign_request()` method constructs an AWS Signature Version 4 authorization header but
-uses plain `Sha256::digest()` instead of HMAC-SHA256. The comment in the code acknowledges
-the gap ("in production use proper HMAC"). Every API request will fail with AWS authentication
-errors (HTTP 403).
-
-**Fix needed**: Replace `Sha256::digest(string_to_sign)` with a proper HMAC-SHA256 derivation
-using the `hmac` crate (same as used in `rf-broadcasting`), following the AWS SigV4
-key derivation steps: `HMAC(HMAC(HMAC(HMAC("AWS4"+secret, date), region), service), "aws4_request")`.
-
----
-
 ### `rf-2fa` - No Rate Limiting on TOTP Verification
 **Severity**: High (security)
 **File**: `crates/rf-2fa/src/lib.rs:85-90`
@@ -356,6 +313,22 @@ shared across every concurrent HTTP request. This means:
 **Fix needed**: This facade must not be used in web applications. Replace with the
 properly request-scoped session from `rf-web`, or redesign the facade to accept
 a request-scoped context parameter rather than using global state.
+
+---
+
+### `rf-auth-facade` - Global Auth State Unusable in Web Context
+**Severity**: High (architecture/security)
+**File**: `crates/rf-auth-facade/src/manager.rs:10-12`
+
+The facade uses a process-global `Lazy<RwLock<AuthManager>>` to hold the currently
+authenticated user. In a concurrent web application this is critically broken:
+- All concurrent requests share one `current_user` field
+- User A logs in → `GLOBAL_AUTH.write().login(user_a)` → User B appears logged in
+- Authentication state is not isolated per request
+
+**Fix needed**: This facade must not be used in web applications. Replace with
+request-scoped authentication via Axum extractors or equivalent, or redesign the
+facade to accept a request-scoped context parameter.
 
 ---
 

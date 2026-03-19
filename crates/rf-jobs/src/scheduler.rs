@@ -4,20 +4,29 @@ use crate::error::SchedulerError;
 use crate::job::Job;
 use crate::queue::QueueManager;
 use cron::Schedule;
+use std::pin::Pin;
 use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::broadcast;
 use tokio::task::JoinHandle;
 
+/// Type alias for an async dispatch function that enqueues a job via QueueManager
+type DispatchFn = Arc<
+    dyn Fn(
+            Arc<QueueManager>,
+        ) -> Pin<Box<dyn std::future::Future<Output = Result<(), SchedulerError>> + Send>>
+        + Send
+        + Sync,
+>;
+
 /// Scheduled job entry
 struct ScheduledJob {
     /// Cron schedule
     schedule: Schedule,
 
-    /// Job factory function - stored for future registry-based dispatch
-    #[allow(dead_code)]
-    job_factory: Box<dyn Fn() -> Box<dyn std::any::Any + Send> + Send + Sync>,
+    /// Dispatch function that creates and enqueues the job via QueueManager
+    dispatch: DispatchFn,
 
     /// Job name for logging
     name: String,
@@ -92,9 +101,21 @@ impl Scheduler {
         let schedule = Schedule::from_str(cron_expr)
             .map_err(|e| SchedulerError::InvalidCron(e.to_string()))?;
 
+        // Build a dispatch closure that calls the factory and enqueues the resulting job
+        let dispatch: DispatchFn = Arc::new(move |manager: Arc<QueueManager>| {
+            let job = job_factory();
+            Box::pin(async move {
+                manager
+                    .dispatch(job)
+                    .await
+                    .map(|_| ())
+                    .map_err(SchedulerError::QueueError)
+            })
+        });
+
         let scheduled = ScheduledJob {
             schedule,
-            job_factory: Box::new(move || Box::new(job_factory())),
+            dispatch,
             name: name.to_string(),
         };
 
@@ -136,8 +157,8 @@ impl Scheduler {
 
     /// Run the scheduler loop
     async fn run_scheduler(
-        schedules: Vec<(Schedule, String)>,
-        _queue_manager: Arc<QueueManager>,
+        schedules: Vec<(Schedule, String, DispatchFn)>,
+        queue_manager: Arc<QueueManager>,
         shutdown_rx: &mut broadcast::Receiver<()>,
     ) {
         let mut last_minute = chrono::Utc::now().format("%Y-%m-%d %H:%M").to_string();
@@ -156,7 +177,7 @@ impl Scheduler {
             if current_minute != last_minute {
                 last_minute = current_minute;
 
-                for (schedule, name) in &schedules {
+                for (schedule, name, dispatch) in &schedules {
                     if let Some(next) = schedule.upcoming(chrono::Utc).next() {
                         // Check if job should run now (within current minute)
                         if next <= now {
@@ -166,13 +187,10 @@ impl Scheduler {
                                 "Dispatching scheduled job"
                             );
 
-                            // Note: In a real implementation, we would need a job registry
-                            // to deserialize and dispatch the actual job
-                            // For now, we just log
-                            tracing::warn!(
-                                name = %name,
-                                "Job dispatching not yet implemented (needs job registry)"
-                            );
+                            match dispatch(Arc::clone(&queue_manager)).await {
+                                Ok(()) => tracing::info!(name = %name, "Job dispatched successfully"),
+                                Err(e) => tracing::error!(name = %name, error = %e, "Failed to dispatch job"),
+                            }
                         }
                     }
                 }
@@ -205,13 +223,13 @@ impl Scheduler {
 }
 
 trait CloneSchedules {
-    fn clone_schedules(&self) -> Vec<(Schedule, String)>;
+    fn clone_schedules(&self) -> Vec<(Schedule, String, DispatchFn)>;
 }
 
 impl CloneSchedules for Vec<ScheduledJob> {
-    fn clone_schedules(&self) -> Vec<(Schedule, String)> {
+    fn clone_schedules(&self) -> Vec<(Schedule, String, DispatchFn)> {
         self.iter()
-            .map(|s| (s.schedule.clone(), s.name.clone()))
+            .map(|s| (s.schedule.clone(), s.name.clone(), Arc::clone(&s.dispatch)))
             .collect()
     }
 }

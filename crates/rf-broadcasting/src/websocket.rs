@@ -218,9 +218,33 @@ impl WebSocketServer {
 
         match message {
             ClientMessage::Subscribe { channel, auth } => {
-                // TODO: Implement channel authorization with auth token
-                if auth.is_some() {
-                    tracing::debug!(channel = %channel, "Authorizing channel subscription");
+                // Enforce authorization for private and presence channels
+                let channel_type = crate::auth::ChannelType::from_name(&channel);
+                if channel_type.requires_auth() {
+                    let token = match auth.as_deref() {
+                        None | Some("") => {
+                            tracing::warn!(
+                                channel = %channel,
+                                addr = %addr,
+                                "Rejected unauthenticated subscription to private/presence channel"
+                            );
+                            return Err(BroadcastError::Unauthorized);
+                        }
+                        Some(t) => t,
+                    };
+                    // Verify auth token via authorize_channel (requires non-empty token)
+                    let placeholder_user = crate::auth::SimpleUser {
+                        id: 0,
+                        name: String::new(),
+                    };
+                    crate::auth::authorize_channel(
+                        &crate::auth::DefaultChannelAuth,
+                        &placeholder_user,
+                        &channel,
+                        Some(token),
+                    )
+                    .await?;
+                    tracing::debug!(channel = %channel, "Channel authorization passed");
                 }
 
                 let broadcast_tx = self.registry.get_or_create(&channel).await;

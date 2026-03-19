@@ -319,14 +319,18 @@ impl Cache {
     pub fn increment(key: &str, value: i64) -> CacheResult<i64> {
         let manager = GLOBAL_CACHE.read().unwrap();
         let current: Option<i64> = manager.get(key)?;
-        let new_value = current.unwrap_or(0) + value;
+        let new_value = current.unwrap_or(0).saturating_add(value);
         manager.put(key, &new_value, Duration::from_secs(3600))?;
         Ok(new_value)
     }
 
     /// Decrement a numeric value in cache
     pub fn decrement(key: &str, value: i64) -> CacheResult<i64> {
-        Self::increment(key, -value)
+        let manager = GLOBAL_CACHE.read().unwrap();
+        let current: Option<i64> = manager.get(key)?;
+        let new_value = current.unwrap_or(0).saturating_sub(value);
+        manager.put(key, &new_value, Duration::from_secs(3600))?;
+        Ok(new_value)
     }
 }
 

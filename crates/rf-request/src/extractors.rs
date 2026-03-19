@@ -35,8 +35,9 @@ where
 
         // Parse the body based on content type
         let fields = if content_type.contains("application/json") {
-            // Parse JSON body
-            let bytes = axum::body::to_bytes(body, usize::MAX)
+            // Parse JSON body — limit to 10 MiB to prevent memory exhaustion from oversized requests
+            const MAX_BODY_SIZE: usize = 10 * 1024 * 1024;
+            let bytes = axum::body::to_bytes(body, MAX_BODY_SIZE)
                 .await
                 .map_err(|e| RequestError::InvalidBody(e.to_string()))?;
 

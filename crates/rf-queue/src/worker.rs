@@ -136,9 +136,18 @@ impl Worker {
             }
         };
 
-        // Execute job
+        // Execute job with timeout enforcement
         let start = std::time::Instant::now();
-        let result = handler(metadata.data.clone()).await;
+        let timeout_secs = metadata.timeout_secs.max(1);
+        let result = match tokio::time::timeout(
+            Duration::from_secs(timeout_secs),
+            handler(metadata.data.clone()),
+        )
+        .await
+        {
+            Ok(r) => r,
+            Err(_) => Err(QueueError::Timeout(timeout_secs)),
+        };
         let duration = start.elapsed();
 
         match result {

@@ -116,15 +116,16 @@ impl SesMailer {
 
     /// Send using AWS SES API (SendEmail action)
     async fn send_via_api(&self, mail: &Mail) -> MailResult<SesResponse> {
-        let from = mail
-            .from
-            .as_ref()
-            .ok_or_else(|| MailError::InvalidAddress("Missing 'from' address".to_string()))?;
+        let from = &mail.from;
+
+        if from.email.is_empty() {
+            return Err(MailError::InvalidMessage("Missing 'from' address".to_string()));
+        }
 
         // Build form data for AWS SES
-        let mut params = HashMap::new();
+        let mut params: HashMap<String, String> = HashMap::new();
 
-        params.insert("Action", "SendEmail");
+        params.insert("Action".to_string(), "SendEmail".to_string());
 
         // From address
         let from_address = if let Some(name) = &from.name {
@@ -132,7 +133,7 @@ impl SesMailer {
         } else {
             from.email.clone()
         };
-        params.insert("Source", from_address);
+        params.insert("Source".to_string(), from_address);
 
         // To addresses
         for (i, to) in mail.to.iter().enumerate() {
@@ -160,34 +161,34 @@ impl SesMailer {
 
         // Reply-to
         if let Some(reply_to) = &mail.reply_to {
-            params.insert("ReplyToAddresses.member.1", reply_to.email.clone());
+            params.insert("ReplyToAddresses.member.1".to_string(), reply_to.email.clone());
         }
 
         // Subject
-        params.insert("Message.Subject.Data", mail.subject.clone());
-        params.insert("Message.Subject.Charset", "UTF-8".to_string());
+        params.insert("Message.Subject.Data".to_string(), mail.subject.clone());
+        params.insert("Message.Subject.Charset".to_string(), "UTF-8".to_string());
 
         // Body content
         match &mail.body {
             crate::MailBody::Text(text) => {
-                params.insert("Message.Body.Text.Data", text.clone());
-                params.insert("Message.Body.Text.Charset", "UTF-8".to_string());
+                params.insert("Message.Body.Text.Data".to_string(), text.clone());
+                params.insert("Message.Body.Text.Charset".to_string(), "UTF-8".to_string());
             }
             crate::MailBody::Html(html) => {
-                params.insert("Message.Body.Html.Data", html.clone());
-                params.insert("Message.Body.Html.Charset", "UTF-8".to_string());
+                params.insert("Message.Body.Html.Data".to_string(), html.clone());
+                params.insert("Message.Body.Html.Charset".to_string(), "UTF-8".to_string());
             }
             crate::MailBody::Both { text, html } => {
-                params.insert("Message.Body.Text.Data", text.clone());
-                params.insert("Message.Body.Text.Charset", "UTF-8".to_string());
-                params.insert("Message.Body.Html.Data", html.clone());
-                params.insert("Message.Body.Html.Charset", "UTF-8".to_string());
+                params.insert("Message.Body.Text.Data".to_string(), text.clone());
+                params.insert("Message.Body.Text.Charset".to_string(), "UTF-8".to_string());
+                params.insert("Message.Body.Html.Data".to_string(), html.clone());
+                params.insert("Message.Body.Html.Charset".to_string(), "UTF-8".to_string());
             }
         }
 
         // Configuration set
         if let Some(config_set) = &self.config.configuration_set {
-            params.insert("ConfigurationSetName", config_set.clone());
+            params.insert("ConfigurationSetName".to_string(), config_set.clone());
         }
 
         // Tags
@@ -236,13 +237,13 @@ impl SesMailer {
         Ok(ses_response)
     }
 
-    /// Sign AWS request with Signature Version 4
+    /// Sign AWS request with Signature Version 4 (proper HMAC-SHA256)
     async fn sign_request(&self, _body: &str) -> MailResult<String> {
-        // Simplified signing for demonstration
-        // In production, use aws-sigv4 crate or AWS SDK
-
         use chrono::Utc;
+        use hmac::{Hmac, Mac};
         use sha2::{Digest, Sha256};
+
+        type HmacSha256 = Hmac<Sha256>;
 
         let now = Utc::now();
         let date_stamp = now.format("%Y%m%d").to_string();
@@ -262,8 +263,34 @@ impl SesMailer {
             hex::encode(Sha256::digest(canonical_request.as_bytes()))
         );
 
-        // Calculate signature (simplified - in production use proper HMAC)
-        let signature = hex::encode(Sha256::digest(string_to_sign.as_bytes()));
+        // AWS SigV4 key derivation: HMAC(HMAC(HMAC(HMAC("AWS4"+secret, date), region), service), "aws4_request")
+        let signing_key_base = format!("AWS4{}", self.config.secret_access_key);
+
+        let mut mac = HmacSha256::new_from_slice(signing_key_base.as_bytes())
+            .map_err(|e| MailError::SendFailed(format!("HMAC key error: {}", e)))?;
+        mac.update(date_stamp.as_bytes());
+        let date_key = mac.finalize().into_bytes();
+
+        let mut mac = HmacSha256::new_from_slice(&date_key)
+            .map_err(|e| MailError::SendFailed(format!("HMAC key error: {}", e)))?;
+        mac.update(self.config.region.as_bytes());
+        let region_key = mac.finalize().into_bytes();
+
+        let mut mac = HmacSha256::new_from_slice(&region_key)
+            .map_err(|e| MailError::SendFailed(format!("HMAC key error: {}", e)))?;
+        mac.update(b"ses");
+        let service_key = mac.finalize().into_bytes();
+
+        let mut mac = HmacSha256::new_from_slice(&service_key)
+            .map_err(|e| MailError::SendFailed(format!("HMAC key error: {}", e)))?;
+        mac.update(b"aws4_request");
+        let signing_key = mac.finalize().into_bytes();
+
+        // Calculate signature using derived signing key
+        let mut mac = HmacSha256::new_from_slice(&signing_key)
+            .map_err(|e| MailError::SendFailed(format!("HMAC key error: {}", e)))?;
+        mac.update(string_to_sign.as_bytes());
+        let signature = hex::encode(mac.finalize().into_bytes());
 
         // Build authorization header
         let authorization = format!(
