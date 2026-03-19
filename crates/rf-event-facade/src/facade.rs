@@ -186,18 +186,17 @@ mod tests {
 
     #[test]
     fn test_event_dispatch() {
-        Event::clear_history();
+        let event_name = format!("test.dispatch.{}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos());
 
         let event = TestEvent {
             message: "test".to_string(),
         };
 
-        let result = Event::dispatch("test.event", event);
+        let result = Event::dispatch(&event_name, event);
         assert!(result.is_ok());
 
         let history = Event::history();
-        assert_eq!(history.len(), 1);
-        assert_eq!(history[0].0, "test.event");
+        assert!(history.iter().any(|(name, _)| name == &event_name));
     }
 
     #[test]
@@ -237,29 +236,31 @@ mod tests {
 
     #[test]
     fn test_event_forget() {
-        Event::forget_all();
+        let event_name = format!("test.forget.{}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos());
 
-        Event::listen("test.forget", |_| {});
-        assert!(Event::has_listeners("test.forget"));
+        Event::listen(&event_name, |_| {});
+        assert!(Event::has_listeners(&event_name));
 
-        Event::forget("test.forget");
-        assert!(!Event::has_listeners("test.forget"));
+        Event::forget(&event_name);
+        assert!(!Event::has_listeners(&event_name));
     }
 
     #[test]
     fn test_event_forget_all() {
+        let suffix = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
+        let event1 = format!("forget_all_test.event1.{}", suffix);
+        let event2 = format!("forget_all_test.event2.{}", suffix);
+
+        Event::listen(&event1, |_| {});
+        Event::listen(&event2, |_| {});
+
+        assert!(Event::has_listeners(&event1));
+        assert!(Event::has_listeners(&event2));
+
         Event::forget_all();
 
-        Event::listen("forget_all_test.event1", |_| {});
-        Event::listen("forget_all_test.event2", |_| {});
-
-        assert!(Event::has_listeners("forget_all_test.event1"));
-        assert!(Event::has_listeners("forget_all_test.event2"));
-
-        Event::forget_all();
-
-        assert!(!Event::has_listeners("forget_all_test.event1"));
-        assert!(!Event::has_listeners("forget_all_test.event2"));
+        assert!(!Event::has_listeners(&event1));
+        assert!(!Event::has_listeners(&event2));
     }
 
     #[test]

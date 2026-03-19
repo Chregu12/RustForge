@@ -33,7 +33,8 @@ use std::sync::Arc;
 use notify::{Event, EventKind, RecursiveMode, Watcher};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
-use tokio::sync::{broadcast, RwLock};
+use std::sync::RwLock;
+use tokio::sync::broadcast;
 
 /// Live reload errors
 #[derive(Error, Debug)]
@@ -128,31 +129,31 @@ impl LiveReload {
         let path = path.as_ref().to_path_buf();
         // Use blocking_write to ensure config is set before returning,
         // preventing race conditions when chaining .watch().pattern().start()
-        self.config.blocking_write().watch_paths.push(path);
+        self.config.write().unwrap().watch_paths.push(path);
         self
     }
 
     /// Add a file pattern to watch
     pub fn pattern(self, pattern: impl Into<String>) -> Self {
-        self.config.blocking_write().patterns.push(pattern.into());
+        self.config.write().unwrap().patterns.push(pattern.into());
         self
     }
 
     /// Set debounce duration
     pub fn debounce_ms(self, ms: u64) -> Self {
-        self.config.blocking_write().debounce_ms = ms;
+        self.config.write().unwrap().debounce_ms = ms;
         self
     }
 
     /// Set WebSocket port
     pub fn port(self, port: u16) -> Self {
-        self.config.blocking_write().port = port;
+        self.config.write().unwrap().port = port;
         self
     }
 
     /// Start the live reload server
     pub async fn start(self) -> LiveReloadResult<LiveReloadServer> {
-        let config = self.config.read().await.clone();
+        let config = self.config.read().unwrap().clone();
 
         // Create file watcher
         let (tx, mut rx) = tokio::sync::mpsc::channel(100);
@@ -324,7 +325,7 @@ mod tests {
         // Give time for async config updates
         tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
 
-        let _config = reload.config.read().await;
+        let _config = reload.config.read().unwrap();
         // Config updates are async, so we can't directly test them
         // In a real implementation, we'd use a different approach
     }
