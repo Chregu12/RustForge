@@ -2,7 +2,7 @@
 
 #[cfg(test)]
 mod tests {
-    use rf_routing::route::{Route, RouteBuilder, HttpMethod};
+    use rf_routing::route::RouteBuilder;
     use rf_routing::groups::{RouteGroup, RouteGroupBuilder};
     use rf_routing::named_routes::{NamedRoute, RouteRegistry, RouteUrlBuilder, ParamValue};
     use rf_routing::resource::{ResourceRouter, ResourceCollection, api_resource};
@@ -10,7 +10,7 @@ mod tests {
     use rf_routing::signed_urls::{SignedUrl, SignedUrlBuilder};
     use rf_routing::url_generation::{UrlGenerator, UrlBuilder, QueryStringBuilder};
     use rf_routing::middleware_pipeline::{MiddlewareRegistry, MiddlewarePipeline, MiddlewareGroup};
-    use rf_routing::middleware_stack::{MiddlewareStack, MiddlewareStackBuilder};
+    use rf_routing::middleware_stack::MiddlewareStackBuilder;
     use rf_routing::versioning::{ApiVersion as RoutingApiVersion, VersionConfig, DefaultNegotiator, VersionNegotiator};
     use std::collections::HashMap;
     use std::sync::Arc;

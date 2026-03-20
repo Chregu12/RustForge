@@ -3,9 +3,8 @@
 #[cfg(test)]
 mod tests {
     use rf_mail::{
-        Address, Attachment, MailBuilder, Mail, Message, MessageBuilder,
-        MailConfig, SmtpConfig, SendmailConfig, MailBody,
-        LogMailer, MemoryMailer, Mailer,
+        Address, Attachment, MailBuilder, Mail, MessageBuilder,
+        MailConfig, MemoryMailer, Mailer,
     };
     use rf_mail::markdown::{render_markdown, markdown_to_text, button, panel, table};
 

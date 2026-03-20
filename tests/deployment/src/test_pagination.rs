@@ -3,8 +3,8 @@
 #[cfg(test)]
 mod tests {
     use rf_pagination::{
-        Paginator, PaginationMeta, PaginationLinks, PaginatedResponse,
-        CursorPaginator, CursorDirection,
+        Paginator, PaginationLinks, PaginatedResponse,
+        CursorPaginator,
     };
 
     // ── Paginator ────────────────────────────────────────────────

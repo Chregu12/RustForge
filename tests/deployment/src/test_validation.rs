@@ -12,7 +12,7 @@ mod tests {
     use rf_validation::rules::date::*;
     use rf_validation::rules::conditional::*;
     use rf_validation::validators::{email, url, ip, uuid};
-    use serde_json::{json, Value};
+    use serde_json::json;
     use std::collections::HashMap;
 
     // ── ValidationErrors ─────────────────────────────────────────

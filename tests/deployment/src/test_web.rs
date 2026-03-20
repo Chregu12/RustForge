@@ -3,13 +3,11 @@
 #[cfg(test)]
 mod tests {
     use rf_web::csrf::{CsrfToken, CsrfConfig, CsrfTokenStore, csrf_token, csrf_field, csrf_meta};
-    use rf_web::session::store::{Session, SessionStore};
+    use rf_web::session::store::SessionStore;
     use rf_web::session::driver::MemorySessionDriver;
     use rf_web::session::middleware::{SessionConfig, SameSite};
     use rf_web::versioning::{ApiVersion, VersionedRouter};
-    use axum::{routing::get, Router};
     use std::sync::Arc;
-    use std::time::Duration;
 
     // ── CSRF ─────────────────────────────────────────────────────
 
