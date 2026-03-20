@@ -31,7 +31,10 @@
 //! ```
 
 use async_trait::async_trait;
-use sea_orm::{DatabaseConnection, DbErr};
+use sea_orm::{
+    ColumnTrait, DatabaseConnection, DbErr, EntityTrait, FromQueryResult, QueryFilter, QueryOrder,
+    QuerySelect, Select, Value,
+};
 use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
 use thiserror::Error;
@@ -388,6 +391,317 @@ impl<M, T, R> HasManyThrough<M, T, R> {
     pub fn final_foreign_key(&self) -> &str {
         &self.final_foreign_key
     }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Fluent relationship builders – Feature 7
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Fluent builder for HasMany relationships.
+///
+/// Obtained by calling `HasManyBuilder::new()` (or the convenience function
+/// `has_many_builder()`).  Supports chained `.order_by()` / `.limit()` before
+/// the terminal `.get()` / `.first()` / `.count()` calls.
+///
+/// # Example
+///
+/// ```rust,no_run
+/// # use rf_eloquent::relationships::HasManyBuilder;
+/// # use sea_orm::*;
+/// # mod post {
+/// #     use sea_orm::entity::prelude::*;
+/// #     pub struct Entity;
+/// #     pub struct Model { pub id: i32, pub user_id: i32 }
+/// #     pub enum Column { UserId }
+/// # }
+/// # async fn example(db: DatabaseConnection) -> Result<(), DbErr> {
+/// let posts = HasManyBuilder::<post::Entity>::new(db.clone(), post::Column::UserId, 42i32)
+///     .order_by(post::Column::UserId, sea_orm::Order::Desc)
+///     .limit(10)
+///     .get()
+///     .await?;
+/// # Ok(())
+/// # }
+/// ```
+pub struct HasManyBuilder<E>
+where
+    E: EntityTrait,
+{
+    db: DatabaseConnection,
+    query: Select<E>,
+}
+
+impl<E> HasManyBuilder<E>
+where
+    E: EntityTrait,
+    <E as EntityTrait>::Column: ColumnTrait,
+{
+    /// Create a new HasManyBuilder.
+    ///
+    /// * `db`          – live database connection
+    /// * `foreign_key` – the column in the related table referencing the parent
+    /// * `parent_id`   – value the foreign key must equal
+    pub fn new<K>(db: DatabaseConnection, foreign_key: E::Column, parent_id: K) -> Self
+    where
+        K: Into<Value> + Clone,
+    {
+        let query = E::find().filter(foreign_key.eq(parent_id));
+        Self { db, query }
+    }
+
+    /// Add an ORDER BY clause.
+    pub fn order_by(mut self, col: E::Column, dir: sea_orm::Order) -> Self {
+        self.query = self.query.order_by(col, dir);
+        self
+    }
+
+    /// Add a LIMIT clause.
+    pub fn limit(mut self, n: u64) -> Self {
+        self.query = self.query.limit(n);
+        self
+    }
+
+    /// Apply an additional WHERE filter.
+    pub fn filter<F>(mut self, condition: F) -> Self
+    where
+        F: sea_orm::sea_query::IntoCondition,
+    {
+        self.query = self.query.filter(condition);
+        self
+    }
+
+    /// Execute the query and return all matching rows.
+    pub async fn get(self) -> Result<Vec<E::Model>, DbErr> {
+        self.query.all(&self.db).await
+    }
+
+    /// Execute the query and return the first result, if any.
+    pub async fn first(self) -> Result<Option<E::Model>, DbErr> {
+        self.query.one(&self.db).await
+    }
+
+    /// Return the number of matching rows without loading them.
+    pub async fn count(self) -> Result<u64, DbErr> {
+        let results = self.query.all(&self.db).await?;
+        Ok(results.len() as u64)
+    }
+}
+
+/// Fluent builder for HasOne relationships.
+///
+/// Behaves like [`HasManyBuilder`] but the terminal method returns
+/// `Option<E::Model>` rather than a `Vec`.
+pub struct HasOneBuilder<E>
+where
+    E: EntityTrait,
+{
+    db: DatabaseConnection,
+    query: Select<E>,
+}
+
+impl<E> HasOneBuilder<E>
+where
+    E: EntityTrait,
+    <E as EntityTrait>::Column: ColumnTrait,
+{
+    /// Create a new HasOneBuilder.
+    pub fn new<K>(db: DatabaseConnection, foreign_key: E::Column, parent_id: K) -> Self
+    where
+        K: Into<Value> + Clone,
+    {
+        let query = E::find().filter(foreign_key.eq(parent_id));
+        Self { db, query }
+    }
+
+    /// Apply an additional WHERE filter.
+    pub fn filter<F>(mut self, condition: F) -> Self
+    where
+        F: sea_orm::sea_query::IntoCondition,
+    {
+        self.query = self.query.filter(condition);
+        self
+    }
+
+    /// Execute the query and return the related model, if found.
+    pub async fn get(self) -> Result<Option<E::Model>, DbErr> {
+        self.query.one(&self.db).await
+    }
+
+    /// Alias for [`get`](HasOneBuilder::get).
+    pub async fn first(self) -> Result<Option<E::Model>, DbErr> {
+        self.get().await
+    }
+
+    /// Return whether a related record exists.
+    pub async fn exists(self) -> Result<bool, DbErr> {
+        Ok(self.query.one(&self.db).await?.is_some())
+    }
+}
+
+/// Fluent builder for BelongsTo relationships.
+///
+/// Looks up the *parent* model by a primary-key value stored as a foreign key
+/// on the child model.
+pub struct BelongsToBuilder<E>
+where
+    E: EntityTrait,
+{
+    db: DatabaseConnection,
+    query: Select<E>,
+}
+
+impl<E> BelongsToBuilder<E>
+where
+    E: EntityTrait,
+    <E as EntityTrait>::Column: ColumnTrait,
+{
+    /// Create a new BelongsToBuilder.
+    ///
+    /// * `db`                – live database connection
+    /// * `primary_key`       – the PK column of the parent entity
+    /// * `foreign_key_value` – the FK value stored on the child model
+    pub fn new<K>(db: DatabaseConnection, primary_key: E::Column, foreign_key_value: K) -> Self
+    where
+        K: Into<Value> + Clone,
+    {
+        let query = E::find().filter(primary_key.eq(foreign_key_value));
+        Self { db, query }
+    }
+
+    /// Apply an additional WHERE filter.
+    pub fn filter<F>(mut self, condition: F) -> Self
+    where
+        F: sea_orm::sea_query::IntoCondition,
+    {
+        self.query = self.query.filter(condition);
+        self
+    }
+
+    /// Execute the query and return the parent model, if found.
+    pub async fn get(self) -> Result<Option<E::Model>, DbErr> {
+        self.query.one(&self.db).await
+    }
+
+    /// Alias for [`get`](BelongsToBuilder::get).
+    pub async fn first(self) -> Result<Option<E::Model>, DbErr> {
+        self.get().await
+    }
+}
+
+/// Convenience constructor for [`HasManyBuilder`].
+///
+/// ```rust,no_run
+/// # use rf_eloquent::relationships::has_many_builder;
+/// # use sea_orm::*;
+/// # mod post {
+/// #     use sea_orm::entity::prelude::*;
+/// #     pub struct Entity;
+/// #     pub struct Model { pub id: i32, pub user_id: i32 }
+/// #     pub enum Column { UserId }
+/// # }
+/// # async fn example(db: DatabaseConnection) -> Result<(), DbErr> {
+/// let posts = has_many_builder::<post::Entity, _>(db, post::Column::UserId, 1i32)
+///     .limit(5)
+///     .get()
+///     .await?;
+/// # Ok(())
+/// # }
+/// ```
+pub fn has_many_builder<E, K>(
+    db: DatabaseConnection,
+    foreign_key: E::Column,
+    parent_id: K,
+) -> HasManyBuilder<E>
+where
+    E: EntityTrait,
+    <E as EntityTrait>::Column: ColumnTrait,
+    K: Into<Value> + Clone,
+{
+    HasManyBuilder::new(db, foreign_key, parent_id)
+}
+
+/// Convenience constructor for [`HasOneBuilder`].
+pub fn has_one_builder<E, K>(
+    db: DatabaseConnection,
+    foreign_key: E::Column,
+    parent_id: K,
+) -> HasOneBuilder<E>
+where
+    E: EntityTrait,
+    <E as EntityTrait>::Column: ColumnTrait,
+    K: Into<Value> + Clone,
+{
+    HasOneBuilder::new(db, foreign_key, parent_id)
+}
+
+/// Convenience constructor for [`BelongsToBuilder`].
+pub fn belongs_to_builder<E, K>(
+    db: DatabaseConnection,
+    primary_key: E::Column,
+    foreign_key_value: K,
+) -> BelongsToBuilder<E>
+where
+    E: EntityTrait,
+    <E as EntityTrait>::Column: ColumnTrait,
+    K: Into<Value> + Clone,
+{
+    BelongsToBuilder::new(db, primary_key, foreign_key_value)
+}
+
+/// `define_relationships!` — macro for concisely declaring relationship helpers on a model.
+///
+/// ```rust,no_run
+/// # use rf_eloquent::define_relationships;
+/// # use rf_eloquent::relationships::{HasManyBuilder, BelongsToBuilder};
+/// # use sea_orm::DatabaseConnection;
+/// # mod post {
+/// #     pub use sea_orm::entity::prelude::*;
+/// #     pub struct Entity;
+/// #     pub struct Model { pub id: i32, pub user_id: i32 }
+/// #     pub enum Column { UserId }
+/// # }
+/// # mod user {
+/// #     pub use sea_orm::entity::prelude::*;
+/// #     pub struct Entity;
+/// #     pub struct Model { pub id: i32 }
+/// #     pub enum Column { Id }
+/// # }
+/// struct UserModel { id: i32 }
+///
+/// define_relationships!(UserModel; has_many posts, post::Entity, post::Column::UserId, self.id);
+/// ```
+#[macro_export]
+macro_rules! define_relationships {
+    // has_many arm: define_relationships!(Model; has_many method, Entity, col_expr, id_expr)
+    ($model:ty; has_many $method:ident, $entity:ty, $col:expr, $id:expr) => {
+        impl $model {
+            pub fn $method(&self, db: ::sea_orm::DatabaseConnection)
+                -> $crate::relationships::HasManyBuilder<$entity>
+            {
+                $crate::relationships::HasManyBuilder::new(db, $col, $id)
+            }
+        }
+    };
+    // has_one arm
+    ($model:ty; has_one $method:ident, $entity:ty, $col:expr, $id:expr) => {
+        impl $model {
+            pub fn $method(&self, db: ::sea_orm::DatabaseConnection)
+                -> $crate::relationships::HasOneBuilder<$entity>
+            {
+                $crate::relationships::HasOneBuilder::new(db, $col, $id)
+            }
+        }
+    };
+    // belongs_to arm
+    ($model:ty; belongs_to $method:ident, $entity:ty, $col:expr, $fk:expr) => {
+        impl $model {
+            pub fn $method(&self, db: ::sea_orm::DatabaseConnection)
+                -> $crate::relationships::BelongsToBuilder<$entity>
+            {
+                $crate::relationships::BelongsToBuilder::new(db, $col, $fk)
+            }
+        }
+    };
 }
 
 /// Relationship metadata for documentation and introspection

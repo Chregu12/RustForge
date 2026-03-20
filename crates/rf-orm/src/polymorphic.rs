@@ -45,7 +45,10 @@
 //! ```
 
 use async_trait::async_trait;
-use sea_orm::{DatabaseConnection, DbErr, EntityTrait};
+use sea_orm::{
+    sea_query::{Alias, Expr, Order},
+    DatabaseConnection, DbErr, EntityTrait, QueryFilter, QueryOrder, QuerySelect,
+};
 
 /// Trait for entities that can be used in polymorphic relations
 ///
@@ -193,9 +196,9 @@ pub trait MorphToMany<E: EntityTrait> {
 /// let parent = morph_to::<post::Entity>(&db, "Post", 123).await?;
 /// ```
 pub async fn morph_to<E>(
-    _db: &DatabaseConnection,
+    db: &DatabaseConnection,
     morph_type: &str,
-    _morph_id: i64,
+    morph_id: i64,
 ) -> PolymorphicResult<Option<E::Model>>
 where
     E: Morphable,
@@ -204,10 +207,10 @@ where
         return Ok(None);
     }
 
-    // Note: This is a simplified implementation
-    // In a real implementation, you'd need to handle the ID column dynamically
-    // For now, this serves as a placeholder for the API structure
-    Ok(None)
+    E::find()
+        .filter(Expr::col(Alias::new("id")).eq(morph_id))
+        .one(db)
+        .await
 }
 
 /// Helper function to load a morph_many relationship
@@ -225,20 +228,22 @@ where
 /// let comments = morph_many::<comment::Entity>(&db, "Post", 123, "commentable").await?;
 /// ```
 pub async fn morph_many<E>(
-    _db: &DatabaseConnection,
-    _parent_type: &str,
-    _parent_id: i64,
-    _relation_name: &str,
+    db: &DatabaseConnection,
+    parent_type: &str,
+    parent_id: i64,
+    relation_name: &str,
 ) -> PolymorphicResult<Vec<E::Model>>
 where
     E: EntityTrait,
 {
-    // Note: This is a simplified implementation
-    // In a real implementation, you'd need to:
-    // 1. Construct column names from relation_name ({name}_type, {name}_id)
-    // 2. Query with those columns
-    // For now, this serves as a placeholder for the API structure
-    Ok(Vec::new())
+    let type_col = format!("{}_type", relation_name);
+    let id_col = format!("{}_id", relation_name);
+
+    E::find()
+        .filter(Expr::col(Alias::new(type_col.as_str())).eq(parent_type))
+        .filter(Expr::col(Alias::new(id_col.as_str())).eq(parent_id))
+        .all(db)
+        .await
 }
 
 /// Helper function to load a morph_one relationship
@@ -327,14 +332,35 @@ impl PolymorphicQueryBuilder {
     }
 
     /// Execute the query and return results
-    pub async fn get<E>(self, _db: &DatabaseConnection) -> PolymorphicResult<Vec<E::Model>>
+    pub async fn get<E>(self, db: &DatabaseConnection) -> PolymorphicResult<Vec<E::Model>>
     where
         E: EntityTrait,
     {
-        // Note: This is a simplified implementation
-        // In a real implementation, you'd build and execute the query
-        // based on the builder's configuration
-        Ok(Vec::new())
+        let morph_type = self.morph_type.as_deref().unwrap_or("");
+        let morph_id = self.morph_id.unwrap_or(0);
+        let relation_name = self.relation_name.as_deref().unwrap_or("morphable");
+
+        let type_col = format!("{}_type", relation_name);
+        let id_col = format!("{}_id", relation_name);
+
+        let mut query = E::find()
+            .filter(Expr::col(Alias::new(type_col.as_str())).eq(morph_type))
+            .filter(Expr::col(Alias::new(id_col.as_str())).eq(morph_id));
+
+        if let Some((col, dir)) = &self.order_by {
+            let col_expr = Expr::col(Alias::new(col.as_str()));
+            if dir.to_lowercase() == "desc" {
+                query = query.order_by(col_expr, Order::Desc);
+            } else {
+                query = query.order_by(col_expr, Order::Asc);
+            }
+        }
+
+        if let Some(limit) = self.limit {
+            query = query.limit(limit);
+        }
+
+        query.all(db).await
     }
 
     /// Execute the query and return first result
@@ -347,12 +373,14 @@ impl PolymorphicQueryBuilder {
     }
 
     /// Count the results
-    pub async fn count<E>(self, _db: &DatabaseConnection) -> PolymorphicResult<u64>
+    pub async fn count<E>(self, db: &DatabaseConnection) -> PolymorphicResult<u64>
     where
         E: EntityTrait,
     {
-        // Placeholder implementation
-        Ok(0)
+        // Load all results then count; this avoids the PaginatorTrait bound
+        // mismatch for Select<E> while still executing only one query.
+        let results = self.get::<E>(db).await?;
+        Ok(results.len() as u64)
     }
 }
 

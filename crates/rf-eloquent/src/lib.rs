@@ -196,6 +196,7 @@
 
 pub mod accessors;
 pub mod casting;
+pub mod observer;
 pub mod eager_loading;
 pub mod eager_loading_impl;
 pub mod eager_loading_optimized;
@@ -218,7 +219,8 @@ pub use accessors::{
     AttributeValue, HasAccessors, HasMutators,
 };
 pub use casting::{
-    cast_value, uncast_value, CastError, CastRegistry, CastResult, CastType, CastedValue, HasCasts,
+    cast_value, register_caster, uncast_value, Castable, CastError, CastRegistry, CastResult,
+    CastType, CastedValue, CustomCasterRegistry, HasCasts,
 };
 pub use eager_loading::{
     EagerLoadBuilder, EagerLoadError, EagerLoadRelation, EagerLoadResult, EagerLoadStats,
@@ -229,14 +231,17 @@ pub use events::{
     EventContext, EventDispatcher, EventError, EventListener, EventObserver, EventResult,
     ModelEvent, ModelEvents,
 };
+pub use observer::{dispatch_observers, observe, Observer, ObserverRegistry, GLOBAL_OBSERVERS};
 pub use query_helpers::{
     attach, belongs_to, belongs_to_many, detach, has_many, has_many_through, has_one, sync,
 };
 pub use relationships::{
-    BelongsTo, BelongsToMany, HasMany, HasManyThrough, HasOne, HasOneThrough, HasRelationships,
-    RelationshipError, RelationshipKind, RelationshipResult,
+    belongs_to_builder, has_many_builder, has_one_builder, BelongsTo, BelongsToBuilder,
+    BelongsToMany, HasMany, HasManyBuilder, HasManyThrough, HasOne, HasOneBuilder, HasOneThrough,
+    HasRelationships, RelationshipError, RelationshipKind, RelationshipResult,
 };
 pub use scopes::{
+    add_global_scope, apply_global_scopes, remove_global_scope, without_global_scopes,
     CommonScopes, GlobalScopeRegistry, HasScopes, ScopeBuilder, ScopeError, ScopeResult,
     ScopedQuery,
 };
@@ -273,8 +278,8 @@ pub mod prelude {
         AttributeValue, HasAccessors, HasMutators,
     };
     pub use super::casting::{
-        cast_value, uncast_value, CastError, CastRegistry, CastResult, CastType, CastedValue,
-        HasCasts,
+        cast_value, register_caster, uncast_value, Castable, CastError, CastRegistry, CastResult,
+        CastType, CastedValue, CustomCasterRegistry, HasCasts,
     };
     pub use super::eager_loading::{
         EagerLoadBuilder, EagerLoadError, EagerLoadRelation, EagerLoadResult, EagerLoadStats,
@@ -289,10 +294,12 @@ pub mod prelude {
         attach, belongs_to, belongs_to_many, detach, has_many, has_many_through, has_one, sync,
     };
     pub use super::relationships::{
-        BelongsTo, BelongsToMany, HasMany, HasManyThrough, HasOne, HasOneThrough, HasRelationships,
-        RelationshipError, RelationshipKind, RelationshipResult,
+        belongs_to_builder, has_many_builder, has_one_builder, BelongsTo, BelongsToBuilder,
+        BelongsToMany, HasMany, HasManyBuilder, HasManyThrough, HasOne, HasOneBuilder,
+        HasOneThrough, HasRelationships, RelationshipError, RelationshipKind, RelationshipResult,
     };
     pub use super::scopes::{
+        add_global_scope, apply_global_scopes, remove_global_scope, without_global_scopes,
         CommonScopes, GlobalScopeRegistry, HasScopes, ScopeBuilder, ScopeError, ScopeResult,
         ScopedQuery,
     };

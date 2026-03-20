@@ -44,6 +44,7 @@ pub mod middleware;
 pub mod props;
 pub mod render;
 pub mod response;
+pub mod ssr;
 pub mod version;
 
 pub use config::InertiaConfig;

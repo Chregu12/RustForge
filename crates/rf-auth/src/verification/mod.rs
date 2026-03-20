@@ -30,6 +30,9 @@
 
 mod middleware;
 mod token;
+pub mod handlers;
+pub mod routes;
 
 pub use middleware::RequireVerified;
 pub use token::{EmailVerification, Verifiable, VerificationClaims};
+pub use routes::verification_routes;

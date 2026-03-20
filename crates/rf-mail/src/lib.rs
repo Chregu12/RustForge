@@ -86,6 +86,7 @@ mod builder;
 mod config;
 mod error;
 pub mod facade;
+pub mod manager;
 mod mail;
 mod mail_builder;
 pub mod mailables;
