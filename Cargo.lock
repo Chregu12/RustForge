@@ -2703,6 +2703,38 @@ dependencies = [
 ]
 
 [[package]]
+name = "deployment-tests"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "axum 0.8.7",
+ "chrono",
+ "rf-auth",
+ "rf-cache",
+ "rf-collections",
+ "rf-config",
+ "rf-container",
+ "rf-core",
+ "rf-eloquent",
+ "rf-encryption",
+ "rf-events",
+ "rf-health",
+ "rf-mail",
+ "rf-pagination",
+ "rf-queue",
+ "rf-routing",
+ "rf-scheduler",
+ "rf-storage",
+ "rf-testing",
+ "rf-validation",
+ "rf-web",
+ "serde",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
 name = "der"
 version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

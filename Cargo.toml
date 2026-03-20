@@ -146,6 +146,8 @@ members = [
     "crates/rf-spark",
     "crates/rf-mcp",
     "crates/rf-nightwatch",
+    # Deployment Tests
+    "tests/deployment",
 ]
 resolver = "2"
 
