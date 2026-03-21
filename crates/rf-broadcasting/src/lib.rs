@@ -140,6 +140,43 @@ impl Broadcaster {
         Self { driver }
     }
 
+    /// Create a broadcaster backed by a Redis Pub/Sub driver.
+    ///
+    /// This is the most convenient way to get started with Redis broadcasting:
+    ///
+    /// ```rust,no_run
+    /// use rf_broadcasting::Broadcaster;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let broadcaster = Broadcaster::from_redis_url("redis://localhost:6379")?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn from_redis_url(url: &str) -> BroadcastResult<Self> {
+        let driver = drivers::redis::RedisBroadcastDriver::from_url(url)?;
+        Ok(Self {
+            driver: Arc::new(driver),
+        })
+    }
+
+    /// Create a broadcaster backed by Redis, reading `REDIS_URL` from the environment.
+    ///
+    /// Falls back to `redis://localhost:6379` if the variable is not set.
+    ///
+    /// ```rust,no_run
+    /// use rf_broadcasting::Broadcaster;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let broadcaster = Broadcaster::from_env()?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn from_env() -> BroadcastResult<Self> {
+        let url = std::env::var("REDIS_URL")
+            .unwrap_or_else(|_| "redis://localhost:6379".to_string());
+        Self::from_redis_url(&url)
+    }
+
     /// Broadcast an event
     pub async fn broadcast<T: Broadcast>(&self, event: T) -> BroadcastResult<()> {
         let channels = event.broadcast_on();

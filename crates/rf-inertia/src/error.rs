@@ -29,6 +29,10 @@ pub enum InertiaError {
     #[error("Missing required header: {0}")]
     MissingHeader(String),
 
+    /// SSR rendering error
+    #[error("SSR render error: {0}")]
+    Render(String),
+
     /// Generic error
     #[error("{0}")]
     Other(String),
@@ -43,6 +47,7 @@ impl IntoResponse for InertiaError {
             InertiaError::VersionMismatch => (StatusCode::CONFLICT, self.to_string()),
             InertiaError::InvalidComponent(ref msg) => (StatusCode::BAD_REQUEST, msg.clone()),
             InertiaError::MissingHeader(ref msg) => (StatusCode::BAD_REQUEST, msg.clone()),
+            InertiaError::Render(ref msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg.clone()),
             InertiaError::Other(ref msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg.clone()),
         };
 

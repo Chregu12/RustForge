@@ -88,6 +88,7 @@ pub use in_memory::*;
 // Export new driver-based search
 pub mod driver;
 pub mod drivers;
+pub mod orm_integration;
 pub mod searchable;
 
 #[cfg(feature = "metrics")]

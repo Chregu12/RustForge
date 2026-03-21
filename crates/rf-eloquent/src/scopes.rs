@@ -54,13 +54,15 @@
 
 use async_trait::async_trait;
 use chrono::{DateTime, Duration, Utc};
+use once_cell::sync::Lazy;
 use sea_orm::{
     ColumnTrait, Condition, DatabaseConnection, DbErr, EntityTrait, PaginatorTrait, QueryFilter,
     QueryOrder, Select,
 };
+use std::any::{Any, TypeId};
 use std::collections::HashMap;
 use std::marker::PhantomData;
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 use thiserror::Error;
 
 /// Scope system errors
@@ -80,6 +82,150 @@ pub enum ScopeError {
 }
 
 pub type ScopeResult<T> = Result<T, ScopeError>;
+
+// ---------------------------------------------------------------------------
+// Global scope registry
+// ---------------------------------------------------------------------------
+
+// Type alias used internally for the stored scope closure
+type ScopeFnBox<E> = Box<dyn Fn(Select<E>) -> Select<E> + Send + Sync>;
+
+/// Thread-safe global scope registry: entity TypeId → (name → erased closure)
+static GLOBAL_SCOPE_REGISTRY: Lazy<
+    RwLock<HashMap<TypeId, HashMap<String, Arc<dyn Any + Send + Sync>>>>,
+> = Lazy::new(|| RwLock::new(HashMap::new()));
+
+/// Register a global scope that is automatically applied to every query of
+/// entity type `E`.
+///
+/// Call at application startup (e.g. in `main` or a boot function).
+///
+/// # Example
+///
+/// ```rust,no_run
+/// use rf_eloquent::scopes::add_global_scope;
+/// use sea_orm::{EntityTrait, QueryFilter, ColumnTrait};
+///
+/// // Automatically filter soft-deleted rows for all user queries
+/// add_global_scope::<user::Entity, _>("active", |q| {
+///     q.filter(user::Column::DeletedAt.is_null())
+/// });
+/// ```
+pub fn add_global_scope<E, F>(name: impl Into<String>, scope: F)
+where
+    E: EntityTrait + 'static,
+    F: Fn(Select<E>) -> Select<E> + Send + Sync + 'static,
+{
+    let boxed: ScopeFnBox<E> = Box::new(scope);
+    let erased: Arc<dyn Any + Send + Sync> = Arc::new(boxed);
+    let entity_id = TypeId::of::<E>();
+    if let Ok(mut registry) = GLOBAL_SCOPE_REGISTRY.write() {
+        registry
+            .entry(entity_id)
+            .or_default()
+            .insert(name.into(), erased);
+    }
+}
+
+/// Remove a named global scope for entity type `E`.
+pub fn remove_global_scope<E>(name: &str)
+where
+    E: EntityTrait + 'static,
+{
+    let entity_id = TypeId::of::<E>();
+    if let Ok(mut registry) = GLOBAL_SCOPE_REGISTRY.write() {
+        if let Some(scopes) = registry.get_mut(&entity_id) {
+            scopes.remove(name);
+        }
+    }
+}
+
+/// Apply all global scopes registered for entity type `E` to the given query.
+///
+/// This is called automatically by query helpers that are scope-aware.
+/// You can also call it manually when building custom queries.
+///
+/// # Example
+///
+/// ```rust,no_run
+/// use rf_eloquent::scopes::apply_global_scopes;
+/// use sea_orm::EntityTrait;
+///
+/// let query = apply_global_scopes::<user::Entity>(user::Entity::find());
+/// ```
+pub fn apply_global_scopes<E>(select: Select<E>) -> Select<E>
+where
+    E: EntityTrait + 'static,
+{
+    let entity_id = TypeId::of::<E>();
+    match GLOBAL_SCOPE_REGISTRY.read() {
+        Ok(registry) => match registry.get(&entity_id) {
+            Some(scopes) => {
+                let mut result = select;
+                for scope_any in scopes.values() {
+                    if let Some(f) = scope_any.downcast_ref::<ScopeFnBox<E>>() {
+                        result = f(result);
+                    }
+                }
+                result
+            }
+            None => select,
+        },
+        Err(_) => select,
+    }
+}
+
+/// Execute a closure while temporarily bypassing the specified global scopes
+/// for entity type `E`.
+///
+/// The scopes are restored after the closure returns.
+///
+/// # Example
+///
+/// ```rust,no_run
+/// use rf_eloquent::scopes::without_global_scopes;
+///
+/// let result = without_global_scopes::<user::Entity, _, _>(
+///     vec!["active".to_string()],
+///     || {
+///         // Query runs without the "active" scope
+///         user::Entity::find()
+///     },
+/// );
+/// ```
+pub fn without_global_scopes<E, F, R>(scope_names: Vec<String>, f: F) -> R
+where
+    E: EntityTrait + 'static,
+    F: FnOnce() -> R,
+{
+    let entity_id = TypeId::of::<E>();
+    let mut saved: HashMap<String, Arc<dyn Any + Send + Sync>> = HashMap::new();
+
+    // Remove specified scopes
+    if let Ok(mut registry) = GLOBAL_SCOPE_REGISTRY.write() {
+        if let Some(scopes) = registry.get_mut(&entity_id) {
+            for name in &scope_names {
+                if let Some(scope) = scopes.remove(name) {
+                    saved.insert(name.clone(), scope);
+                }
+            }
+        }
+    }
+
+    let result = f();
+
+    // Restore removed scopes
+    if let Ok(mut registry) = GLOBAL_SCOPE_REGISTRY.write() {
+        let scopes = registry.entry(entity_id).or_default();
+        for (name, scope) in saved {
+            scopes.insert(name, scope);
+        }
+    }
+
+    result
+}
+
+// ---------------------------------------------------------------------------
 
 /// Trait for entities that support query scopes
 pub trait HasScopes: EntityTrait {

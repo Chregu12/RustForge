@@ -36,5 +36,8 @@
 //! ```
 
 mod token;
+pub mod handlers;
+pub mod routes;
 
 pub use token::{PasswordReset, ResetClaims, Resettable};
+pub use routes::password_reset_routes;

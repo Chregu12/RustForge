@@ -510,6 +510,116 @@ impl<T> Collection<T> {
     {
         self.items.iter().max()
     }
+
+    /// Paginate the collection into pages
+    ///
+    /// # Arguments
+    ///
+    /// * `per_page` - Number of items per page (minimum 1)
+    /// * `page` - Page number (1-indexed, minimum 1)
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// use rf_orm::collection::Collection;
+    ///
+    /// let numbers = Collection::new(vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+    /// let page = numbers.paginate(3, 2);
+    ///
+    /// assert_eq!(page.current_page, 2);
+    /// assert_eq!(page.per_page, 3);
+    /// assert_eq!(page.total, 10);
+    /// assert_eq!(page.last_page, 4);
+    /// assert_eq!(page.items.count(), 3);
+    /// ```
+    pub fn paginate(&self, per_page: usize, page: usize) -> PaginatedCollection<T>
+    where
+        T: Clone,
+    {
+        let total = self.items.len();
+        let per_page = per_page.max(1);
+        let page = page.max(1);
+        let last_page = if total == 0 {
+            1
+        } else {
+            (total + per_page - 1) / per_page
+        };
+        let offset = page.saturating_sub(1) * per_page;
+        let items = if offset >= total {
+            Vec::new()
+        } else {
+            self.items[offset..(offset + per_page).min(total)].to_vec()
+        };
+        PaginatedCollection {
+            items: Collection::new(items),
+            total,
+            per_page,
+            current_page: page,
+            last_page,
+        }
+    }
+}
+
+/// A paginated view of a collection
+///
+/// Returned by `Collection::paginate()`, contains the items for the current page
+/// along with pagination metadata.
+///
+/// # Example
+///
+/// ```rust,no_run
+/// use rf_orm::collection::Collection;
+///
+/// let coll = Collection::new((1..=25).collect::<Vec<_>>());
+/// let page = coll.paginate(10, 1);
+///
+/// assert_eq!(page.total, 25);
+/// assert_eq!(page.last_page, 3);
+/// assert!(page.has_more_pages());
+/// ```
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PaginatedCollection<T> {
+    /// Items on the current page
+    pub items: Collection<T>,
+    /// Total number of items across all pages
+    pub total: usize,
+    /// Number of items per page
+    pub per_page: usize,
+    /// Current page number (1-indexed)
+    pub current_page: usize,
+    /// Last page number
+    pub last_page: usize,
+}
+
+impl<T: Clone> PaginatedCollection<T> {
+    /// Whether there are more pages after the current one
+    pub fn has_more_pages(&self) -> bool {
+        self.current_page < self.last_page
+    }
+
+    /// Whether this is the first page
+    pub fn is_first_page(&self) -> bool {
+        self.current_page == 1
+    }
+
+    /// Whether this is the last page
+    pub fn is_last_page(&self) -> bool {
+        self.current_page >= self.last_page
+    }
+
+    /// 1-indexed position of the first item on this page (0 if empty)
+    pub fn from(&self) -> usize {
+        if self.total == 0 {
+            0
+        } else {
+            (self.current_page.saturating_sub(1)) * self.per_page + 1
+        }
+    }
+
+    /// 1-indexed position of the last item on this page
+    pub fn to(&self) -> usize {
+        (self.current_page * self.per_page).min(self.total)
+    }
 }
 
 // ===== Trait Implementations =====
@@ -654,5 +764,56 @@ mod tests {
         let vec = vec![1, 2, 3];
         let coll = vec.into_collection();
         assert_eq!(coll.count(), 3);
+    }
+
+    #[test]
+    fn test_paginate_basic() {
+        let coll = Collection::new(vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+        let page = coll.paginate(3, 1);
+
+        assert_eq!(page.total, 10);
+        assert_eq!(page.per_page, 3);
+        assert_eq!(page.current_page, 1);
+        assert_eq!(page.last_page, 4);
+        assert_eq!(page.items.count(), 3);
+        assert_eq!(page.items.clone().to_vec(), vec![1, 2, 3]);
+    }
+
+    #[test]
+    fn test_paginate_second_page() {
+        let coll = Collection::new(vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+        let page = coll.paginate(3, 2);
+
+        assert_eq!(page.items.clone().to_vec(), vec![4, 5, 6]);
+        assert!(page.has_more_pages());
+        assert!(!page.is_first_page());
+    }
+
+    #[test]
+    fn test_paginate_last_page() {
+        let coll = Collection::new(vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+        let page = coll.paginate(3, 4);
+
+        assert_eq!(page.items.clone().to_vec(), vec![10]);
+        assert!(page.is_last_page());
+        assert!(!page.has_more_pages());
+    }
+
+    #[test]
+    fn test_paginate_beyond_last_page() {
+        let coll = Collection::new(vec![1, 2, 3]);
+        let page = coll.paginate(10, 5);
+
+        assert_eq!(page.items.count(), 0);
+    }
+
+    #[test]
+    fn test_paginate_empty_collection() {
+        let coll: Collection<i32> = Collection::empty();
+        let page = coll.paginate(10, 1);
+
+        assert_eq!(page.total, 0);
+        assert_eq!(page.last_page, 1);
+        assert_eq!(page.from(), 0);
     }
 }

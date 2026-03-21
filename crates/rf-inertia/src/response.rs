@@ -156,6 +156,33 @@ impl InertiaResponse {
     }
 }
 
+impl InertiaResponse {
+    /// Render this page via the SSR server and return a full HTML string.
+    ///
+    /// Requires the `ssr` Cargo feature.  Falls back to a client-side-only HTML
+    /// shell when the feature is absent.
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// use rf_inertia::{response::InertiaResponse, ssr::SsrConfig, props::Props};
+    ///
+    /// # async fn example() -> rf_inertia::error::Result<String> {
+    /// let page = InertiaResponse::new("Home/Index", Props::new(), "/", "1.0");
+    /// let html = page.into_ssr_response("app", SsrConfig::default()).await?;
+    /// # Ok(html)
+    /// # }
+    /// ```
+    pub async fn into_ssr_response(
+        self,
+        root_element_id: &str,
+        ssr_config: crate::ssr::SsrConfig,
+    ) -> crate::error::Result<String> {
+        let client = crate::ssr::SsrClient::new(ssr_config);
+        client.render_to_html(&self, root_element_id).await
+    }
+}
+
 impl IntoResponse for InertiaResponse {
     fn into_response(self) -> Response {
         self.into_json_response()

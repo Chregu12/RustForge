@@ -2,7 +2,7 @@
 
 #[cfg(test)]
 mod tests {
-    use rf_scheduler::{Scheduler, Task, TaskBuilder, SchedulerResult};
+    use rf_scheduler::{Scheduler, Task, TaskBuilder};
     use async_trait::async_trait;
 
     struct CleanupTask;

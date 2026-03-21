@@ -28,8 +28,10 @@
 //! ```
 
 use chrono::{DateTime, NaiveDateTime, Utc};
+use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::sync::{Arc, RwLock};
 use thiserror::Error;
 
 /// Casting errors
@@ -215,6 +217,112 @@ impl CastedValue {
     }
 }
 
+/// Trait for custom attribute casters
+///
+/// Implement this trait to create a custom caster that can be registered
+/// via `register_caster()` and used with `CastType::Custom("name")`.
+///
+/// # Example
+///
+/// ```rust,no_run
+/// use rf_eloquent::casting::{Castable, CastedValue, CastResult, register_caster};
+///
+/// struct PointCaster;
+///
+/// impl Castable for PointCaster {
+///     fn get(&self, value: &str) -> CastResult<CastedValue> {
+///         // Parse "x,y" format
+///         let parts: Vec<&str> = value.split(',').collect();
+///         let json = serde_json::json!({
+///             "x": parts.get(0).and_then(|s| s.parse::<f64>().ok()).unwrap_or(0.0),
+///             "y": parts.get(1).and_then(|s| s.parse::<f64>().ok()).unwrap_or(0.0),
+///         });
+///         Ok(CastedValue::Json(json))
+///     }
+///
+///     fn set(&self, value: CastedValue) -> CastResult<String> {
+///         if let CastedValue::Json(j) = value {
+///             Ok(format!("{},{}", j["x"], j["y"]))
+///         } else {
+///             Ok(String::new())
+///         }
+///     }
+/// }
+///
+/// // Register once at application startup
+/// register_caster("point", PointCaster);
+/// ```
+pub trait Castable: Send + Sync {
+    /// Cast a database string value to a typed `CastedValue`
+    fn get(&self, value: &str) -> CastResult<CastedValue>;
+
+    /// Convert a `CastedValue` back to a database string
+    fn set(&self, value: CastedValue) -> CastResult<String>;
+}
+
+/// Registry for custom attribute casters
+pub struct CustomCasterRegistry {
+    casters: HashMap<&'static str, Arc<dyn Castable>>,
+}
+
+impl CustomCasterRegistry {
+    fn new() -> Self {
+        Self {
+            casters: HashMap::new(),
+        }
+    }
+
+    /// Register a custom caster under the given name
+    pub fn register(&mut self, name: &'static str, caster: impl Castable + 'static) {
+        self.casters.insert(name, Arc::new(caster));
+    }
+
+    /// Look up a caster by name
+    pub fn get_caster(&self, name: &str) -> Option<Arc<dyn Castable>> {
+        self.casters.get(name).cloned()
+    }
+}
+
+/// Global custom caster registry (thread-safe)
+static CUSTOM_CASTERS: Lazy<RwLock<CustomCasterRegistry>> =
+    Lazy::new(|| RwLock::new(CustomCasterRegistry::new()));
+
+/// Register a custom attribute caster globally
+///
+/// Call this once at application startup before any casting takes place.
+///
+/// # Example
+///
+/// ```rust,no_run
+/// use rf_eloquent::casting::{Castable, CastedValue, CastResult, register_caster};
+///
+/// struct MoneyCaster;
+///
+/// impl Castable for MoneyCaster {
+///     fn get(&self, value: &str) -> CastResult<CastedValue> {
+///         let cents: i64 = value.parse().map_err(|e: std::num::ParseIntError| {
+///             rf_eloquent::casting::CastError::CastFailed(e.to_string())
+///         })?;
+///         Ok(CastedValue::Float(cents as f64 / 100.0))
+///     }
+///
+///     fn set(&self, value: CastedValue) -> CastResult<String> {
+///         if let CastedValue::Float(f) = value {
+///             Ok(((f * 100.0).round() as i64).to_string())
+///         } else {
+///             Ok("0".to_string())
+///         }
+///     }
+/// }
+///
+/// register_caster("money", MoneyCaster);
+/// ```
+pub fn register_caster(name: &'static str, caster: impl Castable + 'static) {
+    if let Ok(mut registry) = CUSTOM_CASTERS.write() {
+        registry.register(name, caster);
+    }
+}
+
 /// Cast a string value to the specified type
 pub fn cast_value(value: &str, cast_type: CastType) -> CastResult<CastedValue> {
     match cast_type {
@@ -287,10 +395,22 @@ pub fn cast_value(value: &str, cast_type: CastType) -> CastResult<CastedValue> {
             let casted: Vec<CastedValue> = arr.into_iter().map(CastedValue::Json).collect();
             Ok(CastedValue::Array(casted))
         }
-        CastType::Custom(name) => Err(CastError::CastFailed(format!(
-            "Custom caster '{}' not implemented",
-            name
-        ))),
+        CastType::Custom(name) => {
+            if let Ok(registry) = CUSTOM_CASTERS.read() {
+                if let Some(caster) = registry.get_caster(name) {
+                    caster.get(value)
+                } else {
+                    Err(CastError::CastFailed(format!(
+                        "Custom caster '{}' not found. Register it with register_caster()",
+                        name
+                    )))
+                }
+            } else {
+                Err(CastError::CastFailed(
+                    "Custom caster registry lock poisoned".to_string(),
+                ))
+            }
+        }
     }
 }
 
@@ -320,6 +440,22 @@ pub fn uncast_value(value: CastedValue, cast_type: CastType) -> CastResult<Strin
             Ok(serde_json::to_string(&json_arr)?)
         }
         (CastedValue::Null, _) => Ok(String::new()),
+        (value, CastType::Custom(name)) => {
+            if let Ok(registry) = CUSTOM_CASTERS.read() {
+                if let Some(caster) = registry.get_caster(name) {
+                    caster.set(value)
+                } else {
+                    Err(CastError::CastFailed(format!(
+                        "Custom caster '{}' not found",
+                        name
+                    )))
+                }
+            } else {
+                Err(CastError::CastFailed(
+                    "Custom caster registry lock poisoned".to_string(),
+                ))
+            }
+        }
         (value, cast_type) => Err(CastError::TypeMismatch {
             expected: format!("{:?}", cast_type),
             actual: format!("{:?}", value),

@@ -2,7 +2,7 @@
 
 #[cfg(test)]
 mod tests {
-    use rf_cache::{Cache, MemoryCache, CacheManager, TaggedCache};
+    use rf_cache::{Cache, MemoryCache, CacheManager};
     use rf_cache::prelude::CacheWarmer;
     use std::time::Duration;
 
