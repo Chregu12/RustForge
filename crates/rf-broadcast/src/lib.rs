@@ -67,6 +67,8 @@ mod channel;
 mod error;
 mod event;
 mod memory;
+/// In-memory WebSocket room registry for server-side broadcasting.
+pub mod room_registry;
 mod websocket;
 
 #[cfg(feature = "redis-backend")]
@@ -85,6 +87,7 @@ pub use channel::Channel;
 pub use error::{BroadcastError, BroadcastResult};
 pub use event::{Event, SimpleEvent};
 pub use memory::{BroadcastMessage, MemoryBroadcaster};
+pub use room_registry::RoomRegistry;
 pub use websocket::{websocket_router, WsMessage, WsState};
 
 #[cfg(feature = "redis-backend")]

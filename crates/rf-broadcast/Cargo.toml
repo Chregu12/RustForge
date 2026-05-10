@@ -15,6 +15,7 @@ tokio.workspace = true
 chrono.workspace = true
 uuid.workspace = true
 axum = { workspace = true, features = ["ws"] }
+dashmap.workspace = true
 futures.workspace = true
 
 # Core runtime for sync/async bridge
