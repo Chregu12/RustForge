@@ -14,6 +14,7 @@ serde_json = { workspace = true }
 thiserror = { workspace = true }
 redis = { workspace = true, optional = true }
 deadpool-redis = { workspace = true, optional = true }
+futures = { workspace = true, optional = true }
 
 # Memcached support
 memcache = { version = "0.17", optional = true }
@@ -30,7 +31,7 @@ rand = { version = "0.8", optional = true }
 
 [features]
 default = []
-redis-backend = ["redis", "deadpool-redis"]
+redis-backend = ["redis", "deadpool-redis", "futures"]
 memcached = ["dep:memcache"]
 database = ["sea-orm", "chrono", "rand"]
 file = ["md5"]
