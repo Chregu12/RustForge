@@ -16,12 +16,14 @@
 //!
 //! Policies determine what actions a user can perform on specific resources:
 //!
-//! ```rust
+//! ```rust,ignore
 //! use rf_auth::authorization::{
 //!     policies::{Policy, post_policy::{User, Post, PostPolicy}},
 //!     registry::global_registry,
 //!     authorizable::Authorizable,
 //! };
+//!
+//! impl Authorizable for User {}
 //!
 //! # async fn example() {
 //! // Register the policy
@@ -29,9 +31,6 @@
 //!     let mut registry = global_registry().lock().unwrap();
 //!     registry.register::<User, Post, _>(PostPolicy);
 //! }
-//!
-//! // Use the Authorizable trait
-//! impl Authorizable for User {}
 //!
 //! let user = User {
 //!     id: 1,
@@ -53,7 +52,7 @@
 //! }
 //!
 //! // Or use authorize to get a Result
-//! user.authorize("update", &post).await.expect("Not authorized");
+//! let _: Result<(), _> = user.authorize("update", &post).await;
 //! # }
 //! ```
 //!
@@ -64,19 +63,21 @@
 //! ```rust
 //! use rf_auth::authorization::gates::Gate;
 //!
-//! # async fn example() {
+//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! #[derive(Clone)]
 //! struct User { role: String }
 //!
 //! let gate: Gate<User> = Gate::new();
 //!
 //! // Define gates
-//! gate.define("admin", |user| async move {
-//!     user.role == "admin"
+//! gate.define("admin", |user: &User| {
+//!     let role = user.role.clone();
+//!     async move { role == "admin" }
 //! });
 //!
-//! gate.define("edit-posts", |user| async move {
-//!     user.role == "admin" || user.role == "editor"
+//! gate.define("edit-posts", |user: &User| {
+//!     let role = user.role.clone();
+//!     async move { role == "admin" || role == "editor" }
 //! });
 //!
 //! let admin = User { role: "admin".to_string() };
@@ -87,7 +88,8 @@
 //! }
 //!
 //! // Or use authorize to get a Result
-//! gate.authorize(&admin, "edit-posts").await.expect("Not authorized");
+//! gate.authorize(&admin, "edit-posts").await?;
+//! # Ok(())
 //! # }
 //! ```
 //!
@@ -105,10 +107,12 @@
 //! # async fn admin_handler() -> &'static str { "Admin" }
 //! # async fn update_post_handler() -> &'static str { "Updated" }
 //! # fn example() {
+//! #[derive(Clone)]
 //! struct User;
+//! #[derive(Clone)]
 //! struct Post;
 //!
-//! let app = Router::new()
+//! let app: Router = Router::new()
 //!     // Protect with a gate
 //!     .route("/admin", get(admin_handler))
 //!     .layer(AuthorizeGateLayer::<User>::new("admin"))

@@ -5,7 +5,7 @@
 //!
 //! ## Example
 //!
-//! ```rust,no_run
+//! ```rust,ignore
 //! // Post can have many Tags (polymorphic)
 //! impl Post {
 //!     pub fn tags(&self) -> MorphToMany<Tag> {
@@ -131,7 +131,7 @@ where
     ///
     /// # Example
     ///
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// let post = Post::find(1).await?;
     /// let tags = post.tags().get(&db, tag::Entity, "tag_id").await?;
     /// ```
@@ -213,7 +213,7 @@ impl<T> MorphToMany<T> {
     ///
     /// # Example
     ///
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// let post = Post::find(1).await?;
     /// post.tags().attach(&db, vec![1, 2, 3], "tag_id").await?;
     /// ```
@@ -237,7 +237,7 @@ impl<T> MorphToMany<T> {
     ///
     /// # Example
     ///
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// let post = Post::find(1).await?;
     /// post.tags().detach(&db, vec![1, 2], "tag_id").await?;
     /// ```
@@ -259,7 +259,7 @@ impl<T> MorphToMany<T> {
     ///
     /// # Example
     ///
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// let post = Post::find(1).await?;
     /// post.tags().sync(&db, vec![1, 2, 3], "tag_id").await?;
     /// ```

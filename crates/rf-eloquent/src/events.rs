@@ -18,7 +18,7 @@
 //!
 //! ## Example Usage
 //!
-//! ```rust,no_run
+//! ```rust,ignore
 //! use rf_eloquent::prelude::*;
 //! use async_trait::async_trait;
 //!

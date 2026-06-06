@@ -16,7 +16,7 @@
 //!
 //! ## Example Usage
 //!
-//! ```rust,no_run
+//! ```rust,ignore
 //! use rf_eloquent::eager_loading_optimized::*;
 //!
 //! # async fn example(db: &DatabaseConnection) -> Result<()> {

@@ -240,7 +240,8 @@ mod tests {
 
         assert!(url.starts_with("https://example.com/api/users/123"));
         assert!(url.contains("include=posts"));
-        assert!(url.contains("fields=name,email"));
+        // Comma is URL-encoded as %2C by the encoder
+        assert!(url.contains("fields=name%2Cemail"));
         assert!(url.ends_with("#profile"));
     }
 

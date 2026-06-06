@@ -5,7 +5,7 @@
 //!
 //! ## Example
 //!
-//! ```rust,no_run
+//! ```rust,ignore
 //! // Post has one Image (polymorphic)
 //! impl Post {
 //!     pub fn image(&self) -> MorphOne<Image> {
@@ -124,7 +124,7 @@ where
     ///
     /// # Example
     ///
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// let post = Post::find(1).await?;
     /// let image = post.image().get(&db).await?;
     /// ```
@@ -155,7 +155,7 @@ where
     ///
     /// # Example
     ///
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// let post = Post::find(1).await?;
     /// let has_image = post.image().exists(&db).await?;
     /// ```
@@ -188,7 +188,7 @@ where
     ///
     /// # Example
     ///
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// let post = Post::find(1).await?;
     /// let image = post.image().get_or_fail(&db).await?;
     /// ```

@@ -12,7 +12,7 @@ use crate::HttpMethod;
 /// # Examples
 ///
 /// ```rust,no_run
-/// use rf_routing::Route;
+/// use rf_routing::RouteFacade as Route;
 ///
 /// Route::group()
 ///     .prefix("/api")
@@ -45,7 +45,7 @@ impl GroupBuilder {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// use rf_routing::Route;
+    /// use rf_routing::RouteFacade as Route;
     ///
     /// Route::group()
     ///     .prefix("/api")
@@ -63,7 +63,7 @@ impl GroupBuilder {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// use rf_routing::Route;
+    /// use rf_routing::RouteFacade as Route;
     ///
     /// Route::group()
     ///     .middleware("auth")
@@ -82,7 +82,7 @@ impl GroupBuilder {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// use rf_routing::Route;
+    /// use rf_routing::RouteFacade as Route;
     ///
     /// Route::group()
     ///     .name("api.")
@@ -101,7 +101,7 @@ impl GroupBuilder {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// use rf_routing::Route;
+    /// use rf_routing::RouteFacade as Route;
     ///
     /// Route::group()
     ///     .domain("api.example.com")
@@ -119,7 +119,7 @@ impl GroupBuilder {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// use rf_routing::Route;
+    /// use rf_routing::RouteFacade as Route;
     ///
     /// Route::group()
     ///     .prefix("/api")

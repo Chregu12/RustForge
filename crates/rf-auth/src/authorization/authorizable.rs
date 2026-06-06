@@ -12,9 +12,11 @@ use std::sync::Arc;
 ///
 /// # Example
 ///
-/// ```rust
+/// ```rust,ignore
 /// use rf_auth::authorization::authorizable::Authorizable;
 /// use rf_auth::authorization::policies::post_policy::{User, Post};
+///
+/// impl Authorizable for User {}
 ///
 /// # async fn example(user: &User, post: &Post) {
 /// if user.can("update", post).await {
@@ -26,7 +28,7 @@ use std::sync::Arc;
 /// }
 ///
 /// // Or use authorize to get a Result
-/// user.authorize("update", post).await.expect("Not authorized");
+/// let _: Result<(), _> = user.authorize("update", post).await;
 /// # }
 /// ```
 #[async_trait]

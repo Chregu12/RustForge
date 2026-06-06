@@ -25,9 +25,9 @@ use tower::{Layer, Service};
 ///
 /// # async fn admin_handler() -> &'static str { "Admin only" }
 /// # fn example() {
-/// let app = Router::new()
+/// let app: Router = Router::new()
 ///     .route("/admin", get(admin_handler))
-///     .layer(AuthorizeGateLayer::new("admin"));
+///     .layer(AuthorizeGateLayer::<()>::new("admin"));
 /// # }
 /// ```
 #[derive(Clone)]
@@ -131,11 +131,12 @@ where
 /// use axum::{Router, routing::put};
 /// use rf_auth::authorization::auth_middleware::AuthorizePolicyLayer;
 ///
+/// #[derive(Clone)]
 /// struct Post;
 ///
 /// # async fn update_post_handler() -> &'static str { "Updated" }
 /// # fn example() {
-/// let app = Router::new()
+/// let app: Router = Router::new()
 ///     .route("/posts/:id", put(update_post_handler))
 ///     .layer(AuthorizePolicyLayer::<(), Post>::new("update"));
 /// # }
@@ -276,10 +277,10 @@ where
 ///
 /// # async fn admin_handler() -> &'static str { "Admin only" }
 /// # fn example() {
-/// let app = Router::new()
+/// let app: Router = Router::new()
 ///     .route("/admin", get(admin_handler))
 ///     .layer(middleware::from_fn(|req, next| {
-///         require_gate(req, next, "admin")
+///         require_gate::<()>(req, next, "admin")
 ///     }));
 /// # }
 /// ```

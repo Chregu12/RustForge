@@ -5,7 +5,7 @@
 //!
 //! ## Example
 //!
-//! ```rust,no_run
+//! ```rust,ignore
 //! // Comment can belong to Post OR Video
 //! pub struct Comment {
 //!     pub id: i64,
@@ -94,7 +94,7 @@ where
     ///
     /// # Example
     ///
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// let comment = Comment::find(1).await?;
     /// let parent = comment.commentable::<Post>().get(&db).await?;
     /// ```

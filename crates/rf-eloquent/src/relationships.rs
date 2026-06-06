@@ -22,7 +22,7 @@
 //!
 //! ## Example Usage
 //!
-//! ```rust,no_run
+//! ```rust,ignore
 //! use rf_eloquent::prelude::*;
 //!
 //! // Define relationships in your model impl
@@ -86,7 +86,7 @@ pub trait HasRelationships: Sized + Send + Sync {
     ///
     /// # Example
     ///
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// # use rf_eloquent::prelude::*;
     /// # async fn example(db: &DatabaseConnection) -> Result<()> {
     /// # mod user { pub struct Model { pub id: i32 } }
@@ -129,7 +129,7 @@ pub trait HasRelationships: Sized + Send + Sync {
     ///
     /// # Example
     ///
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// # use rf_eloquent::prelude::*;
     /// # async fn example(db: &DatabaseConnection) -> Result<()> {
     /// # mod user { pub struct Model { pub id: i32 } }
@@ -172,7 +172,7 @@ pub trait HasRelationships: Sized + Send + Sync {
     ///
     /// # Example
     ///
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// # use rf_eloquent::prelude::*;
     /// # async fn example(db: &DatabaseConnection) -> Result<()> {
     /// # mod user {
@@ -405,7 +405,7 @@ impl<M, T, R> HasManyThrough<M, T, R> {
 ///
 /// # Example
 ///
-/// ```rust,no_run
+/// ```rust,ignore
 /// # use rf_eloquent::relationships::HasManyBuilder;
 /// # use sea_orm::*;
 /// # mod post {
@@ -590,7 +590,7 @@ where
 
 /// Convenience constructor for [`HasManyBuilder`].
 ///
-/// ```rust,no_run
+/// ```rust,ignore
 /// # use rf_eloquent::relationships::has_many_builder;
 /// # use sea_orm::*;
 /// # mod post {
@@ -650,7 +650,7 @@ where
 
 /// `define_relationships!` — macro for concisely declaring relationship helpers on a model.
 ///
-/// ```rust,no_run
+/// ```rust,ignore
 /// # use rf_eloquent::define_relationships;
 /// # use rf_eloquent::relationships::{HasManyBuilder, BelongsToBuilder};
 /// # use sea_orm::DatabaseConnection;

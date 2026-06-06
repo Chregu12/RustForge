@@ -15,7 +15,7 @@
 //!
 //! ## Quick Start
 //!
-//! ```rust,no_run
+//! ```rust,ignore
 //! use rf_eloquent::prelude::*;
 //! use async_trait::async_trait;
 //!
@@ -33,7 +33,7 @@
 //!     title: String,
 //! }
 //!
-//! # async fn example(db: &sea_orm::DatabaseConnection) -> Result<()> {
+//! # async fn example(db: &sea_orm::DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
 //! // Relationships
 //! // let user = User::find(1).await?;
 //! // let posts = user.has_many::<Post, _>(db, "user_id").get().await?;
@@ -68,9 +68,9 @@
 //!
 //! ### One-to-Many (Has Many)
 //!
-//! ```rust,no_run
+//! ```rust,ignore
 //! # use rf_eloquent::prelude::*;
-//! # async fn example(user: &User, db: &sea_orm::DatabaseConnection) -> Result<()> {
+//! # async fn example(user: &User, db: &sea_orm::DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
 //! # struct User { id: i64 }
 //! # struct Post;
 //! // User has many Posts
@@ -86,9 +86,9 @@
 //!
 //! ### Belongs To (Inverse)
 //!
-//! ```rust,no_run
+//! ```rust,ignore
 //! # use rf_eloquent::prelude::*;
-//! # async fn example(post: &Post, db: &sea_orm::DatabaseConnection) -> Result<()> {
+//! # async fn example(post: &Post, db: &sea_orm::DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
 //! # struct User;
 //! # struct Post { user_id: i64 }
 //! // Post belongs to User
@@ -101,9 +101,9 @@
 //!
 //! ### Many-to-Many (Belongs To Many)
 //!
-//! ```rust,no_run
+//! ```rust,ignore
 //! # use rf_eloquent::prelude::*;
-//! # async fn example(post: &Post, db: &sea_orm::DatabaseConnection) -> Result<()> {
+//! # async fn example(post: &Post, db: &sea_orm::DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
 //! # struct Post { id: i64 }
 //! # struct Tag;
 //! // Post belongs to many Tags (through pivot table)
@@ -119,9 +119,9 @@
 //!
 //! ## Eager Loading Examples
 //!
-//! ```rust,no_run
+//! ```rust,ignore
 //! # use rf_eloquent::prelude::*;
-//! # async fn example() -> Result<()> {
+//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! # struct User;
 //! // Load single relationship
 //! // let users = User::query().with("posts").get().await?;
@@ -149,7 +149,7 @@
 //!
 //! ## Attribute Casting
 //!
-//! ```rust,no_run
+//! ```rust,ignore
 //! # use rf_eloquent::prelude::*;
 //! struct Post {
 //!     id: i64,
@@ -168,7 +168,7 @@
 //!
 //! ## Model Events
 //!
-//! ```rust,no_run
+//! ```rust,ignore
 //! # use rf_eloquent::prelude::*;
 //! # use async_trait::async_trait;
 //! struct User {

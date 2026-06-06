@@ -14,7 +14,7 @@
 //! ## Quick Start
 //!
 //! ```no_run
-//! use rf_queue::{Job, MemoryQueue, dispatch, QueueFacade};
+//! use rf_queue::{Job, MemoryQueue, Queue, dispatch, QueueFacade};
 //! use async_trait::async_trait;
 //! use serde::{Serialize, Deserialize};
 //! use std::sync::Arc;
@@ -38,8 +38,8 @@
 //!     }
 //! }
 //!
-//! // Create queue
-//! let queue = Arc::new(MemoryQueue::new());
+//! // Create queue - cast to Arc<dyn Queue> for API compatibility
+//! let queue: Arc<dyn Queue> = Arc::new(MemoryQueue::new());
 //!
 //! // Dispatch job using synchronous API
 //! let job = SendEmailJob {

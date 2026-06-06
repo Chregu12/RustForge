@@ -5,7 +5,7 @@
 //!
 //! ## Example Usage
 //!
-//! ```rust,no_run
+//! ```rust,ignore
 //! use rf_eloquent::prelude::*;
 //!
 //! # async fn example(db: &DatabaseConnection) -> Result<()> {

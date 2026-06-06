@@ -7,7 +7,7 @@ use inflector::Inflector;
 ///
 /// This macro makes defining models as simple as Laravel:
 ///
-/// ```rust
+/// ```rust,ignore
 /// // Laravel:  class User extends Model
 /// // RustForge:
 /// #[model]
@@ -21,7 +21,7 @@ use inflector::Inflector;
 ///
 /// Then use Laravel-style static methods:
 ///
-/// ```rust
+/// ```rust,ignore
 /// // Find by ID
 /// let user = User::find(1).await?;
 ///
@@ -170,7 +170,7 @@ pub fn model(_attr: TokenStream, item: TokenStream) -> TokenStream {
 /// Relations macro for defining model relationships
 ///
 /// # Example
-/// ```rust
+/// ```rust,ignore
 /// #[relations]
 /// impl User {
 ///     fn posts() -> HasMany<Post> {

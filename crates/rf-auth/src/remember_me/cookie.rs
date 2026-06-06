@@ -196,9 +196,11 @@ impl RememberMe {
     /// # use rf_auth::remember_me::RememberMe;
     /// let remember = RememberMe::with_default_ttl("secret-key-min-32-characters-long".to_string());
     /// let cookie = remember.create_cookie(123).unwrap();
-    /// assert_eq!(cookie.name(), "remember_token");
-    /// assert!(cookie.http_only().unwrap());
-    /// assert!(cookie.secure().unwrap());
+    /// // Cookie is an HTTP header value containing Set-Cookie header string
+    /// let cookie_str = cookie.to_str().unwrap();
+    /// assert!(cookie_str.contains("remember_token="));
+    /// assert!(cookie_str.contains("HttpOnly"));
+    /// assert!(cookie_str.contains("Secure"));
     /// ```
     pub fn create_cookie(&self, user_id: i64) -> AuthResult<axum::http::HeaderValue> {
         let token = self.generate_token(user_id)?;

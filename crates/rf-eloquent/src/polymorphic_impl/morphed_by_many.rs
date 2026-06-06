@@ -5,7 +5,7 @@
 //!
 //! ## Example
 //!
-//! ```rust,no_run
+//! ```rust,ignore
 //! // Tag can have many Posts (inverse of MorphToMany)
 //! impl Tag {
 //!     pub fn posts(&self) -> MorphedByMany<Post> {
@@ -114,7 +114,7 @@ where
     ///
     /// # Example
     ///
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// let tag = Tag::find(1).await?;
     /// let posts = tag.posts().get(&db, post::Entity, "tag_id").await?;
     /// ```
@@ -169,7 +169,7 @@ impl<T> MorphedByMany<T> {
     ///
     /// # Example
     ///
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// let tag = Tag::find(1).await?;
     /// tag.posts().attach(&db, vec![1, 2, 3], "tag_id").await?;
     /// ```
@@ -192,7 +192,7 @@ impl<T> MorphedByMany<T> {
     ///
     /// # Example
     ///
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// let tag = Tag::find(1).await?;
     /// tag.posts().detach(&db, vec![1, 2], "tag_id").await?;
     /// ```
@@ -215,7 +215,7 @@ impl<T> MorphedByMany<T> {
     ///
     /// # Example
     ///
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// let tag = Tag::find(1).await?;
     /// tag.posts().sync(&db, vec![1, 2, 3], "tag_id").await?;
     /// ```

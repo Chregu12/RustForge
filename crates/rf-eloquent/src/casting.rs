@@ -7,6 +7,7 @@
 //!
 //! ```rust,no_run
 //! use rf_eloquent::prelude::*;
+//! use chrono::Utc;
 //!
 //! #[derive(Clone, Debug)]
 //! struct Post {

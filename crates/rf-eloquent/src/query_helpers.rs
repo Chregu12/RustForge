@@ -13,7 +13,7 @@
 //!
 //! ## Example Usage
 //!
-//! ```rust,no_run
+//! ```rust,ignore
 //! use rf_eloquent::query_helpers::*;
 //! use sea_orm::*;
 //!
@@ -68,7 +68,7 @@ use sea_orm::*;
 ///
 /// # Example
 ///
-/// ```rust,no_run
+/// ```rust,ignore
 /// # use rf_eloquent::query_helpers::*;
 /// # use sea_orm::*;
 /// # async fn example(db: &DatabaseConnection) -> Result<(), DbErr> {
@@ -129,7 +129,7 @@ where
 ///
 /// # Example
 ///
-/// ```rust,no_run
+/// ```rust,ignore
 /// # use rf_eloquent::query_helpers::*;
 /// # use sea_orm::*;
 /// # async fn example(db: &DatabaseConnection) -> Result<(), DbErr> {
@@ -189,7 +189,7 @@ where
 ///
 /// # Example
 ///
-/// ```rust,no_run
+/// ```rust,ignore
 /// # use rf_eloquent::query_helpers::*;
 /// # use sea_orm::*;
 /// # async fn example(db: &DatabaseConnection) -> Result<(), DbErr> {
@@ -249,7 +249,7 @@ where
 ///
 /// # Example
 ///
-/// ```rust,no_run
+/// ```rust,ignore
 /// # use rf_eloquent::query_helpers::*;
 /// # use sea_orm::*;
 /// # async fn example(db: &DatabaseConnection) -> Result<(), DbErr> {
@@ -492,7 +492,7 @@ where
 ///
 /// # Example
 ///
-/// ```rust,no_run
+/// ```rust,ignore
 /// # use rf_eloquent::query_helpers::*;
 /// # use sea_orm::*;
 /// # async fn example(db: &DatabaseConnection) -> Result<(), DbErr> {

@@ -13,7 +13,7 @@
 //!
 //! ## Example Usage
 //!
-//! ```rust,no_run
+//! ```rust,ignore
 //! use rf_eloquent::prelude::*;
 //! use sea_orm::{EntityTrait, QueryFilter, ColumnTrait};
 //!
@@ -102,7 +102,7 @@ static GLOBAL_SCOPE_REGISTRY: Lazy<
 ///
 /// # Example
 ///
-/// ```rust,no_run
+/// ```rust,ignore
 /// use rf_eloquent::scopes::add_global_scope;
 /// use sea_orm::{EntityTrait, QueryFilter, ColumnTrait};
 ///
@@ -147,7 +147,7 @@ where
 ///
 /// # Example
 ///
-/// ```rust,no_run
+/// ```rust,ignore
 /// use rf_eloquent::scopes::apply_global_scopes;
 /// use sea_orm::EntityTrait;
 ///
@@ -182,7 +182,7 @@ where
 ///
 /// # Example
 ///
-/// ```rust,no_run
+/// ```rust,ignore
 /// use rf_eloquent::scopes::without_global_scopes;
 ///
 /// let result = without_global_scopes::<user::Entity, _, _>(

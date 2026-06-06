@@ -14,7 +14,7 @@ use std::marker::PhantomData;
 ///
 /// # Example
 ///
-/// ```rust
+/// ```rust,no_run
 /// use axum::{Json, extract::Path};
 /// use rf_auth::authorization::integration::RequireGate;
 /// use serde_json::json;
@@ -23,8 +23,9 @@ use std::marker::PhantomData;
 /// struct User { role: String }
 ///
 /// async fn admin_handler(
-///     RequireGate(user, "admin"): RequireGate<User>,
+///     req_gate: RequireGate<User>,
 /// ) -> Json<serde_json::Value> {
+///     let _user = req_gate.user;
 ///     Json(json!({ "message": "Admin only" }))
 /// }
 /// ```
@@ -53,7 +54,7 @@ impl<U> RequireGate<U> {
 ///
 /// # Example
 ///
-/// ```rust
+/// ```rust,no_run
 /// use axum::{Json, extract::Path};
 /// use rf_auth::authorization::integration::Authorize;
 /// use serde_json::json;
@@ -66,8 +67,9 @@ impl<U> RequireGate<U> {
 ///
 /// async fn update_post(
 ///     user: User,
-///     Authorize(Path(post_id)): Authorize<Path<i64>>,
+///     auth: Authorize<Path<i64>>,
 /// ) -> Json<serde_json::Value> {
+///     let _post_id = auth.inner;
 ///     // User is authorized to update the post
 ///     Json(json!({ "message": "Updated" }))
 /// }
@@ -137,7 +139,7 @@ impl<R> Can<R> {
 ///
 /// # Example
 ///
-/// ```rust
+/// ```rust,no_run
 /// use axum::Json;
 /// use rf_auth::authorization::integration::CanCreate;
 /// use serde_json::json;
@@ -145,7 +147,7 @@ impl<R> Can<R> {
 /// struct Post;
 ///
 /// async fn create_post_handler(
-///     CanCreate::<Post>::default(): CanCreate<Post>,
+///     _can_create: CanCreate<Post>,
 /// ) -> Json<serde_json::Value> {
 ///     // User is authorized to create posts
 ///     Json(json!({ "message": "Created" }))

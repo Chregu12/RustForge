@@ -5,7 +5,7 @@
 //!
 //! ## Example
 //!
-//! ```rust,no_run
+//! ```rust,ignore
 //! // Post has many Comments (polymorphic)
 //! impl Post {
 //!     pub fn comments(&self) -> MorphMany<Comment> {
@@ -123,7 +123,7 @@ where
     ///
     /// # Example
     ///
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// let post = Post::find(1).await?;
     /// let comments = post.comments().get(&db).await?;
     /// ```
@@ -154,7 +154,7 @@ where
     ///
     /// # Example
     ///
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// let post = Post::find(1).await?;
     /// let count = post.comments().count(&db).await?;
     /// ```

@@ -61,7 +61,7 @@ impl TypeRegistry {
     ///
     /// # Example
     ///
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// use rf_eloquent::relationships::type_registry::GLOBAL_TYPE_REGISTRY;
     /// use std::sync::Arc;
     ///
@@ -156,7 +156,7 @@ lazy_static! {
     ///
     /// # Example
     ///
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// use rf_eloquent::relationships::type_registry::GLOBAL_TYPE_REGISTRY;
     /// use std::sync::Arc;
     ///

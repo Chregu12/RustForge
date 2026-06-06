@@ -54,7 +54,7 @@ where
 /// # Examples
 ///
 /// ```rust,no_run
-/// use rf_routing::handler::handler_fn;
+/// use rf_routing::facade::handler::handler_fn;
 ///
 /// let h = handler_fn(|_req| async {
 ///     "Hello, World!"
