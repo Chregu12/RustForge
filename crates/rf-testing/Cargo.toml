@@ -25,3 +25,7 @@ rf-mail = { path = "../rf-mail" }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["test-util", "macros"] }
+rf-auth = { path = "../rf-auth" }
+rf-cache = { path = "../rf-cache" }
+rf-validation = { path = "../rf-validation" }
+rf-collections = { path = "../rf-collections" }
