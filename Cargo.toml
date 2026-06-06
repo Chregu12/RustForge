@@ -6,6 +6,7 @@ members = [
     "crates/rf-config",
     "crates/rf-container",
     "crates/rf-orm",
+    "crates/rf-migrations",
     "crates/rf-model-macro",
     "crates/rf-auth",
     "crates/rf-validation",

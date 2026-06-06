@@ -1,0 +1,41 @@
+[package]
+name = "rf-migrations"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Laravel-inspired database migration system for RustForge — run, rollback, reset, fresh, refresh, status"
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+keywords = ["migrations", "database", "laravel", "seaorm", "orm"]
+categories = ["database"]
+
+[dependencies]
+# SeaORM for database access
+sea-orm = { workspace = true, features = ["runtime-tokio-rustls", "sqlx-sqlite", "sqlx-postgres", "sqlx-mysql", "macros"] }
+
+# Async
+tokio.workspace = true
+async-trait.workspace = true
+
+# Serialization
+serde.workspace = true
+serde_json.workspace = true
+
+# Error handling
+thiserror.workspace = true
+anyhow.workspace = true
+
+# Logging
+tracing.workspace = true
+
+# Time
+chrono.workspace = true
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "test-util"] }
+
+[[example]]
+name = "basic_usage"
+path = "examples/basic_usage.rs"
