@@ -59,6 +59,10 @@ pub mod drivers;
 #[cfg(feature = "redis-backend")]
 pub mod redis;
 
+/// Redis Pub/Sub for event-driven inter-service communication.
+#[cfg(feature = "redis-backend")]
+pub mod pubsub;
+
 // Cache facade (Laravel-style static API)
 pub mod cache_manager;
 pub mod facade;
@@ -493,6 +497,9 @@ impl TaggedCache {
 
 #[cfg(feature = "redis-backend")]
 pub use redis::{RedisCache, RedisTaggedCache};
+
+#[cfg(feature = "redis-backend")]
+pub use pubsub::{PubSubMessage, RedisPubSub};
 
 /// Prelude module for convenient imports
 pub mod prelude {
