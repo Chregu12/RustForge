@@ -18,6 +18,10 @@
 //! }
 //! ```
 
+pub mod factory;
+
+pub use factory::{FactoryBuilder, ModelFactory};
+
 use async_trait::async_trait;
 use std::collections::HashMap;
 use std::sync::Arc;

@@ -8976,6 +8976,7 @@ name = "rf-seeder"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "fake",
  "serde",
  "serde_json",
  "tokio",
