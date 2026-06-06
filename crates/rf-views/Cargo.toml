@@ -36,6 +36,9 @@ once_cell = { workspace = true }
 regex = { workspace = true }
 globset = "0.4"
 
+# Compatibility re-exports from rf-view (global/singleton-style engine)
+rf-view = { path = "../rf-view" }
+
 [dev-dependencies]
 tokio = { workspace = true, features = ["test-util"] }
 tempfile = "3.8"

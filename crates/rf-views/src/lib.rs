@@ -110,6 +110,19 @@ pub use error::{ViewError, ViewResult};
 pub use helpers::{redirect, redirect_with_error, redirect_with_success, view, view_with_context};
 pub use response::{HtmlResponse, ViewResponse};
 
+/// Compatibility re-exports from `rf_view` (global/singleton-style view engine).
+///
+/// Use these if you need the static `ViewEngine::init()` / `ViewEngine::render()` API
+/// rather than the instance-based `ViewEngine::new()` provided by this crate.
+pub mod compat {
+    pub use rf_view::{
+        View, ViewEngine as GlobalViewEngine, ViewFacade, ViewFacadeResponse,
+        ViewResponse as GlobalViewResponse,
+        ViewError as GlobalViewError, ViewResult as GlobalViewResult,
+        GLOBAL_VIEW_ENGINE,
+    };
+}
+
 /// Prelude module for convenient imports
 pub mod prelude {
     pub use crate::components::{register_default_components, ComponentRegistry};

@@ -1,6 +1,7 @@
 //! # rf-requests
 //!
 //! Form request validation pattern for Rust web applications.
+//! Also re-exports HTTP request types from `rf_request` for convenience.
 //!
 //! ## Features
 //!
@@ -54,6 +55,15 @@ pub use form_request::{
 pub use validation::{
     CustomMessages, EmailValidator, LengthValidator, NumericValidator, UrlValidator,
     ValidationResult, Validator,
+};
+
+// Re-export HTTP request types from rf-request for convenience.
+pub use rf_request::{
+    error::{RequestError, RequestResult},
+    extractors::RequestExtractor,
+    request::Request,
+    session::Session,
+    user::User,
 };
 
 #[cfg(test)]
