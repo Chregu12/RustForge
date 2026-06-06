@@ -274,6 +274,9 @@ mod tests {
     async fn test_broadcast() {
         let manager = SseManager::new();
 
+        // A subscriber must exist before broadcast succeeds (no receivers = send error)
+        let _stream = manager.subscribe("test").await;
+
         let event = Event::new().data("test message");
         let result = manager.broadcast("test", event).await;
 
