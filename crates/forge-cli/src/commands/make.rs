@@ -99,7 +99,7 @@ pub async fn migration(name: &str) -> Result<()> {
     // Generate timestamp
     let timestamp = chrono::Utc::now().format("%Y%m%d%H%M%S");
     let migration_name = name.to_snake_case();
-    let migration_file = format!("src/migrations/{}_{}.rs", timestamp, migration_name);
+    let migration_file = format!("database/migrations/{}_{}.rs", timestamp, migration_name);
 
     if Path::new(&migration_file).exists() {
         anyhow::bail!("Migration already exists: {}", migration_file);
@@ -108,7 +108,7 @@ pub async fn migration(name: &str) -> Result<()> {
     let migration_content = generate_migration_content(name)?;
 
     // Ensure migrations directory exists
-    fs::create_dir_all("src/migrations")?;
+    fs::create_dir_all("database/migrations")?;
     fs::write(&migration_file, migration_content)?;
 
     println!("  {} Created: {}", "✓".green(), migration_file);
@@ -146,156 +146,267 @@ pub async fn command(name: &str) -> Result<()> {
 
 // Helper functions for content generation
 
-fn generate_model_content(model_name: &str, table_name: &str) -> Result<String> {
-    let template = r#"use serde::{Deserialize, Serialize};
-use sqlx::FromRow;
-use chrono::{DateTime, Utc};
+pub(crate) fn generate_model_content(model_name: &str, table_name: &str) -> Result<String> {
+    let content = format!(
+        r#"//! {model_name} SeaORM entity
 
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
-pub struct {{model_name}} {
-    pub id: i32,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
+use sea_orm::entity::prelude::*;
+use serde::{{Deserialize, Serialize}};
+
+/// {model_name} database entity
+#[derive(Clone, Debug, PartialEq, DeriveEntityModel, Serialize, Deserialize)]
+#[sea_orm(table_name = "{table_name}")]
+pub struct Model {{
+    #[sea_orm(primary_key)]
+    pub id: i64,
     // Add your fields here
-}
+    pub created_at: DateTimeUtc,
+    pub updated_at: DateTimeUtc,
+}}
 
+#[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
+pub enum Relation {{}}
+
+impl ActiveModelBehavior for ActiveModel {{}}
+
+/// Data transfer object for creating a {model_name}
 #[derive(Debug, Serialize, Deserialize)]
-pub struct Create{{model_name}} {
+pub struct Create{model_name} {{
     // Add your fields here
-}
+}}
 
+/// Data transfer object for updating a {model_name}
 #[derive(Debug, Serialize, Deserialize)]
-pub struct Update{{model_name}} {
+pub struct Update{model_name} {{
     // Add your fields here
+}}
+"#
+    );
+    Ok(content)
 }
 
-impl {{model_name}} {
-    pub fn table_name() -> &'static str {
-        "{{table_name}}"
-    }
-}
-"#;
+pub(crate) fn generate_api_controller_content(controller_name: &str) -> Result<String> {
+    let content = format!(
+        r#"//! {controller_name} API handler
 
-    let mut handlebars = Handlebars::new();
-    handlebars.register_template_string("model", template)?;
-
-    let data = json!({
-        "model_name": model_name,
-        "table_name": table_name,
-    });
-
-    Ok(handlebars.render("model", &data)?)
-}
-
-fn generate_api_controller_content(controller_name: &str) -> Result<String> {
-    let template = r#"use axum::{
-    extract::{Path, Query},
+use axum::{{
+    extract::{{Path, Query}},
     http::StatusCode,
+    response::IntoResponse,
     Json,
-};
-use serde::{Deserialize, Serialize};
-use anyhow::Result;
+}};
+use serde::{{Deserialize, Serialize}};
+use serde_json::json;
 
 #[derive(Debug, Deserialize)]
-pub struct ListQuery {
-    pub limit: Option<i32>,
-    pub offset: Option<i32>,
-}
+pub struct ListQuery {{
+    pub limit: Option<u32>,
+    pub offset: Option<u32>,
+}}
 
-pub struct {{controller_name}};
+pub struct {controller_name};
 
-impl {{controller_name}} {
+impl {controller_name} {{
     /// GET /api/resource
-    pub async fn index(Query(query): Query<ListQuery>) -> Result<Json<Vec<String>>, StatusCode> {
+    pub async fn index(Query(_query): Query<ListQuery>) -> impl IntoResponse {{
         // TODO: Implement list logic
-        Ok(Json(vec![]))
-    }
+        Json(json!({{ "data": [] }}))
+    }}
 
     /// GET /api/resource/:id
-    pub async fn show(Path(id): Path<i32>) -> Result<Json<String>, StatusCode> {
+    pub async fn show(Path(id): Path<i64>) -> impl IntoResponse {{
         // TODO: Implement show logic
-        Ok(Json(format!("Resource {}", id)))
-    }
+        Json(json!({{ "id": id }}))
+    }}
 
     /// POST /api/resource
-    pub async fn create(Json(payload): Json<serde_json::Value>) -> Result<Json<serde_json::Value>, StatusCode> {
+    pub async fn store(Json(payload): Json<serde_json::Value>) -> impl IntoResponse {{
         // TODO: Implement create logic
-        Ok(Json(payload))
-    }
+        (StatusCode::CREATED, Json(payload))
+    }}
 
     /// PUT /api/resource/:id
     pub async fn update(
-        Path(id): Path<i32>,
+        Path(id): Path<i64>,
         Json(payload): Json<serde_json::Value>,
-    ) -> Result<Json<serde_json::Value>, StatusCode> {
+    ) -> impl IntoResponse {{
         // TODO: Implement update logic
-        Ok(Json(payload))
-    }
+        let _ = id;
+        Json(payload)
+    }}
 
     /// DELETE /api/resource/:id
-    pub async fn delete(Path(id): Path<i32>) -> Result<StatusCode, StatusCode> {
+    pub async fn destroy(Path(id): Path<i64>) -> impl IntoResponse {{
         // TODO: Implement delete logic
-        Ok(StatusCode::NO_CONTENT)
-    }
-}
-"#;
-
-    let mut handlebars = Handlebars::new();
-    handlebars.register_template_string("controller", template)?;
-
-    let data = json!({
-        "controller_name": controller_name,
-    });
-
-    Ok(handlebars.render("controller", &data)?)
+        let _ = id;
+        StatusCode::NO_CONTENT
+    }}
+}}
+"#
+    );
+    Ok(content)
 }
 
-fn generate_web_controller_content(controller_name: &str) -> Result<String> {
-    let template = r#"use axum::{
+pub(crate) fn generate_web_controller_content(controller_name: &str) -> Result<String> {
+    let content = format!(
+        r#"//! {controller_name} web handler
+
+use axum::{{
     extract::Path,
-    response::Html,
-};
-use anyhow::Result;
+    response::{{Html, IntoResponse}},
+}};
 
-pub struct {{controller_name}};
+pub struct {controller_name};
 
-impl {{controller_name}} {
-    pub async fn index() -> Html<String> {
+impl {controller_name} {{
+    /// GET /resource
+    pub async fn index() -> impl IntoResponse {{
         Html("<h1>Index</h1>".to_string())
-    }
+    }}
 
-    pub async fn show(Path(id): Path<i32>) -> Html<String> {
-        Html(format!("<h1>Show {}</h1>", id))
-    }
+    /// GET /resource/:id
+    pub async fn show(Path(id): Path<i64>) -> impl IntoResponse {{
+        Html(format!("<h1>Show {{}}</h1>", id))
+    }}
+
+    /// GET /resource/create
+    pub async fn create() -> impl IntoResponse {{
+        Html("<h1>Create</h1>".to_string())
+    }}
+
+    /// POST /resource
+    pub async fn store() -> impl IntoResponse {{
+        // TODO: Implement store logic
+        Html("<h1>Stored</h1>".to_string())
+    }}
+
+    /// GET /resource/:id/edit
+    pub async fn edit(Path(id): Path<i64>) -> impl IntoResponse {{
+        Html(format!("<h1>Edit {{}}</h1>", id))
+    }}
+
+    /// PUT /resource/:id
+    pub async fn update(Path(id): Path<i64>) -> impl IntoResponse {{
+        // TODO: Implement update logic
+        let _ = id;
+        Html("<h1>Updated</h1>".to_string())
+    }}
+
+    /// DELETE /resource/:id
+    pub async fn destroy(Path(id): Path<i64>) -> impl IntoResponse {{
+        // TODO: Implement delete logic
+        let _ = id;
+        Html("<h1>Deleted</h1>".to_string())
+    }}
+}}
+"#
+    );
+    Ok(content)
 }
-"#;
 
-    let mut handlebars = Handlebars::new();
-    handlebars.register_template_string("controller", template)?;
-
-    let data = json!({
-        "controller_name": controller_name,
-    });
-
-    Ok(handlebars.render("controller", &data)?)
-}
-
-fn generate_migration_content(name: &str) -> Result<String> {
+pub(crate) fn generate_migration_content(name: &str) -> Result<String> {
     let is_create = name.starts_with("create_") && name.ends_with("_table");
 
-    let template = if is_create {
-        let table_name = name
+    let content = if is_create {
+        let raw_table = name
             .strip_prefix("create_")
             .unwrap()
             .strip_suffix("_table")
             .unwrap();
+        // Build PascalCase enum name from snake_case table name
+        let enum_name: String = raw_table
+            .split('_')
+            .map(|part| {
+                let mut chars = part.chars();
+                match chars.next() {
+                    None => String::new(),
+                    Some(first) => first.to_uppercase().collect::<String>() + chars.as_str(),
+                }
+            })
+            .collect();
+        format!(
+            r#"//! Migration: {name}
 
-        format!("use anyhow::Result;\nuse sqlx::SqlitePool;\n\npub async fn up(pool: &SqlitePool) -> Result<()> {{\n    sqlx::query(\n        r#\"\n        CREATE TABLE IF NOT EXISTS {} (\n            id INTEGER PRIMARY KEY AUTOINCREMENT,\n            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,\n            updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP\n        )\n        \"#,\n    )\n    .execute(pool)\n    .await?;\n\n    Ok(())\n}}\n\npub async fn down(pool: &SqlitePool) -> Result<()> {{\n    sqlx::query(\"DROP TABLE IF EXISTS {}\")\n        .execute(pool)\n        .await?;\n\n    Ok(())\n}}\n", table_name, table_name)
+use sea_orm_migration::prelude::*;
+
+#[derive(DeriveMigrationName)]
+pub struct Migration;
+
+#[async_trait::async_trait]
+impl MigrationTrait for Migration {{
+    async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {{
+        manager
+            .create_table(
+                Table::create()
+                    .table({enum_name}::Table)
+                    .if_not_exists()
+                    .col(
+                        ColumnDef::new({enum_name}::Id)
+                            .big_integer()
+                            .not_null()
+                            .auto_increment()
+                            .primary_key(),
+                    )
+                    // Add your columns here
+                    .col(
+                        ColumnDef::new({enum_name}::CreatedAt)
+                            .timestamp()
+                            .not_null()
+                            .extra("DEFAULT CURRENT_TIMESTAMP".to_string()),
+                    )
+                    .col(
+                        ColumnDef::new({enum_name}::UpdatedAt)
+                            .timestamp()
+                            .not_null()
+                            .extra("DEFAULT CURRENT_TIMESTAMP".to_string()),
+                    )
+                    .to_owned(),
+            )
+            .await
+    }}
+
+    async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {{
+        manager
+            .drop_table(Table::drop().table({enum_name}::Table).to_owned())
+            .await
+    }}
+}}
+
+#[derive(DeriveIden)]
+enum {enum_name} {{
+    Table,
+    Id,
+    CreatedAt,
+    UpdatedAt,
+}}
+"#
+        )
     } else {
-        "use anyhow::Result;\nuse sqlx::SqlitePool;\n\npub async fn up(pool: &SqlitePool) -> Result<()> {\n    // TODO: Write migration up logic\n    Ok(())\n}\n\npub async fn down(pool: &SqlitePool) -> Result<()> {\n    // TODO: Write migration down logic\n    Ok(())\n}\n".to_string()
+        format!(
+            r#"//! Migration: {name}
+
+use sea_orm_migration::prelude::*;
+
+#[derive(DeriveMigrationName)]
+pub struct Migration;
+
+#[async_trait::async_trait]
+impl MigrationTrait for Migration {{
+    async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {{
+        // TODO: Write migration up logic
+        Ok(())
+    }}
+
+    async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {{
+        // TODO: Write migration down logic
+        Ok(())
+    }}
+}}
+"#
+        )
     };
 
-    Ok(template)
+    Ok(content)
 }
 
 fn generate_command_content(command_name: &str) -> Result<String> {
@@ -430,7 +541,7 @@ pub async fn seeder(name: &str) -> Result<()> {
         format!("{}Seeder", name.to_pascal_case())
     };
 
-    let seeder_path = format!("database/seeders/{}.rs", seeder_name.to_snake_case());
+    let seeder_path = format!("src/seeders/{}.rs", seeder_name.to_snake_case());
 
     if Path::new(&seeder_path).exists() {
         anyhow::bail!("Seeder already exists: {}", seeder_path);
@@ -439,12 +550,12 @@ pub async fn seeder(name: &str) -> Result<()> {
     let seeder_content = generate_seeder_content(&seeder_name)?;
 
     // Ensure seeders directory exists
-    fs::create_dir_all("database/seeders")?;
+    fs::create_dir_all("src/seeders")?;
     fs::write(&seeder_path, seeder_content)?;
 
     println!("  {} Created: {}", "✓".green(), seeder_path);
 
-    // Update database/seeders/mod.rs
+    // Update src/seeders/mod.rs
     update_seeders_mod(&seeder_name.to_snake_case(), &seeder_name)?;
 
     println!();
@@ -559,51 +670,47 @@ mod tests {
     Ok(handlebars.render("factory", &data)?)
 }
 
-fn generate_seeder_content(seeder_name: &str) -> Result<String> {
-    let template = r#"use rf_testing::{Seeder, SeederError};
-use async_trait::async_trait;
-// use crate::factories::*;
+pub(crate) fn generate_seeder_content(seeder_name: &str) -> Result<String> {
+    let content = format!(
+        r#"//! {seeder_name} — database seeder
 
-/// Seeder for populating {{seeder_name}} data
-pub struct {{seeder_name}};
+use anyhow::Result;
 
-#[async_trait]
-impl Seeder for {{seeder_name}} {
-    fn name(&self) -> &str {
-        "{{seeder_name}}"
-    }
+/// Seeder for populating {seeder_name} data
+pub struct {seeder_name};
 
-    async fn run(&self) -> Result<(), SeederError> {
-        println!("Seeding {{seeder_name}}...");
+impl {seeder_name} {{
+    pub fn new() -> Self {{
+        Self
+    }}
 
-        // TODO: Implement seeder logic
-        // Example:
-        // let users = UserFactory::create_many(50).await?;
+    /// Seed the database with initial data.
+    pub async fn run(&self) -> Result<()> {{
+        println!("Seeding {seeder_name}...");
 
+        // TODO: Insert seed data here.
+        // Example (using sea-orm):
+        // use crate::models::your_model::ActiveModel;
+        // use sea_orm::ActiveModelTrait;
+        // let record = ActiveModel {{
+        //     field: Set("value".to_string()),
+        //     ..Default::default()
+        // }};
+        // record.insert(db).await?;
+
+        println!("{seeder_name} seeded successfully.");
         Ok(())
-    }
+    }}
+}}
 
-    // Optional: Add dependencies
-    // fn dependencies(&self) -> Vec<&str> {
-    //     vec!["UserSeeder"]
-    // }
-
-    // Optional: Add conditional execution
-    // async fn should_run(&self) -> bool {
-    //     // Only run if some condition is met
-    //     true
-    // }
-}
-"#;
-
-    let mut handlebars = Handlebars::new();
-    handlebars.register_template_string("seeder", template)?;
-
-    let data = json!({
-        "seeder_name": seeder_name,
-    });
-
-    Ok(handlebars.render("seeder", &data)?)
+impl Default for {seeder_name} {{
+    fn default() -> Self {{
+        Self::new()
+    }}
+}}
+"#
+    );
+    Ok(content)
 }
 
 fn update_factories_mod(file_name: &str) -> Result<()> {
@@ -628,7 +735,7 @@ fn update_factories_mod(file_name: &str) -> Result<()> {
 }
 
 fn update_seeders_mod(file_name: &str, seeder_name: &str) -> Result<()> {
-    let mod_file = "database/seeders/mod.rs";
+    let mod_file = "src/seeders/mod.rs";
 
     let mut content = if Path::new(mod_file).exists() {
         fs::read_to_string(mod_file)?
@@ -1822,4 +1929,245 @@ pub async fn controller_interactive() -> Result<()> {
     ]);
 
     Ok(())
+}
+
+// ─── Unit tests ────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ── model template ────────────────────────────────────────────────────
+
+    #[test]
+    fn test_generate_model_content_contains_entity_macro() {
+        let content = generate_model_content("User", "users").unwrap();
+        assert!(
+            content.contains("DeriveEntityModel"),
+            "model should derive DeriveEntityModel (SeaORM)"
+        );
+    }
+
+    #[test]
+    fn test_generate_model_content_struct_name() {
+        let content = generate_model_content("Post", "posts").unwrap();
+        // SeaORM entity uses `Model` as the struct name
+        assert!(content.contains("pub struct Model {"), "model struct must be named Model");
+    }
+
+    #[test]
+    fn test_generate_model_content_table_attribute() {
+        let content = generate_model_content("BlogPost", "blog_posts").unwrap();
+        assert!(
+            content.contains(r#"table_name = "blog_posts""#),
+            "table_name attribute must match"
+        );
+    }
+
+    #[test]
+    fn test_generate_model_content_create_dto() {
+        let content = generate_model_content("Article", "articles").unwrap();
+        assert!(
+            content.contains("pub struct CreateArticle"),
+            "CreateDto struct must be present"
+        );
+    }
+
+    #[test]
+    fn test_generate_model_content_update_dto() {
+        let content = generate_model_content("Article", "articles").unwrap();
+        assert!(
+            content.contains("pub struct UpdateArticle"),
+            "UpdateDto struct must be present"
+        );
+    }
+
+    #[test]
+    fn test_generate_model_content_primary_key() {
+        let content = generate_model_content("User", "users").unwrap();
+        assert!(
+            content.contains("primary_key"),
+            "model must declare a primary key"
+        );
+    }
+
+    #[test]
+    fn test_generate_model_content_no_sqlx() {
+        let content = generate_model_content("User", "users").unwrap();
+        assert!(
+            !content.contains("sqlx"),
+            "model must not reference sqlx (use SeaORM)"
+        );
+    }
+
+    // ── API controller template ───────────────────────────────────────────
+
+    #[test]
+    fn test_generate_api_controller_content_struct_name() {
+        let content = generate_api_controller_content("UserController").unwrap();
+        assert!(
+            content.contains("pub struct UserController"),
+            "controller struct name must match"
+        );
+    }
+
+    #[test]
+    fn test_generate_api_controller_content_into_response() {
+        let content = generate_api_controller_content("UserController").unwrap();
+        assert!(
+            content.contains("impl IntoResponse"),
+            "controller handlers must return impl IntoResponse"
+        );
+    }
+
+    #[test]
+    fn test_generate_api_controller_content_crud_methods() {
+        let content = generate_api_controller_content("PostController").unwrap();
+        for method in &["index", "show", "store", "update", "destroy"] {
+            assert!(
+                content.contains(&format!("pub async fn {}", method)),
+                "API controller must have '{}' method",
+                method
+            );
+        }
+    }
+
+    // ── Web controller template ───────────────────────────────────────────
+
+    #[test]
+    fn test_generate_web_controller_content_struct_name() {
+        let content = generate_web_controller_content("PageController").unwrap();
+        assert!(content.contains("pub struct PageController"));
+    }
+
+    #[test]
+    fn test_generate_web_controller_content_into_response() {
+        let content = generate_web_controller_content("PageController").unwrap();
+        assert!(
+            content.contains("impl IntoResponse"),
+            "web controller handlers must return impl IntoResponse"
+        );
+    }
+
+    #[test]
+    fn test_generate_web_controller_content_seven_methods() {
+        let content = generate_web_controller_content("ItemController").unwrap();
+        for method in &["index", "show", "create", "store", "edit", "update", "destroy"] {
+            assert!(
+                content.contains(&format!("pub async fn {}", method)),
+                "web controller must have '{}' method",
+                method
+            );
+        }
+    }
+
+    // ── Migration template ────────────────────────────────────────────────
+
+    #[test]
+    fn test_generate_migration_content_create_table_uses_sea_orm() {
+        let content = generate_migration_content("create_users_table").unwrap();
+        assert!(
+            content.contains("sea_orm_migration"),
+            "migration must use sea_orm_migration"
+        );
+        assert!(
+            content.contains("MigrationTrait"),
+            "migration must implement MigrationTrait"
+        );
+    }
+
+    #[test]
+    fn test_generate_migration_content_create_table_has_up_and_down() {
+        let content = generate_migration_content("create_posts_table").unwrap();
+        assert!(content.contains("async fn up("), "migration must have up()");
+        assert!(content.contains("async fn down("), "migration must have down()");
+    }
+
+    #[test]
+    fn test_generate_migration_content_create_table_enum() {
+        let content = generate_migration_content("create_orders_table").unwrap();
+        // enum name should be PascalCase of the table name
+        assert!(
+            content.contains("enum Orders"),
+            "migration must derive DeriveIden enum named after the table"
+        );
+    }
+
+    #[test]
+    fn test_generate_migration_content_generic_has_placeholders() {
+        let content = generate_migration_content("add_email_to_users").unwrap();
+        assert!(
+            content.contains("sea_orm_migration"),
+            "generic migration must also use sea_orm_migration"
+        );
+        assert!(
+            content.contains("TODO"),
+            "generic migration must contain TODO placeholders"
+        );
+    }
+
+    #[test]
+    fn test_generate_migration_content_no_sqlx() {
+        let content = generate_migration_content("create_items_table").unwrap();
+        assert!(
+            !content.contains("sqlx"),
+            "migration must not reference sqlx"
+        );
+    }
+
+    #[test]
+    fn test_generate_migration_content_derive_migration_name() {
+        let content = generate_migration_content("create_tags_table").unwrap();
+        assert!(
+            content.contains("DeriveMigrationName"),
+            "migration must derive DeriveMigrationName"
+        );
+    }
+
+    // ── Seeder template ───────────────────────────────────────────────────
+
+    #[test]
+    fn test_generate_seeder_content_struct_name() {
+        let content = generate_seeder_content("UserSeeder").unwrap();
+        assert!(
+            content.contains("pub struct UserSeeder"),
+            "seeder struct name must match"
+        );
+    }
+
+    #[test]
+    fn test_generate_seeder_content_has_run_method() {
+        let content = generate_seeder_content("PostSeeder").unwrap();
+        assert!(
+            content.contains("pub async fn run"),
+            "seeder must have an async run() method"
+        );
+    }
+
+    #[test]
+    fn test_generate_seeder_content_returns_result() {
+        let content = generate_seeder_content("OrderSeeder").unwrap();
+        assert!(
+            content.contains("Result<()>"),
+            "seeder run() must return Result<()>"
+        );
+    }
+
+    #[test]
+    fn test_generate_seeder_content_implements_default() {
+        let content = generate_seeder_content("CategorySeeder").unwrap();
+        assert!(
+            content.contains("impl Default for CategorySeeder"),
+            "seeder must implement Default"
+        );
+    }
+
+    #[test]
+    fn test_generate_seeder_content_no_rf_testing() {
+        let content = generate_seeder_content("UserSeeder").unwrap();
+        assert!(
+            !content.contains("rf_testing"),
+            "seeder must not depend on rf_testing"
+        );
+    }
 }

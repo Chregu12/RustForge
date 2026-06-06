@@ -2,6 +2,7 @@ pub mod about;
 pub mod cache;
 pub mod config;
 pub mod inspire;
+pub mod list;
 pub mod mail;
 pub mod make;
 pub mod migrate;

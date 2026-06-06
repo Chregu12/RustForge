@@ -89,6 +89,9 @@ enum Commands {
     /// Show command aliases
     Aliases,
 
+    /// List all available commands
+    List,
+
     /// Show enhanced documentation for a command
     #[command(name = "docs")]
     Docs {
@@ -571,6 +574,9 @@ async fn main() -> Result<()> {
         }
         Commands::Aliases => {
             aliases::display_aliases(&config.aliases);
+        }
+        Commands::List => {
+            commands::list::run();
         }
         Commands::Docs { command } => match command {
             Some(DocsCommands::MakeModel) => {
