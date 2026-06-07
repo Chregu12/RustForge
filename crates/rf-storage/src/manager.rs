@@ -13,12 +13,13 @@ use std::sync::Arc;
 ///
 /// ```rust,no_run
 /// use rf_storage::{StorageManager, LocalStorage, S3Storage, S3Config};
+/// use std::sync::Arc;
 ///
 /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 /// let mut manager = StorageManager::new();
 ///
 /// // Register local disk
-/// let local = LocalStorage::new("/var/storage".into(), "http://localhost/storage");
+/// let local = LocalStorage::new("/var/storage", "http://localhost/storage").await?;
 /// manager.add_disk("local", Arc::new(local));
 ///
 /// // Register S3 disk
@@ -37,7 +38,7 @@ use std::sync::Arc;
 /// manager.set_default("s3");
 ///
 /// // Use default disk
-/// manager.disk_default().put("file.txt", b"Hello".to_vec()).await?;
+/// manager.disk_default()?.put("file.txt", b"Hello".to_vec()).await?;
 ///
 /// // Use specific disk
 /// manager.disk("local")?.put("file.txt", b"Hello".to_vec()).await?;

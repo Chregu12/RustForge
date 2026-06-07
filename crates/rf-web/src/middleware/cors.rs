@@ -66,7 +66,7 @@ impl Default for CorsConfig {
 /// use axum::Router;
 ///
 /// let config = CorsConfig::default();
-/// let app = Router::new()
+/// let app: Router = Router::new()
 ///     .layer(cors_layer(config));
 /// ```
 pub fn cors_layer(config: CorsConfig) -> CorsLayer {

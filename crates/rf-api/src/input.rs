@@ -8,7 +8,11 @@
 /// ```rust,no_run
 /// use rf_api::input::{InputParser, InputValidator};
 ///
-/// let parser = InputParser::from_args(&["--tags", "admin", "--tags", "user", "name"]);
+/// let args: Vec<String> = ["--tags", "admin", "--tags", "user", "name"]
+///     .iter()
+///     .map(|s| s.to_string())
+///     .collect();
+/// let parser = InputParser::from_args(&args);
 ///
 /// // Get single value
 /// if let Some(name) = parser.argument(0) {

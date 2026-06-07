@@ -18,14 +18,14 @@ use std::sync::Arc;
 /// ```rust,no_run
 /// use rf_sanctum_facade::Sanctum;
 ///
-/// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+/// # fn example() -> Result<(), Box<dyn std::error::Error>> {
 /// // Check if user has a specific token ability
-/// if Sanctum::tokenCan("read:posts").await {
+/// if Sanctum::tokenCan("read:posts") {
 ///     println!("User can read posts");
 /// }
 ///
 /// // Get current access token
-/// let token = Sanctum::currentAccessToken().await;
+/// let token = Sanctum::currentAccessToken();
 /// # Ok(())
 /// # }
 /// ```
@@ -74,6 +74,15 @@ impl Sanctum {
     ///
     /// ```rust,no_run
     /// use rf_sanctum_facade::Sanctum;
+    /// # use rf_sanctum_facade::{LoadFromToken, SanctumError};
+    /// # use sea_orm::DatabaseConnection;
+    /// # struct MyUser;
+    /// # #[async_trait::async_trait]
+    /// # impl LoadFromToken for MyUser {
+    /// #     async fn load_from_token(_id: i64, _db: &DatabaseConnection) -> Result<Self, SanctumError> {
+    /// #         Ok(MyUser)
+    /// #     }
+    /// # }
     ///
     /// # fn example() {
     /// // Returns None if not authenticated or user can't be loaded
@@ -175,6 +184,12 @@ impl Sanctum {
     ///
     /// ```rust,no_run
     /// use rf_sanctum_facade::Sanctum;
+    /// # use rf_sanctum_facade::Tokenable;
+    /// # struct MyUser;
+    /// # impl Tokenable for MyUser {
+    /// #     fn tokenable_type() -> &'static str { "User" }
+    /// #     fn tokenable_id(&self) -> i64 { 1 }
+    /// # }
     ///
     /// # fn example(user: MyUser) -> Result<(), Box<dyn std::error::Error>> {
     /// let token = Sanctum::createToken(
@@ -212,6 +227,12 @@ impl Sanctum {
     ///
     /// ```rust,no_run
     /// use rf_sanctum_facade::Sanctum;
+    /// # use rf_sanctum_facade::Tokenable;
+    /// # struct MyUser;
+    /// # impl Tokenable for MyUser {
+    /// #     fn tokenable_type() -> &'static str { "User" }
+    /// #     fn tokenable_id(&self) -> i64 { 1 }
+    /// # }
     ///
     /// # fn example(user: MyUser) -> Result<(), Box<dyn std::error::Error>> {
     /// let token = Sanctum::createTokenWithDevice(
@@ -282,6 +303,12 @@ impl Sanctum {
     ///
     /// ```rust,no_run
     /// use rf_sanctum_facade::Sanctum;
+    /// # use rf_sanctum_facade::Tokenable;
+    /// # struct MyUser;
+    /// # impl Tokenable for MyUser {
+    /// #     fn tokenable_type() -> &'static str { "User" }
+    /// #     fn tokenable_id(&self) -> i64 { 1 }
+    /// # }
     ///
     /// # fn example(user: MyUser) -> Result<(), Box<dyn std::error::Error>> {
     /// Sanctum::revokeAllTokens(&user)?;
@@ -332,6 +359,12 @@ impl Sanctum {
     ///
     /// ```rust,no_run
     /// use rf_sanctum_facade::Sanctum;
+    /// # use rf_sanctum_facade::Tokenable;
+    /// # struct MyUser;
+    /// # impl Tokenable for MyUser {
+    /// #     fn tokenable_type() -> &'static str { "User" }
+    /// #     fn tokenable_id(&self) -> i64 { 1 }
+    /// # }
     ///
     /// # fn example(user: MyUser) -> Result<(), Box<dyn std::error::Error>> {
     /// let tokens = Sanctum::tokens(&user)?;
@@ -434,6 +467,12 @@ impl Sanctum {
     ///
     /// ```rust,no_run
     /// use rf_sanctum_facade::Sanctum;
+    /// # use rf_sanctum_facade::Tokenable;
+    /// # struct MyUser;
+    /// # impl Tokenable for MyUser {
+    /// #     fn tokenable_type() -> &'static str { "User" }
+    /// #     fn tokenable_id(&self) -> i64 { 1 }
+    /// # }
     ///
     /// # fn example(user: MyUser) -> Result<(), Box<dyn std::error::Error>> {
     /// let stats = Sanctum::tokenStats(&user)?;

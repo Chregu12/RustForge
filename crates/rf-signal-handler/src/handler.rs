@@ -35,7 +35,7 @@ impl SignalHandler {
     /// ```no_run
     /// # use rf_signal_handler::{SignalHandler, Signal};
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let handler = SignalHandler::new();
+    /// let mut handler = SignalHandler::new();
     /// handler.trap(Signal::SIGTERM, || {
     ///     println!("Received SIGTERM");
     /// }).await?;
@@ -55,7 +55,7 @@ impl SignalHandler {
     /// ```no_run
     /// # use rf_signal_handler::{SignalHandler, Signal};
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let handler = SignalHandler::new();
+    /// let mut handler = SignalHandler::new();
     /// handler.on_signal(Signal::SIGINT, || {
     ///     println!("Received Ctrl+C");
     /// }).await?;
@@ -87,7 +87,7 @@ impl SignalHandler {
     /// ```no_run
     /// # use rf_signal_handler::{SignalHandler, Signal};
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let handler = SignalHandler::new();
+    /// let mut handler = SignalHandler::new();
     /// handler.on_signal_async(Signal::SIGTERM, || async {
     ///     // Async cleanup work
     ///     println!("Async cleanup");

@@ -88,14 +88,24 @@ pub trait HasRelationships: Sized + Send + Sync {
     ///
     /// ```rust,no_run
     /// # use rf_eloquent::prelude::*;
-    /// # async fn example(db: &DatabaseConnection) -> Result<()> {
-    /// # mod user { pub struct Model { pub id: i32 } }
-    /// # mod profile {
-    /// #     pub use sea_orm::entity::prelude::*;
-    /// #     pub struct Entity;
-    /// #     pub struct Model { pub id: i32, pub user_id: i32 }
-    /// #     pub enum Column { UserId }
+    /// # fn main() {}
+    /// # mod user {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "users")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32 }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {}
     /// # }
+    /// # mod profile {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "profiles")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub user_id: i32 }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {}
+    /// # }
+    /// # async fn example(db: &DatabaseConnection) -> Result<(), DbErr> {
     /// // Use the standalone function instead:
     /// use rf_eloquent::has_one;
     /// let user = user::Model { id: 1 };
@@ -131,14 +141,24 @@ pub trait HasRelationships: Sized + Send + Sync {
     ///
     /// ```rust,no_run
     /// # use rf_eloquent::prelude::*;
-    /// # async fn example(db: &DatabaseConnection) -> Result<()> {
-    /// # mod user { pub struct Model { pub id: i32 } }
-    /// # mod post {
-    /// #     pub use sea_orm::entity::prelude::*;
-    /// #     pub struct Entity;
-    /// #     pub struct Model { pub id: i32, pub user_id: i32 }
-    /// #     pub enum Column { UserId }
+    /// # fn main() {}
+    /// # mod user {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "users")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32 }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {}
     /// # }
+    /// # mod post {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "posts")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub user_id: i32 }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {}
+    /// # }
+    /// # async fn example(db: &DatabaseConnection) -> Result<(), DbErr> {
     /// // Use the standalone function instead:
     /// use rf_eloquent::has_many;
     /// let user = user::Model { id: 1 };
@@ -174,17 +194,27 @@ pub trait HasRelationships: Sized + Send + Sync {
     ///
     /// ```rust,no_run
     /// # use rf_eloquent::prelude::*;
-    /// # async fn example(db: &DatabaseConnection) -> Result<()> {
+    /// # fn main() {}
     /// # mod user {
-    /// #     pub use sea_orm::entity::prelude::*;
-    /// #     pub struct Entity;
-    /// #     pub struct Model { pub id: i32 }
-    /// #     pub enum Column { Id }
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "users")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32 }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {}
     /// # }
-    /// # mod post { pub struct Model { pub user_id: i32 } }
+    /// # mod post {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "posts")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub user_id: i32 }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {}
+    /// # }
+    /// # async fn example(db: &DatabaseConnection) -> Result<(), DbErr> {
     /// // Use the standalone function instead:
     /// use rf_eloquent::belongs_to;
-    /// let post = post::Model { user_id: 1 };
+    /// let post = post::Model { id: 1, user_id: 1 };
     /// let user = belongs_to::<user::Entity, user::Model, _>(
     ///     db,
     ///     post.user_id,
@@ -408,11 +438,14 @@ impl<M, T, R> HasManyThrough<M, T, R> {
 /// ```rust,no_run
 /// # use rf_eloquent::relationships::HasManyBuilder;
 /// # use sea_orm::*;
+/// # fn main() {}
 /// # mod post {
 /// #     use sea_orm::entity::prelude::*;
-/// #     pub struct Entity;
-/// #     pub struct Model { pub id: i32, pub user_id: i32 }
-/// #     pub enum Column { UserId }
+/// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+/// #     #[sea_orm(table_name = "posts")]
+/// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub user_id: i32 }
+/// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+/// #     impl ActiveModelBehavior for ActiveModel {}
 /// # }
 /// # async fn example(db: DatabaseConnection) -> Result<(), DbErr> {
 /// let posts = HasManyBuilder::<post::Entity>::new(db.clone(), post::Column::UserId, 42i32)
@@ -593,11 +626,14 @@ where
 /// ```rust,no_run
 /// # use rf_eloquent::relationships::has_many_builder;
 /// # use sea_orm::*;
+/// # fn main() {}
 /// # mod post {
 /// #     use sea_orm::entity::prelude::*;
-/// #     pub struct Entity;
-/// #     pub struct Model { pub id: i32, pub user_id: i32 }
-/// #     pub enum Column { UserId }
+/// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+/// #     #[sea_orm(table_name = "posts")]
+/// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub user_id: i32 }
+/// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+/// #     impl ActiveModelBehavior for ActiveModel {}
 /// # }
 /// # async fn example(db: DatabaseConnection) -> Result<(), DbErr> {
 /// let posts = has_many_builder::<post::Entity, _>(db, post::Column::UserId, 1i32)
@@ -654,21 +690,28 @@ where
 /// # use rf_eloquent::define_relationships;
 /// # use rf_eloquent::relationships::{HasManyBuilder, BelongsToBuilder};
 /// # use sea_orm::DatabaseConnection;
+/// # fn main() {}
 /// # mod post {
-/// #     pub use sea_orm::entity::prelude::*;
-/// #     pub struct Entity;
-/// #     pub struct Model { pub id: i32, pub user_id: i32 }
-/// #     pub enum Column { UserId }
+/// #     use sea_orm::entity::prelude::*;
+/// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+/// #     #[sea_orm(table_name = "posts")]
+/// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub user_id: i32 }
+/// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+/// #     impl ActiveModelBehavior for ActiveModel {}
 /// # }
 /// # mod user {
-/// #     pub use sea_orm::entity::prelude::*;
-/// #     pub struct Entity;
-/// #     pub struct Model { pub id: i32 }
-/// #     pub enum Column { Id }
+/// #     use sea_orm::entity::prelude::*;
+/// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+/// #     #[sea_orm(table_name = "users")]
+/// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32 }
+/// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+/// #     impl ActiveModelBehavior for ActiveModel {}
 /// # }
 /// struct UserModel { id: i32 }
 ///
-/// define_relationships!(UserModel; has_many posts, post::Entity, post::Column::UserId, self.id);
+/// // Generates `UserModel::posts(&self, db) -> HasManyBuilder<post::Entity>`
+/// // filtering `post::Column::UserId == 1`.
+/// define_relationships!(UserModel; has_many posts, post::Entity, post::Column::UserId, 1i32);
 /// ```
 #[macro_export]
 macro_rules! define_relationships {

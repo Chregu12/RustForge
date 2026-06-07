@@ -11,10 +11,16 @@ use std::time::Duration;
 ///
 /// # Examples
 ///
-/// ```rust
+/// ```rust,no_run
+/// use rf_cache_facade::Cache;
+/// use std::time::Duration;
+///
+/// # fn example() -> Result<(), Box<dyn std::error::Error>> {
 /// // Both work:
-/// Cache::put("key", &"value", 3600).await?;           // seconds
-/// Cache::put("key", &"value", Duration::from_secs(3600)).await?;  // Duration
+/// Cache::put("key", "value", 3600)?;                      // seconds
+/// Cache::put("key", "value", Duration::from_secs(3600))?; // Duration
+/// # Ok(())
+/// # }
 /// ```
 pub trait IntoTtl {
     fn into_duration(self) -> Duration;
@@ -67,8 +73,8 @@ impl IntoTtl for Duration {
 /// }
 ///
 /// // Remember pattern
-/// let value = Cache::remember("expensive", 60, || async {
-///     Ok::<_, String>("computed".to_string())
+/// let value: String = Cache::remember("expensive", 60, || async {
+///     Ok("computed".to_string())
 /// })?;
 /// # Ok(())
 /// # }
@@ -204,8 +210,8 @@ impl Cache {
     ///
     /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// // Laravel style - just pass seconds!
-    /// let users = Cache::remember("users", 3600, || async {
-    ///     Ok::<_, String>("computed".to_string())
+    /// let users: String = Cache::remember("users", 3600, || async {
+    ///     Ok("computed".to_string())
     /// })?;
     /// # Ok(())
     /// # }
@@ -232,8 +238,8 @@ impl Cache {
     /// use rf_cache_facade::Cache;
     ///
     /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let value = Cache::remember_forever("key", || async {
-    ///     Ok::<_, String>("computed".to_string())
+    /// let value: String = Cache::remember_forever("key", || async {
+    ///     Ok("computed".to_string())
     /// })?;
     /// # Ok(())
     /// # }

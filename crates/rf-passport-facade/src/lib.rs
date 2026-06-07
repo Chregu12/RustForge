@@ -23,19 +23,19 @@
 //! use rf_passport_facade::Passport;
 //! use chrono::Duration;
 //!
-//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+//! # fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! // Configure token lifetimes
-//! Passport::tokensExpireIn(Duration::seconds(3600 * 24 * 15)).await;
-//! Passport::refreshTokensExpireIn(Duration::seconds(3600 * 24 * 30)).await;
+//! Passport::tokensExpireIn(Duration::seconds(3600 * 24 * 15));
+//! Passport::refreshTokensExpireIn(Duration::seconds(3600 * 24 * 30));
 //!
 //! // Define scopes
 //! Passport::tokensCan(&[
 //!     ("read:posts", "Read blog posts"),
 //!     ("write:posts", "Create and edit posts"),
-//! ]).await;
+//! ]);
 //!
 //! // Set default scopes
-//! Passport::setDefaultScope(&["read:posts"]).await;
+//! Passport::setDefaultScope(&["read:posts"]);
 //! # Ok(())
 //! # }
 //! ```
@@ -45,21 +45,21 @@
 //! ```rust,no_run
 //! use rf_passport_facade::Passport;
 //!
-//! # async fn example() {
+//! # fn example() {
 //! // Define available scopes
 //! Passport::tokensCan(&[
 //!     ("read:posts", "Read blog posts"),
 //!     ("write:posts", "Create and edit posts"),
 //!     ("delete:posts", "Delete posts"),
-//! ]).await;
+//! ]);
 //!
 //! // Check if scope exists
-//! if Passport::hasScope("read:posts").await {
+//! if Passport::hasScope("read:posts") {
 //!     println!("Scope is registered");
 //! }
 //!
 //! // Get all scopes
-//! let scopes = Passport::scopes().await;
+//! let scopes = Passport::scopes();
 //! for scope in scopes {
 //!     println!("{}: {}", scope.id, scope.description);
 //! }
@@ -71,24 +71,24 @@
 //! ```rust,no_run
 //! use rf_passport_facade::Passport;
 //!
-//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+//! # fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! // Create personal access token
 //! // let token = Passport::createToken(
 //! //     &user,
 //! //     "api-token",
 //! //     vec!["read:posts".to_string(), "write:posts".to_string()]
-//! // ).await?;
+//! // )?;
 //!
 //! // Check current token scope
-//! if Passport::tokenCan("write:posts").await {
+//! if Passport::tokenCan("write:posts") {
 //!     // User can write posts
 //! }
 //!
 //! // Revoke token
-//! // Passport::revokeToken(token_id).await?;
+//! // Passport::revokeToken(token_id)?;
 //!
 //! // Revoke all user tokens
-//! // let count = Passport::revokeAllTokens(&user).await?;
+//! // let count = Passport::revokeAllTokens(&user)?;
 //! # Ok(())
 //! # }
 //! ```
@@ -98,21 +98,21 @@
 //! ```rust,no_run
 //! use rf_passport_facade::Passport;
 //!
-//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-//! // Create OAuth client
-//! let client = Passport::createClient(
+//! # fn example() -> Result<(), Box<dyn std::error::Error>> {
+//! // Create OAuth client (returns the client and its plain-text secret)
+//! let (client, secret) = Passport::createClient(
 //!     "My Application",
 //!     "https://myapp.com/callback"
-//! ).await?;
+//! )?;
 //!
 //! println!("Client ID: {}", client.id);
-//! println!("Client Secret: {}", client.secret);
+//! println!("Client Secret: {:?}", secret);
 //!
-//! // List all clients
-//! let clients = Passport::clients().await?;
+//! // List all clients for a user
+//! let clients = Passport::clients(client.user_id.unwrap_or(0))?;
 //!
 //! // Delete client
-//! Passport::deleteClient(client.id).await?;
+//! Passport::deleteClient(client.id)?;
 //! # Ok(())
 //! # }
 //! ```
@@ -122,15 +122,15 @@
 //! ```rust,no_run
 //! use rf_passport_facade::Passport;
 //!
-//! # async fn example() {
+//! # fn example() {
 //! // Enable/disable grants
-//! Passport::enablePasswordGrant().await;
-//! Passport::disableImplicitGrant().await;
-//! Passport::enableClientCredentialsGrant().await;
+//! Passport::enablePasswordGrant();
+//! Passport::disableImplicitGrant();
+//! Passport::enableClientCredentialsGrant();
 //!
 //! // PKCE configuration
-//! Passport::requirePkce(true).await;
-//! Passport::allowPlainPkce(false).await;
+//! Passport::requirePkce(true);
+//! Passport::allowPlainPkce(false);
 //! # }
 //! ```
 //!
@@ -140,12 +140,12 @@
 //! use rf_passport_facade::Passport;
 //! use chrono::Duration;
 //!
-//! # async fn example() {
+//! # fn example() {
 //! // Configure various token lifetimes
-//! Passport::tokensExpireIn(Duration::seconds(3600)).await; // 1 hour
-//! Passport::refreshTokensExpireIn(Duration::seconds(3600 * 24 * 30)).await; // 30 days
-//! Passport::personalAccessTokensExpireIn(Duration::seconds(3600 * 24 * 365)).await; // 1 year
-//! Passport::authCodesExpireIn(Duration::seconds(600)).await; // 10 minutes
+//! Passport::tokensExpireIn(Duration::seconds(3600)); // 1 hour
+//! Passport::refreshTokensExpireIn(Duration::seconds(3600 * 24 * 30)); // 30 days
+//! Passport::personalAccessTokensExpireIn(Duration::seconds(3600 * 24 * 365)); // 1 year
+//! Passport::authCodesExpireIn(Duration::seconds(600)); // 10 minutes
 //! # }
 //! ```
 //!
@@ -156,12 +156,12 @@
 //! use sea_orm::DatabaseConnection;
 //! use std::sync::Arc;
 //!
-//! # async fn example(db: DatabaseConnection) {
+//! # fn example(db: DatabaseConnection) {
 //! // Set database connection
-//! Passport::setDatabase(Arc::new(db)).await;
+//! Passport::setDatabase(Arc::new(db));
 //!
 //! // Get current config
-//! let config = Passport::config().await;
+//! let config = Passport::config();
 //! println!("Access token lifetime: {}", config.access_token_lifetime);
 //! # }
 //! ```

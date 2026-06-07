@@ -9,7 +9,7 @@
 //! use rf_signal_handler::{SignalHandler, Signal};
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-//! let handler = SignalHandler::new();
+//! let mut handler = SignalHandler::new();
 //!
 //! handler.on_signal(Signal::SIGTERM, || {
 //!     println!("Cleaning up...");

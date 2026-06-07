@@ -4,9 +4,10 @@
 //!
 //! # Recommended Usage
 //!
-//! Use the consolidated `rf` crate for simpler imports:
+//! Use the consolidated `rf` crate for simpler imports (`use rf::Cache;`),
+//! or import directly from this crate:
 //! ```rust
-//! use rf::Cache;  // or use rf::prelude::*;
+//! use rf_cache_facade::Cache;
 //! ```
 //!
 //! ## Features
@@ -33,8 +34,8 @@
 //! }
 //!
 //! // Remember pattern - just pass seconds!
-//! let value = Cache::remember("expensive_key", 3600, || async {
-//!     Ok::<_, String>("expensive computation".to_string())
+//! let value: String = Cache::remember("expensive_key", 3600, || async {
+//!     Ok("expensive computation".to_string())
 //! })?;
 //!
 //! // Add only if key doesn't exist

@@ -21,14 +21,14 @@
 //! use rf_sanctum_facade::Sanctum;
 //! use serde::{Serialize, Deserialize};
 //!
-//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+//! # fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! // Check if current token has ability
-//! if Sanctum::tokenCan("read:posts").await {
+//! if Sanctum::tokenCan("read:posts") {
 //!     println!("User can read posts");
 //! }
 //!
 //! // Get current access token
-//! if let Some(token) = Sanctum::currentAccessToken().await {
+//! if let Some(token) = Sanctum::currentAccessToken() {
 //!     println!("Token: {}", token.name);
 //! }
 //!
@@ -77,19 +77,19 @@
 //! ```rust,no_run
 //! use rf_sanctum_facade::Sanctum;
 //!
-//! # async fn example() {
+//! # fn example() {
 //! // Check single ability
-//! if Sanctum::tokenCan("read:posts").await {
+//! if Sanctum::tokenCan("read:posts") {
 //!     // User can read posts
 //! }
 //!
 //! // Check any of multiple abilities
-//! if Sanctum::tokenCanAny(&["read:posts", "write:posts"]).await {
+//! if Sanctum::tokenCanAny(&["read:posts", "write:posts"]) {
 //!     // User can read OR write posts
 //! }
 //!
 //! // Check all abilities
-//! if Sanctum::tokenCanAll(&["read:posts", "write:posts"]).await {
+//! if Sanctum::tokenCanAll(&["read:posts", "write:posts"]) {
 //!     // User can read AND write posts
 //! }
 //! # }
@@ -100,16 +100,16 @@
 //! ```rust,no_run
 //! use rf_sanctum_facade::Sanctum;
 //!
-//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+//! # fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! // Prune expired tokens
-//! let deleted = Sanctum::pruneExpiredTokens().await?;
+//! let deleted = Sanctum::pruneExpiredTokens()?;
 //! println!("Deleted {} expired tokens", deleted);
 //!
 //! // Prune tokens older than 90 days
-//! let deleted = Sanctum::pruneTokensOlderThan(90).await?;
+//! let deleted = Sanctum::pruneTokensOlderThan(90)?;
 //!
 //! // Prune unused tokens (not used in 30 days)
-//! let deleted = Sanctum::pruneUnusedTokens(30).await?;
+//! let deleted = Sanctum::pruneUnusedTokens(30)?;
 //! # Ok(())
 //! # }
 //! ```
@@ -135,9 +135,9 @@
 //! use sea_orm::DatabaseConnection;
 //! use std::sync::Arc;
 //!
-//! # async fn example(db: DatabaseConnection) {
+//! # fn example(db: DatabaseConnection) {
 //! // Set database connection
-//! Sanctum::setDatabase(Arc::new(db)).await;
+//! Sanctum::setDatabase(Arc::new(db));
 //! # }
 //! ```
 

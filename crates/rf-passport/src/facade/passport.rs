@@ -17,18 +17,18 @@ use std::sync::Arc;
 /// # Examples
 ///
 /// ```rust,no_run
-/// use crate::Passport;
+/// use rf_passport::Passport;
 /// use chrono::Duration;
 ///
-/// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+/// # fn example() -> Result<(), Box<dyn std::error::Error>> {
 /// // Configure token lifetimes
-/// Passport::tokensExpireIn(Duration::seconds(3600 * 24 * 15)).await;
+/// Passport::tokensExpireIn(Duration::seconds(3600 * 24 * 15));
 ///
 /// // Define scopes
 /// Passport::tokensCan(&[
 ///     ("read:posts", "Read blog posts"),
 ///     ("write:posts", "Create and edit posts"),
-/// ]).await;
+/// ]);
 /// # Ok(())
 /// # }
 /// ```
@@ -40,7 +40,7 @@ impl Passport {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// use crate::Passport;
+    /// use rf_passport::Passport;
     /// use sea_orm::DatabaseConnection;
     /// use std::sync::Arc;
     ///
@@ -66,7 +66,7 @@ impl Passport {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// use crate::Passport;
+    /// use rf_passport::Passport;
     /// use chrono::Duration;
     ///
     /// # fn example() {
@@ -82,7 +82,7 @@ impl Passport {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// use crate::Passport;
+    /// use rf_passport::Passport;
     /// use chrono::Duration;
     ///
     /// # fn example() {
@@ -98,7 +98,7 @@ impl Passport {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// use crate::Passport;
+    /// use rf_passport::Passport;
     /// use chrono::Duration;
     ///
     /// # fn example() {
@@ -114,7 +114,7 @@ impl Passport {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// use crate::Passport;
+    /// use rf_passport::Passport;
     /// use chrono::Duration;
     ///
     /// # fn example() {
@@ -132,7 +132,7 @@ impl Passport {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// use crate::Passport;
+    /// use rf_passport::Passport;
     ///
     /// # fn example() {
     /// Passport::tokensCan(&[
@@ -156,7 +156,7 @@ impl Passport {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// use crate::Passport;
+    /// use rf_passport::Passport;
     ///
     /// # fn example() {
     /// Passport::setDefaultScope(&["read:posts"]);
@@ -172,7 +172,7 @@ impl Passport {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// use crate::Passport;
+    /// use rf_passport::Passport;
     ///
     /// # fn example() {
     /// if Passport::hasScope("read:posts") {
@@ -190,7 +190,7 @@ impl Passport {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// use crate::Passport;
+    /// use rf_passport::Passport;
     ///
     /// # fn example() {
     /// let scopes = Passport::scopes();
@@ -209,7 +209,7 @@ impl Passport {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// use crate::Passport;
+    /// use rf_passport::Passport;
     ///
     /// # fn example() {
     /// if let Some(scope) = Passport::scope("read:posts") {
@@ -229,7 +229,12 @@ impl Passport {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// use crate::Passport;
+    /// use rf_passport::Passport;
+    /// # use rf_passport::HasApiTokens;
+    /// # struct MyUser { id: i64 }
+    /// # impl HasApiTokens for MyUser {
+    /// #     fn get_id(&self) -> i64 { self.id }
+    /// # }
     ///
     /// # fn example(user: MyUser) -> Result<(), Box<dyn std::error::Error>> {
     /// let token = Passport::createToken(&user, "api-token", vec!["read:posts".to_string()])?;
@@ -264,7 +269,12 @@ impl Passport {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// use crate::Passport;
+    /// use rf_passport::Passport;
+    /// # use rf_passport::HasApiTokens;
+    /// # struct MyUser { id: i64 }
+    /// # impl HasApiTokens for MyUser {
+    /// #     fn get_id(&self) -> i64 { self.id }
+    /// # }
     ///
     /// # fn example(user: MyUser) -> Result<(), Box<dyn std::error::Error>> {
     /// let tokens = Passport::tokens(&user)?;
@@ -294,7 +304,7 @@ impl Passport {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// use crate::Passport;
+    /// use rf_passport::Passport;
     ///
     /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// Passport::revokeToken("token_id")?;
@@ -321,7 +331,12 @@ impl Passport {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// use crate::Passport;
+    /// use rf_passport::Passport;
+    /// # use rf_passport::HasApiTokens;
+    /// # struct MyUser { id: i64 }
+    /// # impl HasApiTokens for MyUser {
+    /// #     fn get_id(&self) -> i64 { self.id }
+    /// # }
     ///
     /// # fn example(user: MyUser) -> Result<(), Box<dyn std::error::Error>> {
     /// let count = Passport::revokeAllTokens(&user)?;
@@ -353,7 +368,7 @@ impl Passport {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// use crate::Passport;
+    /// use rf_passport::Passport;
     ///
     /// # fn example() {
     /// if Passport::tokenCan("write:posts") {
@@ -403,7 +418,7 @@ impl Passport {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// use crate::Passport;
+    /// use rf_passport::Passport;
     ///
     /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let client = Passport::createClient(
@@ -468,7 +483,7 @@ impl Passport {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// use crate::Passport;
+    /// use rf_passport::Passport;
     ///
     /// # fn example() {
     /// Passport::enablePasswordGrant();
@@ -520,7 +535,7 @@ impl Passport {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// use crate::Passport;
+    /// use rf_passport::Passport;
     ///
     /// # fn example() {
     /// Passport::requirePkce(true);

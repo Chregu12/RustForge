@@ -17,7 +17,7 @@ use serde_json::json;
 /// use axum::{Router, routing::get};
 /// use rf_api::health_endpoint::health_check;
 ///
-/// let app = Router::new()
+/// let app: Router = Router::new()
 ///     .route("/health", get(health_check));
 /// ```
 pub async fn health_check() -> impl IntoResponse {
@@ -45,7 +45,7 @@ pub async fn health_check() -> impl IntoResponse {
 /// use rf_api::health_endpoint::health_check_detailed;
 /// use std::sync::Arc;
 ///
-/// let app = Router::new()
+/// let app: Router = Router::new()
 ///     .route("/health/detailed", get(health_check_detailed));
 /// ```
 pub async fn health_check_detailed() -> Response {

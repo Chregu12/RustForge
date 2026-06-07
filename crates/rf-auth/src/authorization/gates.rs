@@ -20,7 +20,7 @@ pub type GateCheck<U> = Arc<dyn Fn(&U) -> BoxFuture<'static, bool> + Send + Sync
 /// # Example
 ///
 /// ```rust
-/// use rf_auth::authorization::gates::gate;
+/// use rf_auth::authorization::gates::Gate;
 ///
 /// # async fn example() {
 /// #[derive(Clone)]
@@ -28,16 +28,19 @@ pub type GateCheck<U> = Arc<dyn Fn(&U) -> BoxFuture<'static, bool> + Send + Sync
 ///     role: String,
 /// }
 ///
+/// let gate: Gate<User> = Gate::new();
+///
 /// // Define a gate
-/// gate().define("admin", |user: &User| async move {
-///     user.role == "admin"
+/// gate.define("admin", |user: &User| {
+///     let role = user.role.clone();
+///     async move { role == "admin" }
 /// });
 ///
 /// let admin = User { role: "admin".to_string() };
 /// let user = User { role: "user".to_string() };
 ///
-/// assert!(gate().allows(&admin, "admin").await);
-/// assert!(!gate().allows(&user, "admin").await);
+/// assert!(gate.allows(&admin, "admin").await);
+/// assert!(!gate.allows(&user, "admin").await);
 /// # }
 /// ```
 pub struct Gate<U = ()> {
@@ -71,12 +74,14 @@ where
     ///
     /// let gate: Gate<User> = Gate::new();
     ///
-    /// gate.define("admin", |user| async move {
-    ///     user.role == "admin"
+    /// gate.define("admin", |user| {
+    ///     let role = user.role.clone();
+    ///     async move { role == "admin" }
     /// });
     ///
-    /// gate.define("can-publish", |user| async move {
-    ///     user.role == "admin" || user.role == "editor"
+    /// gate.define("can-publish", |user| {
+    ///     let role = user.role.clone();
+    ///     async move { role == "admin" || role == "editor" }
     /// });
     /// ```
     pub fn define<F, Fut>(&self, name: &str, check: F)
@@ -104,7 +109,10 @@ where
     /// struct User { role: String }
     ///
     /// let gate: Gate<User> = Gate::new();
-    /// gate.define("admin", |user| async move { user.role == "admin" });
+    /// gate.define("admin", |user| {
+    ///     let role = user.role.clone();
+    ///     async move { role == "admin" }
+    /// });
     ///
     /// let admin = User { role: "admin".to_string() };
     /// let user = User { role: "user".to_string() };

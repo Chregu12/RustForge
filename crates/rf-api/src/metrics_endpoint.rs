@@ -15,7 +15,7 @@ use prometheus::{Encoder, TextEncoder};
 /// use axum::{Router, routing::get};
 /// use rf_api::metrics_endpoint::metrics_handler;
 ///
-/// let app = Router::new()
+/// let app: Router = Router::new()
 ///     .route("/metrics", get(metrics_handler));
 /// ```
 pub async fn metrics_handler() -> Response {

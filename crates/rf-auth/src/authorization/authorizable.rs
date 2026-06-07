@@ -16,6 +16,9 @@ use std::sync::Arc;
 /// use rf_auth::authorization::authorizable::Authorizable;
 /// use rf_auth::authorization::policies::post_policy::{User, Post};
 ///
+/// // Add authorization methods to your user type.
+/// impl Authorizable for User {}
+///
 /// # async fn example(user: &User, post: &Post) {
 /// if user.can("update", post).await {
 ///     // User can update the post

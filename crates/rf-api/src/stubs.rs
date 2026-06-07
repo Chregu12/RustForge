@@ -8,6 +8,7 @@
 /// ```rust,no_run
 /// use rf_api::stubs::{StubManager, StubVariables};
 ///
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// let manager = StubManager::new("stubs");
 ///
 /// // Get a stub
@@ -21,6 +22,8 @@
 ///
 /// let rendered = stub.render(&vars)?;
 /// println!("{}", rendered);
+/// # Ok(())
+/// # }
 /// ```
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

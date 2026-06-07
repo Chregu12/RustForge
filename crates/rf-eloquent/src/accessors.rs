@@ -16,13 +16,23 @@
 //!     password_hash: String,
 //! }
 //!
+//! # fn hash_password(value: &str) -> String { format!("hashed:{value}") }
 //! impl HasAccessors for User {
-//!     fn get_full_name(&self) -> String {
-//!         format!("{} {}", self.first_name, self.last_name)
+//!     fn get_attribute(&self, key: &str) -> Option<AttributeValue> {
+//!         match key {
+//!             "full_name" => Some(AttributeValue::String(self.get_full_name())),
+//!             _ => None,
+//!         }
 //!     }
 //! }
 //!
-//! impl HasMutators for User {
+//! impl HasMutators for User {}
+//!
+//! impl User {
+//!     fn get_full_name(&self) -> String {
+//!         format!("{} {}", self.first_name, self.last_name)
+//!     }
+//!
 //!     fn set_password(&mut self, value: String) {
 //!         self.password_hash = hash_password(&value);
 //!     }

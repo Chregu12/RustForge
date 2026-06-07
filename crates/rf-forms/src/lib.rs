@@ -11,7 +11,7 @@
 //! # Example
 //!
 //! ```no_run
-//! use foundry_forms::{Form, Field, Theme, FormMethod};
+//! use rf_forms::{Form, Field, Theme, FormMethod};
 //!
 //! let form = Form::new("user_form")
 //!     .action("/users")

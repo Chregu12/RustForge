@@ -7,9 +7,10 @@
 //!
 //! # Recommended Usage
 //!
-//! Use the consolidated `rf` crate for simpler imports:
+//! Use the consolidated `rf` crate for simpler imports (`use rf::Auth;` or
+//! `use rf::prelude::*;`). When depending on this crate directly, import it as:
 //! ```rust
-//! use rf::Auth;  // or use rf::prelude::*;
+//! use rf_auth_facade::Auth;
 //! ```
 //!
 //! ## Features

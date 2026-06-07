@@ -44,7 +44,7 @@
 //!     .middleware("auth")
 //!     .name("api.");
 //!
-//! let router = Router::new()
+//! let router: Router = Router::new()
 //!     .route("/users", get(handler));
 //!
 //! let router = group.apply(router);
