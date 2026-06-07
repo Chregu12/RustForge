@@ -137,6 +137,9 @@ pub mod query_cache;
 #[cfg(test)]
 pub mod testing;
 
+#[cfg(test)]
+mod tests_data_layer;
+
 // Re-exports
 pub use collection::{Collection, IntoCollection};
 pub use config::DatabaseConfig;

@@ -210,6 +210,9 @@ pub mod soft_deletes;
 // Phase 19: Automatic eager loading detection
 pub mod auto_eager_load;
 
+#[cfg(test)]
+mod tests_data_layer;
+
 // Polymorphic relationships submodule
 pub use polymorphic_impl as polymorphic;
 
