@@ -112,10 +112,16 @@ pub use rf_macros::Model;
 ///
 /// In Rust, `where` is a reserved keyword. This macro lets you use it anyway:
 ///
-/// ```rust
+/// ```rust,no_run
 /// use rustforge::*;
 ///
-/// let users = query!(User::where("active", true).get()).await;
+/// struct User;
+/// impl Model for User {
+///     const TABLE: &'static str = "users";
+/// }
+///
+/// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+/// let users = query!(User::where("active", true).get()).await?;
 ///
 /// let admins = query! {
 ///     User::where("role", "admin")
@@ -123,7 +129,9 @@ pub use rf_macros::Model;
 ///         .orderBy("name", "asc")
 ///         .limit(10)
 ///         .get()
-/// }.await;
+/// }.await?;
+/// # Ok(())
+/// # }
 /// ```
 pub use rf_macros::query;
 
