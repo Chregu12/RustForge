@@ -184,8 +184,17 @@ mod tests {
         message: String,
     }
 
+    /// Serializes the tests that touch the process-global event history. The
+    /// history lives in the shared `GLOBAL_EVENT` singleton, so without this
+    /// guard a concurrent `clear_history()` / `dispatch()` from another test
+    /// races the assertions below. Listener-only tests use unique event names
+    /// and need no guard. `into_inner` ignores poisoning so a failing test does
+    /// not cascade into the others.
+    static HISTORY_GUARD: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
     #[test]
     fn test_event_dispatch() {
+        let _guard = HISTORY_GUARD.lock().unwrap_or_else(|e| e.into_inner());
         let event_name = format!("test.dispatch.{}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos());
 
         let event = TestEvent {
@@ -216,6 +225,7 @@ mod tests {
 
     #[test]
     fn test_event_dispatch_and_listen() {
+        let _guard = HISTORY_GUARD.lock().unwrap_or_else(|e| e.into_inner());
         let event_name = format!("test.both.{}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos());
 
         let counter = Arc::new(AtomicUsize::new(0));
@@ -275,6 +285,7 @@ mod tests {
 
     #[test]
     fn test_event_history() {
+        let _guard = HISTORY_GUARD.lock().unwrap_or_else(|e| e.into_inner());
         let old_count = Event::history().len();
 
         let event1 = TestEvent {
@@ -293,6 +304,7 @@ mod tests {
 
     #[test]
     fn test_event_clear_history() {
+        let _guard = HISTORY_GUARD.lock().unwrap_or_else(|e| e.into_inner());
         Event::clear_history();
 
         let event = TestEvent {
