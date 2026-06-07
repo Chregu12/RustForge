@@ -10,22 +10,33 @@
 //!
 //! ## Example
 //!
-//! ```rust,no_run
-//! use rf_orm::query::aggregations::*;
+//! The [`AggregationBuilder`] lets you compose relationship aggregates and
+//! execute them against the database:
 //!
-//! // Load users with post counts
-//! let users = User::query(db.clone())
-//!     .with_count("posts")
-//!     .with_sum("posts", "views")
-//!     .with_avg("posts", "rating")
-//!     .get()
+//! ```rust,no_run
+//! use rf_orm::query::aggregations::AggregationBuilder;
+//! # async fn example(db: sea_orm::DatabaseConnection) -> Result<(), sea_orm::DbErr> {
+//! # mod user {
+//! #     use sea_orm::entity::prelude::*;
+//! #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+//! #     #[sea_orm(table_name = "users")]
+//! #     pub struct Model { #[sea_orm(primary_key)] pub id: i32 }
+//! #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+//! #     impl ActiveModelBehavior for ActiveModel {}
+//! # }
+//! // Load users with post aggregates
+//! let results = AggregationBuilder::new(db)
+//!     .add_count("posts")
+//!     .add_sum("posts", "views")
+//!     .add_avg("posts", "rating")
+//!     .execute::<user::Entity>("users", "id")
 //!     .await?;
 //!
-//! for user in users {
-//!     println!("User has {} posts", user.posts_count);
-//!     println!("Total views: {}", user.posts_views_sum);
-//!     println!("Average rating: {}", user.posts_rating_avg);
+//! for (user_id, aggregates) in results {
+//!     println!("User {} has {} posts", user_id, aggregates.get("posts_count").unwrap_or(&0.0));
 //! }
+//! # Ok(())
+//! # }
 //! ```
 
 use sea_orm::{ConnectionTrait, DatabaseConnection, DbErr, EntityTrait, Statement};
@@ -77,8 +88,13 @@ impl AggregateType {
     /// # Example
     ///
     /// ```rust,no_run
-    /// AggregateType::Count.alias("posts") // => "posts_count"
-    /// AggregateType::Sum("views").alias("posts") // => "posts_views_sum"
+    /// use rf_orm::query::aggregations::AggregateType;
+    ///
+    /// assert_eq!(AggregateType::Count.alias("posts"), "posts_count");
+    /// assert_eq!(
+    ///     AggregateType::Sum("views".to_string()).alias("posts"),
+    ///     "posts_views_sum"
+    /// );
     /// ```
     pub fn alias(&self, relation: &str) -> String {
         match self {
@@ -153,7 +169,9 @@ impl Aggregate {
     /// # Example
     ///
     /// ```rust,no_run
-    /// Aggregate::count("posts").with_where("published = true")
+    /// use rf_orm::query::aggregations::Aggregate;
+    ///
+    /// let aggregate = Aggregate::count("posts").with_where("published = true");
     /// ```
     pub fn with_where(mut self, clause: impl Into<String>) -> Self {
         self.where_clause = Some(clause.into());
@@ -206,7 +224,7 @@ impl Aggregate {
 ///
 /// # Example
 ///
-/// ```rust,no_run
+/// ```text
 /// use rf_orm::query::aggregations::WithAggregates;
 ///
 /// let users = User::query(db)
@@ -220,7 +238,7 @@ pub trait WithAggregates: Sized {
     ///
     /// # Example
     ///
-    /// ```rust,no_run
+    /// ```text
     /// User::query(db).with_count("posts")
     /// ```
     fn with_count(self, relation: &str) -> Self;
@@ -229,7 +247,7 @@ pub trait WithAggregates: Sized {
     ///
     /// # Example
     ///
-    /// ```rust,no_run
+    /// ```text
     /// User::query(db).with_sum("posts", "views")
     /// ```
     fn with_sum(self, relation: &str, column: &str) -> Self;
@@ -238,7 +256,7 @@ pub trait WithAggregates: Sized {
     ///
     /// # Example
     ///
-    /// ```rust,no_run
+    /// ```text
     /// User::query(db).with_avg("posts", "rating")
     /// ```
     fn with_avg(self, relation: &str, column: &str) -> Self;
@@ -247,7 +265,7 @@ pub trait WithAggregates: Sized {
     ///
     /// # Example
     ///
-    /// ```rust,no_run
+    /// ```text
     /// Product::query(db).with_min("prices", "amount")
     /// ```
     fn with_min(self, relation: &str, column: &str) -> Self;
@@ -256,7 +274,7 @@ pub trait WithAggregates: Sized {
     ///
     /// # Example
     ///
-    /// ```rust,no_run
+    /// ```text
     /// Product::query(db).with_max("prices", "amount")
     /// ```
     fn with_max(self, relation: &str, column: &str) -> Self;
@@ -265,7 +283,7 @@ pub trait WithAggregates: Sized {
     ///
     /// # Example
     ///
-    /// ```rust,no_run
+    /// ```text
     /// User::query(db).with_aggregate(
     ///     Aggregate::count("posts")
     ///         .with_where("published = true")
@@ -282,12 +300,24 @@ pub trait WithAggregates: Sized {
 /// # Example
 ///
 /// ```rust,no_run
-/// let builder = AggregationBuilder::new(db.clone())
+/// use rf_orm::query::aggregations::AggregationBuilder;
+/// # async fn example(db: sea_orm::DatabaseConnection) -> Result<(), sea_orm::DbErr> {
+/// # mod user {
+/// #     use sea_orm::entity::prelude::*;
+/// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+/// #     #[sea_orm(table_name = "users")]
+/// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32 }
+/// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+/// #     impl ActiveModelBehavior for ActiveModel {}
+/// # }
+/// let builder = AggregationBuilder::new(db)
 ///     .add_count("posts")
 ///     .add_sum("posts", "views")
 ///     .add_avg("comments", "rating");
 ///
 /// let results = builder.execute::<user::Entity>("users", "id").await?;
+/// # Ok(())
+/// # }
 /// ```
 pub struct AggregationBuilder {
     db: DatabaseConnection,
@@ -418,8 +448,13 @@ impl AggregationBuilder {
 /// # Example
 ///
 /// ```rust,no_run
+/// use rf_orm::query::aggregations::load_count;
+/// # async fn example(db: sea_orm::DatabaseConnection) -> Result<(), sea_orm::DbErr> {
+/// # let user_id = 1i64;
 /// let count = load_count(&db, "posts", "user_id", user_id).await?;
 /// println!("User has {} posts", count);
+/// # Ok(())
+/// # }
 /// ```
 pub async fn load_count(
     db: &DatabaseConnection,
@@ -452,8 +487,13 @@ pub async fn load_count(
 /// # Example
 ///
 /// ```rust,no_run
+/// use rf_orm::query::aggregations::load_sum;
+/// # async fn example(db: sea_orm::DatabaseConnection) -> Result<(), sea_orm::DbErr> {
+/// # let user_id = 1i64;
 /// let total_views = load_sum(&db, "posts", "views", "user_id", user_id).await?;
 /// println!("Total views: {}", total_views);
+/// # Ok(())
+/// # }
 /// ```
 pub async fn load_sum(
     db: &DatabaseConnection,
@@ -487,8 +527,13 @@ pub async fn load_sum(
 /// # Example
 ///
 /// ```rust,no_run
+/// use rf_orm::query::aggregations::load_avg;
+/// # async fn example(db: sea_orm::DatabaseConnection) -> Result<(), sea_orm::DbErr> {
+/// # let user_id = 1i64;
 /// let avg_rating = load_avg(&db, "posts", "rating", "user_id", user_id).await?;
-/// println!("Average rating: {}", avg_rating);
+/// println!("Average rating: {:?}", avg_rating);
+/// # Ok(())
+/// # }
 /// ```
 pub async fn load_avg(
     db: &DatabaseConnection,

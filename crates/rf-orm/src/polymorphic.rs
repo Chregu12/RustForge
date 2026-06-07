@@ -18,16 +18,32 @@
 //!
 //! ```rust,no_run
 //! use rf_orm::polymorphic::*;
+//! use sea_orm::entity::prelude::*;
 //!
 //! // Comment can belong to Post or Video
-//! #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
-//! #[sea_orm(table_name = "comments")]
-//! pub struct Model {
-//!     #[sea_orm(primary_key)]
-//!     pub id: i32,
-//!     pub body: String,
-//!     pub commentable_type: String,  // "Post" or "Video"
-//!     pub commentable_id: i32,
+//! mod comment {
+//!     use sea_orm::entity::prelude::*;
+//!     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+//!     #[sea_orm(table_name = "comments")]
+//!     pub struct Model {
+//!         #[sea_orm(primary_key)]
+//!         pub id: i32,
+//!         pub body: String,
+//!         pub commentable_type: String, // "Post" or "Video"
+//!         pub commentable_id: i32,
+//!     }
+//!     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
+//!     pub enum Relation {}
+//!     impl ActiveModelBehavior for ActiveModel {}
+//! }
+//! mod post {
+//!     use sea_orm::entity::prelude::*;
+//!     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+//!     #[sea_orm(table_name = "posts")]
+//!     pub struct Model { #[sea_orm(primary_key)] pub id: i32 }
+//!     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
+//!     pub enum Relation {}
+//!     impl ActiveModelBehavior for ActiveModel {}
 //! }
 //!
 //! // Mark entities as morphable
@@ -35,13 +51,12 @@
 //!     fn morph_name() -> &'static str { "Post" }
 //! }
 //!
-//! impl Morphable for video::Entity {
-//!     fn morph_name() -> &'static str { "Video" }
-//! }
-//!
+//! # async fn example(db: sea_orm::DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
 //! // Load polymorphic relation
-//! let comment = Comment::find_by_id(&db, 1).await?;
-//! let parent = comment.morph_to(&db, "commentable").await?;
+//! let comment = comment::Entity::find_by_id(1).one(&db).await?.unwrap();
+//! let parent = morph_to::<post::Entity>(&db, &comment.commentable_type, comment.commentable_id as i64).await?;
+//! # Ok(())
+//! # }
 //! ```
 
 use async_trait::async_trait;
@@ -59,7 +74,14 @@ use sea_orm::{
 ///
 /// ```rust,no_run
 /// use rf_orm::polymorphic::Morphable;
-///
+/// # mod post {
+/// #     use sea_orm::entity::prelude::*;
+/// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+/// #     #[sea_orm(table_name = "posts")]
+/// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32 }
+/// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+/// #     impl ActiveModelBehavior for ActiveModel {}
+/// # }
 /// impl Morphable for post::Entity {
 ///     fn morph_name() -> &'static str {
 ///         "Post"
@@ -79,7 +101,22 @@ pub trait Morphable: EntityTrait {
 ///
 /// ```rust,no_run
 /// use rf_orm::morphable;
-///
+/// # mod post {
+/// #     use sea_orm::entity::prelude::*;
+/// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+/// #     #[sea_orm(table_name = "posts")]
+/// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32 }
+/// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+/// #     impl ActiveModelBehavior for ActiveModel {}
+/// # }
+/// # mod video {
+/// #     use sea_orm::entity::prelude::*;
+/// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+/// #     #[sea_orm(table_name = "videos")]
+/// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32 }
+/// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+/// #     impl ActiveModelBehavior for ActiveModel {}
+/// # }
 /// morphable!(post::Entity, "Post");
 /// morphable!(video::Entity, "Video");
 /// ```

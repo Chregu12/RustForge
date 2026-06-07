@@ -16,8 +16,18 @@
 //!
 //! ```rust,no_run
 //! use rf_orm::prelude::*;
-//! use sea_orm::entity::prelude::*;
+//! use rf_orm::DatabaseManager;
+//! use sea_orm::ConnectionTrait;
 //!
+//! # mod post {
+//! #     use sea_orm::entity::prelude::*;
+//! #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+//! #     #[sea_orm(table_name = "posts")]
+//! #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub views: i32, pub published: bool }
+//! #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+//! #     impl ActiveModelBehavior for ActiveModel {}
+//! # }
+//! # use post::Entity as Post;
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! // Connect to database
 //! let db = DatabaseManager::connect(DatabaseConfig {
@@ -29,21 +39,15 @@
 //! let posts = Post::query(db.connection().clone())
 //!     .where_eq(post::Column::Published, true)
 //!     .where_gt(post::Column::Views, 100)
-//!     .order_by_desc(post::Column::CreatedAt)
+//!     .order_by_desc(post::Column::Id)
 //!     .limit(10)
 //!     .get()
 //!     .await?;
 //!
-//! // Relationships
-//! for post in &posts {
-//!     let author = post.belongs_to::<User>(db.connection()).await?;
-//!     let comments = post.has_many::<Comment>(db.connection()).await?;
-//! }
-//!
-//! // Transactions
+//! // Transactions with automatic rollback
 //! db.connection().transaction(|tx| async move {
-//!     User::create(tx, user_data).await?;
-//!     Profile::create(tx, profile_data).await?;
+//!     tx.execute_unprepared("INSERT INTO users (name) VALUES ('John')").await?;
+//!     tx.execute_unprepared("INSERT INTO profiles (user_id) VALUES (1)").await?;
 //!     Ok(())
 //! }).await?;
 //! # Ok(())

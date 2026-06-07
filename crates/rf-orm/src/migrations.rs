@@ -15,8 +15,9 @@
 //!
 //! ```rust,no_run
 //! use rf_orm::migrations::*;
-//! use rf_orm::schema_builder::*;
+//! use rf_orm::schema_builder::Blueprint;
 //! use async_trait::async_trait;
+//! use sea_orm::DatabaseConnection;
 //!
 //! pub struct CreatePostsTable;
 //!
@@ -26,8 +27,8 @@
 //!         "2024_01_01_000001_create_posts_table"
 //!     }
 //!
-//!     async fn up(&self, _schema: &SchemaContext) -> Result<(), MigrationError> {
-//!         Schema::create("posts", |table| {
+//!     async fn up(&self, schema: &SchemaContext) -> Result<(), MigrationError> {
+//!         schema.create("posts", |table: &mut Blueprint| {
 //!             table.id();
 //!             table.string("title");
 //!             table.text("body");
@@ -36,13 +37,13 @@
 //!         Ok(())
 //!     }
 //!
-//!     async fn down(&self, _schema: &SchemaContext) -> Result<(), MigrationError> {
-//!         Schema::drop("posts").await.map_err(|e| MigrationError::SchemaError(e.to_string()))?;
+//!     async fn down(&self, schema: &SchemaContext) -> Result<(), MigrationError> {
+//!         schema.drop("posts").await.map_err(|e| MigrationError::SchemaError(e.to_string()))?;
 //!         Ok(())
 //!     }
 //! }
 //!
-//! # async fn example() -> Result<(), MigrationError> {
+//! # async fn example(db: DatabaseConnection) -> Result<(), MigrationError> {
 //! // Usage
 //! let mut migrator = Migrator::new(db);
 //! migrator.add_migration(Box::new(CreatePostsTable));
@@ -93,8 +94,9 @@ impl SchemaContext {
     ///
     /// ```rust,no_run
     /// # use rf_orm::migrations::*;
-    /// # async fn example(schema: &SchemaContext) -> MigrationResult<()> {
-    /// schema.create("posts", |table| {
+    /// # use rf_orm::schema_builder::Blueprint;
+    /// # async fn example(schema: &SchemaContext) -> Result<(), Box<dyn std::error::Error>> {
+    /// schema.create("posts", |table: &mut Blueprint| {
     ///     table.id();
     ///     table.string("title");
     /// }).await?;

@@ -10,23 +10,38 @@ use sea_orm::{DatabaseConnection, DbErr, EntityTrait, ModelTrait, Related};
 ///
 /// ```rust,no_run
 /// use rf_orm::relationships::RelationshipHelpers;
-/// use sea_orm::entity::prelude::*;
-///
-/// // Define relationships in SeaORM's way (already done)
-/// #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
-/// pub enum Relation {
-///     #[sea_orm(belongs_to = "user::Entity", from = "Column::UserId", to = "user::Column::Id")]
-///     User,
-/// }
-///
-/// impl Related<user::Entity> for Entity {
-///     fn to() -> RelationDef {
-///         Relation::User.def()
-///     }
-/// }
-///
+/// # mod user {
+/// #     use sea_orm::entity::prelude::*;
+/// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+/// #     #[sea_orm(table_name = "users")]
+/// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub name: String }
+/// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+/// #     impl ActiveModelBehavior for ActiveModel {}
+/// # }
+/// # mod post {
+/// #     use sea_orm::entity::prelude::*;
+/// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+/// #     #[sea_orm(table_name = "posts")]
+/// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub user_id: i32 }
+/// #     #[derive(Copy, Clone, Debug, EnumIter)] pub enum Relation { User }
+/// #     impl RelationTrait for Relation {
+/// #         fn def(&self) -> RelationDef {
+/// #             Entity::belongs_to(super::user::Entity)
+/// #                 .from(Column::UserId).to(super::user::Column::Id).into()
+/// #         }
+/// #     }
+/// #     impl Related<super::user::Entity> for Entity {
+/// #         fn to() -> RelationDef { Relation::User.def() }
+/// #     }
+/// #     impl ActiveModelBehavior for ActiveModel {}
+/// # }
+/// # async fn example(db: sea_orm::DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
+/// # use sea_orm::EntityTrait;
+/// let post = post::Entity::find_by_id(1).one(&db).await?.unwrap();
 /// // Use Laravel-style helpers
 /// let user = post.load_belongs_to::<user::Entity>(&db).await?;
+/// # Ok(())
+/// # }
 /// ```
 
 /// Helper trait for loading relationships
@@ -37,8 +52,38 @@ pub trait RelationshipHelpers: ModelTrait + Sized {
     /// # Example
     ///
     /// ```rust,no_run
-    /// let post = Post::find_by_id(1).one(&db).await?.unwrap();
-    /// let author = post.load_belongs_to::<User>(&db).await?;
+    /// use rf_orm::relationships::RelationshipHelpers;
+    /// # mod user {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "users")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub name: String }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {}
+    /// # }
+    /// # mod post {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "posts")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub user_id: i32 }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter)] pub enum Relation { User }
+    /// #     impl RelationTrait for Relation {
+    /// #         fn def(&self) -> RelationDef {
+    /// #             Entity::belongs_to(super::user::Entity)
+    /// #                 .from(Column::UserId).to(super::user::Column::Id).into()
+    /// #         }
+    /// #     }
+    /// #     impl Related<super::user::Entity> for Entity {
+    /// #         fn to() -> RelationDef { Relation::User.def() }
+    /// #     }
+    /// #     impl ActiveModelBehavior for ActiveModel {}
+    /// # }
+    /// # async fn example(db: sea_orm::DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
+    /// # use sea_orm::EntityTrait;
+    /// let post = post::Entity::find_by_id(1).one(&db).await?.unwrap();
+    /// let author = post.load_belongs_to::<user::Entity>(&db).await?;
+    /// # Ok(())
+    /// # }
     /// ```
     async fn load_belongs_to<R>(&self, db: &DatabaseConnection) -> Result<Option<R::Model>, DbErr>
     where
@@ -53,8 +98,37 @@ pub trait RelationshipHelpers: ModelTrait + Sized {
     /// # Example
     ///
     /// ```rust,no_run
-    /// let user = User::find_by_id(1).one(&db).await?.unwrap();
-    /// let posts = user.load_has_many::<Post>(&db).await?;
+    /// use rf_orm::relationships::RelationshipHelpers;
+    /// # mod post {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "posts")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub user_id: i32 }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {}
+    /// # }
+    /// # mod user {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "users")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub name: String }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter)] pub enum Relation { Post }
+    /// #     impl RelationTrait for Relation {
+    /// #         fn def(&self) -> RelationDef {
+    /// #             Entity::has_many(super::post::Entity).into()
+    /// #         }
+    /// #     }
+    /// #     impl Related<super::post::Entity> for Entity {
+    /// #         fn to() -> RelationDef { Relation::Post.def() }
+    /// #     }
+    /// #     impl ActiveModelBehavior for ActiveModel {}
+    /// # }
+    /// # async fn example(db: sea_orm::DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
+    /// # use sea_orm::EntityTrait;
+    /// let user = user::Entity::find_by_id(1).one(&db).await?.unwrap();
+    /// let posts = user.load_has_many::<post::Entity>(&db).await?;
+    /// # Ok(())
+    /// # }
     /// ```
     async fn load_has_many<R>(&self, db: &DatabaseConnection) -> Result<Vec<R::Model>, DbErr>
     where
@@ -74,9 +148,37 @@ impl<T> RelationshipHelpers for T where T: ModelTrait {}
 ///
 /// ```rust,no_run
 /// use rf_orm::relationships::eager_load;
-///
-/// let posts = Post::find().all(&db).await?;
-/// let with_authors = eager_load::<Post, User>(posts, &db).await?;
+/// # mod user {
+/// #     use sea_orm::entity::prelude::*;
+/// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+/// #     #[sea_orm(table_name = "users")]
+/// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub name: String }
+/// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+/// #     impl ActiveModelBehavior for ActiveModel {}
+/// # }
+/// # mod post {
+/// #     use sea_orm::entity::prelude::*;
+/// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+/// #     #[sea_orm(table_name = "posts")]
+/// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub user_id: i32 }
+/// #     #[derive(Copy, Clone, Debug, EnumIter)] pub enum Relation { User }
+/// #     impl RelationTrait for Relation {
+/// #         fn def(&self) -> RelationDef {
+/// #             Entity::belongs_to(super::user::Entity)
+/// #                 .from(Column::UserId).to(super::user::Column::Id).into()
+/// #         }
+/// #     }
+/// #     impl Related<super::user::Entity> for Entity {
+/// #         fn to() -> RelationDef { Relation::User.def() }
+/// #     }
+/// #     impl ActiveModelBehavior for ActiveModel {}
+/// # }
+/// # async fn example(db: sea_orm::DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
+/// # use sea_orm::EntityTrait;
+/// let posts = post::Entity::find().all(&db).await?;
+/// let with_authors = eager_load::<post::Entity, user::Entity>(posts, &db).await?;
+/// # Ok(())
+/// # }
 /// ```
 pub async fn eager_load<E, R>(
     models: Vec<E::Model>,

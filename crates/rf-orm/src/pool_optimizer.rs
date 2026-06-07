@@ -16,13 +16,13 @@
 //! ```rust,no_run
 //! use rf_orm::pool_optimizer::*;
 //!
-//! # async fn example() -> Result<()> {
+//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! // Create pool with optimal settings
 //! let config = PoolConfig::optimized_for_workload(WorkloadType::Web, 100);
-//! let pool = PoolOptimizer::create_pool(&config).await?;
+//! let pool = PoolOptimizer::create_pool(&config, "sqlite::memory:").await?;
 //!
 //! // Monitor pool health
-//! let optimizer = PoolOptimizer::new(pool.clone());
+//! let optimizer = PoolOptimizer::new(pool);
 //! let stats = optimizer.stats().await;
 //! println!("Pool utilization: {:.2}%", stats.utilization_rate() * 100.0);
 //!
