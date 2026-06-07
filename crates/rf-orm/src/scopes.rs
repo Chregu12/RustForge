@@ -153,11 +153,34 @@ pub trait ScopeExt<E: EntityTrait> {
     /// # Example
     ///
     /// ```rust,no_run
+    /// use rf_orm::prelude::*;
+    /// use rf_orm::scopes::*;
+    /// use std::collections::HashMap;
+    /// # mod user {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "users")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub active: bool, pub premium: bool }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {}
+    /// # }
+    /// # use user::Entity as User;
+    /// # impl HasScopes for user::Entity {
+    /// #     fn scopes() -> HashMap<&'static str, ScopeFn<Self>> {
+    /// #         let mut map = HashMap::new();
+    /// #         map.insert("active", Box::new(|q: sea_orm::Select<Self>| q.filter(user::Column::Active.eq(true))) as ScopeFn<Self>);
+    /// #         map.insert("premium", Box::new(|q: sea_orm::Select<Self>| q.filter(user::Column::Premium.eq(true))) as ScopeFn<Self>);
+    /// #         map
+    /// #     }
+    /// # }
+    /// # async fn example(db: DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
     /// let users = User::query(db)
     ///     .apply_scope("active")
     ///     .apply_scope("premium")
     ///     .get()
     ///     .await?;
+    /// # Ok(())
+    /// # }
     /// ```
     fn apply_scope(self, name: &str) -> Self;
 
@@ -166,10 +189,33 @@ pub trait ScopeExt<E: EntityTrait> {
     /// # Example
     ///
     /// ```rust,no_run
+    /// use rf_orm::prelude::*;
+    /// use rf_orm::scopes::*;
+    /// use std::collections::HashMap;
+    /// # mod user {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "users")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub active: bool, pub verified: bool }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {}
+    /// # }
+    /// # use user::Entity as User;
+    /// # impl HasScopes for user::Entity {
+    /// #     fn scopes() -> HashMap<&'static str, ScopeFn<Self>> {
+    /// #         let mut map = HashMap::new();
+    /// #         map.insert("active", Box::new(|q: sea_orm::Select<Self>| q.filter(user::Column::Active.eq(true))) as ScopeFn<Self>);
+    /// #         map.insert("verified", Box::new(|q: sea_orm::Select<Self>| q.filter(user::Column::Verified.eq(true))) as ScopeFn<Self>);
+    /// #         map
+    /// #     }
+    /// # }
+    /// # async fn example(db: DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
     /// let users = User::query(db)
     ///     .apply_scopes(&["active", "verified"])
     ///     .get()
     ///     .await?;
+    /// # Ok(())
+    /// # }
     /// ```
     fn apply_scopes(self, names: &[&str]) -> Self;
 }
@@ -204,20 +250,32 @@ where
 /// # Example
 ///
 /// ```rust,no_run
+/// use rf_orm::prelude::*;
 /// use rf_orm::scopes::ScopeRegistry;
-///
+/// use sea_orm::{ColumnTrait, QueryFilter, QueryOrder};
+/// # mod post {
+/// #     use sea_orm::entity::prelude::*;
+/// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+/// #     #[sea_orm(table_name = "posts")]
+/// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub published: bool, pub created_at: String }
+/// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+/// #     impl ActiveModelBehavior for ActiveModel {}
+/// # }
+/// # use post::Entity as Post;
+/// # fn example(db: DatabaseConnection) {
 /// let mut registry = ScopeRegistry::<post::Entity>::new();
 ///
-/// registry.register("published", |query| {
+/// registry.register("published", |query: sea_orm::Select<post::Entity>| {
 ///     query.filter(post::Column::Published.eq(true))
 /// });
 ///
-/// registry.register("recent", |query| {
+/// registry.register("recent", |query: sea_orm::Select<post::Entity>| {
 ///     query.order_by_desc(post::Column::CreatedAt)
 /// });
 ///
 /// // Apply registered scope
 /// let query = registry.apply(Post::query(db), "published");
+/// # }
 /// ```
 pub struct ScopeRegistry<E: EntityTrait> {
     scopes: HashMap<String, ScopeFn<E>>,

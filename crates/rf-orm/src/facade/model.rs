@@ -3,11 +3,14 @@
 //! This module provides the `Model` trait that enables Laravel-style syntax:
 //!
 //! ```rust,no_run
-//! use rf_orm::{Model, model};
+//! use rf_orm::ModelFacade as Model;
 //! use serde_json::json;
 //!
-//! // Define a model using the macro
-//! model!(User, "users");
+//! // Define a model by implementing the facade Model trait
+//! struct User;
+//! impl Model for User {
+//!     const TABLE: &'static str = "users";
+//! }
 //!
 //! async fn example() {
 //!     // Now use Laravel-style syntax!
@@ -38,7 +41,7 @@ use serde_json::Value;
 /// # Examples
 ///
 /// ```rust,no_run
-/// use rf_orm::Model;
+/// use rf_orm::ModelFacade as Model;
 ///
 /// struct User;
 ///
@@ -343,10 +346,10 @@ pub trait Model: Sized {
 /// # Examples
 ///
 /// ```rust,no_run
-/// use rf_orm::{model, Model};
+/// use rf_orm::{define_simple_model, ModelFacade};
 ///
 /// // Simple model
-/// model!(User, "users");
+/// define_simple_model!(User, "users");
 ///
 /// async fn example() {
 ///     // Now use it:

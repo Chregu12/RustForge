@@ -32,20 +32,28 @@ pub type EventResult = Result<(), DbErr>;
 /// ```rust,no_run
 /// use rf_orm::events::{ModelEvents, EventResult};
 /// use async_trait::async_trait;
+/// use sea_orm::Set;
+/// # mod post {
+/// #     use sea_orm::entity::prelude::*;
+/// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+/// #     #[sea_orm(table_name = "posts")]
+/// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub title: String, pub slug: String }
+/// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+/// #     impl ActiveModelBehavior for ActiveModel {}
+/// # }
 ///
 /// #[async_trait]
 /// impl ModelEvents for post::ActiveModel {
 ///     async fn before_create(&mut self) -> EventResult {
 ///         // Set slug from title before creating
 ///         if self.slug.is_not_set() {
-///             self.slug = Set(slugify(&self.title.as_ref()));
+///             self.slug = Set(self.title.as_ref().to_lowercase());
 ///         }
 ///         Ok(())
 ///     }
 ///
 ///     async fn after_create(&self) -> EventResult {
 ///         // Send notification after creating
-///         notify_new_post(self).await?;
 ///         Ok(())
 ///     }
 /// }
@@ -148,6 +156,18 @@ impl Default for EventObserver {
 ///
 /// ```rust,no_run
 /// use rf_orm::timestamps;
+/// # mod post {
+/// #     use sea_orm::entity::prelude::*;
+/// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+/// #     #[sea_orm(table_name = "posts")]
+/// #     pub struct Model {
+/// #         #[sea_orm(primary_key)] pub id: i32,
+/// #         pub created_at: DateTimeUtc,
+/// #         pub updated_at: DateTimeUtc,
+/// #     }
+/// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+/// #     impl ActiveModelBehavior for ActiveModel {}
+/// # }
 ///
 /// timestamps!(post::ActiveModel, created_at, updated_at);
 /// ```

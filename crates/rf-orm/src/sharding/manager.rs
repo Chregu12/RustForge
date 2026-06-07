@@ -67,6 +67,7 @@ pub trait ShardStrategy: Send + Sync {
 /// use sea_orm::DatabaseConnection;
 /// use std::sync::Arc;
 ///
+/// # use rf_orm::ShardResult;
 /// # async fn example(db1: DatabaseConnection, db2: DatabaseConnection) -> ShardResult<()> {
 /// let strategy = HashStrategy::new(vec!["shard1".into(), "shard2".into()]);
 /// let mut manager = ShardManager::new(Arc::new(strategy));
@@ -141,6 +142,7 @@ impl ShardManager {
     ///
     /// ```rust,no_run
     /// # use rf_orm::sharding::*;
+    /// # use rf_orm::ShardResult;
     /// # async fn example(manager: &ShardManager) -> ShardResult<()> {
     /// let user_id = "12345";
     /// let db = manager.connection_for(user_id).await?;
@@ -222,6 +224,7 @@ impl ShardManager {
     /// ```rust,no_run
     /// # use rf_orm::sharding::*;
     /// # use sea_orm::{ConnectionTrait, Statement};
+    /// # use rf_orm::ShardResult;
     /// # async fn example(manager: &ShardManager) -> ShardResult<()> {
     /// let results: Vec<u64> = manager.execute_on_all(|db| {
     ///     Box::pin(async move {
@@ -313,6 +316,7 @@ impl ShardManager {
     /// ```rust,no_run
     /// # use rf_orm::sharding::*;
     /// # use sea_orm::{ConnectionTrait, Statement};
+    /// # use rf_orm::ShardResult;
     /// # async fn example(manager: &ShardManager) -> ShardResult<()> {
     /// let count = manager.execute_with_key("user_123", |db| {
     ///     Box::pin(async move {

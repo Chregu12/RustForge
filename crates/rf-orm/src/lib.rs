@@ -60,12 +60,21 @@
 //!
 //! ```rust,no_run
 //! # use rf_orm::prelude::*;
+//! # mod user {
+//! #     use sea_orm::entity::prelude::*;
+//! #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+//! #     #[sea_orm(table_name = "users")]
+//! #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub name: String, pub active: bool }
+//! #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+//! #     impl ActiveModelBehavior for ActiveModel {}
+//! # }
+//! # use user::Entity as User;
 //! # async fn example(db: DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
 //! // Laravel-style method chaining
 //! let users = User::query(db)
 //!     .where_eq(user::Column::Active, true)
 //!     .where_like(user::Column::Name, "%John%")
-//!     .order_by("created_at", "desc")
+//!     .order_by(user::Column::Id, "desc")
 //!     .paginate(1, 15)
 //!     .await?;
 //! # Ok(())
@@ -76,18 +85,49 @@
 //!
 //! ```rust,no_run
 //! # use rf_orm::prelude::*;
-//! # async fn example(db: &DatabaseConnection, post: &Post) -> Result<(), Box<dyn std::error::Error>> {
-//! // BelongsTo
-//! let author = post.belongs_to::<User>(db).await?;
+//! # use sea_orm::EntityTrait;
+//! # mod user {
+//! #     use sea_orm::entity::prelude::*;
+//! #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+//! #     #[sea_orm(table_name = "users")]
+//! #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub name: String }
+//! #     #[derive(Copy, Clone, Debug, EnumIter)] pub enum Relation { Post }
+//! #     impl RelationTrait for Relation {
+//! #         fn def(&self) -> RelationDef {
+//! #             Entity::has_many(crate::post::Entity).into()
+//! #         }
+//! #     }
+//! #     impl Related<crate::post::Entity> for Entity {
+//! #         fn to() -> RelationDef { Relation::Post.def() }
+//! #     }
+//! #     impl ActiveModelBehavior for ActiveModel {}
+//! # }
+//! # mod post {
+//! #     use sea_orm::entity::prelude::*;
+//! #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+//! #     #[sea_orm(table_name = "posts")]
+//! #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub user_id: i32 }
+//! #     #[derive(Copy, Clone, Debug, EnumIter)] pub enum Relation { User }
+//! #     impl RelationTrait for Relation {
+//! #         fn def(&self) -> RelationDef {
+//! #             Entity::belongs_to(crate::user::Entity)
+//! #                 .from(Column::UserId).to(crate::user::Column::Id).into()
+//! #         }
+//! #     }
+//! #     impl Related<crate::user::Entity> for Entity {
+//! #         fn to() -> RelationDef { Relation::User.def() }
+//! #     }
+//! #     impl ActiveModelBehavior for ActiveModel {}
+//! # }
+//! # async fn example(db: &DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
+//! let post = post::Entity::find_by_id(1).one(db).await?.unwrap();
+//! let user = user::Entity::find_by_id(1).one(db).await?.unwrap();
 //!
-//! // HasMany
-//! let posts = user.has_many::<Post>(db).await?;
+//! // BelongsTo: load the post's author
+//! let author = post.load_belongs_to::<user::Entity>(db).await?;
 //!
-//! // HasOne
-//! let profile = user.has_one::<Profile>(db).await?;
-//!
-//! // BelongsToMany (many-to-many)
-//! let tags = post.belongs_to_many::<Tag>(db).await?;
+//! // HasMany: load all of a user's posts
+//! let posts = user.load_has_many::<post::Entity>(db).await?;
 //! # Ok(())
 //! # }
 //! ```
@@ -96,18 +136,26 @@
 //!
 //! ```rust,no_run
 //! # use rf_orm::prelude::*;
+//! # use rf_orm::events::EventResult;
 //! # use async_trait::async_trait;
+//! # mod post {
+//! #     use sea_orm::entity::prelude::*;
+//! #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+//! #     #[sea_orm(table_name = "posts")]
+//! #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub title: String, pub slug: String }
+//! #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+//! #     impl ActiveModelBehavior for ActiveModel {}
+//! # }
 //! #[async_trait]
 //! impl ModelEvents for post::ActiveModel {
 //!     async fn before_create(&mut self) -> EventResult {
-//!         // Auto-generate slug
-//!         self.slug = Set(slugify(&self.title));
+//!         // Auto-generate slug from the title
+//!         self.slug = Set(self.title.as_ref().to_lowercase());
 //!         Ok(())
 //!     }
 //!
 //!     async fn after_create(&self) -> EventResult {
-//!         // Send notification
-//!         notify_new_post(self).await?;
+//!         // Send a notification, etc.
 //!         Ok(())
 //!     }
 //! }
