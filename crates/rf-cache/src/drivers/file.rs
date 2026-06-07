@@ -391,6 +391,37 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_file_driver_touch_existing_key_returns_true() {
+        let temp_dir = tempdir().unwrap();
+        let driver = FileDriver::new(temp_dir.path().to_path_buf()).unwrap();
+        driver
+            .set("k", &"v".to_string(), Duration::from_secs(60))
+            .await
+            .unwrap();
+        assert!(driver.touch("k", 120).await);
+    }
+
+    #[tokio::test]
+    async fn test_file_driver_touch_nonexistent_key_returns_false() {
+        let temp_dir = tempdir().unwrap();
+        let driver = FileDriver::new(temp_dir.path().to_path_buf()).unwrap();
+        assert!(!driver.touch("ghost", 60).await);
+    }
+
+    #[tokio::test]
+    async fn test_file_driver_touch_preserves_value() {
+        let temp_dir = tempdir().unwrap();
+        let driver = FileDriver::new(temp_dir.path().to_path_buf()).unwrap();
+        driver
+            .set("msg", &"hello".to_string(), Duration::from_secs(60))
+            .await
+            .unwrap();
+        driver.touch("msg", 120).await;
+        let val: Option<String> = driver.get("msg").await.unwrap();
+        assert_eq!(val, Some("hello".to_string()));
+    }
+
+    #[tokio::test]
     async fn test_file_driver_cleanup_expired() {
         let temp_dir = tempdir().unwrap();
         let driver = FileDriver::new(temp_dir.path().to_path_buf()).unwrap();

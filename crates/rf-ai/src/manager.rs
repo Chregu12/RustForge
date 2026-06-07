@@ -16,6 +16,12 @@ pub struct AiManager {
     inner: Arc<dyn AiDriver>,
 }
 
+impl std::fmt::Debug for AiManager {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("AiManager").field("inner", &"<dyn AiDriver>").finish()
+    }
+}
+
 impl AiManager {
     /// Wrap any type that implements [`AiDriver`].
     pub fn new(driver: impl AiDriver + 'static) -> Self {
@@ -49,6 +55,7 @@ impl AiManager {
     ///
     /// Returns [`AiError::MissingEnvVar`] when either variable is absent, and
     /// [`AiError::UnknownDriver`] when the driver name is not recognised.
+    #[allow(unused_variables)]
     pub fn from_env() -> AiResult<Self> {
         let driver_name = std::env::var("AI_DRIVER")
             .map_err(|_| AiError::MissingEnvVar("AI_DRIVER".to_string()))?;
