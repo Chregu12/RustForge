@@ -11,13 +11,13 @@ use std::future::Future;
 ///
 /// # async fn example(db: DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
 /// // Automatic rollback on error
-/// let result = Transaction::run(&db, |tx| async move {
+/// async fn work(tx: &sea_orm::DatabaseTransaction) -> Result<(), sea_orm::DbErr> {
 ///     tx.execute_unprepared("INSERT INTO users (name) VALUES ('John')").await?;
 ///     tx.execute_unprepared("INSERT INTO profiles (user_id) VALUES (1)").await?;
-///
-///     // If any error occurs, transaction will rollback automatically
+///     // If any error occurs, the transaction is rolled back automatically.
 ///     Ok(())
-/// }).await?;
+/// }
+/// let result = Transaction::run(&db, |tx| work(tx)).await?;
 /// # Ok(())
 /// # }
 /// ```
@@ -35,11 +35,12 @@ impl Transaction {
     /// # use rf_orm::transaction::Transaction;
     /// # use sea_orm::{DatabaseConnection, ConnectionTrait};
     /// # async fn example(db: DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
-    /// Transaction::run(&db, |tx| async move {
+    /// async fn work(tx: &sea_orm::DatabaseTransaction) -> Result<(), sea_orm::DbErr> {
     ///     tx.execute_unprepared("INSERT INTO users (name) VALUES ('John')").await?;
     ///     tx.execute_unprepared("INSERT INTO posts (title) VALUES ('Hello')").await?;
     ///     Ok(())
-    /// }).await?;
+    /// }
+    /// Transaction::run(&db, |tx| work(tx)).await?;
     /// # Ok(())
     /// # }
     /// ```

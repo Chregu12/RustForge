@@ -182,7 +182,7 @@ impl<T> Collection<T> {
     ///     User { id: 1, name: "John".to_string() },
     ///     User { id: 2, name: "Jane".to_string() },
     /// ]);
-    /// let names = users.pluck(|u| &u.name);
+    /// let names = users.pluck(|u| u.name.clone());
     /// ```
     pub fn pluck<U, F>(&self, f: F) -> Vec<U>
     where
