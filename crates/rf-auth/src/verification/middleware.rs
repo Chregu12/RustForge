@@ -26,12 +26,15 @@ use crate::verification::Verifiable;
 ///     "This route requires verified email"
 /// }
 ///
+/// # use async_trait::async_trait;
 /// # async fn example() {
-/// let app = Router::new()
+/// let app: Router = Router::new()
 ///     .route("/dashboard", get(protected_handler))
 ///     .layer(middleware::from_fn(RequireVerified::middleware::<User>));
 /// # }
+/// # #[derive(Clone)]
 /// # struct User;
+/// # #[async_trait]
 /// # impl Verifiable for User {
 /// #     fn verification_email(&self) -> &str { "" }
 /// #     fn verification_user_id(&self) -> i64 { 0 }

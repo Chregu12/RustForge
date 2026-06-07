@@ -27,7 +27,7 @@
 //!     base_url: "https://example.com".to_string(),
 //! };
 //!
-//! let app = Router::new()
+//! let app: Router = Router::new()
 //!     .route("/email/verify/send", post(send_verification))
 //!     .route("/email/verify", get(verify_email))
 //!     .layer(Extension(Arc::new(state)));

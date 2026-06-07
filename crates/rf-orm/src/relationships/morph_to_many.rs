@@ -701,7 +701,7 @@ async fn check_morph_exists(
 /// # async fn example(db: sea_orm::DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
 /// # let post_id = 1i64;
 /// let tags = MorphToManyBuilder::<tag::Entity>::new(
-///     db.clone(),
+///     db,
 ///     "Post",
 ///     post_id,
 ///     "taggables",

@@ -229,14 +229,13 @@ impl Schema {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use rf_orm::schema_builder::Schema;
-    /// use rf_orm::DatabaseManager;
+    /// use rf_orm::schema_builder::{Schema, Blueprint};
+    /// use rf_orm::DatabaseConnection;
     ///
-    /// # async fn example(schema: &Schema) -> Result<(), Box<dyn std::error::Error>> {
-    /// let db = DatabaseManager::connect(Default::default()).await?;
-    /// let schema = Schema::new(db.connection().clone());
+    /// # async fn example(conn: DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
+    /// let schema = Schema::new(conn);
     ///
-    /// schema.create("users", |table| {
+    /// schema.create("users", |table: &mut Blueprint| {
     ///     table.id();
     ///     table.string("email");
     /// }).await?;
@@ -257,11 +256,10 @@ impl Schema {
     ///
     /// ```rust,no_run
     /// use rf_orm::schema_builder::Schema;
-    /// use rf_orm::DatabaseManager;
+    /// use rf_orm::DatabaseConnection;
     ///
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let db = DatabaseManager::connect(Default::default()).await?;
-    /// Schema::set_connection(db.connection().clone()).await;
+    /// # async fn example(conn: DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
+    /// Schema::set_connection(conn).await;
     /// # Ok(())
     /// # }
     /// ```

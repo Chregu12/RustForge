@@ -16,7 +16,6 @@
 //!
 //! ```rust,no_run
 //! use rf_orm::prelude::*;
-//! use rf_orm::DatabaseManager;
 //!
 //! # mod post {
 //! #     use sea_orm::entity::prelude::*;
@@ -27,27 +26,18 @@
 //! #     impl ActiveModelBehavior for ActiveModel {}
 //! # }
 //! # use post::Entity as Post;
-//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-//! // Connect to database
-//! let db = DatabaseManager::connect(DatabaseConfig {
-//!     url: "sqlite::memory:".to_string(),
-//!     ..Default::default()
-//! }).await?;
+//! # async fn example(db: DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
+//! // Connect to a database with `DatabaseManager::connect(config).await?`,
+//! // then take ownership of the connection for queries.
 //!
 //! // Laravel-style query
-//! let posts = Post::query(db.connection().clone())
+//! let posts = Post::query(db)
 //!     .where_eq(post::Column::Published, true)
 //!     .where_gt(post::Column::Views, 100)
 //!     .order_by_desc(post::Column::Id)
 //!     .limit(10)
 //!     .get()
 //!     .await?;
-//!
-//! // Transactions with automatic rollback
-//! db.connection().transaction(|_tx| async move {
-//!     // ... run queries against the transaction handle here ...
-//!     Ok::<(), sea_orm::DbErr>(())
-//! }).await?;
 //! # Ok(())
 //! # }
 //! ```

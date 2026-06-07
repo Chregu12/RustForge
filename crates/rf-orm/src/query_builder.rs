@@ -368,10 +368,10 @@ where
     /// # }
     /// # use post::Entity as Post;
     /// # use user::Entity as User;
-    /// # async fn example(db: DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
+    /// # async fn example(db: DatabaseConnection, db2: DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
     /// // Get posts where user_id is in the subquery result
-    /// let posts = Post::query(db.clone())
-    ///     .where_in_subquery(post::Column::UserId, User::query(db).where_eq(user::Column::Active, true))
+    /// let posts = Post::query(db)
+    ///     .where_in_subquery(post::Column::UserId, User::query(db2).where_eq(user::Column::Active, true))
     ///     .get()
     ///     .await?;
     /// # Ok(())
@@ -426,11 +426,11 @@ where
     /// # }
     /// # use post::Entity as Post;
     /// # use comment::Entity as Comment;
-    /// # async fn example(db: DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
+    /// # async fn example(db: DatabaseConnection, db2: DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
     /// // Get posts that have comments
-    /// let posts = Post::query(db.clone())
+    /// let posts = Post::query(db)
     ///     .where_exists(
-    ///         Comment::query(db).where_raw("comments.post_id = posts.id")
+    ///         Comment::query(db2).where_raw("comments.post_id = posts.id")
     ///     )
     ///     .get()
     ///     .await?;
@@ -475,9 +475,9 @@ where
     /// #     impl ActiveModelBehavior for ActiveModel {}
     /// # }
     /// # use post::Entity as Post;
-    /// # async fn example(db: DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
-    /// let published = Post::query(db.clone()).where_eq(post::Column::Published, true);
-    /// let featured = Post::query(db.clone()).where_eq(post::Column::Featured, true);
+    /// # async fn example(db: DatabaseConnection, db2: DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
+    /// let published = Post::query(db).where_eq(post::Column::Published, true);
+    /// let featured = Post::query(db2).where_eq(post::Column::Featured, true);
     /// let results = published.union(featured).get().await?;
     /// # Ok(())
     /// # }
@@ -768,9 +768,9 @@ where
     /// #     impl ActiveModelBehavior for ActiveModel {}
     /// # }
     /// # use post::Entity as Post;
-    /// # async fn example(db: DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
-    /// let total = Post::query(db.clone()).count().await?;
-    /// let published = Post::query(db).where_eq(post::Column::Published, true).count().await?;
+    /// # async fn example(db: DatabaseConnection, db2: DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
+    /// let total = Post::query(db).count().await?;
+    /// let published = Post::query(db2).where_eq(post::Column::Published, true).count().await?;
     /// # Ok(())
     /// # }
     /// ```

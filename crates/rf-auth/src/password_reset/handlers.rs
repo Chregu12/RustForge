@@ -25,7 +25,7 @@
 //!     base_url: "https://example.com".to_string(),
 //! };
 //!
-//! let app = Router::new()
+//! let app: Router = Router::new()
 //!     .route("/password/reset/request", post(request_reset))
 //!     .route("/password/reset", post(reset_password))
 //!     .layer(Extension(Arc::new(state)));

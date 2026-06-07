@@ -448,7 +448,7 @@ impl<M, T, R> HasManyThrough<M, T, R> {
 /// #     impl ActiveModelBehavior for ActiveModel {}
 /// # }
 /// # async fn example(db: DatabaseConnection) -> Result<(), DbErr> {
-/// let posts = HasManyBuilder::<post::Entity>::new(db.clone(), post::Column::UserId, 42i32)
+/// let posts = HasManyBuilder::<post::Entity>::new(db, post::Column::UserId, 42i32)
 ///     .order_by(post::Column::UserId, sea_orm::Order::Desc)
 ///     .limit(10)
 ///     .get()
