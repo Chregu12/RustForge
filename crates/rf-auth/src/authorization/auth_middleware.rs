@@ -134,13 +134,17 @@ where
 /// use axum::{Router, routing::put};
 /// use rf_auth::authorization::auth_middleware::AuthorizePolicyLayer;
 ///
+/// #[derive(Clone)]
+/// struct User;
+///
+/// #[derive(Clone)]
 /// struct Post;
 ///
 /// # async fn update_post_handler() -> &'static str { "Updated" }
 /// # fn example() {
-/// let app = Router::new()
+/// let app: Router = Router::new()
 ///     .route("/posts/:id", put(update_post_handler))
-///     .layer(AuthorizePolicyLayer::<(), Post>::new("update"));
+///     .layer(AuthorizePolicyLayer::<User, Post>::new("update"));
 /// # }
 /// ```
 #[derive(Clone)]
