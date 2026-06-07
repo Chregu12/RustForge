@@ -63,7 +63,7 @@
 
 /// Model macro - define models like Laravel's Eloquent
 ///
-/// ```rust
+/// ```text
 /// use rustforge::*;
 ///
 /// #[model]
@@ -74,11 +74,14 @@
 ///     pub password: String,
 /// }
 /// ```
+///
+/// Note: shown as `text` because `#[model]` expands to code requiring
+/// `sea_orm`, which is not a dependency of this crate.
 pub use rf_model_macro::model;
 
 /// Laravel-like class syntax for models
 ///
-/// ```rust
+/// ```text
 /// use rustforge::*;
 ///
 /// laravel! {
@@ -88,11 +91,14 @@ pub use rf_model_macro::model;
 ///     }
 /// }
 /// ```
+///
+/// Note: shown as `text` because `laravel!` expands to code requiring
+/// `chrono`, which is not a dependency of this crate.
 pub use rf_macros::laravel;
 
 /// Ultra-simple model macro - the cleanest syntax!
 ///
-/// ```rust
+/// ```text
 /// use rustforge::*;
 ///
 /// // Minimal - all fields are String by default
@@ -105,6 +111,9 @@ pub use rf_macros::laravel;
 ///     user_id: i64,
 /// });
 /// ```
+///
+/// Note: shown as `text` because `Model!` expands to code requiring
+/// `chrono`, which is not a dependency of this crate.
 #[allow(non_snake_case)]
 pub use rf_macros::Model;
 
@@ -120,7 +129,7 @@ pub use rf_macros::Model;
 ///     const TABLE: &'static str = "users";
 /// }
 ///
-/// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+/// # async fn example() -> std::result::Result<(), Box<dyn std::error::Error>> {
 /// let users = query!(User::where("active", true).get()).await?;
 ///
 /// let admins = query! {
@@ -137,13 +146,19 @@ pub use rf_macros::query;
 
 /// Auto-await macro - write async code without explicit .await
 ///
-/// ```rust
+/// ```rust,no_run
 /// use rustforge::*;
 ///
+/// struct User;
+/// impl Model for User {
+///     const TABLE: &'static str = "users";
+/// }
+///
 /// #[auto_await]
-/// async fn handler() -> Result<Response, Error> {
+/// async fn handler() -> std::result::Result<(), String> {
 ///     let users = User::filter("active", true).get();  // No .await needed!
-///     Ok(Response::json(users))
+///     println!("{:?}", users);
+///     Ok(())
 /// }
 /// ```
 pub use rf_macros::auto_await;

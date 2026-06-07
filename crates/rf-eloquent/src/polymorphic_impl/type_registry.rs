@@ -62,13 +62,18 @@ impl TypeRegistry {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use rf_eloquent::relationships::type_registry::GLOBAL_TYPE_REGISTRY;
-    /// use std::sync::Arc;
+    /// use rf_eloquent::polymorphic::type_registry::GLOBAL_TYPE_REGISTRY;
+    /// use std::any::Any;
+    ///
+    /// // A model that the registry can resolve by id.
+    /// #[derive(Clone)]
+    /// struct Post { id: i64 }
     ///
     /// # async fn example() {
-    /// GLOBAL_TYPE_REGISTRY.register::<Post>("Post", |id, db| {
+    /// GLOBAL_TYPE_REGISTRY.register("Post", |id, _db| {
     ///     Box::pin(async move {
-    ///         let post = Post::find_by_id(id, &db).await?;
+    ///         // In a real resolver this would load the model from the database.
+    ///         let post = Post { id };
     ///         Ok(Box::new(post) as Box<dyn Any + Send + Sync>)
     ///     })
     /// }).await;
@@ -157,7 +162,7 @@ lazy_static! {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use rf_eloquent::relationships::type_registry::GLOBAL_TYPE_REGISTRY;
+    /// use rf_eloquent::polymorphic::type_registry::GLOBAL_TYPE_REGISTRY;
     /// use std::sync::Arc;
     ///
     /// # async fn setup() {
