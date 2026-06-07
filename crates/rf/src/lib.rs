@@ -159,6 +159,13 @@ pub mod web {
         pub use rf_api_resources::*;
         pub use rf_requests::*;
         pub use rf_pagination::*;
+
+        // `rf_api_resources` and `rf_pagination` both define `PaginationLinks` and
+        // `PaginationMeta`. Prefer the `rf_pagination` versions here so they stay
+        // consistent with `Paginator` (also from `rf_pagination`); this explicit
+        // re-export shadows the globs above and resolves the ambiguous-glob-reexport
+        // warnings.
+        pub use rf_pagination::{PaginationLinks, PaginationMeta};
     }
 
     // Views & Templates
@@ -185,9 +192,21 @@ pub mod web {
 /// use rf::data::Collection;
 /// ```
 pub mod data {
-    // ORM & Eloquent
+    // ORM: rf_orm is the foundational ORM that `Model`, the model macros, and the
+    // rest of the framework are built on, so it is glob-re-exported at the
+    // `rf::data` level. rf_eloquent shares many item and module names with rf_orm
+    // (`events`, `relationships`, `scopes`, `polymorphic`, `prelude`, `HasScopes`,
+    // `HasManyThrough`, `ModelEvents`, ...); glob-merging both here produced
+    // ambiguous-glob-reexport warnings, so rf_eloquent lives under its own
+    // namespace instead.
     pub use rf_orm::*;
-    pub use rf_eloquent::*;
+
+    /// The Eloquent ORM (`rf_eloquent`), re-exported under its own namespace so its
+    /// types stay reachable (e.g. `rf::data::eloquent::HasScopes`) without colliding
+    /// with the `rf_orm` exports above.
+    pub mod eloquent {
+        pub use rf_eloquent::*;
+    }
 
     // Collections (re-export at data level)
     pub use rf_collections::{Collection, collect, LazyCollection};
