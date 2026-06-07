@@ -316,7 +316,10 @@ mod tests {
 
     #[test]
     fn test_html_response() {
-        let db_err = DatabaseError::connection("localhost", "db", "user");
+        // Use distinctive sentinels: a short name like "db" collides with the
+        // random hex Request ID (d and b are hex digits), making the assertion
+        // spuriously fail.
+        let db_err = DatabaseError::connection("secrethost", "secretdbname", "secretuser");
         let err = RustForgeError::Database(db_err);
 
         let html = ProdErrorDisplay::new(&err).to_html_response();
@@ -325,8 +328,9 @@ mod tests {
         assert!(html.contains("500"));
         assert!(html.contains("Request ID:"));
         // Should not contain sensitive data
-        assert!(!html.contains("localhost"));
-        assert!(!html.contains("db"));
+        assert!(!html.contains("secrethost"));
+        assert!(!html.contains("secretdbname"));
+        assert!(!html.contains("secretuser"));
     }
 
     #[test]

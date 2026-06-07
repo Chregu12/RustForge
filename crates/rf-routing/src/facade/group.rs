@@ -311,6 +311,12 @@ mod tests {
     use super::*;
     use crate::facade::registry::global_router;
 
+    /// Serializes tests that mutate the process-global router. Without this, a
+    /// concurrent `global_router().clear()` from another test races the route
+    /// assertions below. `into_inner` ignores poisoning so a failing test does
+    /// not cascade into the others.
+    static ROUTER_GUARD: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
     #[test]
     fn test_group_builder_new() {
         let builder = GroupBuilder::new();
@@ -347,6 +353,7 @@ mod tests {
 
     #[test]
     fn test_group_routes() {
+        let _g = ROUTER_GUARD.lock().unwrap_or_else(|e| e.into_inner());
         global_router().clear();
 
         GroupBuilder::new()
@@ -368,6 +375,7 @@ mod tests {
 
     #[test]
     fn test_group_applies_middleware() {
+        let _g = ROUTER_GUARD.lock().unwrap_or_else(|e| e.into_inner());
         global_router().clear();
 
         GroupBuilder::new().middleware("auth").routes(|group| {
@@ -383,6 +391,7 @@ mod tests {
 
     #[test]
     fn test_nested_groups() {
+        let _g = ROUTER_GUARD.lock().unwrap_or_else(|e| e.into_inner());
         global_router().clear();
 
         GroupBuilder::new()

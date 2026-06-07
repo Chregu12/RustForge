@@ -190,6 +190,12 @@ pub fn clear_all_tokens() {
 mod tests {
     use super::*;
 
+    /// Serializes tests that touch the process-global `CSRF_TOKENS` store. Without
+    /// this, a concurrent `clear_all_tokens()` / `csrf_token_for_session()` from
+    /// another test races the count assertions below. `into_inner` ignores
+    /// poisoning so a failing test does not cascade into the others.
+    static CSRF_GUARD: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
     #[test]
     fn test_csrf_token_generation() {
         let token = csrf_token();
@@ -206,6 +212,7 @@ mod tests {
 
     #[test]
     fn test_csrf_token_for_session() {
+        let _g = CSRF_GUARD.lock().unwrap_or_else(|e| e.into_inner());
         clear_all_tokens();
 
         let session_id = "test-session-1";
@@ -217,6 +224,7 @@ mod tests {
 
     #[test]
     fn test_verify_csrf_token() {
+        let _g = CSRF_GUARD.lock().unwrap_or_else(|e| e.into_inner());
         clear_all_tokens();
 
         let session_id = "verify-test";
@@ -229,6 +237,7 @@ mod tests {
 
     #[test]
     fn test_regenerate_csrf_token() {
+        let _g = CSRF_GUARD.lock().unwrap_or_else(|e| e.into_inner());
         clear_all_tokens();
 
         let session_id = "regen-test";
@@ -242,6 +251,7 @@ mod tests {
 
     #[test]
     fn test_delete_csrf_token() {
+        let _g = CSRF_GUARD.lock().unwrap_or_else(|e| e.into_inner());
         clear_all_tokens();
 
         let session_id = "delete-test";
@@ -272,6 +282,7 @@ mod tests {
 
     #[test]
     fn test_token_count() {
+        let _g = CSRF_GUARD.lock().unwrap_or_else(|e| e.into_inner());
         // Use unique session IDs to avoid interference
         let session1 = format!("test-token-count-{}", uuid::Uuid::new_v4());
         let session2 = format!("test-token-count-{}", uuid::Uuid::new_v4());
@@ -289,6 +300,7 @@ mod tests {
 
     #[test]
     fn test_clear_all_tokens() {
+        let _g = CSRF_GUARD.lock().unwrap_or_else(|e| e.into_inner());
         clear_all_tokens();
 
         csrf_token_for_session("session1");
