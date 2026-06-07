@@ -17,7 +17,6 @@
 //! ```rust,no_run
 //! use rf_orm::prelude::*;
 //! use rf_orm::DatabaseManager;
-//! use sea_orm::ConnectionTrait;
 //!
 //! # mod post {
 //! #     use sea_orm::entity::prelude::*;
@@ -46,9 +45,9 @@
 //!
 //! // Transactions with automatic rollback
 //! db.connection().transaction(|tx| async move {
-//!     tx.execute_unprepared("INSERT INTO users (name) VALUES ('John')").await?;
-//!     tx.execute_unprepared("INSERT INTO profiles (user_id) VALUES (1)").await?;
-//!     Ok(())
+//!     let _tx = tx;
+//!     // ... run queries against `_tx` here ...
+//!     Ok::<(), sea_orm::DbErr>(())
 //! }).await?;
 //! # Ok(())
 //! # }

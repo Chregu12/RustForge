@@ -345,11 +345,17 @@ pub trait Model: Sized {
 ///
 /// # Examples
 ///
-/// ```rust,no_run
-/// use rf_orm::{define_simple_model, ModelFacade};
+/// The macro expands to a unit struct plus a `Model` trait implementation,
+/// equivalent to writing:
 ///
-/// // Simple model
-/// define_simple_model!(User, "users");
+/// ```rust,no_run
+/// use rf_orm::ModelFacade as Model;
+///
+/// // `define_simple_model!(User, "users");` expands to:
+/// pub struct User;
+/// impl Model for User {
+///     const TABLE: &'static str = "users";
+/// }
 ///
 /// async fn example() {
 ///     // Now use it:

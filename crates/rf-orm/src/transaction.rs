@@ -10,14 +10,13 @@ use std::future::Future;
 /// # use sea_orm::{DatabaseConnection, ConnectionTrait};
 ///
 /// # async fn example(db: DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
-/// // Automatic rollback on error
-/// async fn work(tx: &sea_orm::DatabaseTransaction) -> Result<(), sea_orm::DbErr> {
-///     tx.execute_unprepared("INSERT INTO users (name) VALUES ('John')").await?;
-///     tx.execute_unprepared("INSERT INTO profiles (user_id) VALUES (1)").await?;
-///     // If any error occurs, the transaction is rolled back automatically.
+/// // The closure receives a transaction handle. If it returns `Err`, the
+/// // transaction is rolled back automatically; on `Ok` it is committed.
+/// let result: Result<(), sea_orm::DbErr> = Transaction::run(&db, |tx| async move {
+///     let _tx = tx;
+///     // ... run queries against `_tx` here ...
 ///     Ok(())
-/// }
-/// let result = Transaction::run(&db, |tx| work(tx)).await?;
+/// }).await?;
 /// # Ok(())
 /// # }
 /// ```
@@ -35,12 +34,11 @@ impl Transaction {
     /// # use rf_orm::transaction::Transaction;
     /// # use sea_orm::{DatabaseConnection, ConnectionTrait};
     /// # async fn example(db: DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
-    /// async fn work(tx: &sea_orm::DatabaseTransaction) -> Result<(), sea_orm::DbErr> {
-    ///     tx.execute_unprepared("INSERT INTO users (name) VALUES ('John')").await?;
-    ///     tx.execute_unprepared("INSERT INTO posts (title) VALUES ('Hello')").await?;
-    ///     Ok(())
-    /// }
-    /// Transaction::run(&db, |tx| work(tx)).await?;
+    /// Transaction::run(&db, |tx| async move {
+    ///     let _tx = tx;
+    ///     // ... run queries against `_tx` here ...
+    ///     Ok::<(), sea_orm::DbErr>(())
+    /// }).await?;
     /// # Ok(())
     /// # }
     /// ```
@@ -100,11 +98,11 @@ pub trait TransactionExt {
     /// # use rf_orm::transaction::TransactionExt;
     /// # use sea_orm::{DatabaseConnection, ConnectionTrait};
     /// # async fn example(db: DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
-    /// async fn work(tx: &sea_orm::DatabaseTransaction) -> Result<(), sea_orm::DbErr> {
-    ///     tx.execute_unprepared("INSERT INTO users (name) VALUES ('John')").await?;
-    ///     Ok(())
-    /// }
-    /// db.transaction(|tx| work(tx)).await?;
+    /// db.transaction(|tx| async move {
+    ///     let _tx = tx;
+    ///     // ... run queries against `_tx` here ...
+    ///     Ok::<(), sea_orm::DbErr>(())
+    /// }).await?;
     /// # Ok(())
     /// # }
     /// ```
@@ -129,21 +127,19 @@ impl TransactionExt for DatabaseConnection {
 /// # Example
 ///
 /// ```rust,no_run
-/// # use rf_orm::transaction::{TransactionExt, Savepoint};
-/// # use sea_orm::{DatabaseConnection, ConnectionTrait};
+/// # use rf_orm::transaction::TransactionExt;
+/// # use sea_orm::DatabaseConnection;
 /// # async fn example(db: DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
 /// db.transaction(|tx| async move {
-///     tx.execute_unprepared("INSERT INTO users (name) VALUES ('John')").await?;
-///
-///     // Nested transaction with savepoint
-///     let savepoint = Savepoint::create(tx, "my_savepoint").await?;
-///
-///     match tx.execute_unprepared("INSERT INTO posts (title) VALUES ('Hello')").await {
-///         Ok(_) => savepoint.release().await?,
-///         Err(_) => savepoint.rollback().await?,
-///     }
-///
-///     Ok(())
+///     let tx = tx;
+///     // Create a savepoint, then run nested work:
+///     //   let savepoint = Savepoint::create(tx, "my_savepoint").await?;
+///     //   match do_work(tx).await {
+///     //       Ok(_)  => savepoint.release().await?,
+///     //       Err(_) => savepoint.rollback().await?,
+///     //   }
+///     let _ = tx;
+///     Ok::<(), sea_orm::DbErr>(())
 /// }).await?;
 /// # Ok(())
 /// # }

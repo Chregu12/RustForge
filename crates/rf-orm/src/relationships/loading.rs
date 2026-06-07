@@ -13,21 +13,50 @@
 //!
 //! ```rust,no_run
 //! use rf_orm::relationships::loading::*;
+//! use sea_orm::EntityTrait;
+//! # fn main() {}
+//! # mod user {
+//! #     use sea_orm::entity::prelude::*;
+//! #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+//! #     #[sea_orm(table_name = "users")]
+//! #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub name: String }
+//! #     #[derive(Copy, Clone, Debug, EnumIter)] pub enum Relation { Post }
+//! #     impl RelationTrait for Relation {
+//! #         fn def(&self) -> RelationDef { Entity::has_many(super::post::Entity).into() }
+//! #     }
+//! #     impl Related<super::post::Entity> for Entity {
+//! #         fn to() -> RelationDef { Relation::Post.def() }
+//! #     }
+//! #     impl ActiveModelBehavior for ActiveModel {}
+//! # }
+//! # mod post {
+//! #     use sea_orm::entity::prelude::*;
+//! #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+//! #     #[sea_orm(table_name = "posts")]
+//! #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub user_id: i32 }
+//! #     #[derive(Copy, Clone, Debug, EnumIter)] pub enum Relation { User }
+//! #     impl RelationTrait for Relation {
+//! #         fn def(&self) -> RelationDef {
+//! #             Entity::belongs_to(super::user::Entity)
+//! #                 .from(Column::UserId).to(super::user::Column::Id).into()
+//! #         }
+//! #     }
+//! #     impl Related<super::user::Entity> for Entity {
+//! #         fn to() -> RelationDef { Relation::User.def() }
+//! #     }
+//! #     impl ActiveModelBehavior for ActiveModel {}
+//! # }
+//! # async fn example(db: sea_orm::DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
+//! // Lazy loading (load on demand) for a single model
+//! let user = user::Entity::find_by_id(1).one(&db).await?.unwrap();
+//! let posts = user.lazy_load::<post::Entity>(&db).await?;
 //!
-//! // Eager loading (load with main query)
-//! let users = User::query(db.clone())
-//!     .with::<post::Entity>("posts")
-//!     .with::<comment::Entity>("comments")
-//!     .get()
-//!     .await?;
-//!
-//! // Lazy loading (load on demand)
-//! let user = User::find_by_id(1).one(&db).await?.unwrap();
-//! let posts = user.load_relation::<post::Entity>(&db).await?;
-//!
-//! // Lazy eager loading (load for collection after fetching)
-//! let mut users = User::query(db.clone()).get().await?;
-//! load_relations(&db, &mut users, "posts").await?;
+//! // Lazy eager loading (load a relation for a whole collection)
+//! let mut users = user::Entity::find().all(&db).await?;
+//! load_relation::<user::Entity, post::Entity>(&db, &mut users, "posts").await?;
+//! load_relations::<user::Entity>(&db, &mut users, &["posts"]).await?;
+//! # Ok(())
+//! # }
 //! ```
 
 use async_trait::async_trait;
@@ -45,12 +74,24 @@ pub type LoadResult<T> = Result<T, DbErr>;
 ///
 /// ```rust,no_run
 /// use rf_orm::relationships::loading::EagerLoad;
-///
-/// let posts = Post::query(db)
-///     .with_relation::<user::Entity>("author")
-///     .with_relation::<comment::Entity>("comments")
-///     .get()
-///     .await?;
+/// # mod user { use sea_orm::entity::prelude::*;
+/// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+/// #     #[sea_orm(table_name = "users")]
+/// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32 }
+/// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+/// #     impl ActiveModelBehavior for ActiveModel {} }
+/// # mod comment { use sea_orm::entity::prelude::*;
+/// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+/// #     #[sea_orm(table_name = "comments")]
+/// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32 }
+/// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+/// #     impl ActiveModelBehavior for ActiveModel {} }
+/// // A query builder implementing `EagerLoad` can chain relation loads:
+/// async fn run<Q: EagerLoad>(query: Q) -> Q {
+///     query
+///         .with_relation::<user::Entity>("author")
+///         .with_relation::<comment::Entity>("comments")
+/// }
 /// ```
 #[async_trait]
 pub trait EagerLoad: Sized {
@@ -66,7 +107,16 @@ pub trait EagerLoad: Sized {
     /// # Example
     ///
     /// ```rust,no_run
-    /// User::query(db).with_relation::<post::Entity>("posts")
+    /// use rf_orm::relationships::loading::EagerLoad;
+    /// # mod post { use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "posts")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32 }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {} }
+    /// fn add_posts<Q: EagerLoad>(query: Q) -> Q {
+    ///     query.with_relation::<post::Entity>("posts")
+    /// }
     /// ```
     fn with_relation<R>(self, relation: &str) -> Self
     where
@@ -77,7 +127,10 @@ pub trait EagerLoad: Sized {
     /// # Example
     ///
     /// ```rust,no_run
-    /// User::query(db).with_relations(&["posts", "comments", "profile"])
+    /// use rf_orm::relationships::loading::EagerLoad;
+    /// fn add_many<Q: EagerLoad>(query: Q) -> Q {
+    ///     query.with_relations(&["posts", "comments", "profile"])
+    /// }
     /// ```
     fn with_relations(self, relations: &[&str]) -> Self;
 
@@ -93,9 +146,44 @@ pub trait EagerLoad: Sized {
 ///
 /// ```rust,no_run
 /// use rf_orm::relationships::loading::LazyLoad;
-///
-/// let user = User::find_by_id(1).one(&db).await?.unwrap();
+/// use sea_orm::EntityTrait;
+/// # fn main() {}
+/// # mod user {
+/// #     use sea_orm::entity::prelude::*;
+/// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+/// #     #[sea_orm(table_name = "users")]
+/// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32 }
+/// #     #[derive(Copy, Clone, Debug, EnumIter)] pub enum Relation { Post }
+/// #     impl RelationTrait for Relation {
+/// #         fn def(&self) -> RelationDef { Entity::has_many(super::post::Entity).into() }
+/// #     }
+/// #     impl Related<super::post::Entity> for Entity {
+/// #         fn to() -> RelationDef { Relation::Post.def() }
+/// #     }
+/// #     impl ActiveModelBehavior for ActiveModel {}
+/// # }
+/// # mod post {
+/// #     use sea_orm::entity::prelude::*;
+/// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+/// #     #[sea_orm(table_name = "posts")]
+/// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub user_id: i32 }
+/// #     #[derive(Copy, Clone, Debug, EnumIter)] pub enum Relation { User }
+/// #     impl RelationTrait for Relation {
+/// #         fn def(&self) -> RelationDef {
+/// #             Entity::belongs_to(super::user::Entity)
+/// #                 .from(Column::UserId).to(super::user::Column::Id).into()
+/// #         }
+/// #     }
+/// #     impl Related<super::user::Entity> for Entity {
+/// #         fn to() -> RelationDef { Relation::User.def() }
+/// #     }
+/// #     impl ActiveModelBehavior for ActiveModel {}
+/// # }
+/// # async fn example(db: sea_orm::DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
+/// let user = user::Entity::find_by_id(1).one(&db).await?.unwrap();
 /// let posts = user.lazy_load::<post::Entity>(&db).await?;
+/// # Ok(())
+/// # }
 /// ```
 #[async_trait]
 pub trait LazyLoad: ModelTrait + Sized {
@@ -104,7 +192,36 @@ pub trait LazyLoad: ModelTrait + Sized {
     /// # Example
     ///
     /// ```rust,no_run
+    /// use rf_orm::relationships::loading::LazyLoad;
+    /// use sea_orm::EntityTrait;
+    /// # fn main() {}
+    /// # mod user {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "users")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32 }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter)] pub enum Relation { Post }
+    /// #     impl RelationTrait for Relation {
+    /// #         fn def(&self) -> RelationDef { Entity::has_many(super::post::Entity).into() }
+    /// #     }
+    /// #     impl Related<super::post::Entity> for Entity {
+    /// #         fn to() -> RelationDef { Relation::Post.def() }
+    /// #     }
+    /// #     impl ActiveModelBehavior for ActiveModel {}
+    /// # }
+    /// # mod post {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "posts")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub user_id: i32 }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {}
+    /// # }
+    /// # async fn example(db: sea_orm::DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
+    /// # let user = user::Entity::find_by_id(1).one(&db).await?.unwrap();
     /// let posts = user.lazy_load::<post::Entity>(&db).await?;
+    /// # Ok(())
+    /// # }
     /// ```
     async fn lazy_load<R>(&self, db: &DatabaseConnection) -> LoadResult<Vec<R::Model>>
     where
@@ -119,7 +236,39 @@ pub trait LazyLoad: ModelTrait + Sized {
     /// # Example
     ///
     /// ```rust,no_run
+    /// use rf_orm::relationships::loading::LazyLoad;
+    /// use sea_orm::EntityTrait;
+    /// # fn main() {}
+    /// # mod user {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "users")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32 }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {}
+    /// # }
+    /// # mod post {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "posts")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub user_id: i32 }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter)] pub enum Relation { User }
+    /// #     impl RelationTrait for Relation {
+    /// #         fn def(&self) -> RelationDef {
+    /// #             Entity::belongs_to(super::user::Entity)
+    /// #                 .from(Column::UserId).to(super::user::Column::Id).into()
+    /// #         }
+    /// #     }
+    /// #     impl Related<super::user::Entity> for Entity {
+    /// #         fn to() -> RelationDef { Relation::User.def() }
+    /// #     }
+    /// #     impl ActiveModelBehavior for ActiveModel {}
+    /// # }
+    /// # async fn example(db: sea_orm::DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
+    /// # let post = post::Entity::find_by_id(1).one(&db).await?.unwrap();
     /// let author = post.lazy_load_one::<user::Entity>(&db).await?;
+    /// # Ok(())
+    /// # }
     /// ```
     async fn lazy_load_one<R>(&self, db: &DatabaseConnection) -> LoadResult<Option<R::Model>>
     where
@@ -186,11 +335,48 @@ impl RelationshipData {
 /// # Example
 ///
 /// ```rust,no_run
+/// use rf_orm::relationships::loading::load_relation;
+/// use sea_orm::EntityTrait;
+/// # fn main() {}
+/// # mod user {
+/// #     use sea_orm::entity::prelude::*;
+/// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+/// #     #[sea_orm(table_name = "users")]
+/// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32 }
+/// #     #[derive(Copy, Clone, Debug, EnumIter)] pub enum Relation { Post }
+/// #     impl RelationTrait for Relation {
+/// #         fn def(&self) -> RelationDef { Entity::has_many(super::post::Entity).into() }
+/// #     }
+/// #     impl Related<super::post::Entity> for Entity {
+/// #         fn to() -> RelationDef { Relation::Post.def() }
+/// #     }
+/// #     impl ActiveModelBehavior for ActiveModel {}
+/// # }
+/// # mod post {
+/// #     use sea_orm::entity::prelude::*;
+/// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+/// #     #[sea_orm(table_name = "posts")]
+/// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub user_id: i32 }
+/// #     #[derive(Copy, Clone, Debug, EnumIter)] pub enum Relation { User }
+/// #     impl RelationTrait for Relation {
+/// #         fn def(&self) -> RelationDef {
+/// #             Entity::belongs_to(super::user::Entity)
+/// #                 .from(Column::UserId).to(super::user::Column::Id).into()
+/// #         }
+/// #     }
+/// #     impl Related<super::user::Entity> for Entity {
+/// #         fn to() -> RelationDef { Relation::User.def() }
+/// #     }
+/// #     impl ActiveModelBehavior for ActiveModel {}
+/// # }
+/// # async fn example(db: sea_orm::DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
 /// // Fetch users without relations
-/// let mut users = User::query(db.clone()).get().await?;
+/// let mut users = user::Entity::find().all(&db).await?;
 ///
 /// // Load posts for all users in one query
-/// load_relation(&db, &mut users, "posts").await?;
+/// load_relation::<user::Entity, post::Entity>(&db, &mut users, "posts").await?;
+/// # Ok(())
+/// # }
 /// ```
 pub async fn load_relation<E, R>(
     _db: &DatabaseConnection,
@@ -223,8 +409,22 @@ where
 /// # Example
 ///
 /// ```rust,no_run
-/// let mut users = User::query(db.clone()).get().await?;
-/// load_relations(&db, &mut users, &["posts", "comments"]).await?;
+/// use rf_orm::relationships::loading::load_relations;
+/// use sea_orm::EntityTrait;
+/// # fn main() {}
+/// # mod user {
+/// #     use sea_orm::entity::prelude::*;
+/// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+/// #     #[sea_orm(table_name = "users")]
+/// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32 }
+/// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+/// #     impl ActiveModelBehavior for ActiveModel {}
+/// # }
+/// # async fn example(db: sea_orm::DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
+/// let mut users = user::Entity::find().all(&db).await?;
+/// load_relations::<user::Entity>(&db, &mut users, &["posts", "comments"]).await?;
+/// # Ok(())
+/// # }
 /// ```
 pub async fn load_relations<E>(
     _db: &DatabaseConnection,
@@ -252,9 +452,44 @@ where
 ///
 /// ```rust,no_run
 /// use rf_orm::relationships::loading::CollectionExt;
-///
-/// let users = User::query(db.clone()).get().await?;
-/// let users_with_posts = users.load(&db, "posts").await?;
+/// use sea_orm::EntityTrait;
+/// # fn main() {}
+/// # mod user {
+/// #     use sea_orm::entity::prelude::*;
+/// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+/// #     #[sea_orm(table_name = "users")]
+/// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32 }
+/// #     #[derive(Copy, Clone, Debug, EnumIter)] pub enum Relation { Post }
+/// #     impl RelationTrait for Relation {
+/// #         fn def(&self) -> RelationDef { Entity::has_many(super::post::Entity).into() }
+/// #     }
+/// #     impl Related<super::post::Entity> for Entity {
+/// #         fn to() -> RelationDef { Relation::Post.def() }
+/// #     }
+/// #     impl ActiveModelBehavior for ActiveModel {}
+/// # }
+/// # mod post {
+/// #     use sea_orm::entity::prelude::*;
+/// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+/// #     #[sea_orm(table_name = "posts")]
+/// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub user_id: i32 }
+/// #     #[derive(Copy, Clone, Debug, EnumIter)] pub enum Relation { User }
+/// #     impl RelationTrait for Relation {
+/// #         fn def(&self) -> RelationDef {
+/// #             Entity::belongs_to(super::user::Entity)
+/// #                 .from(Column::UserId).to(super::user::Column::Id).into()
+/// #         }
+/// #     }
+/// #     impl Related<super::user::Entity> for Entity {
+/// #         fn to() -> RelationDef { Relation::User.def() }
+/// #     }
+/// #     impl ActiveModelBehavior for ActiveModel {}
+/// # }
+/// # async fn example(db: sea_orm::DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
+/// let mut users = user::Entity::find().all(&db).await?;
+/// users.load::<post::Entity>(&db, "posts").await?;
+/// # Ok(())
+/// # }
 /// ```
 #[async_trait]
 pub trait CollectionExt<E>
@@ -267,7 +502,36 @@ where
     /// # Example
     ///
     /// ```rust,no_run
-    /// let users_with_posts = users.load(&db, "posts").await?;
+    /// use rf_orm::relationships::loading::CollectionExt;
+    /// use sea_orm::EntityTrait;
+    /// # fn main() {}
+    /// # mod user {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "users")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32 }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter)] pub enum Relation { Post }
+    /// #     impl RelationTrait for Relation {
+    /// #         fn def(&self) -> RelationDef { Entity::has_many(super::post::Entity).into() }
+    /// #     }
+    /// #     impl Related<super::post::Entity> for Entity {
+    /// #         fn to() -> RelationDef { Relation::Post.def() }
+    /// #     }
+    /// #     impl ActiveModelBehavior for ActiveModel {}
+    /// # }
+    /// # mod post {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "posts")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub user_id: i32 }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {}
+    /// # }
+    /// # async fn example(db: sea_orm::DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
+    /// # let mut users = user::Entity::find().all(&db).await?;
+    /// users.load::<post::Entity>(&db, "posts").await?;
+    /// # Ok(())
+    /// # }
     /// ```
     async fn load<R>(&mut self, db: &DatabaseConnection, relation: &str) -> LoadResult<&mut Self>
     where
@@ -279,7 +543,22 @@ where
     /// # Example
     ///
     /// ```rust,no_run
-    /// let users_with_data = users.load_multiple(&db, &["posts", "comments"]).await?;
+    /// use rf_orm::relationships::loading::CollectionExt;
+    /// use sea_orm::EntityTrait;
+    /// # fn main() {}
+    /// # mod user {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "users")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32 }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {}
+    /// # }
+    /// # async fn example(db: sea_orm::DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
+    /// # let mut users = user::Entity::find().all(&db).await?;
+    /// users.load_multiple(&db, &["posts", "comments"]).await?;
+    /// # Ok(())
+    /// # }
     /// ```
     async fn load_multiple(
         &mut self,
@@ -320,9 +599,11 @@ where
 /// # Example
 ///
 /// ```rust,no_run
+/// use rf_orm::relationships::loading::should_eager_load;
+/// let config = ["posts", "comments"];
 /// let should_load_posts = should_eager_load("posts", &config);
 /// if should_load_posts {
-///     query = query.with_relation::<post::Entity>("posts");
+///     // e.g. add the relation to the query here
 /// }
 /// ```
 pub fn should_eager_load(relation: &str, eager_load_config: &[&str]) -> bool {
@@ -412,7 +693,15 @@ pub trait SupportsEagerLoading: EntityTrait {
 ///
 /// ```rust,no_run
 /// use rf_orm::supports_eager_loading;
-///
+/// # fn main() {}
+/// # mod user {
+/// #     use sea_orm::entity::prelude::*;
+/// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+/// #     #[sea_orm(table_name = "users")]
+/// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32 }
+/// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+/// #     impl ActiveModelBehavior for ActiveModel {}
+/// # }
 /// supports_eager_loading!(
 ///     user::Entity,
 ///     relations: ["posts", "comments", "profile"],

@@ -54,6 +54,7 @@ pub trait RelationshipHelpers: ModelTrait + Sized {
     ///
     /// ```rust,no_run
     /// use rf_orm::relationships::RelationshipHelpers;
+    /// # fn main() {}
     /// # mod user {
     /// #     use sea_orm::entity::prelude::*;
     /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
@@ -70,11 +71,11 @@ pub trait RelationshipHelpers: ModelTrait + Sized {
     /// #     #[derive(Copy, Clone, Debug, EnumIter)] pub enum Relation { User }
     /// #     impl RelationTrait for Relation {
     /// #         fn def(&self) -> RelationDef {
-    /// #             Entity::belongs_to(crate::user::Entity)
-    /// #                 .from(Column::UserId).to(crate::user::Column::Id).into()
+    /// #             Entity::belongs_to(super::user::Entity)
+    /// #                 .from(Column::UserId).to(super::user::Column::Id).into()
     /// #         }
     /// #     }
-    /// #     impl Related<crate::user::Entity> for Entity {
+    /// #     impl Related<super::user::Entity> for Entity {
     /// #         fn to() -> RelationDef { Relation::User.def() }
     /// #     }
     /// #     impl ActiveModelBehavior for ActiveModel {}
@@ -100,12 +101,22 @@ pub trait RelationshipHelpers: ModelTrait + Sized {
     ///
     /// ```rust,no_run
     /// use rf_orm::relationships::RelationshipHelpers;
+    /// # fn main() {}
     /// # mod post {
     /// #     use sea_orm::entity::prelude::*;
     /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
     /// #     #[sea_orm(table_name = "posts")]
     /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub user_id: i32 }
-    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     #[derive(Copy, Clone, Debug, EnumIter)] pub enum Relation { User }
+    /// #     impl RelationTrait for Relation {
+    /// #         fn def(&self) -> RelationDef {
+    /// #             Entity::belongs_to(super::user::Entity)
+    /// #                 .from(Column::UserId).to(super::user::Column::Id).into()
+    /// #         }
+    /// #     }
+    /// #     impl Related<super::user::Entity> for Entity {
+    /// #         fn to() -> RelationDef { Relation::User.def() }
+    /// #     }
     /// #     impl ActiveModelBehavior for ActiveModel {}
     /// # }
     /// # mod user {
@@ -116,10 +127,10 @@ pub trait RelationshipHelpers: ModelTrait + Sized {
     /// #     #[derive(Copy, Clone, Debug, EnumIter)] pub enum Relation { Post }
     /// #     impl RelationTrait for Relation {
     /// #         fn def(&self) -> RelationDef {
-    /// #             Entity::has_many(crate::post::Entity).into()
+    /// #             Entity::has_many(super::post::Entity).into()
     /// #         }
     /// #     }
-    /// #     impl Related<crate::post::Entity> for Entity {
+    /// #     impl Related<super::post::Entity> for Entity {
     /// #         fn to() -> RelationDef { Relation::Post.def() }
     /// #     }
     /// #     impl ActiveModelBehavior for ActiveModel {}
@@ -149,6 +160,7 @@ impl<T> RelationshipHelpers for T where T: ModelTrait {}
 ///
 /// ```rust,no_run
 /// use rf_orm::relationships::eager_load;
+/// # fn main() {}
 /// # mod user {
 /// #     use sea_orm::entity::prelude::*;
 /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
@@ -165,11 +177,11 @@ impl<T> RelationshipHelpers for T where T: ModelTrait {}
 /// #     #[derive(Copy, Clone, Debug, EnumIter)] pub enum Relation { User }
 /// #     impl RelationTrait for Relation {
 /// #         fn def(&self) -> RelationDef {
-/// #             Entity::belongs_to(crate::user::Entity)
-/// #                 .from(Column::UserId).to(crate::user::Column::Id).into()
+/// #             Entity::belongs_to(super::user::Entity)
+/// #                 .from(Column::UserId).to(super::user::Column::Id).into()
 /// #         }
 /// #     }
-/// #     impl Related<crate::user::Entity> for Entity {
+/// #     impl Related<super::user::Entity> for Entity {
 /// #         fn to() -> RelationDef { Relation::User.def() }
 /// #     }
 /// #     impl ActiveModelBehavior for ActiveModel {}
