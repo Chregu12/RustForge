@@ -39,19 +39,32 @@
 //! ## Example
 //!
 //! ```rust,no_run
-//! use rf_orm::relationships::morph_to_many::*;
-//!
-//! // Mark entities as morphable
-//! morphable!(post::Entity, "Post");
-//! morphable!(video::Entity, "Video");
-//!
-//! // In Post model implementation
+//! use rf_orm::relationships::morph_to_many::{morph_to_many, attach_morph, MorphToManyResult};
+//! use sea_orm::DatabaseConnection;
+//! # fn main() {}
+//! # mod post {
+//! #     use sea_orm::entity::prelude::*;
+//! #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+//! #     #[sea_orm(table_name = "posts")]
+//! #     pub struct Model { #[sea_orm(primary_key)] pub id: i32 }
+//! #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+//! #     impl ActiveModelBehavior for ActiveModel {}
+//! # }
+//! # mod tag {
+//! #     use sea_orm::entity::prelude::*;
+//! #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+//! #     #[sea_orm(table_name = "tags")]
+//! #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub name: String }
+//! #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+//! #     impl ActiveModelBehavior for ActiveModel {}
+//! # }
+//! // In the Post model implementation
 //! impl post::Model {
 //!     pub async fn tags(&self, db: &DatabaseConnection) -> MorphToManyResult<Vec<tag::Model>> {
 //!         morph_to_many::<tag::Entity>(
 //!             db,
 //!             "Post",
-//!             self.id,
+//!             self.id as i64,
 //!             "taggables",
 //!             "taggable",
 //!         ).await
@@ -61,7 +74,7 @@
 //!         attach_morph(
 //!             db,
 //!             "Post",
-//!             self.id,
+//!             self.id as i64,
 //!             "taggables",
 //!             "taggable",
 //!             "tag_id",
@@ -85,11 +98,22 @@ pub type MorphToManyResult<T> = Result<T, DbErr>;
 /// # Example
 ///
 /// ```rust,no_run
-/// use rf_orm::relationships::morph_to_many::MorphToMany;
-///
-/// // Posts can have tags
-/// impl MorphToMany<tag::Entity> for post::Model {
-///     // Implementation provided by helper functions
+/// use rf_orm::relationships::morph_to_many::{MorphToMany, MorphToManyResult};
+/// use sea_orm::{DatabaseConnection, EntityTrait};
+/// # mod tag {
+/// #     use sea_orm::entity::prelude::*;
+/// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+/// #     #[sea_orm(table_name = "tags")]
+/// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32 }
+/// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+/// #     impl ActiveModelBehavior for ActiveModel {} }
+/// // A model implementing `MorphToMany<tag::Entity>` can load its tags:
+/// async fn load_tags<M>(model: &M, db: &DatabaseConnection)
+///     -> MorphToManyResult<Vec<tag::Model>>
+/// where
+///     M: MorphToMany<tag::Entity>,
+/// {
+///     model.morph_to_many(db, "taggables", "taggable").await
 /// }
 /// ```
 #[async_trait]
@@ -105,7 +129,20 @@ pub trait MorphToMany<T: EntityTrait>: Sized {
     /// # Example
     ///
     /// ```rust,no_run
-    /// let tags = post.morph_to_many(&db, "taggables", "taggable").await?;
+    /// use rf_orm::relationships::morph_to_many::{MorphToMany, MorphToManyResult};
+    /// use sea_orm::DatabaseConnection;
+    /// # mod tag {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "tags")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32 }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {} }
+    /// async fn run<M: MorphToMany<tag::Entity>>(post: &M, db: &DatabaseConnection)
+    ///     -> MorphToManyResult<Vec<tag::Model>>
+    /// {
+    ///     post.morph_to_many(db, "taggables", "taggable").await
+    /// }
     /// ```
     async fn morph_to_many(
         &self,
@@ -126,7 +163,20 @@ pub trait MorphToMany<T: EntityTrait>: Sized {
     /// # Example
     ///
     /// ```rust,no_run
-    /// post.attach_morph(&db, "taggables", "taggable", tag_id).await?;
+    /// use rf_orm::relationships::morph_to_many::{MorphToMany, MorphToManyResult};
+    /// use sea_orm::DatabaseConnection;
+    /// # mod tag {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "tags")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32 }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {} }
+    /// async fn run<M: MorphToMany<tag::Entity>>(post: &M, db: &DatabaseConnection, tag_id: i64)
+    ///     -> MorphToManyResult<()>
+    /// {
+    ///     post.attach_morph(db, "taggables", "taggable", tag_id).await
+    /// }
     /// ```
     async fn attach_morph(
         &self,
@@ -141,7 +191,20 @@ pub trait MorphToMany<T: EntityTrait>: Sized {
     /// # Example
     ///
     /// ```rust,no_run
-    /// post.detach_morph(&db, "taggables", "taggable", tag_id).await?;
+    /// use rf_orm::relationships::morph_to_many::{MorphToMany, MorphToManyResult};
+    /// use sea_orm::DatabaseConnection;
+    /// # mod tag {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "tags")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32 }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {} }
+    /// async fn run<M: MorphToMany<tag::Entity>>(post: &M, db: &DatabaseConnection, tag_id: i64)
+    ///     -> MorphToManyResult<()>
+    /// {
+    ///     post.detach_morph(db, "taggables", "taggable", tag_id).await
+    /// }
     /// ```
     async fn detach_morph(
         &self,
@@ -163,7 +226,20 @@ pub trait MorphToMany<T: EntityTrait>: Sized {
     /// # Example
     ///
     /// ```rust,no_run
-    /// post.sync_morph(&db, "taggables", "taggable", &[1, 2, 3]).await?;
+    /// use rf_orm::relationships::morph_to_many::{MorphToMany, MorphToManyResult};
+    /// use sea_orm::DatabaseConnection;
+    /// # mod tag {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "tags")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32 }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {} }
+    /// async fn run<M: MorphToMany<tag::Entity>>(post: &M, db: &DatabaseConnection)
+    ///     -> MorphToManyResult<()>
+    /// {
+    ///     post.sync_morph(db, "taggables", "taggable", &[1, 2, 3]).await
+    /// }
     /// ```
     async fn sync_morph(
         &self,
@@ -178,7 +254,20 @@ pub trait MorphToMany<T: EntityTrait>: Sized {
     /// # Example
     ///
     /// ```rust,no_run
-    /// post.toggle_morph(&db, "taggables", "taggable", tag_id).await?;
+    /// use rf_orm::relationships::morph_to_many::{MorphToMany, MorphToManyResult};
+    /// use sea_orm::DatabaseConnection;
+    /// # mod tag {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "tags")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32 }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {} }
+    /// async fn run<M: MorphToMany<tag::Entity>>(post: &M, db: &DatabaseConnection, tag_id: i64)
+    ///     -> MorphToManyResult<bool>
+    /// {
+    ///     post.toggle_morph(db, "taggables", "taggable", tag_id).await
+    /// }
     /// ```
     async fn toggle_morph(
         &self,
@@ -202,6 +291,18 @@ pub trait MorphToMany<T: EntityTrait>: Sized {
 /// # Example
 ///
 /// ```rust,no_run
+/// use rf_orm::relationships::morph_to_many::morph_to_many;
+/// # fn main() {}
+/// # mod tag {
+/// #     use sea_orm::entity::prelude::*;
+/// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+/// #     #[sea_orm(table_name = "tags")]
+/// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub name: String }
+/// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+/// #     impl ActiveModelBehavior for ActiveModel {}
+/// # }
+/// # async fn example(db: sea_orm::DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
+/// # let post_id = 1i64;
 /// // Get all tags for a post
 /// let tags = morph_to_many::<tag::Entity>(
 ///     &db,
@@ -210,6 +311,8 @@ pub trait MorphToMany<T: EntityTrait>: Sized {
 ///     "taggables",
 ///     "taggable",
 /// ).await?;
+/// # Ok(())
+/// # }
 /// ```
 pub async fn morph_to_many<T>(
     db: &DatabaseConnection,
@@ -277,6 +380,9 @@ where
 /// # Example
 ///
 /// ```rust,no_run
+/// use rf_orm::relationships::morph_to_many::attach_morph;
+/// # async fn example(db: sea_orm::DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
+/// # let (post_id, tag_id) = (1i64, 2i64);
 /// attach_morph(
 ///     &db,
 ///     "Post",
@@ -286,6 +392,8 @@ where
 ///     "tag_id",
 ///     tag_id,
 /// ).await?;
+/// # Ok(())
+/// # }
 /// ```
 pub async fn attach_morph(
     db: &DatabaseConnection,
@@ -342,6 +450,9 @@ pub async fn attach_morph(
 /// # Example
 ///
 /// ```rust,no_run
+/// use rf_orm::relationships::morph_to_many::detach_morph;
+/// # async fn example(db: sea_orm::DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
+/// # let (post_id, tag_id) = (1i64, 2i64);
 /// detach_morph(
 ///     &db,
 ///     "Post",
@@ -351,6 +462,8 @@ pub async fn attach_morph(
 ///     "tag_id",
 ///     tag_id,
 /// ).await?;
+/// # Ok(())
+/// # }
 /// ```
 pub async fn detach_morph(
     db: &DatabaseConnection,
@@ -391,6 +504,9 @@ pub async fn detach_morph(
 /// # Example
 ///
 /// ```rust,no_run
+/// use rf_orm::relationships::morph_to_many::sync_morph;
+/// # async fn example(db: sea_orm::DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
+/// # let post_id = 1i64;
 /// // Replace all tags with new ones
 /// sync_morph(
 ///     &db,
@@ -401,6 +517,8 @@ pub async fn detach_morph(
 ///     "tag_id",
 ///     &[1, 2, 3],
 /// ).await?;
+/// # Ok(())
+/// # }
 /// ```
 pub async fn sync_morph(
     db: &DatabaseConnection,
@@ -456,6 +574,9 @@ pub async fn sync_morph(
 /// # Example
 ///
 /// ```rust,no_run
+/// use rf_orm::relationships::morph_to_many::toggle_morph;
+/// # async fn example(db: sea_orm::DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
+/// # let (post_id, tag_id) = (1i64, 2i64);
 /// let attached = toggle_morph(
 ///     &db,
 ///     "Post",
@@ -471,6 +592,8 @@ pub async fn sync_morph(
 /// } else {
 ///     println!("Tag detached");
 /// }
+/// # Ok(())
+/// # }
 /// ```
 pub async fn toggle_morph(
     db: &DatabaseConnection,
@@ -565,6 +688,18 @@ async fn check_morph_exists(
 /// # Example
 ///
 /// ```rust,no_run
+/// use rf_orm::relationships::morph_to_many::MorphToManyBuilder;
+/// # fn main() {}
+/// # mod tag {
+/// #     use sea_orm::entity::prelude::*;
+/// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+/// #     #[sea_orm(table_name = "tags")]
+/// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub name: String }
+/// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+/// #     impl ActiveModelBehavior for ActiveModel {}
+/// # }
+/// # async fn example(db: sea_orm::DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
+/// # let post_id = 1i64;
 /// let tags = MorphToManyBuilder::<tag::Entity>::new(
 ///     db.clone(),
 ///     "Post",
@@ -577,6 +712,8 @@ async fn check_morph_exists(
 /// .limit(10)
 /// .get()
 /// .await?;
+/// # Ok(())
+/// # }
 /// ```
 pub struct MorphToManyBuilder<T>
 where

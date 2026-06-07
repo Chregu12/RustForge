@@ -44,9 +44,8 @@
 //!     .await?;
 //!
 //! // Transactions with automatic rollback
-//! db.connection().transaction(|tx| async move {
-//!     let _tx = tx;
-//!     // ... run queries against `_tx` here ...
+//! db.connection().transaction(|_tx| async move {
+//!     // ... run queries against the transaction handle here ...
 //!     Ok::<(), sea_orm::DbErr>(())
 //! }).await?;
 //! # Ok(())
@@ -85,6 +84,7 @@
 //! ```rust,no_run
 //! # use rf_orm::prelude::*;
 //! # use sea_orm::EntityTrait;
+//! # fn main() {}
 //! # mod user {
 //! #     use sea_orm::entity::prelude::*;
 //! #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]

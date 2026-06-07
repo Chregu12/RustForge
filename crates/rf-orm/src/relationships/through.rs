@@ -24,13 +24,39 @@
 //! ## Example
 //!
 //! ```rust,no_run
-//! use rf_orm::relationships::through::*;
-//!
+//! use rf_orm::relationships::through::{has_many_through, has_one_through};
+//! use sea_orm::EntityTrait;
+//! # fn main() {}
+//! # mod country {
+//! #     use sea_orm::entity::prelude::*;
+//! #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+//! #     #[sea_orm(table_name = "countries")]
+//! #     pub struct Model { #[sea_orm(primary_key)] pub id: i32 }
+//! #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+//! #     impl ActiveModelBehavior for ActiveModel {}
+//! # }
+//! # mod user {
+//! #     use sea_orm::entity::prelude::*;
+//! #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+//! #     #[sea_orm(table_name = "users")]
+//! #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub country_id: i32 }
+//! #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+//! #     impl ActiveModelBehavior for ActiveModel {}
+//! # }
+//! # mod post {
+//! #     use sea_orm::entity::prelude::*;
+//! #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+//! #     #[sea_orm(table_name = "posts")]
+//! #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub user_id: i32 }
+//! #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+//! #     impl ActiveModelBehavior for ActiveModel {}
+//! # }
+//! # async fn example(db: sea_orm::DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
 //! // Get all posts in a country
-//! let country = Country::find_by_id(1).one(&db).await?.unwrap();
+//! let country = country::Entity::find_by_id(1).one(&db).await?.unwrap();
 //! let posts = has_many_through::<post::Entity, user::Entity>(
 //!     &db,
-//!     country.id,
+//!     country.id as i64,
 //!     "country_id",  // FK in User table
 //!     "user_id",     // FK in Post table
 //! ).await?;
@@ -38,10 +64,12 @@
 //! // Get the latest post in a country
 //! let latest_post = has_one_through::<post::Entity, user::Entity>(
 //!     &db,
-//!     country.id,
+//!     country.id as i64,
 //!     "country_id",
 //!     "user_id",
-//! ).await?;
+//! ).first().await?;
+//! # Ok(())
+//! # }
 //! ```
 
 use async_trait::async_trait;
@@ -58,12 +86,39 @@ pub type ThroughResult<T> = Result<T, DbErr>;
 /// # Example
 ///
 /// ```rust,no_run
+/// use rf_orm::relationships::through::{has_one_through, ThroughResult};
+/// use sea_orm::DatabaseConnection;
+/// # fn main() {}
+/// # mod user {
+/// #     use sea_orm::entity::prelude::*;
+/// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+/// #     #[sea_orm(table_name = "users")]
+/// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub country_id: i32 }
+/// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+/// #     impl ActiveModelBehavior for ActiveModel {}
+/// # }
+/// # mod post {
+/// #     use sea_orm::entity::prelude::*;
+/// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+/// #     #[sea_orm(table_name = "posts")]
+/// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub user_id: i32 }
+/// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+/// #     impl ActiveModelBehavior for ActiveModel {}
+/// # }
+/// # mod country {
+/// #     use sea_orm::entity::prelude::*;
+/// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+/// #     #[sea_orm(table_name = "countries")]
+/// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32 }
+/// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+/// #     impl ActiveModelBehavior for ActiveModel {}
+/// # }
 /// // Country has one latest post through users
 /// impl country::Model {
 ///     pub async fn latest_post(&self, db: &DatabaseConnection) -> ThroughResult<Option<post::Model>> {
 ///         has_one_through::<post::Entity, user::Entity>(
 ///             db,
-///             self.id,
+///             self.id as i64,
 ///             "country_id",
 ///             "user_id",
 ///         )

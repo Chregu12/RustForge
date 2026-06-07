@@ -142,10 +142,34 @@ pub type PolymorphicResult<T> = Result<T, DbErr>;
 /// # Example
 ///
 /// ```rust,no_run
-/// // In Comment model
+/// use rf_orm::polymorphic::{morph_to, Morphable, PolymorphicResult};
+/// use sea_orm::DatabaseConnection;
+/// # fn main() {}
+/// # mod post {
+/// #     use sea_orm::entity::prelude::*;
+/// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+/// #     #[sea_orm(table_name = "posts")]
+/// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32 }
+/// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+/// #     impl ActiveModelBehavior for ActiveModel {}
+/// # }
+/// # impl Morphable for post::Entity {
+/// #     fn morph_name() -> &'static str { "Post" }
+/// # }
+/// # mod comment {
+/// #     use sea_orm::entity::prelude::*;
+/// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+/// #     #[sea_orm(table_name = "comments")]
+/// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub commentable_type: String, pub commentable_id: i32 }
+/// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+/// #     impl ActiveModelBehavior for ActiveModel {}
+/// # }
+/// // In the Comment model: load its polymorphic parent (a Post)
 /// impl comment::Model {
-///     pub async fn commentable(&self, db: &DatabaseConnection) -> PolymorphicResult<MorphToResult> {
-///         morph_to(db, &self.commentable_type, self.commentable_id).await
+///     pub async fn commentable(&self, db: &DatabaseConnection)
+///         -> PolymorphicResult<Option<post::Model>>
+///     {
+///         morph_to::<post::Entity>(db, &self.commentable_type, self.commentable_id as i64).await
 ///     }
 /// }
 /// ```
@@ -169,10 +193,31 @@ pub trait MorphTo {
 /// # Example
 ///
 /// ```rust,no_run
-/// // In Post model
+/// use rf_orm::polymorphic::{morph_many, PolymorphicResult};
+/// use sea_orm::DatabaseConnection;
+/// # fn main() {}
+/// # mod post {
+/// #     use sea_orm::entity::prelude::*;
+/// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+/// #     #[sea_orm(table_name = "posts")]
+/// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32 }
+/// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+/// #     impl ActiveModelBehavior for ActiveModel {}
+/// # }
+/// # mod comment {
+/// #     use sea_orm::entity::prelude::*;
+/// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+/// #     #[sea_orm(table_name = "comments")]
+/// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub commentable_type: String, pub commentable_id: i32 }
+/// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+/// #     impl ActiveModelBehavior for ActiveModel {}
+/// # }
+/// // In the Post model: load all its comments
 /// impl post::Model {
-///     pub async fn comments(&self, db: &DatabaseConnection) -> PolymorphicResult<Vec<comment::Model>> {
-///         morph_many::<comment::Entity>(db, "Post", self.id, "commentable").await
+///     pub async fn comments(&self, db: &DatabaseConnection)
+///         -> PolymorphicResult<Vec<comment::Model>>
+///     {
+///         morph_many::<comment::Entity>(db, "Post", self.id as i64, "commentable").await
 ///     }
 /// }
 /// ```
@@ -230,7 +275,23 @@ pub trait MorphToMany<E: EntityTrait> {
 /// # Example
 ///
 /// ```rust,no_run
+/// use rf_orm::polymorphic::{morph_to, Morphable};
+/// # fn main() {}
+/// # mod post {
+/// #     use sea_orm::entity::prelude::*;
+/// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+/// #     #[sea_orm(table_name = "posts")]
+/// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32 }
+/// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+/// #     impl ActiveModelBehavior for ActiveModel {}
+/// # }
+/// # impl Morphable for post::Entity {
+/// #     fn morph_name() -> &'static str { "Post" }
+/// # }
+/// # async fn example(db: sea_orm::DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
 /// let parent = morph_to::<post::Entity>(&db, "Post", 123).await?;
+/// # Ok(())
+/// # }
 /// ```
 pub async fn morph_to<E>(
     db: &DatabaseConnection,
@@ -262,7 +323,20 @@ where
 /// # Example
 ///
 /// ```rust,no_run
+/// use rf_orm::polymorphic::morph_many;
+/// # fn main() {}
+/// # mod comment {
+/// #     use sea_orm::entity::prelude::*;
+/// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+/// #     #[sea_orm(table_name = "comments")]
+/// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub commentable_type: String, pub commentable_id: i32 }
+/// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+/// #     impl ActiveModelBehavior for ActiveModel {}
+/// # }
+/// # async fn example(db: sea_orm::DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
 /// let comments = morph_many::<comment::Entity>(&db, "Post", 123, "commentable").await?;
+/// # Ok(())
+/// # }
 /// ```
 pub async fn morph_many<E>(
     db: &DatabaseConnection,
@@ -306,6 +380,17 @@ where
 /// # Example
 ///
 /// ```rust,no_run
+/// use rf_orm::polymorphic::PolymorphicQueryBuilder;
+/// # fn main() {}
+/// # mod comment {
+/// #     use sea_orm::entity::prelude::*;
+/// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+/// #     #[sea_orm(table_name = "comments")]
+/// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub commentable_type: String, pub commentable_id: i32 }
+/// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+/// #     impl ActiveModelBehavior for ActiveModel {}
+/// # }
+/// # async fn example(db: sea_orm::DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
 /// let comments = PolymorphicQueryBuilder::new()
 ///     .morph_type("Post")
 ///     .morph_id(123)
@@ -315,6 +400,8 @@ where
 ///     .limit(10)
 ///     .get::<comment::Entity>(&db)
 ///     .await?;
+/// # Ok(())
+/// # }
 /// ```
 #[derive(Default)]
 pub struct PolymorphicQueryBuilder {
@@ -428,6 +515,10 @@ impl PolymorphicQueryBuilder {
 /// # Example
 ///
 /// ```rust,no_run
+/// use rf_orm::polymorphic::MorphableType;
+/// fn handle_post(_post: String) {}
+/// fn handle_video(_video: String) {}
+/// let parent: MorphableType<String, String> = MorphableType::Post("p".to_string());
 /// match parent {
 ///     MorphableType::Post(post) => handle_post(post),
 ///     MorphableType::Video(video) => handle_video(video),

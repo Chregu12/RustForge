@@ -12,10 +12,9 @@ use std::future::Future;
 /// # async fn example(db: DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
 /// // The closure receives a transaction handle. If it returns `Err`, the
 /// // transaction is rolled back automatically; on `Ok` it is committed.
-/// let result: Result<(), sea_orm::DbErr> = Transaction::run(&db, |tx| async move {
-///     let _tx = tx;
-///     // ... run queries against `_tx` here ...
-///     Ok(())
+/// Transaction::run(&db, |_tx| async move {
+///     // ... run queries against the transaction handle here ...
+///     Ok::<(), sea_orm::DbErr>(())
 /// }).await?;
 /// # Ok(())
 /// # }
@@ -34,9 +33,8 @@ impl Transaction {
     /// # use rf_orm::transaction::Transaction;
     /// # use sea_orm::{DatabaseConnection, ConnectionTrait};
     /// # async fn example(db: DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
-    /// Transaction::run(&db, |tx| async move {
-    ///     let _tx = tx;
-    ///     // ... run queries against `_tx` here ...
+    /// Transaction::run(&db, |_tx| async move {
+    ///     // ... run queries against the transaction handle here ...
     ///     Ok::<(), sea_orm::DbErr>(())
     /// }).await?;
     /// # Ok(())
@@ -98,9 +96,8 @@ pub trait TransactionExt {
     /// # use rf_orm::transaction::TransactionExt;
     /// # use sea_orm::{DatabaseConnection, ConnectionTrait};
     /// # async fn example(db: DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
-    /// db.transaction(|tx| async move {
-    ///     let _tx = tx;
-    ///     // ... run queries against `_tx` here ...
+    /// db.transaction(|_tx| async move {
+    ///     // ... run queries against the transaction handle here ...
     ///     Ok::<(), sea_orm::DbErr>(())
     /// }).await?;
     /// # Ok(())
@@ -130,15 +127,13 @@ impl TransactionExt for DatabaseConnection {
 /// # use rf_orm::transaction::TransactionExt;
 /// # use sea_orm::DatabaseConnection;
 /// # async fn example(db: DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
-/// db.transaction(|tx| async move {
-///     let tx = tx;
+/// db.transaction(|_tx| async move {
 ///     // Create a savepoint, then run nested work:
 ///     //   let savepoint = Savepoint::create(tx, "my_savepoint").await?;
 ///     //   match do_work(tx).await {
 ///     //       Ok(_)  => savepoint.release().await?,
 ///     //       Err(_) => savepoint.rollback().await?,
 ///     //   }
-///     let _ = tx;
 ///     Ok::<(), sea_orm::DbErr>(())
 /// }).await?;
 /// # Ok(())

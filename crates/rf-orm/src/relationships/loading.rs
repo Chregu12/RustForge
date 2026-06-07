@@ -496,7 +496,7 @@ where
 /// # }
 /// # async fn example(db: sea_orm::DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
 /// let mut users = user::Entity::find().all(&db).await?;
-/// users.load::<post::Entity>(&db, "posts").await?;
+/// CollectionExt::<user::Entity>::load::<post::Entity>(&mut users, &db, "posts").await?;
 /// # Ok(())
 /// # }
 /// ```
@@ -547,7 +547,7 @@ where
     /// # }
     /// # async fn example(db: sea_orm::DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
     /// # let mut users = user::Entity::find().all(&db).await?;
-    /// users.load::<post::Entity>(&db, "posts").await?;
+    /// CollectionExt::<user::Entity>::load::<post::Entity>(&mut users, &db, "posts").await?;
     /// # Ok(())
     /// # }
     /// ```
@@ -574,7 +574,7 @@ where
     /// # }
     /// # async fn example(db: sea_orm::DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
     /// # let mut users = user::Entity::find().all(&db).await?;
-    /// users.load_multiple(&db, &["posts", "comments"]).await?;
+    /// CollectionExt::<user::Entity>::load_multiple(&mut users, &db, &["posts", "comments"]).await?;
     /// # Ok(())
     /// # }
     /// ```
