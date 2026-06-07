@@ -7,7 +7,7 @@ use inflector::Inflector;
 ///
 /// This macro makes defining models as simple as Laravel:
 ///
-/// ```rust
+/// ```text
 /// // Laravel:  class User extends Model
 /// // RustForge:
 /// #[model]
@@ -19,9 +19,13 @@ use inflector::Inflector;
 /// }
 /// ```
 ///
+/// Note: this example is shown as `text` because the `#[model]` macro
+/// expands to code that depends on `sea_orm` and `rf_db_facade::Model`,
+/// neither wired up as a dev-dependency of this proc-macro crate.
+///
 /// Then use Laravel-style static methods:
 ///
-/// ```rust
+/// ```text
 /// // Find by ID
 /// let user = User::find(1).await?;
 ///
@@ -170,7 +174,7 @@ pub fn model(_attr: TokenStream, item: TokenStream) -> TokenStream {
 /// Relations macro for defining model relationships
 ///
 /// # Example
-/// ```rust
+/// ```text
 /// #[relations]
 /// impl User {
 ///     fn posts() -> HasMany<Post> {

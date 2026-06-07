@@ -10,7 +10,7 @@
 //!
 //! # Quick Start
 //!
-//! ```rust
+//! ```rust,no_run
 //! use rf_package_dev::{Package, AssetType};
 //!
 //! # async fn example() -> anyhow::Result<()> {
@@ -19,7 +19,8 @@
 //!     .author("Your Name <you@example.com>")
 //!     .config("config/my-package.toml")
 //!     .migration("create_my_table")
-//!     .view("templates/my-package");
+//!     .view("templates/my-package")
+//!     .build()?;
 //!
 //! // Publish assets
 //! package.publish(AssetType::Config, "target/config").await?;

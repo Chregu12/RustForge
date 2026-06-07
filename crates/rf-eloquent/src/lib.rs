@@ -33,7 +33,7 @@
 //!     title: String,
 //! }
 //!
-//! # async fn example(db: &sea_orm::DatabaseConnection) -> Result<()> {
+//! # async fn example(db: &sea_orm::DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
 //! // Relationships
 //! // let user = User::find(1).await?;
 //! // let posts = user.has_many::<Post, _>(db, "user_id").get().await?;

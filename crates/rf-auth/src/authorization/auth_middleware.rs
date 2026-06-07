@@ -23,11 +23,14 @@ use tower::{Layer, Service};
 /// use axum::{Router, routing::get};
 /// use rf_auth::authorization::auth_middleware::AuthorizeGateLayer;
 ///
+/// #[derive(Clone)]
+/// struct User;
+///
 /// # async fn admin_handler() -> &'static str { "Admin only" }
 /// # fn example() {
-/// let app = Router::new()
+/// let app: Router = Router::new()
 ///     .route("/admin", get(admin_handler))
-///     .layer(AuthorizeGateLayer::new("admin"));
+///     .layer(AuthorizeGateLayer::<User>::new("admin"));
 /// # }
 /// ```
 #[derive(Clone)]

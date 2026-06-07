@@ -15,37 +15,38 @@
 //!
 //! ```rust,no_run
 //! use rf_eloquent::prelude::*;
-//! use sea_orm::{EntityTrait, QueryFilter, ColumnTrait};
+//! use sea_orm::{EntityTrait, QueryFilter, ColumnTrait, Select};
+//! # fn main() {}
+//! # mod user {
+//! #     use sea_orm::entity::prelude::*;
+//! #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+//! #     #[sea_orm(table_name = "users")]
+//! #     pub struct Model {
+//! #         #[sea_orm(primary_key)] pub id: i32,
+//! #         pub active: bool,
+//! #         pub email_verified_at: Option<DateTimeUtc>,
+//! #         pub subscription_tier: String,
+//! #     }
+//! #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+//! #     impl ActiveModelBehavior for ActiveModel {}
+//! # }
 //!
-//! // Define scopes on your entity
-//! impl user::Entity {
-//!     pub fn active<S>(select: S) -> S
-//!     where
-//!         S: QueryFilter,
-//!     {
-//!         select.filter(user::Column::Active.eq(true))
-//!     }
-//!
-//!     pub fn verified<S>(select: S) -> S
-//!     where
-//!         S: QueryFilter,
-//!     {
-//!         select.filter(user::Column::EmailVerifiedAt.is_not_null())
-//!     }
-//!
-//!     pub fn premium<S>(select: S) -> S
-//!     where
-//!         S: QueryFilter,
-//!     {
-//!         select.filter(user::Column::SubscriptionTier.eq("premium"))
-//!     }
+//! // Define reusable scopes as functions over `Select<user::Entity>`.
+//! fn active(q: Select<user::Entity>) -> Select<user::Entity> {
+//!     q.filter(user::Column::Active.eq(true))
 //! }
 //!
-//! // Use scopes in queries
+//! fn verified(q: Select<user::Entity>) -> Select<user::Entity> {
+//!     q.filter(user::Column::EmailVerifiedAt.is_not_null())
+//! }
+//!
+//! fn premium(q: Select<user::Entity>) -> Select<user::Entity> {
+//!     q.filter(user::Column::SubscriptionTier.eq("premium"))
+//! }
+//!
+//! // Use scopes in queries by composing them.
 //! # async fn example(db: &sea_orm::DatabaseConnection) -> Result<(), sea_orm::DbErr> {
-//! let users = user::Entity::find()
-//!     .apply_if(user::Entity::active)
-//!     .apply_if(user::Entity::verified)
+//! let users = premium(verified(active(user::Entity::find())))
 //!     .all(db)
 //!     .await?;
 //! # Ok(())
@@ -105,11 +106,21 @@ static GLOBAL_SCOPE_REGISTRY: Lazy<
 /// ```rust,no_run
 /// use rf_eloquent::scopes::add_global_scope;
 /// use sea_orm::{EntityTrait, QueryFilter, ColumnTrait};
-///
+/// # fn main() {}
+/// # mod user {
+/// #     use sea_orm::entity::prelude::*;
+/// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+/// #     #[sea_orm(table_name = "users")]
+/// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub deleted_at: Option<DateTimeUtc> }
+/// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+/// #     impl ActiveModelBehavior for ActiveModel {}
+/// # }
+/// # fn doc() {
 /// // Automatically filter soft-deleted rows for all user queries
 /// add_global_scope::<user::Entity, _>("active", |q| {
 ///     q.filter(user::Column::DeletedAt.is_null())
 /// });
+/// # }
 /// ```
 pub fn add_global_scope<E, F>(name: impl Into<String>, scope: F)
 where
@@ -150,8 +161,18 @@ where
 /// ```rust,no_run
 /// use rf_eloquent::scopes::apply_global_scopes;
 /// use sea_orm::EntityTrait;
-///
+/// # fn main() {}
+/// # mod user {
+/// #     use sea_orm::entity::prelude::*;
+/// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+/// #     #[sea_orm(table_name = "users")]
+/// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32 }
+/// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+/// #     impl ActiveModelBehavior for ActiveModel {}
+/// # }
+/// # fn doc() {
 /// let query = apply_global_scopes::<user::Entity>(user::Entity::find());
+/// # }
 /// ```
 pub fn apply_global_scopes<E>(select: Select<E>) -> Select<E>
 where
@@ -184,7 +205,17 @@ where
 ///
 /// ```rust,no_run
 /// use rf_eloquent::scopes::without_global_scopes;
-///
+/// use sea_orm::EntityTrait;
+/// # fn main() {}
+/// # mod user {
+/// #     use sea_orm::entity::prelude::*;
+/// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+/// #     #[sea_orm(table_name = "users")]
+/// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32 }
+/// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+/// #     impl ActiveModelBehavior for ActiveModel {}
+/// # }
+/// # fn doc() {
 /// let result = without_global_scopes::<user::Entity, _, _>(
 ///     vec!["active".to_string()],
 ///     || {
@@ -192,6 +223,7 @@ where
 ///         user::Entity::find()
 ///     },
 /// );
+/// # }
 /// ```
 pub fn without_global_scopes<E, F, R>(scope_names: Vec<String>, f: F) -> R
 where

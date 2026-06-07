@@ -3,7 +3,7 @@
 /// # Examples
 ///
 /// ```
-/// use foundry_advanced_input::parse_array;
+/// use rf_advanced_input::parse_array;
 ///
 /// let tags = parse_array("tag1,tag2,tag3");
 /// assert_eq!(tags, vec!["tag1", "tag2", "tag3"]);
@@ -28,7 +28,7 @@ pub fn parse_array(input: &str) -> Vec<&str> {
 /// # Examples
 ///
 /// ```
-/// use foundry_advanced_input::parse_numeric_array;
+/// use rf_advanced_input::parse_numeric_array;
 ///
 /// let ids = parse_numeric_array::<i32>("1,2,3,4,5").unwrap();
 /// assert_eq!(ids, vec![1, 2, 3, 4, 5]);

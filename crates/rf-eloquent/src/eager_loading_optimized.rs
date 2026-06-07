@@ -18,17 +18,29 @@
 //!
 //! ```rust,no_run
 //! use rf_eloquent::eager_loading_optimized::*;
+//! use rf_eloquent::prelude::*;
+//! use sea_orm::DatabaseConnection;
+//! use std::any::Any;
 //!
-//! # async fn example(db: &DatabaseConnection) -> Result<()> {
+//! // The loaded model type must implement `EagerLoadable`.
+//! struct User { id: i32 }
+//! impl EagerLoadable for User {
+//!     type PrimaryKey = i32;
+//!     fn primary_key(&self) -> i32 { self.id }
+//!     fn set_loaded_relation(&mut self, _name: &str, _data: Box<dyn Any + Send + Sync>) {}
+//!     fn get_loaded_relation(&self, _name: &str) -> Option<&(dyn Any + Send + Sync)> { None }
+//! }
+//!
+//! # async fn example(db: &DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
 //! // Load users with posts and comments in parallel
-//! let users = OptimizedEagerLoader::new(db)
+//! let users: Vec<User> = OptimizedEagerLoader::new(db)
 //!     .with_parallel(&["posts", "comments"])
 //!     .batch_size(1000)
 //!     .load::<User>()
 //!     .await?;
 //!
 //! // Load nested relations with optimization
-//! let users = OptimizedEagerLoader::new(db)
+//! let users: Vec<User> = OptimizedEagerLoader::new(db)
 //!     .with_nested("posts.comments.author")
 //!     .enable_query_consolidation()
 //!     .load::<User>()
