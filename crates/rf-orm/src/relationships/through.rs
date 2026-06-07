@@ -147,12 +147,39 @@ pub trait HasOneThrough<T: EntityTrait, I: EntityTrait> {
 /// # Example
 ///
 /// ```rust,no_run
+/// use rf_orm::relationships::through::{has_many_through, ThroughResult};
+/// use sea_orm::DatabaseConnection;
+/// # fn main() {}
+/// # mod user {
+/// #     use sea_orm::entity::prelude::*;
+/// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+/// #     #[sea_orm(table_name = "users")]
+/// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub country_id: i32 }
+/// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+/// #     impl ActiveModelBehavior for ActiveModel {}
+/// # }
+/// # mod post {
+/// #     use sea_orm::entity::prelude::*;
+/// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+/// #     #[sea_orm(table_name = "posts")]
+/// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub user_id: i32 }
+/// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+/// #     impl ActiveModelBehavior for ActiveModel {}
+/// # }
+/// # mod country {
+/// #     use sea_orm::entity::prelude::*;
+/// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+/// #     #[sea_orm(table_name = "countries")]
+/// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32 }
+/// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+/// #     impl ActiveModelBehavior for ActiveModel {}
+/// # }
 /// // Country has many posts through users
 /// impl country::Model {
 ///     pub async fn posts(&self, db: &DatabaseConnection) -> ThroughResult<Vec<post::Model>> {
 ///         has_many_through::<post::Entity, user::Entity>(
 ///             db,
-///             self.id,
+///             self.id as i64,
 ///             "country_id",
 ///             "user_id",
 ///         ).await
@@ -189,6 +216,26 @@ pub trait HasManyThrough<T: EntityTrait, I: EntityTrait> {
 /// # Example
 ///
 /// ```rust,no_run
+/// use rf_orm::relationships::through::has_one_through;
+/// # fn main() {}
+/// # mod user {
+/// #     use sea_orm::entity::prelude::*;
+/// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+/// #     #[sea_orm(table_name = "users")]
+/// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub country_id: i32 }
+/// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+/// #     impl ActiveModelBehavior for ActiveModel {}
+/// # }
+/// # mod post {
+/// #     use sea_orm::entity::prelude::*;
+/// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+/// #     #[sea_orm(table_name = "posts")]
+/// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub user_id: i32 }
+/// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+/// #     impl ActiveModelBehavior for ActiveModel {}
+/// # }
+/// # async fn example(db: sea_orm::DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
+/// # let country_id = 1i64;
 /// // Country -> User -> Post (get latest post)
 /// let latest_post = has_one_through::<post::Entity, user::Entity>(
 ///     &db,
@@ -199,6 +246,8 @@ pub trait HasManyThrough<T: EntityTrait, I: EntityTrait> {
 /// .order_by_desc("created_at")
 /// .first()
 /// .await?;
+/// # Ok(())
+/// # }
 /// ```
 pub fn has_one_through<'a, T, I>(
     db: &'a DatabaseConnection,
@@ -228,6 +277,26 @@ where
 /// # Example
 ///
 /// ```rust,no_run
+/// use rf_orm::relationships::through::has_many_through;
+/// # fn main() {}
+/// # mod user {
+/// #     use sea_orm::entity::prelude::*;
+/// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+/// #     #[sea_orm(table_name = "users")]
+/// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub country_id: i32 }
+/// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+/// #     impl ActiveModelBehavior for ActiveModel {}
+/// # }
+/// # mod post {
+/// #     use sea_orm::entity::prelude::*;
+/// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+/// #     #[sea_orm(table_name = "posts")]
+/// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub user_id: i32 }
+/// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+/// #     impl ActiveModelBehavior for ActiveModel {}
+/// # }
+/// # async fn example(db: sea_orm::DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
+/// # let country_id = 1i64;
 /// // Country -> User -> Post (get all posts)
 /// let posts = has_many_through::<post::Entity, user::Entity>(
 ///     &db,
@@ -235,6 +304,8 @@ where
 ///     "country_id",
 ///     "user_id",
 /// ).await?;
+/// # Ok(())
+/// # }
 /// ```
 pub async fn has_many_through<'a, T, I>(
     db: &'a DatabaseConnection,
@@ -259,8 +330,28 @@ where
 /// # Example
 ///
 /// ```rust,no_run
+/// use rf_orm::relationships::through::ThroughQueryBuilder;
+/// # fn main() {}
+/// # mod user {
+/// #     use sea_orm::entity::prelude::*;
+/// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+/// #     #[sea_orm(table_name = "users")]
+/// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub country_id: i32 }
+/// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+/// #     impl ActiveModelBehavior for ActiveModel {}
+/// # }
+/// # mod post {
+/// #     use sea_orm::entity::prelude::*;
+/// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+/// #     #[sea_orm(table_name = "posts")]
+/// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub user_id: i32 }
+/// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+/// #     impl ActiveModelBehavior for ActiveModel {}
+/// # }
+/// # async fn example(db: sea_orm::DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
+/// # let country_id = 1i64;
 /// let posts = ThroughQueryBuilder::<post::Entity, user::Entity>::new(
-///     db.clone(),
+///     &db,
 ///     country_id,
 ///     "country_id",
 ///     "user_id",
@@ -270,6 +361,8 @@ where
 /// .limit(10)
 /// .get()
 /// .await?;
+/// # Ok(())
+/// # }
 /// ```
 pub struct ThroughQueryBuilder<'a, T, I>
 where
@@ -319,7 +412,29 @@ where
     /// # Example
     ///
     /// ```rust,no_run
-    /// builder.where_raw("posts.published = true")
+    /// use rf_orm::relationships::through::has_one_through;
+    /// # fn main() {}
+    /// # mod user {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "users")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub country_id: i32 }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {}
+    /// # }
+    /// # mod post {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "posts")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub user_id: i32 }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {}
+    /// # }
+    /// # fn build(db: &sea_orm::DatabaseConnection) {
+    /// let builder = has_one_through::<post::Entity, user::Entity>(db, 1, "country_id", "user_id");
+    /// let builder = builder.where_raw("posts.published = true");
+    /// # let _ = builder;
+    /// # }
     /// ```
     pub fn where_raw(mut self, clause: &str) -> Self {
         self.where_clauses.push(clause.to_string());
@@ -331,7 +446,29 @@ where
     /// # Example
     ///
     /// ```rust,no_run
-    /// builder.order_by("posts.created_at", "desc")
+    /// use rf_orm::relationships::through::has_one_through;
+    /// # fn main() {}
+    /// # mod user {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "users")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub country_id: i32 }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {}
+    /// # }
+    /// # mod post {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "posts")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub user_id: i32 }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {}
+    /// # }
+    /// # fn build(db: &sea_orm::DatabaseConnection) {
+    /// let builder = has_one_through::<post::Entity, user::Entity>(db, 1, "country_id", "user_id");
+    /// let builder = builder.order_by("posts.created_at", "desc");
+    /// # let _ = builder;
+    /// # }
     /// ```
     pub fn order_by(mut self, column: &str, direction: &str) -> Self {
         self.order_by = Some((column.to_string(), direction.to_string()));
@@ -365,7 +502,29 @@ where
     /// # Example
     ///
     /// ```rust,no_run
+    /// use rf_orm::relationships::through::has_one_through;
+    /// # fn main() {}
+    /// # mod user {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "users")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub country_id: i32 }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {}
+    /// # }
+    /// # mod post {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "posts")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub user_id: i32 }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {}
+    /// # }
+    /// # async fn example(db: sea_orm::DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
+    /// let builder = has_one_through::<post::Entity, user::Entity>(&db, 1, "country_id", "user_id");
     /// let post = builder.first().await?;
+    /// # Ok(())
+    /// # }
     /// ```
     pub async fn first(mut self) -> ThroughResult<Option<T::Model>> {
         self.limit_value = Some(1);
@@ -455,7 +614,29 @@ where
     /// # Example
     ///
     /// ```rust,no_run
+    /// use rf_orm::relationships::through::has_one_through;
+    /// # fn main() {}
+    /// # mod user {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "users")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub country_id: i32 }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {}
+    /// # }
+    /// # mod post {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "posts")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub user_id: i32 }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {}
+    /// # }
+    /// # async fn example(db: sea_orm::DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
+    /// let builder = has_one_through::<post::Entity, user::Entity>(&db, 1, "country_id", "user_id");
     /// let count = builder.count().await?;
+    /// # Ok(())
+    /// # }
     /// ```
     pub async fn count(self) -> ThroughResult<u64> {
         let results = self.get().await?;
@@ -469,20 +650,48 @@ where
 ///
 /// ```rust,no_run
 /// use rf_orm::has_many_through;
-///
-/// // Define the relationship
+/// use sea_orm::EntityTrait;
+/// # fn main() {}
+/// # mod country {
+/// #     use sea_orm::entity::prelude::*;
+/// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+/// #     #[sea_orm(table_name = "countries")]
+/// #     pub struct Model { #[sea_orm(primary_key)] pub id: i64 }
+/// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+/// #     impl ActiveModelBehavior for ActiveModel {}
+/// # }
+/// # mod user {
+/// #     use sea_orm::entity::prelude::*;
+/// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+/// #     #[sea_orm(table_name = "users")]
+/// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub country_id: i32 }
+/// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+/// #     impl ActiveModelBehavior for ActiveModel {}
+/// # }
+/// # mod post {
+/// #     use sea_orm::entity::prelude::*;
+/// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+/// #     #[sea_orm(table_name = "posts")]
+/// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub user_id: i32 }
+/// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+/// #     impl ActiveModelBehavior for ActiveModel {}
+/// # }
+/// // Define the relationship (parent model, target entity, intermediate entity)
 /// has_many_through!(
-///     Country,       // Parent model
-///     Post,          // Target model
-///     User,          // Intermediate model
-///     posts,         // Method name
-///     "country_id",  // FK in intermediate
-///     "user_id"      // FK in target
+///     country::Model,  // Parent model
+///     post::Entity,    // Target model
+///     user::Entity,    // Intermediate model
+///     posts,           // Method name
+///     "country_id",    // FK in intermediate
+///     "user_id"        // FK in target
 /// );
 ///
+/// # async fn run(db: sea_orm::DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
 /// // Usage
-/// let country = Country::find_by_id(1).one(&db).await?.unwrap();
+/// let country = country::Entity::find_by_id(1).one(&db).await?.unwrap();
 /// let posts = country.posts(&db).await?;
+/// # Ok(())
+/// # }
 /// ```
 #[macro_export]
 macro_rules! has_many_through {
@@ -512,20 +721,48 @@ macro_rules! has_many_through {
 ///
 /// ```rust,no_run
 /// use rf_orm::has_one_through;
-///
-/// // Define the relationship
+/// use sea_orm::EntityTrait;
+/// # fn main() {}
+/// # mod country {
+/// #     use sea_orm::entity::prelude::*;
+/// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+/// #     #[sea_orm(table_name = "countries")]
+/// #     pub struct Model { #[sea_orm(primary_key)] pub id: i64 }
+/// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+/// #     impl ActiveModelBehavior for ActiveModel {}
+/// # }
+/// # mod user {
+/// #     use sea_orm::entity::prelude::*;
+/// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+/// #     #[sea_orm(table_name = "users")]
+/// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub country_id: i32 }
+/// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+/// #     impl ActiveModelBehavior for ActiveModel {}
+/// # }
+/// # mod post {
+/// #     use sea_orm::entity::prelude::*;
+/// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+/// #     #[sea_orm(table_name = "posts")]
+/// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub user_id: i32 }
+/// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+/// #     impl ActiveModelBehavior for ActiveModel {}
+/// # }
+/// // Define the relationship (parent model, target entity, intermediate entity)
 /// has_one_through!(
-///     Country,       // Parent model
-///     Post,          // Target model
-///     User,          // Intermediate model
-///     latest_post,   // Method name
-///     "country_id",  // FK in intermediate
-///     "user_id"      // FK in target
+///     country::Model,  // Parent model
+///     post::Entity,    // Target model
+///     user::Entity,    // Intermediate model
+///     latest_post,     // Method name
+///     "country_id",    // FK in intermediate
+///     "user_id"        // FK in target
 /// );
 ///
+/// # async fn run(db: sea_orm::DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
 /// // Usage
-/// let country = Country::find_by_id(1).one(&db).await?.unwrap();
+/// let country = country::Entity::find_by_id(1).one(&db).await?.unwrap();
 /// let latest_post = country.latest_post(&db).await?;
+/// # Ok(())
+/// # }
 /// ```
 #[macro_export]
 macro_rules! has_one_through {
