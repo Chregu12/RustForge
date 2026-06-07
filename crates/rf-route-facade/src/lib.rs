@@ -8,7 +8,7 @@
 //! # Recommended Usage
 //!
 //! Use the consolidated `rf` crate for simpler imports:
-//! ```rust
+//! ```text
 //! use rf::Route;  // or use rf::prelude::*;
 //! ```
 //!
