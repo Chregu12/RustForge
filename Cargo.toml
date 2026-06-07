@@ -149,6 +149,7 @@ members = [
     "crates/rf-nightwatch",
     # Phase 22: AI SDK (Laravel 13 equivalent)
     "crates/rf-ai",
+    "crates/rf-vector",
     # Deployment Tests
     "tests/deployment",
 ]

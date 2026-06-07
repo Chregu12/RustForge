@@ -53,6 +53,7 @@ mod laravel_macros;
 mod laravel_syntax;
 mod mailable_macro;
 mod query_macro;
+mod rf_model_derive;
 mod rules_macro;
 mod rustforge_block;
 mod simple_model;
@@ -1733,4 +1734,64 @@ pub fn model(input: TokenStream) -> TokenStream {
 #[proc_macro]
 pub fn request(input: TokenStream) -> TokenStream {
     laravel_macros::request_impl(input)
+}
+
+// =============================================================================
+// Laravel 13: RfModel derive macro
+// =============================================================================
+
+/// Derive macro that generates Laravel-style model metadata methods.
+///
+/// # Attributes
+///
+/// All configuration is provided via `#[rf(...)]` attributes on the struct:
+///
+/// | Attribute | Description |
+/// |-----------|-------------|
+/// | `#[rf(table = "name")]` | Override the database table name (default: snake_case plural) |
+/// | `#[rf(hidden = ["field", ...])]` | Fields excluded from serialization |
+/// | `#[rf(fillable = ["field", ...])]` | Mass-assignable fields |
+/// | `#[rf(guarded = ["field", ...])]` | Protected (non-mass-assignable) fields |
+/// | `#[rf(timestamps)]` | Enable automatic `created_at`/`updated_at` management |
+/// | `#[rf(soft_delete)]` | Enable soft-delete (`deleted_at`) support |
+///
+/// # Generated methods
+///
+/// ```rust,ignore
+/// impl User {
+///     pub fn table_name() -> &'static str { "users" }
+///     pub fn hidden_fields() -> &'static [&'static str] { &["password", "remember_token"] }
+///     pub fn fillable_fields() -> &'static [&'static str] { &["name", "email", "password"] }
+///     pub fn guarded_fields() -> &'static [&'static str] { &["id"] }
+///     pub fn uses_timestamps() -> bool { true }
+///     pub fn uses_soft_delete() -> bool { false }
+/// }
+/// ```
+///
+/// # Example
+///
+/// ```rust,ignore
+/// use rf_macros::RfModel;
+///
+/// #[derive(RfModel)]
+/// #[rf(table = "users")]
+/// #[rf(hidden = ["password", "remember_token"])]
+/// #[rf(fillable = ["name", "email", "password"])]
+/// #[rf(guarded = ["id"])]
+/// #[rf(timestamps)]
+/// struct User {
+///     id: i64,
+///     name: String,
+///     email: String,
+///     password: String,
+/// }
+///
+/// assert_eq!(User::table_name(), "users");
+/// assert!(User::hidden_fields().contains(&"password"));
+/// assert!(User::uses_timestamps());
+/// assert!(!User::uses_soft_delete());
+/// ```
+#[proc_macro_derive(RfModel, attributes(rf))]
+pub fn rf_model_derive(input: TokenStream) -> TokenStream {
+    rf_model_derive::rf_model_derive_impl(input)
 }
