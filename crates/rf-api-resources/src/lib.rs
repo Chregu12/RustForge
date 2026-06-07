@@ -40,12 +40,18 @@
 
 pub mod collection;
 pub mod conditional;
+pub mod jsonapi;
 pub mod nested;
 pub mod resource;
 pub mod resource_builder;
 
 pub use collection::{
     Collection, PaginatedCollection, PaginationLinks, PaginationMeta, ResourceCollection,
+};
+pub use jsonapi::{
+    JsonApiData, JsonApiDocument, JsonApiLinks, JsonApiRelationship, JsonApiRelationshipData,
+    JsonApiResource, JsonApiResourceIdentifier, JsonApiResponseBuilder, JsonApiSerializable,
+    JsonApiVersion, SparseFieldset,
 };
 pub use conditional::{Conditional, LoadRelations, MergeWhen, WithRelation};
 pub use nested::{

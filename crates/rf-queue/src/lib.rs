@@ -86,6 +86,8 @@ mod memory;
 mod queue;
 mod worker;
 
+pub mod routing;
+
 #[cfg(test)]
 mod tests;
 
@@ -100,6 +102,7 @@ pub use error::{QueueError, QueueResult};
 pub use job::{Job, JobMetadata};
 pub use memory::MemoryQueue;
 pub use queue::Queue;
+pub use routing::{QueueRoute, QueueRouter};
 pub use worker::Worker;
 
 #[cfg(feature = "redis-backend")]
