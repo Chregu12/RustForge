@@ -119,10 +119,11 @@ impl Channel {
     }
 
     fn send(&self, event: Event) -> SseResult<()> {
-        self.sender
-            .send(event)
-            .map(|_| ())
-            .map_err(|e| SseError::SendError(e.to_string()))
+        // `broadcast::Sender::send` only errors when there are no active
+        // subscribers. Broadcasting to a channel nobody is listening on is a
+        // successful no-op (standard pub/sub semantics), so swallow that case.
+        let _ = self.sender.send(event);
+        Ok(())
     }
 
     fn subscribe(&self) -> BroadcastStream<Event> {
