@@ -6,6 +6,13 @@
 //! ## Example
 //!
 //! ```rust,no_run
+//! use rf_eloquent::polymorphic::morph_one::MorphOne;
+//!
+//! // An `Image` model can belong to either a `Post` or a `User`.
+//! struct Image;
+//! struct Post { id: i64 }
+//! struct User { id: i64 }
+//!
 //! // Post has one Image (polymorphic)
 //! impl Post {
 //!     pub fn image(&self) -> MorphOne<Image> {
@@ -20,9 +27,10 @@
 //!     }
 //! }
 //!
-//! // Usage
-//! let post = Post::find(1).await?;
-//! let image = post.image().get(&db).await?;
+//! let post = Post { id: 1 };
+//! let rel = post.image();
+//! assert_eq!(rel.parent_type(), "Post");
+//! assert_eq!(rel.morph_type_column(), "imageable_type");
 //! ```
 
 use super::polymorphic::{PolymorphicError, PolymorphicResult};
@@ -125,8 +133,28 @@ where
     /// # Example
     ///
     /// ```rust,no_run
-    /// let post = Post::find(1).await?;
-    /// let image = post.image().get(&db).await?;
+    /// # use rf_eloquent::polymorphic::morph_one::MorphOne;
+    /// # use sea_orm::DatabaseConnection;
+    /// # fn main() {}
+    /// # mod image {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "images")]
+    /// #     pub struct Model {
+    /// #         #[sea_orm(primary_key)] pub id: i32,
+    /// #         pub imageable_type: String,
+    /// #         pub imageable_id: i32,
+    /// #     }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {}
+    /// # }
+    /// # async fn example(db: &DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
+    /// let rel = MorphOne::<image::Model>::new(1, "Post", "imageable");
+    /// let image = rel
+    ///     .get(db, image::Entity, image::Column::ImageableType, image::Column::ImageableId)
+    ///     .await?;
+    /// # Ok(())
+    /// # }
     /// ```
     pub async fn get<E>(
         &self,
@@ -156,8 +184,28 @@ where
     /// # Example
     ///
     /// ```rust,no_run
-    /// let post = Post::find(1).await?;
-    /// let has_image = post.image().exists(&db).await?;
+    /// # use rf_eloquent::polymorphic::morph_one::MorphOne;
+    /// # use sea_orm::DatabaseConnection;
+    /// # fn main() {}
+    /// # mod image {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "images")]
+    /// #     pub struct Model {
+    /// #         #[sea_orm(primary_key)] pub id: i32,
+    /// #         pub imageable_type: String,
+    /// #         pub imageable_id: i32,
+    /// #     }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {}
+    /// # }
+    /// # async fn example(db: &DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
+    /// let rel = MorphOne::<image::Model>::new(1, "Post", "imageable");
+    /// let has_image = rel
+    ///     .exists(db, image::Entity, image::Column::ImageableType, image::Column::ImageableId)
+    ///     .await?;
+    /// # Ok(())
+    /// # }
     /// ```
     pub async fn exists<E>(
         &self,
@@ -189,8 +237,28 @@ where
     /// # Example
     ///
     /// ```rust,no_run
-    /// let post = Post::find(1).await?;
-    /// let image = post.image().get_or_fail(&db).await?;
+    /// # use rf_eloquent::polymorphic::morph_one::MorphOne;
+    /// # use sea_orm::DatabaseConnection;
+    /// # fn main() {}
+    /// # mod image {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "images")]
+    /// #     pub struct Model {
+    /// #         #[sea_orm(primary_key)] pub id: i32,
+    /// #         pub imageable_type: String,
+    /// #         pub imageable_id: i32,
+    /// #     }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {}
+    /// # }
+    /// # async fn example(db: &DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
+    /// let rel = MorphOne::<image::Model>::new(1, "Post", "imageable");
+    /// let image = rel
+    ///     .get_or_fail(db, image::Entity, image::Column::ImageableType, image::Column::ImageableId)
+    ///     .await?;
+    /// # Ok(())
+    /// # }
     /// ```
     pub async fn get_or_fail<E>(
         &self,

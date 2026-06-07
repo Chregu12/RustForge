@@ -11,9 +11,14 @@
 //!
 //! # Example
 //!
-//! ```no_run
+//! ```rust,no_run
 //! use rf_http_client::HttpClient;
 //!
+//! # #[derive(serde::Deserialize)]
+//! # struct User {
+//! #     id: u64,
+//! #     name: String,
+//! # }
 //! #[tokio::main]
 //! async fn main() -> anyhow::Result<()> {
 //!     let client = HttpClient::new();

@@ -6,6 +6,8 @@
 //! ## Example
 //!
 //! ```rust,no_run
+//! use rf_eloquent::polymorphic::morph_to::MorphTo;
+//!
 //! // Comment can belong to Post OR Video
 //! pub struct Comment {
 //!     pub id: i64,
@@ -14,15 +16,24 @@
 //!     pub body: String,
 //! }
 //!
+//! // The target parent type is chosen at the call site.
+//! struct Post;
+//!
 //! impl Comment {
-//!     pub fn commentable<T: Model>(&self) -> MorphTo<T> {
+//!     pub fn commentable<T: Send + Sync + 'static>(&self) -> MorphTo<T> {
 //!         MorphTo::new(self.id, "commentable")
 //!     }
 //! }
 //!
-//! // Usage
-//! let comment = Comment::find(1).await?;
-//! let post = comment.commentable::<Post>().get(&db).await?;
+//! let comment = Comment {
+//!     id: 1,
+//!     commentable_type: "Post".to_string(),
+//!     commentable_id: 10,
+//!     body: "Hello".to_string(),
+//! };
+//! let rel = comment.commentable::<Post>();
+//! assert_eq!(rel.morph_type_column(), "commentable_type");
+//! assert_eq!(rel.morph_id_column(), "commentable_id");
 //! ```
 
 use super::polymorphic::{PolymorphicError, PolymorphicResult};
@@ -95,8 +106,17 @@ where
     /// # Example
     ///
     /// ```rust,no_run
-    /// let comment = Comment::find(1).await?;
-    /// let parent = comment.commentable::<Post>().get(&db).await?;
+    /// # use rf_eloquent::polymorphic::morph_to::MorphTo;
+    /// # use sea_orm::DatabaseConnection;
+    /// # use std::sync::Arc;
+    /// # async fn example(db: Arc<DatabaseConnection>) -> Result<(), Box<dyn std::error::Error>> {
+    /// // `Post` must be registered in the GLOBAL_TYPE_REGISTRY for resolution to succeed.
+    /// #[derive(Clone)]
+    /// struct Post { id: i64 }
+    /// let rel = MorphTo::<Post>::new(1, "commentable");
+    /// let parent: Option<Post> = rel.get(db, "Post", 10).await?;
+    /// # Ok(())
+    /// # }
     /// ```
     pub async fn get(
         &self,

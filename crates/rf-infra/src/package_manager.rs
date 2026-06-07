@@ -72,7 +72,7 @@ impl PackageManager {
     /// # Beispiel
     ///
     /// ```no_run
-    /// use foundry_infra::package_manager::PackageManager;
+    /// use rf_infra::package_manager::PackageManager;
     ///
     /// # async fn example() -> anyhow::Result<()> {
     /// let pm = PackageManager::new(".");

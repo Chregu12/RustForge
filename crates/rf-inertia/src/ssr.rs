@@ -40,8 +40,8 @@
 //!     "1.0.0",
 //! );
 //!
-//! let html = ssr.render(&inertia_response).await?;
-//! println!("{}", html);
+//! let rendered = ssr.render(&inertia_response).await?;
+//! println!("{}", rendered.body);
 //! # Ok(())
 //! # }
 //! ```

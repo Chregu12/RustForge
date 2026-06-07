@@ -281,12 +281,15 @@ where
 /// use axum::{Router, routing::get, middleware};
 /// use rf_auth::authorization::auth_middleware::require_gate;
 ///
+/// #[derive(Clone)]
+/// struct User;
+///
 /// # async fn admin_handler() -> &'static str { "Admin only" }
 /// # fn example() {
-/// let app = Router::new()
+/// let app: Router = Router::new()
 ///     .route("/admin", get(admin_handler))
 ///     .layer(middleware::from_fn(|req, next| {
-///         require_gate(req, next, "admin")
+///         require_gate::<User>(req, next, "admin")
 ///     }));
 /// # }
 /// ```

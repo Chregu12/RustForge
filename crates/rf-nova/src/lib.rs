@@ -24,7 +24,6 @@
 //! let nova = Nova::new()
 //!     .with_path("/admin")
 //!     .with_name("My Admin Panel")
-//!     .register_resource::<UserResource>()
 //!     .register_dashboard(MainDashboard::new());
 //!
 //! // Add to your Axum app

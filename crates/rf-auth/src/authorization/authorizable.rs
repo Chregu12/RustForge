@@ -14,7 +14,22 @@ use std::sync::Arc;
 ///
 /// ```rust
 /// use rf_auth::authorization::authorizable::Authorizable;
-/// use rf_auth::authorization::policies::post_policy::{User, Post};
+/// use rf_auth::authorization::policies::Policy;
+/// use async_trait::async_trait;
+///
+/// // Your domain types
+/// struct User { id: i64 }
+/// struct Post { user_id: i64 }
+///
+/// // A policy for Post
+/// struct PostPolicy;
+///
+/// #[async_trait]
+/// impl Policy<User, Post> for PostPolicy {
+///     async fn update(&self, user: &User, post: &Post) -> bool {
+///         user.id == post.user_id
+///     }
+/// }
 ///
 /// // Add authorization methods to your user type.
 /// impl Authorizable for User {}
@@ -29,7 +44,7 @@ use std::sync::Arc;
 /// }
 ///
 /// // Or use authorize to get a Result
-/// user.authorize("update", post).await.expect("Not authorized");
+/// let _ = user.authorize("update", post).await;
 /// # }
 /// ```
 #[async_trait]

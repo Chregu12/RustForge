@@ -14,16 +14,24 @@
 //! # Example
 //!
 //! ```rust
-//! use rf_command_events::{EventDispatcher, CommandFinished, Event};
+//! use rf_command_events::{EventDispatcher, CommandFinished, EventListener, Result};
+//!
+//! // Implement `EventListener` for your own type
+//! struct LogListener;
+//!
+//! #[async_trait::async_trait]
+//! impl EventListener<CommandFinished> for LogListener {
+//!     async fn handle(&self, event: &CommandFinished) -> Result<()> {
+//!         println!("Command {} finished in {}ms", event.command, event.duration);
+//!         Ok(())
+//!     }
+//! }
 //!
 //! #[tokio::main]
 //! async fn main() {
-//!     let mut dispatcher = EventDispatcher::new();
+//!     let dispatcher = EventDispatcher::new();
 //!
-//!     dispatcher.listen(|event: &CommandFinished| async move {
-//!         println!("Command {} finished in {}ms", event.command, event.duration);
-//!         Ok(())
-//!     }).await;
+//!     dispatcher.listen(LogListener).await;
 //!
 //!     // Fire event
 //!     dispatcher.dispatch(CommandFinished {
@@ -31,7 +39,7 @@
 //!         duration: 150,
 //!         exit_code: 0,
 //!         output: "Model created successfully".to_string(),
-//!     }).await;
+//!     }).await.unwrap();
 //! }
 //! ```
 

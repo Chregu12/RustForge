@@ -6,6 +6,13 @@
 //! ## Example
 //!
 //! ```rust,no_run
+//! use rf_eloquent::polymorphic::morph_many::MorphMany;
+//!
+//! // A `Comment` model can belong to either a `Post` or a `Video`.
+//! struct Comment;
+//! struct Post { id: i64 }
+//! struct Video { id: i64 }
+//!
 //! // Post has many Comments (polymorphic)
 //! impl Post {
 //!     pub fn comments(&self) -> MorphMany<Comment> {
@@ -20,9 +27,12 @@
 //!     }
 //! }
 //!
-//! // Usage
-//! let post = Post::find(1).await?;
-//! let comments = post.comments().get(&db).await?;
+//! // The relationship knows how to resolve its morph columns.
+//! let post = Post { id: 1 };
+//! let rel = post.comments();
+//! assert_eq!(rel.parent_type(), "Post");
+//! assert_eq!(rel.morph_type_column(), "commentable_type");
+//! assert_eq!(rel.morph_id_column(), "commentable_id");
 //! ```
 
 use super::polymorphic::{PolymorphicError, PolymorphicResult};
@@ -124,8 +134,28 @@ where
     /// # Example
     ///
     /// ```rust,no_run
-    /// let post = Post::find(1).await?;
-    /// let comments = post.comments().get(&db).await?;
+    /// # use rf_eloquent::polymorphic::morph_many::MorphMany;
+    /// # use sea_orm::DatabaseConnection;
+    /// # fn main() {}
+    /// # mod comment {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "comments")]
+    /// #     pub struct Model {
+    /// #         #[sea_orm(primary_key)] pub id: i32,
+    /// #         pub commentable_type: String,
+    /// #         pub commentable_id: i32,
+    /// #     }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {}
+    /// # }
+    /// # async fn example(db: &DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
+    /// let rel = MorphMany::<comment::Model>::new(1, "Post", "commentable");
+    /// let comments = rel
+    ///     .get(db, comment::Entity, comment::Column::CommentableType, comment::Column::CommentableId)
+    ///     .await?;
+    /// # Ok(())
+    /// # }
     /// ```
     pub async fn get<E>(
         &self,
@@ -155,8 +185,28 @@ where
     /// # Example
     ///
     /// ```rust,no_run
-    /// let post = Post::find(1).await?;
-    /// let count = post.comments().count(&db).await?;
+    /// # use rf_eloquent::polymorphic::morph_many::MorphMany;
+    /// # use sea_orm::DatabaseConnection;
+    /// # fn main() {}
+    /// # mod comment {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "comments")]
+    /// #     pub struct Model {
+    /// #         #[sea_orm(primary_key)] pub id: i32,
+    /// #         pub commentable_type: String,
+    /// #         pub commentable_id: i32,
+    /// #     }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {}
+    /// # }
+    /// # async fn example(db: &DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
+    /// let rel = MorphMany::<comment::Model>::new(1, "Post", "commentable");
+    /// let count = rel
+    ///     .count(db, comment::Entity, comment::Column::CommentableType, comment::Column::CommentableId)
+    ///     .await?;
+    /// # Ok(())
+    /// # }
     /// ```
     pub async fn count<E>(
         &self,

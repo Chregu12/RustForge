@@ -393,34 +393,64 @@ pub use rf_macros::storage;
 
 /// Authentication facade
 ///
-/// ```rust
-/// Auth::attempt(json!({"email": "...", "password": "..."}));
-/// let user = Auth::user::<User>();
+/// ```rust,no_run
+/// use rustforge::Auth;
+/// use serde::Deserialize;
+/// use serde_json::json;
+///
+/// #[derive(Deserialize)]
+/// struct User { email: String }
+///
+/// # fn example() -> Result<(), Box<dyn std::error::Error>> {
+/// Auth::attempt(json!({"email": "...", "password": "..."}))?;
+/// let user: Option<User> = Auth::user::<User>();
 /// Auth::logout();
+/// # Ok(())
+/// # }
 /// ```
 pub use rf_auth_facade::Auth;
 
 /// Cache facade
 ///
-/// ```rust
-/// Cache::put("key", "value", 3600);
-/// let value = Cache::get("key");
-/// Cache::forget("key");
+/// ```rust,no_run
+/// use rustforge::Cache;
+///
+/// # fn example() -> Result<(), Box<dyn std::error::Error>> {
+/// Cache::put("key", "value", 3600)?;
+/// let value: Option<String> = Cache::get("key")?;
+/// Cache::forget("key")?;
+/// # Ok(())
+/// # }
 /// ```
 pub use rf_cache_facade::Cache;
 
 /// Database facade
 ///
-/// ```rust
-/// let users = DB::table("users").filter("active", true).get();
+/// ```rust,no_run
+/// use rustforge::DB;
+///
+/// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+/// let users = DB::table("users").filter("active", true).get().await?;
+/// # Ok(())
+/// # }
 /// ```
 pub use rf_db_facade::DB;
 
 /// Model trait for Eloquent-style queries
 ///
-/// ```rust
-/// let users = User::filter("active", true).get();
-/// let user = User::find(1);
+/// ```rust,no_run
+/// use rustforge::Model;
+///
+/// struct User;
+/// impl Model for User {
+///     const TABLE: &'static str = "users";
+/// }
+///
+/// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+/// let users = User::filter("active", true).get().await?;
+/// let user = User::find(1).await?;
+/// # Ok(())
+/// # }
 /// ```
 pub use rf_db_facade::Model;
 
@@ -429,17 +459,25 @@ pub use rf_event_facade::Event;
 
 /// Storage facade
 ///
-/// ```rust
-/// Storage::put("file.txt", contents);
-/// let data = Storage::get("file.txt");
+/// ```rust,no_run
+/// use rustforge::Storage;
+///
+/// # fn example() -> Result<(), Box<dyn std::error::Error>> {
+/// let contents = b"hello".to_vec();
+/// Storage::put("file.txt", contents)?;
+/// let data = Storage::get("file.txt")?;
+/// # Ok(())
+/// # }
 /// ```
 pub use rf_storage_facade::Storage;
 
 /// Route facade
 ///
-/// ```rust
-/// Route::get("/users", handler);
-/// Route::post("/users", create_handler);
+/// ```rust,no_run
+/// use rustforge::Route;
+///
+/// Route::get("/users", "UserController@index");
+/// Route::post("/users", "UserController@store");
 /// ```
 pub use rf_route_facade::Route;
 

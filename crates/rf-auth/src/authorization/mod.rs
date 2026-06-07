@@ -111,10 +111,12 @@
 //! # async fn admin_handler() -> &'static str { "Admin" }
 //! # async fn update_post_handler() -> &'static str { "Updated" }
 //! # fn example() {
+//! #[derive(Clone)]
 //! struct User;
+//! #[derive(Clone)]
 //! struct Post;
 //!
-//! let app = Router::new()
+//! let app: Router = Router::new()
 //!     // Protect with a gate
 //!     .route("/admin", get(admin_handler))
 //!     .layer(AuthorizeGateLayer::<User>::new("admin"))
