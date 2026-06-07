@@ -82,6 +82,9 @@
 mod address;
 mod attachment;
 mod backends;
+
+#[cfg(test)]
+mod tests;
 mod builder;
 mod config;
 mod error;

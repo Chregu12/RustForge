@@ -64,6 +64,9 @@ pub mod entities;
 
 pub mod examples;
 
+#[cfg(test)]
+mod tests;
+
 use async_trait::async_trait;
 pub use channels::*;
 pub use messages::*;

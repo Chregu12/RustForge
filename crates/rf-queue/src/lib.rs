@@ -86,6 +86,9 @@ mod memory;
 mod queue;
 mod worker;
 
+#[cfg(test)]
+mod tests;
+
 #[cfg(feature = "redis-backend")]
 mod redis;
 

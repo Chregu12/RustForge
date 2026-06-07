@@ -683,4 +683,253 @@ mod tests {
             assert_eq!(result, "computed");
         }
     }
+
+    // ─── New tests ────────────────────────────────────────────────────────────
+
+    #[tokio::test]
+    async fn set_and_get_string() {
+        let cache = MemoryCache::new();
+        cache
+            .set("greeting", &"hello".to_string(), Duration::from_secs(60))
+            .await
+            .unwrap();
+        let val: Option<String> = cache.get("greeting").await.unwrap();
+        assert_eq!(val, Some("hello".to_string()));
+    }
+
+    #[tokio::test]
+    async fn get_missing_key_returns_none() {
+        let cache = MemoryCache::new();
+        let val: Option<String> = cache.get("no-such-key").await.unwrap();
+        assert!(val.is_none());
+    }
+
+    #[tokio::test]
+    async fn set_overwrites_existing_value() {
+        let cache = MemoryCache::new();
+        cache
+            .set("k", &"v1".to_string(), Duration::from_secs(60))
+            .await
+            .unwrap();
+        cache
+            .set("k", &"v2".to_string(), Duration::from_secs(60))
+            .await
+            .unwrap();
+        let val: Option<String> = cache.get("k").await.unwrap();
+        assert_eq!(val, Some("v2".to_string()));
+    }
+
+    #[tokio::test]
+    async fn forget_removes_value() {
+        let cache = MemoryCache::new();
+        cache
+            .set("tmp", &"value".to_string(), Duration::from_secs(60))
+            .await
+            .unwrap();
+        cache.delete("tmp").await.unwrap();
+        let val: Option<String> = cache.get("tmp").await.unwrap();
+        assert!(val.is_none());
+    }
+
+    #[tokio::test]
+    async fn forget_nonexistent_key_is_ok() {
+        let cache = MemoryCache::new();
+        assert!(cache.delete("ghost").await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn flush_removes_all_entries() {
+        let cache = MemoryCache::new();
+        for i in 0..5i32 {
+            cache
+                .set(&format!("k{}", i), &i, Duration::from_secs(60))
+                .await
+                .unwrap();
+        }
+        cache.flush().await.unwrap();
+        for i in 0..5i32 {
+            let v: Option<i32> = cache.get(&format!("k{}", i)).await.unwrap();
+            assert!(v.is_none());
+        }
+    }
+
+    #[tokio::test]
+    async fn value_expires_after_ttl() {
+        let cache = MemoryCache::new();
+        cache
+            .set("ephemeral", &"here today".to_string(), Duration::from_millis(50))
+            .await
+            .unwrap();
+
+        let v: Option<String> = cache.get("ephemeral").await.unwrap();
+        assert!(v.is_some());
+
+        tokio::time::sleep(Duration::from_millis(100)).await;
+
+        let v: Option<String> = cache.get("ephemeral").await.unwrap();
+        assert!(v.is_none());
+    }
+
+    #[tokio::test]
+    async fn remember_computes_and_caches_value() {
+        let cache = MemoryCache::new();
+        let computed: String = cache
+            .remember("expensive", Duration::from_secs(60), || async {
+                Ok("computed result".to_string())
+            })
+            .await
+            .unwrap();
+        assert_eq!(computed, "computed result");
+
+        let cached: String = cache
+            .remember("expensive", Duration::from_secs(60), || async {
+                Ok("should not run".to_string())
+            })
+            .await
+            .unwrap();
+        assert_eq!(cached, "computed result");
+    }
+
+    #[tokio::test]
+    async fn increment_from_zero() {
+        let cache = MemoryCache::new();
+        let v = cache.increment("views", 1).await.unwrap();
+        assert_eq!(v, 1);
+    }
+
+    #[tokio::test]
+    async fn increment_accumulates() {
+        let cache = MemoryCache::new();
+        cache.increment("hits", 1).await.unwrap();
+        cache.increment("hits", 1).await.unwrap();
+        let v = cache.increment("hits", 5).await.unwrap();
+        assert_eq!(v, 7);
+    }
+
+    #[tokio::test]
+    async fn decrement_reduces_value() {
+        let cache = MemoryCache::new();
+        cache
+            .set("stock", &10i64, Duration::from_secs(60))
+            .await
+            .unwrap();
+        let v = cache.decrement("stock", 3).await.unwrap();
+        assert_eq!(v, 7);
+    }
+
+    #[tokio::test]
+    async fn decrement_below_zero_is_allowed() {
+        let cache = MemoryCache::new();
+        let v = cache.decrement("balance", 5).await.unwrap();
+        assert_eq!(v, -5);
+    }
+
+    #[tokio::test]
+    async fn tagged_set_and_get() {
+        let cache = MemoryCache::new();
+        cache
+            .tags(&["users"])
+            .set("user:1", &"Alice".to_string(), Duration::from_secs(60))
+            .await
+            .unwrap();
+
+        let v: Option<String> = cache.tags(&["users"]).get("user:1").await.unwrap();
+        assert_eq!(v, Some("Alice".to_string()));
+    }
+
+    #[tokio::test]
+    async fn flush_tag_removes_all_entries_with_that_tag() {
+        let cache = MemoryCache::new();
+        cache
+            .tags(&["posts"])
+            .set("post:1", &"First".to_string(), Duration::from_secs(60))
+            .await
+            .unwrap();
+        cache
+            .tags(&["posts"])
+            .set("post:2", &"Second".to_string(), Duration::from_secs(60))
+            .await
+            .unwrap();
+
+        cache.tags(&["posts"]).flush().await.unwrap();
+
+        let v1: Option<String> = cache.get("post:1").await.unwrap();
+        let v2: Option<String> = cache.get("post:2").await.unwrap();
+        assert!(v1.is_none());
+        assert!(v2.is_none());
+    }
+
+    #[tokio::test]
+    async fn flushing_one_tag_does_not_affect_other_tagged_entries() {
+        let cache = MemoryCache::new();
+        cache
+            .tags(&["users"])
+            .set("user:99", &"keep me".to_string(), Duration::from_secs(60))
+            .await
+            .unwrap();
+        cache
+            .tags(&["posts"])
+            .set("post:99", &"flush me".to_string(), Duration::from_secs(60))
+            .await
+            .unwrap();
+
+        cache.tags(&["posts"]).flush().await.unwrap();
+
+        let kept: Option<String> = cache.get("user:99").await.unwrap();
+        assert_eq!(kept, Some("keep me".to_string()));
+    }
+
+    #[tokio::test]
+    async fn entry_with_multiple_tags_removed_by_any_tag_flush() {
+        let cache = MemoryCache::new();
+        cache
+            .tags(&["a", "b"])
+            .set("shared", &"value".to_string(), Duration::from_secs(60))
+            .await
+            .unwrap();
+
+        cache.tags(&["a"]).flush().await.unwrap();
+
+        let v: Option<String> = cache.get("shared").await.unwrap();
+        assert!(v.is_none());
+    }
+
+    #[tokio::test]
+    async fn stats_track_hits_and_misses() {
+        let cache = MemoryCache::new();
+        cache
+            .set("stat_key", &"v".to_string(), Duration::from_secs(60))
+            .await
+            .unwrap();
+
+        let _: Option<String> = cache.get("stat_key").await.unwrap();
+        let _: Option<String> = cache.get("no_key").await.unwrap();
+
+        let stats = cache.stats().await;
+        assert_eq!(stats.hits, 1);
+        assert_eq!(stats.misses, 1);
+    }
+
+    #[test]
+    fn stats_empty_hit_rate_is_zero() {
+        let stats = CacheStats::default();
+        assert_eq!(stats.hit_rate(), 0.0);
+    }
+
+    #[tokio::test]
+    async fn set_many_and_get_many() {
+        let cache = MemoryCache::new();
+        let items: Vec<(String, String)> = vec![
+            ("a".into(), "alpha".into()),
+            ("b".into(), "beta".into()),
+            ("c".into(), "gamma".into()),
+        ];
+        let refs: Vec<(&str, &String)> = items.iter().map(|(k, v)| (k.as_str(), v)).collect();
+        cache.set_many(&refs, Duration::from_secs(60)).await.unwrap();
+
+        let results: HashMap<String, String> = cache.get_many(&["a", "b", "c"]).await.unwrap();
+        assert_eq!(results.get("a").map(|s| s.as_str()), Some("alpha"));
+        assert_eq!(results.get("b").map(|s| s.as_str()), Some("beta"));
+        assert_eq!(results.get("c").map(|s| s.as_str()), Some("gamma"));
+    }
 }
