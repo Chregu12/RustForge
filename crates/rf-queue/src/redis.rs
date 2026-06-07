@@ -91,7 +91,7 @@ impl RedisQueue {
             .map_err(|e| QueueError::ConnectionError(e.to_string()))?;
 
         redis::cmd("PING")
-            .query_async::<_, String>(&mut conn)
+            .query_async::<String>(&mut conn)
             .await
             .map_err(|e| QueueError::ConnectionError(e.to_string()))?;
 

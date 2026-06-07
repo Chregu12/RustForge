@@ -2630,18 +2630,6 @@ dependencies = [
 
 [[package]]
 name = "deadpool"
-version = "0.10.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fb84100978c1c7b37f09ed3ce3e5f843af02c2a2c431bae5b19230dad2c1b490"
-dependencies = [
- "async-trait",
- "deadpool-runtime",
- "num_cpus",
- "tokio",
-]
-
-[[package]]
-name = "deadpool"
 version = "0.12.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0be2b1d1d6ec8d846f05e137292d0b89133caf95ef33695424c09568bdd39b1b"
@@ -2654,22 +2642,12 @@ dependencies = [
 
 [[package]]
 name = "deadpool-redis"
-version = "0.14.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "36f2381b0e993d06a1f6d49f486b33bc4004085bf980340fc05726bacc681fff"
-dependencies = [
- "deadpool 0.10.0",
- "redis 0.24.0",
-]
-
-[[package]]
-name = "deadpool-redis"
 version = "0.18.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bfae6799b68a735270e4344ee3e834365f707c72da09c9a8bb89b45cc3351395"
 dependencies = [
- "deadpool 0.12.3",
- "redis 0.27.6",
+ "deadpool",
+ "redis",
 ]
 
 [[package]]
@@ -7047,30 +7025,6 @@ dependencies = [
 
 [[package]]
 name = "redis"
-version = "0.24.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c580d9cbbe1d1b479e8d67cf9daf6a62c957e6846048408b80b43ac3f6af84cd"
-dependencies = [
- "arc-swap",
- "async-trait",
- "bytes",
- "combine",
- "futures",
- "futures-util",
- "itoa",
- "percent-encoding",
- "pin-project-lite",
- "ryu",
- "sha1_smol",
- "socket2 0.4.10",
- "tokio",
- "tokio-retry",
- "tokio-util",
- "url",
-]
-
-[[package]]
-name = "redis"
 version = "0.27.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "09d8f99a4090c89cc489a94833c901ead69bfbf3877b4867d5482e321ee875bc"
@@ -7616,12 +7570,12 @@ dependencies = [
  "axum 0.8.7",
  "chrono",
  "dashmap",
- "deadpool-redis 0.14.0",
+ "deadpool-redis",
  "futures",
  "hex",
  "hmac",
  "md5",
- "redis 0.24.0",
+ "redis",
  "reqwest 0.11.27",
  "rf-core",
  "serde",
@@ -7638,11 +7592,11 @@ name = "rf-broadcasting"
 version = "1.0.0"
 dependencies = [
  "async-trait",
- "deadpool-redis 0.18.0",
+ "deadpool-redis",
  "futures",
  "hex",
  "hmac",
- "redis 0.27.6",
+ "redis",
  "serde",
  "serde_json",
  "sha2",
@@ -7660,13 +7614,13 @@ version = "1.0.0"
 dependencies = [
  "async-trait",
  "chrono",
- "deadpool-redis 0.14.0",
+ "deadpool-redis",
  "futures",
  "md5",
  "memcache",
  "once_cell",
  "rand 0.8.5",
- "redis 0.24.0",
+ "redis",
  "sea-orm 1.1.19",
  "serde",
  "serde_json",
@@ -8128,8 +8082,8 @@ dependencies = [
  "async-trait",
  "axum 0.8.7",
  "chrono",
- "deadpool-redis 0.14.0",
- "redis 0.24.0",
+ "deadpool-redis",
+ "redis",
  "serde",
  "serde_json",
  "sqlx",
@@ -8166,10 +8120,10 @@ dependencies = [
  "async-trait",
  "axum 0.8.7",
  "chrono",
- "deadpool-redis 0.14.0",
+ "deadpool-redis",
  "futures",
  "once_cell",
- "redis 0.24.0",
+ "redis",
  "rf-cache",
  "rf-core",
  "rf-jobs",
@@ -8276,10 +8230,10 @@ dependencies = [
  "async-trait",
  "chrono",
  "cron 0.13.0",
- "deadpool-redis 0.14.0",
+ "deadpool-redis",
  "num_cpus",
  "parking_lot",
- "redis 0.24.0",
+ "redis",
  "rf-core",
  "serde",
  "serde_json",
@@ -8723,8 +8677,8 @@ dependencies = [
  "aws-config",
  "aws-sdk-sqs",
  "chrono",
- "deadpool-redis 0.14.0",
- "redis 0.24.0",
+ "deadpool-redis",
+ "redis",
  "rf-core",
  "sea-orm 1.1.19",
  "serde",
@@ -8742,9 +8696,9 @@ dependencies = [
  "async-trait",
  "axum 0.8.7",
  "chrono",
- "deadpool-redis 0.14.0",
+ "deadpool-redis",
  "humantime-serde",
- "redis 0.24.0",
+ "redis",
  "serde",
  "serde_json",
  "thiserror 1.0.69",
@@ -9178,7 +9132,7 @@ dependencies = [
  "fake",
  "http 1.4.0",
  "rand 0.8.5",
- "redis 0.24.0",
+ "redis",
  "rf-mail",
  "serde",
  "serde_json",
@@ -10767,16 +10721,6 @@ dependencies = [
 
 [[package]]
 name = "socket2"
-version = "0.4.10"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9f7916fc008ca5542385b89a3d3ce689953c143e9304a9bf8beec1de48994c0d"
-dependencies = [
- "libc",
- "winapi",
-]
-
-[[package]]
-name = "socket2"
 version = "0.5.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e22376abed350d73dd1cd119b57ffccad95b4e585a7cda43e286245ce23c0678"
@@ -11596,17 +11540,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bbae76ab933c85776efabc971569dd6119c580d8f5d448769dec1764bf796ef2"
 dependencies = [
  "native-tls",
- "tokio",
-]
-
-[[package]]
-name = "tokio-retry"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7f57eb36ecbe0fc510036adff84824dd3c24bb781e21bfa67b69d556aa85214f"
-dependencies = [
- "pin-project",
- "rand 0.8.5",
  "tokio",
 ]
 
@@ -13195,7 +13128,7 @@ checksum = "08db1edfb05d9b3c1542e521aea074442088292f00b5f28e435c714a98f85031"
 dependencies = [
  "assert-json-diff",
  "base64 0.22.1",
- "deadpool 0.12.3",
+ "deadpool",
  "futures",
  "http 1.4.0",
  "http-body-util",

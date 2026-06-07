@@ -97,7 +97,7 @@ impl RedisCache {
             .map_err(|e| CacheError::Backend(e.to_string()))?;
 
         redis::cmd("PING")
-            .query_async::<_, String>(&mut conn)
+            .query_async::<String>(&mut conn)
             .await
             .map_err(|e| CacheError::Backend(e.to_string()))?;
 
@@ -466,7 +466,7 @@ mod tests {
             Ok(client) => match client.get_multiplexed_async_connection().await {
                 Ok(mut conn) => {
                     redis::cmd("PING")
-                        .query_async::<_, String>(&mut conn)
+                        .query_async::<String>(&mut conn)
                         .await
                         .is_ok()
                 }
