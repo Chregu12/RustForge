@@ -9453,6 +9453,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "rf-vector"
+version = "1.0.0"
+dependencies = [
+ "async-trait",
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+ "tokio",
+]
+
+[[package]]
 name = "rf-verbosity"
 version = "1.0.0"
 dependencies = [
