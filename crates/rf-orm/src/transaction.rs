@@ -100,10 +100,11 @@ pub trait TransactionExt {
     /// # use rf_orm::transaction::TransactionExt;
     /// # use sea_orm::{DatabaseConnection, ConnectionTrait};
     /// # async fn example(db: DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
-    /// db.transaction(|tx| async move {
+    /// async fn work(tx: &sea_orm::DatabaseTransaction) -> Result<(), sea_orm::DbErr> {
     ///     tx.execute_unprepared("INSERT INTO users (name) VALUES ('John')").await?;
     ///     Ok(())
-    /// }).await?;
+    /// }
+    /// db.transaction(|tx| work(tx)).await?;
     /// # Ok(())
     /// # }
     /// ```
