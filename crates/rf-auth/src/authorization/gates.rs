@@ -175,7 +175,10 @@ where
     /// struct User { role: String }
     ///
     /// let gate: Gate<User> = Gate::new();
-    /// gate.define("admin", |user| async move { user.role == "admin" });
+    /// gate.define("admin", |user| {
+    ///     let role = user.role.clone();
+    ///     async move { role == "admin" }
+    /// });
     ///
     /// let admin = User { role: "admin".to_string() };
     ///

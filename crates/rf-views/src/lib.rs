@@ -48,7 +48,7 @@
 //! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! let engine = Arc::new(ViewEngine::new("resources/views")?);
 //!
-//! let app = Router::new()
+//! let app: Router = Router::new()
 //!     .route("/", get(index))
 //!     .with_state(engine);
 //! # Ok(())
