@@ -286,6 +286,35 @@ impl Cache for FileDriver {
 
         Ok(())
     }
+
+    async fn touch(&self, key: &str, seconds: u64) -> bool {
+        let path = self.key_to_path(key);
+        let lock = self.acquire_lock(key).await;
+        let _guard = lock.lock().await;
+
+        if !path.exists() {
+            return false;
+        }
+
+        let mut entry = match self.read_entry(&path) {
+            Ok(e) => e,
+            Err(_) => return false,
+        };
+
+        if entry.is_expired() {
+            let _ = fs::remove_file(&path);
+            return false;
+        }
+
+        // Update the expiry timestamp.
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+        entry.expires_at = now + seconds;
+
+        self.write_entry(&path, &entry).is_ok()
+    }
 }
 
 #[cfg(test)]

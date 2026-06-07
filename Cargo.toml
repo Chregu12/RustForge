@@ -147,6 +147,8 @@ members = [
     "crates/rf-spark",
     "crates/rf-mcp",
     "crates/rf-nightwatch",
+    # Phase 22: AI SDK (Laravel 13 equivalent)
+    "crates/rf-ai",
     # Deployment Tests
     "tests/deployment",
 ]

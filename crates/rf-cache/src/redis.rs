@@ -412,6 +412,23 @@ impl Cache for RedisCache {
 
         Ok(())
     }
+
+    /// Efficient implementation using Redis `EXPIRE`.
+    async fn touch(&self, key: &str, seconds: u64) -> bool {
+        let cache_key = self.cache_key(key);
+        let mut conn = match self.pool.get().await {
+            Ok(c) => c,
+            Err(_) => return false,
+        };
+        // `EXPIRE` returns 1 if the key exists and TTL was set, 0 otherwise.
+        let result: i64 = redis::cmd("EXPIRE")
+            .arg(&cache_key)
+            .arg(seconds)
+            .query_async(&mut conn)
+            .await
+            .unwrap_or(0);
+        result == 1
+    }
 }
 
 #[cfg(feature = "redis-backend")]
