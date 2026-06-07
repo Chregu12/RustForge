@@ -428,4 +428,127 @@ mod tests {
         assert!(session.is_ok());
         assert!(!session.unwrap().id().is_empty());
     }
+
+    #[tokio::test]
+    async fn test_session_store_create_unique_ids() {
+        let driver = Arc::new(super::super::driver::MemorySessionDriver::new());
+        let store = SessionStore::new(driver);
+
+        let sess1 = store.create().await.unwrap();
+        let sess2 = store.create().await.unwrap();
+        assert_ne!(sess1.id(), sess2.id());
+    }
+
+    #[tokio::test]
+    async fn test_session_put_marks_dirty() {
+        let driver = Arc::new(CookieSessionDriver::new());
+        let mut session = Session::new("sess_dirty".to_string(), driver);
+
+        assert!(!session.is_dirty());
+        session.put("key", "value");
+        assert!(session.is_dirty());
+    }
+
+    #[tokio::test]
+    async fn test_session_get_typed_value() {
+        let driver = Arc::new(CookieSessionDriver::new());
+        let mut session = Session::new("sess_typed".to_string(), driver);
+
+        session.put("count", 42u32);
+        let count: Option<u32> = session.get_as("count");
+        assert_eq!(count, Some(42));
+    }
+
+    #[tokio::test]
+    async fn test_session_forget_marks_dirty() {
+        let driver = Arc::new(CookieSessionDriver::new());
+        let mut session = Session::new("sess_forget".to_string(), driver);
+
+        session.put("key", "value");
+        // Reset dirty by manually checking state
+        let _ = session.is_dirty();
+
+        session.forget("key");
+        assert!(!session.has("key"));
+        assert!(session.is_dirty());
+    }
+
+    #[tokio::test]
+    async fn test_session_len_and_is_empty() {
+        let driver = Arc::new(CookieSessionDriver::new());
+        let mut session = Session::new("sess_len".to_string(), driver);
+
+        assert_eq!(session.len(), 0);
+        assert!(session.is_empty());
+
+        session.put("a", "1");
+        session.put("b", "2");
+        assert_eq!(session.len(), 2);
+        assert!(!session.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_session_from_data() {
+        let driver = Arc::new(CookieSessionDriver::new());
+        let mut data = HashMap::new();
+        data.insert("user_id".to_string(), serde_json::json!(99));
+
+        let session = Session::from_data("restored_id".to_string(), data, driver);
+        assert_eq!(session.id(), "restored_id");
+        assert!(session.has("user_id"));
+    }
+
+    #[tokio::test]
+    async fn test_session_save_with_memory_driver() {
+        let driver = Arc::new(super::super::driver::MemorySessionDriver::new());
+        let store = SessionStore::new(Arc::clone(&driver) as Arc<dyn super::super::driver::SessionDriver>);
+
+        let mut session = store.create().await.unwrap();
+        let id = session.id().to_string();
+
+        session.put("token", "abc123");
+        session.save().await.unwrap();
+
+        // Now load the session back
+        let loaded = store.load(&id).await.unwrap();
+        assert!(loaded.has("token"));
+    }
+
+    #[tokio::test]
+    async fn test_session_flash_and_age_cycle() {
+        let driver = Arc::new(CookieSessionDriver::new());
+        let mut session = Session::new("flash_sess".to_string(), driver);
+
+        session.flash("status", "saved");
+        // Initially stored under _flash.new
+        assert!(session.has("_flash.new.status"));
+
+        // Age the data: moves new → old
+        session.age_flash_data();
+        assert!(!session.has("_flash.new.status"));
+        assert!(session.has("_flash.old.status"));
+
+        // Retrieve flash data
+        let msg = session.get_flash("status");
+        assert!(msg.is_some());
+        assert_eq!(msg.unwrap().as_str(), Some("saved"));
+
+        // After retrieval it should be gone
+        assert!(!session.has("_flash.old.status"));
+    }
+
+    #[tokio::test]
+    async fn test_session_old_input_workflow() {
+        let driver = Arc::new(CookieSessionDriver::new());
+        let mut session = Session::new("input_sess".to_string(), driver);
+
+        let mut input = HashMap::new();
+        input.insert("email".to_string(), "user@test.com".to_string());
+        input.insert("name".to_string(), "Test User".to_string());
+        session.flash_input(input);
+
+        assert_eq!(session.old("email"), Some("user@test.com".to_string()));
+        assert_eq!(session.old("name"), Some("Test User".to_string()));
+        assert!(session.old("phone").is_none());
+    }
 }

@@ -110,4 +110,80 @@ mod tests {
         let request = Request::from_request(http_req, &()).await.unwrap();
         assert_eq!(request.all().len(), 0);
     }
+
+    #[tokio::test]
+    async fn test_extract_json_request_nested_object() {
+        let json_body = r#"{"user": {"name": "Alice", "age": 25}, "active": true}"#;
+
+        let http_req = HttpRequest::builder()
+            .method("POST")
+            .uri("/users")
+            .header("content-type", "application/json")
+            .body(Body::from(json_body))
+            .unwrap();
+
+        let request = Request::from_request(http_req, &()).await.unwrap();
+        assert!(request.has("user"));
+        assert!(request.has("active"));
+    }
+
+    #[tokio::test]
+    async fn test_extract_non_json_request_has_empty_fields() {
+        let form_body = "name=John&age=30";
+
+        let http_req = HttpRequest::builder()
+            .method("POST")
+            .uri("/test")
+            .header("content-type", "application/x-www-form-urlencoded")
+            .body(Body::from(form_body))
+            .unwrap();
+
+        let request = Request::from_request(http_req, &()).await.unwrap();
+        // Non-JSON bodies result in empty fields for now
+        assert_eq!(request.all().len(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_extract_invalid_json_returns_error() {
+        let bad_json = r#"{"name": "broken"#;
+
+        let http_req = HttpRequest::builder()
+            .method("POST")
+            .uri("/test")
+            .header("content-type", "application/json")
+            .body(Body::from(bad_json))
+            .unwrap();
+
+        let result = Request::from_request(http_req, &()).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_extract_json_array_body_returns_error() {
+        // JSON array is not an object — should be rejected
+        let json_body = r#"[1, 2, 3]"#;
+
+        let http_req = HttpRequest::builder()
+            .method("POST")
+            .uri("/test")
+            .header("content-type", "application/json")
+            .body(Body::from(json_body))
+            .unwrap();
+
+        let result = Request::from_request(http_req, &()).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_extract_preserves_method_and_uri() {
+        let http_req = HttpRequest::builder()
+            .method("PUT")
+            .uri("/resources/42")
+            .body(Body::empty())
+            .unwrap();
+
+        let request = Request::from_request(http_req, &()).await.unwrap();
+        assert_eq!(request.method(), &http::Method::PUT);
+        assert_eq!(request.uri().path(), "/resources/42");
+    }
 }

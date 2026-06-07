@@ -278,4 +278,64 @@ mod tests {
         assert_eq!(parsed.url, "/users/123");
         assert!(parsed.verify(TEST_SECRET));
     }
+
+    #[test]
+    fn test_signed_url_no_expiry_is_not_expired() {
+        let signed = SignedUrl::new("/documents/42", TEST_SECRET, None);
+        assert!(!signed.is_expired());
+        assert!(signed.expires_at().is_none());
+    }
+
+    #[test]
+    fn test_signed_url_wrong_secret_fails_verification() {
+        let signed = SignedUrl::new("/users/1", TEST_SECRET, None);
+        assert!(!signed.verify("completely-wrong-secret"));
+    }
+
+    #[test]
+    fn test_signed_url_to_string_no_expiry_has_no_expires_param() {
+        let signed = SignedUrl::new("/users/1", TEST_SECRET, None);
+        let url = signed.to_string();
+        assert!(url.contains("signature="));
+        assert!(!url.contains("expires="));
+    }
+
+    #[test]
+    fn test_signed_url_to_string_with_expiry_has_expires_param() {
+        let expires = chrono::Utc::now() + chrono::Duration::hours(1);
+        let signed = SignedUrl::new("/users/1", TEST_SECRET, Some(expires));
+        let url = signed.to_string();
+        assert!(url.contains("expires="));
+    }
+
+    #[test]
+    fn test_parse_signed_url_no_query_returns_none() {
+        let result = parse_signed_url("/users/123", TEST_SECRET);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_signed_url_builder_with_exact_expiry() {
+        let target = chrono::Utc::now() + chrono::Duration::hours(24);
+        let signed = SignedUrlBuilder::new("/api/resource", TEST_SECRET)
+            .expires_at(target)
+            .build();
+        assert!(signed.expires_at().is_some());
+        assert!(!signed.is_expired());
+    }
+
+    #[test]
+    fn test_signed_url_different_secrets_produce_different_signatures() {
+        let signed1 = SignedUrl::new("/path", "secret-a", None);
+        let signed2 = SignedUrl::new("/path", "secret-b", None);
+        assert_ne!(signed1.signature(), signed2.signature());
+    }
+
+    #[test]
+    fn test_signed_url_url_with_existing_query_uses_ampersand() {
+        let signed = SignedUrl::new("/search?q=hello", TEST_SECRET, None);
+        let url = signed.to_string();
+        // Should use & separator since URL already has ?
+        assert!(url.contains("&signature="));
+    }
 }

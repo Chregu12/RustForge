@@ -295,4 +295,82 @@ mod tests {
         assert_eq!(format!("{}", HttpMethod::Patch), "PATCH");
         assert_eq!(format!("{}", HttpMethod::Delete), "DELETE");
     }
+
+    #[test]
+    fn test_http_method_display_options_head() {
+        assert_eq!(format!("{}", HttpMethod::Options), "OPTIONS");
+        assert_eq!(format!("{}", HttpMethod::Head), "HEAD");
+    }
+
+    #[test]
+    fn test_route_builder_put() {
+        let route = RouteBuilder::put("/users/1")
+            .name("users.update")
+            .build();
+        assert_eq!(route.methods[0], HttpMethod::Put);
+        assert_eq!(route.name, Some("users.update".to_string()));
+    }
+
+    #[test]
+    fn test_route_builder_patch() {
+        let route = RouteBuilder::patch("/users/1").build();
+        assert_eq!(route.methods[0], HttpMethod::Patch);
+    }
+
+    #[test]
+    fn test_route_builder_delete() {
+        let route = RouteBuilder::delete("/users/1")
+            .name("users.destroy")
+            .build();
+        assert_eq!(route.methods[0], HttpMethod::Delete);
+        assert_eq!(route.name, Some("users.destroy".to_string()));
+    }
+
+    #[test]
+    fn test_route_multiple_methods() {
+        let route = Route::new("/users", vec![HttpMethod::Get, HttpMethod::Post]);
+        assert_eq!(route.methods.len(), 2);
+        assert!(route.methods.contains(&HttpMethod::Get));
+        assert!(route.methods.contains(&HttpMethod::Post));
+    }
+
+    #[test]
+    fn test_route_has_middleware_negative() {
+        let route = Route::new("/users", vec![HttpMethod::Get]).add_middleware("auth");
+        assert!(route.has_middleware("auth"));
+        assert!(!route.has_middleware("throttle"));
+    }
+
+    #[test]
+    fn test_route_in_group_negative() {
+        let route = Route::new("/users", vec![HttpMethod::Get]).add_group("api");
+        assert!(route.in_group("api"));
+        assert!(!route.in_group("admin"));
+    }
+
+    #[test]
+    fn test_route_metadata_missing_key() {
+        let route = Route::new("/users", vec![HttpMethod::Get])
+            .with_metadata("version", "1.0");
+        assert!(route.metadata("version").is_some());
+        assert!(route.metadata("nonexistent").is_none());
+    }
+
+    #[test]
+    fn test_route_builder_groups() {
+        let route = RouteBuilder::get("/users")
+            .groups(vec!["api".to_string(), "v1".to_string()])
+            .build();
+        assert_eq!(route.groups.len(), 2);
+        assert!(route.in_group("api"));
+        assert!(route.in_group("v1"));
+    }
+
+    #[test]
+    fn test_route_builder_metadata() {
+        let route = RouteBuilder::get("/users")
+            .metadata("cache", "3600")
+            .build();
+        assert_eq!(route.metadata("cache"), Some(&"3600".to_string()));
+    }
 }

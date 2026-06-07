@@ -213,4 +213,72 @@ mod tests {
         let i32_param: ParamValue = 42i32.into();
         assert_eq!(i32_param.as_str(), "42");
     }
+
+    #[test]
+    fn test_route_registry_names() {
+        let mut registry = RouteRegistry::new();
+        registry.register(NamedRoute::new("users.index", "/users"));
+        registry.register(NamedRoute::new("posts.index", "/posts"));
+
+        let mut names = registry.names();
+        names.sort();
+        assert_eq!(names.len(), 2);
+        assert!(names.contains(&"users.index".to_string()));
+        assert!(names.contains(&"posts.index".to_string()));
+    }
+
+    #[test]
+    fn test_route_registry_overwrite() {
+        let mut registry = RouteRegistry::new();
+        registry.register(NamedRoute::new("users.show", "/users/{id}"));
+        registry.register(NamedRoute::new("users.show", "/accounts/{id}"));
+
+        let mut params = HashMap::new();
+        params.insert("id".to_string(), ParamValue::Number(5));
+        let url = registry.url("users.show", &params);
+        assert_eq!(url, Some("/accounts/5".to_string()));
+    }
+
+    #[test]
+    fn test_route_registry_url_missing_param_leaves_placeholder() {
+        let mut registry = RouteRegistry::new();
+        registry.register(NamedRoute::new("users.show", "/users/{id}"));
+
+        let url = registry.url("users.show", &HashMap::new());
+        // With no params, the placeholder stays
+        assert_eq!(url, Some("/users/{id}".to_string()));
+    }
+
+    #[test]
+    fn test_route_registry_url_nonexistent_route() {
+        let registry = RouteRegistry::new();
+        let url = registry.url("nonexistent", &HashMap::new());
+        assert!(url.is_none());
+    }
+
+    #[test]
+    fn test_route_url_builder_string_param() {
+        let route = NamedRoute::new("posts.show", "/posts/{slug}");
+        let url = RouteUrlBuilder::new(route)
+            .param("slug", "hello-world")
+            .build();
+        assert_eq!(url, "/posts/hello-world");
+    }
+
+    #[test]
+    fn test_named_route_multiple_params_url() {
+        let route = NamedRoute::new("orders.item", "/orders/{order_id}/items/{item_id}");
+        let mut params = HashMap::new();
+        params.insert("order_id".to_string(), ParamValue::Number(10));
+        params.insert("item_id".to_string(), ParamValue::Number(20));
+        let url = route.url(&params);
+        assert_eq!(url, "/orders/10/items/20");
+    }
+
+    #[test]
+    fn test_param_value_from_string_owned() {
+        let s = String::from("owned-string");
+        let param: ParamValue = s.into();
+        assert_eq!(param.as_str(), "owned-string");
+    }
 }

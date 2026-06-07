@@ -559,4 +559,96 @@ mod tests {
         // Validate with a 2-hour lifetime → expired
         assert!(!store.validate(&value, 2).await);
     }
+
+    #[test]
+    fn test_csrf_token_display() {
+        let token = CsrfToken::generate();
+        let displayed = format!("{}", token);
+        assert_eq!(displayed, token.token());
+    }
+
+    #[test]
+    fn test_csrf_token_length_is_sufficient() {
+        let token = CsrfToken::generate();
+        // 32 bytes base64-encoded should be at least 40 characters (URL_SAFE_NO_PAD)
+        assert!(token.token().len() >= 40);
+    }
+
+    #[test]
+    fn test_csrf_token_verify_rejects_empty_string() {
+        let token = CsrfToken::generate();
+        assert!(!token.verify(""));
+    }
+
+    #[test]
+    fn test_csrf_token_verify_rejects_partial_match() {
+        let token = CsrfToken::generate();
+        let value = token.token();
+        // Truncate the value — should not verify
+        assert!(!token.verify(&value[..5]));
+    }
+
+    #[test]
+    fn test_csrf_config_defaults() {
+        let config = CsrfConfig::default();
+        assert_eq!(config.token_lifetime_hours, 2);
+        assert_eq!(config.field_name, "_token");
+        assert_eq!(config.header_name, "X-CSRF-TOKEN");
+        assert!(config.exempt_routes.is_empty());
+    }
+
+    #[test]
+    fn test_csrf_middleware_not_exempt_for_non_matching_routes() {
+        let config = CsrfConfig::new().exempt("/api/webhooks");
+        let middleware = CsrfMiddleware::with_config(config);
+
+        assert!(!middleware.is_exempt("/users"));
+        assert!(!middleware.is_exempt("/admin/dashboard"));
+    }
+
+    #[test]
+    fn test_csrf_middleware_exempt_prefix_matching() {
+        let config = CsrfConfig::new().exempt("/api/");
+        let middleware = CsrfMiddleware::with_config(config);
+
+        assert!(middleware.is_exempt("/api/users"));
+        assert!(middleware.is_exempt("/api/posts/123"));
+        assert!(!middleware.is_exempt("/web/home"));
+    }
+
+    #[tokio::test]
+    async fn test_csrf_token_store_multiple_tokens() {
+        let store = CsrfTokenStore::new();
+        let token1 = CsrfToken::generate();
+        let token2 = CsrfToken::generate();
+        let value1 = token1.token().to_string();
+        let value2 = token2.token().to_string();
+
+        store.register(&token1).await;
+        store.register(&token2).await;
+
+        // Both should be valid
+        assert!(store.validate(&value1, 2).await);
+        assert!(store.validate(&value2, 2).await);
+    }
+
+    #[tokio::test]
+    async fn test_csrf_token_store_empty_string_rejected() {
+        let store = CsrfTokenStore::new();
+        assert!(!store.validate("", 2).await);
+    }
+
+    #[test]
+    fn test_csrf_field_contains_value() {
+        let token = CsrfToken::generate();
+        let field = csrf_field(&token);
+        assert!(field.contains(&format!("value=\"{}\"", token.token())));
+    }
+
+    #[test]
+    fn test_csrf_meta_contains_value() {
+        let token = CsrfToken::generate();
+        let meta = csrf_meta(&token);
+        assert!(meta.contains(&format!("content=\"{}\"", token.token())));
+    }
 }

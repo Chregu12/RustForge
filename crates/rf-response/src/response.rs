@@ -249,4 +249,132 @@ mod tests {
         assert_eq!(response.status(), StatusCode::FOUND);
         // Flash data would be in headers (in real impl, it would be in session)
     }
+
+    #[test]
+    fn test_json_response_sets_content_type() {
+        let response = Response::json(&serde_json::json!({"key": "value"})).build();
+        let ct = response
+            .headers()
+            .get("content-type")
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("");
+        assert!(ct.contains("application/json"));
+    }
+
+    #[test]
+    fn test_json_response_custom_status_code() {
+        let response = Response::json(&serde_json::json!({"error": "not found"}))
+            .status(StatusCode::NOT_FOUND)
+            .build();
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[test]
+    fn test_json_response_created_status() {
+        let response = Response::json(&serde_json::json!({"id": 1}))
+            .status(StatusCode::CREATED)
+            .build();
+        assert_eq!(response.status(), StatusCode::CREATED);
+    }
+
+    #[test]
+    fn test_text_response_sets_content_type() {
+        let response = Response::text("Hello, World!").build();
+        assert_eq!(response.status(), StatusCode::OK);
+        let ct = response
+            .headers()
+            .get("content-type")
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("");
+        assert!(ct.contains("text/plain"));
+    }
+
+    #[test]
+    fn test_redirect_301_permanent() {
+        let response = ResponseBuilder::new()
+            .redirect("/new-path")
+            .status(StatusCode::MOVED_PERMANENTLY)
+            .build();
+        assert_eq!(response.status(), StatusCode::MOVED_PERMANENTLY);
+        assert_eq!(
+            response.headers().get("location").and_then(|v| v.to_str().ok()),
+            Some("/new-path")
+        );
+    }
+
+    #[test]
+    fn test_redirect_307_temporary() {
+        let response = ResponseBuilder::new()
+            .redirect("/temporary")
+            .status(StatusCode::TEMPORARY_REDIRECT)
+            .build();
+        assert_eq!(response.status(), StatusCode::TEMPORARY_REDIRECT);
+        assert_eq!(
+            response.headers().get("location").and_then(|v| v.to_str().ok()),
+            Some("/temporary")
+        );
+    }
+
+    #[test]
+    fn test_response_custom_header() {
+        let response = ResponseBuilder::new()
+            .header("x-request-id", "abc-123")
+            .build();
+        let header_val = response
+            .headers()
+            .get("x-request-id")
+            .and_then(|v| v.to_str().ok());
+        assert_eq!(header_val, Some("abc-123"));
+    }
+
+    #[test]
+    fn test_response_multiple_headers() {
+        let response = ResponseBuilder::new()
+            .header("x-custom-a", "value-a")
+            .header("x-custom-b", "value-b")
+            .build();
+        assert_eq!(
+            response.headers().get("x-custom-a").and_then(|v| v.to_str().ok()),
+            Some("value-a")
+        );
+        assert_eq!(
+            response.headers().get("x-custom-b").and_then(|v| v.to_str().ok()),
+            Some("value-b")
+        );
+    }
+
+    #[test]
+    fn test_response_builder_default() {
+        let response = ResponseBuilder::default().build();
+        assert_eq!(response.status(), StatusCode::OK);
+    }
+
+    #[test]
+    fn test_into_response_implementation() {
+        use axum::response::IntoResponse;
+        let builder = Response::json(&serde_json::json!({"ok": true}));
+        let _response = builder.into_response();
+        // Ensure IntoResponse can be called without panic
+    }
+
+    #[test]
+    fn test_download_response_content_type_is_octet_stream() {
+        let response = Response::download("/var/data/report.csv", "report.csv").build();
+        let ct = response
+            .headers()
+            .get("content-type")
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("");
+        assert_eq!(ct, "application/octet-stream");
+    }
+
+    #[test]
+    fn test_redirect_to_external_url() {
+        let response = Response::redirect("https://example.com/login").build();
+        assert_eq!(response.status(), StatusCode::FOUND);
+        assert_eq!(
+            response.headers().get("location").and_then(|v| v.to_str().ok()),
+            Some("https://example.com/login")
+        );
+    }
 }

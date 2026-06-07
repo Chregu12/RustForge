@@ -266,4 +266,80 @@ mod tests {
         assert!(params.contains_key("id"));
         assert!(params.contains_key("slug"));
     }
+
+    #[test]
+    fn test_query_string_builder_empty() {
+        let query = QueryStringBuilder::new().build();
+        assert_eq!(query, "");
+    }
+
+    #[test]
+    fn test_query_string_builder_single_param() {
+        let query = QueryStringBuilder::new().add("page", "1").build();
+        assert_eq!(query, "?page=1");
+    }
+
+    #[test]
+    fn test_query_string_builder_encodes_special_chars() {
+        let query = QueryStringBuilder::new()
+            .add("search", "hello world")
+            .build();
+        // Space should be percent-encoded
+        assert!(query.contains("search=hello%20world"));
+    }
+
+    #[test]
+    fn test_url_builder_fragment_only() {
+        let url = UrlBuilder::new("https://example.com")
+            .fragment("section-2")
+            .build();
+        assert_eq!(url, "https://example.com#section-2");
+    }
+
+    #[test]
+    fn test_url_builder_with_leading_slash_segment() {
+        let url = UrlBuilder::new("https://example.com")
+            .segment("/api")
+            .segment("v1")
+            .build();
+        // Should not double-slash
+        assert!(url.contains("/api/v1"));
+        assert!(!url.contains("//api"));
+    }
+
+    #[test]
+    fn test_url_generator_missing_route_returns_none() {
+        let generator = UrlGenerator::new("https://example.com", "secret");
+        let params = route_params! { "id" => 1 };
+        let result = generator.route("nonexistent.route", params);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_url_generator_signed_route_missing_returns_none() {
+        let generator = UrlGenerator::new("https://example.com", "secret");
+        let params = route_params! { "id" => 1 };
+        let result = generator.signed_route("nonexistent", params, Some(60));
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_url_generator_base_url() {
+        let generator = UrlGenerator::new("https://myapp.io", "secret");
+        assert_eq!(generator.base_url(), "https://myapp.io");
+    }
+
+    #[test]
+    fn test_url_generator_signed_route_no_expiry() {
+        let mut generator = UrlGenerator::new("https://example.com", "secret");
+        let route = NamedRoute::new("files.download", "/files/{id}");
+        generator.register(route);
+
+        let params = route_params! { "id" => 42 };
+        let signed = generator.signed_route("files.download", params, None);
+        assert!(signed.is_some());
+        let signed = signed.unwrap();
+        assert!(signed.expires_at().is_none());
+        assert!(!signed.is_expired());
+    }
 }
