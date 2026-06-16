@@ -40,6 +40,7 @@
 
 pub mod collection;
 pub mod conditional;
+pub mod jsonapi;
 pub mod nested;
 pub mod resource;
 pub mod resource_builder;
@@ -48,6 +49,10 @@ pub use collection::{
     Collection, PaginatedCollection, PaginationLinks, PaginationMeta, ResourceCollection,
 };
 pub use conditional::{Conditional, LoadRelations, MergeWhen, WithRelation};
+pub use jsonapi::{
+    document_from_collection, JsonApiDocument, JsonApiResource, PrimaryData, Relationship,
+    RelationshipData, RelationshipMap, ResourceIdentifier, ResourceObject,
+};
 pub use nested::{
     parse_with_param, LoadError, LoadsRelations, NestedResource, ResourceTransformer,
 };
