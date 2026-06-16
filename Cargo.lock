@@ -7326,6 +7326,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "rf-ai"
+version = "1.0.0"
+dependencies = [
+ "async-trait",
+ "futures",
+ "reqwest 0.12.24",
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+ "tokio",
+]
+
+[[package]]
 name = "rf-api"
 version = "1.0.0"
 dependencies = [
@@ -9232,6 +9245,15 @@ dependencies = [
  "tracing-subscriber",
  "trybuild",
  "validator",
+]
+
+[[package]]
+name = "rf-vector"
+version = "1.0.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
 ]
 
 [[package]]
