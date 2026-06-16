@@ -388,6 +388,26 @@ impl Cache for RedisCache {
         Ok(exists)
     }
 
+    async fn touch(&self, key: &str, ttl: Duration) -> CacheResult<bool> {
+        let mut conn = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| CacheError::Backend(e.to_string()))?;
+
+        let cache_key = self.cache_key(key);
+
+        // PEXPIRE returns 1 if the timeout was set, 0 if the key does not exist.
+        let updated: i64 = redis::cmd("PEXPIRE")
+            .arg(&cache_key)
+            .arg(ttl.as_millis() as u64)
+            .query_async(&mut conn)
+            .await
+            .map_err(|e| CacheError::Backend(e.to_string()))?;
+
+        Ok(updated == 1)
+    }
+
     async fn flush(&self) -> CacheResult<()> {
         let mut conn = self
             .pool

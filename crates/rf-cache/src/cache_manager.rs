@@ -62,6 +62,12 @@ impl CacheManager {
         self.runtime.block_on(self.backend.exists(key))
     }
 
+    /// Extend an existing entry's expiration to `now + ttl` without re-reading
+    /// or rewriting its value. Returns `true` if the key existed and was touched.
+    pub fn touch(&self, key: &str, ttl: Duration) -> CacheResult<bool> {
+        self.runtime.block_on(self.backend.touch(key, ttl))
+    }
+
     /// Flush all cache entries
     pub fn flush(&self) -> CacheResult<()> {
         self.runtime.block_on(self.backend.flush())

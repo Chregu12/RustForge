@@ -182,6 +182,33 @@ impl Cache {
         manager.has(key)
     }
 
+    /// Touch a key: extend its expiration to `now + ttl` without re-reading or
+    /// rewriting its value.
+    ///
+    /// Accepts seconds as integer or Duration. Returns `true` if the key existed
+    /// and was touched, `false` otherwise.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use rf_cache::facade::Cache;
+    ///
+    /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// Cache::put("key", "value", 60)?;
+    ///
+    /// // Laravel style - just pass seconds!
+    /// let touched = Cache::touch("key", 3600)?;
+    /// if touched {
+    ///     println!("Expiration extended");
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn touch<TTL: IntoTtl>(key: &str, ttl: TTL) -> CacheResult<bool> {
+        let manager = GLOBAL_CACHE.read().unwrap();
+        manager.touch(key, ttl.into_duration())
+    }
+
     /// Flush all cache entries
     ///
     /// # Examples
@@ -399,6 +426,21 @@ mod tests {
         assert!(!added);
 
         Cache::forget("add_key").unwrap();
+    }
+
+    #[test]
+    fn test_cache_touch() {
+        Cache::forget("touch_key").ok();
+
+        // Touch on a missing key returns false.
+        assert!(!Cache::touch("touch_key", 60).unwrap());
+
+        // After putting a value, touch returns true and the key still exists.
+        Cache::put("touch_key", "value", 60).unwrap();
+        assert!(Cache::touch("touch_key", 3600).unwrap());
+        assert!(Cache::has("touch_key").unwrap());
+
+        Cache::forget("touch_key").unwrap();
     }
 
     #[test]
