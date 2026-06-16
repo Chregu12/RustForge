@@ -2,6 +2,7 @@
 
 use crate::error::QueueError;
 use crate::job::{FailedJob, Job, JobPayload};
+use crate::routing::JobRouter;
 use deadpool_redis::{Config, Pool, Runtime};
 use redis::AsyncCommands;
 use serde_json;
@@ -67,7 +68,25 @@ impl QueueManager {
         Ok(Self { pool })
     }
 
+    /// Resolve the base queue for a job type.
+    ///
+    /// A route registered via [`JobRouter`](crate::JobRouter) wins over the
+    /// job's [`Job::queue`](crate::Job::queue) default. An explicit
+    /// [`dispatch_to`](Self::dispatch_to) call bypasses this and always wins.
+    fn resolve_queue<J: Job>(job: &J) -> String {
+        match JobRouter::resolve(std::any::type_name::<J>()) {
+            // TODO: honor `route.connection` once QueueManager supports
+            // multiple named connections; for now we only route the queue.
+            Some(route) => route.queue,
+            None => job.queue().to_string(),
+        }
+    }
+
     /// Dispatch job to its default queue
+    ///
+    /// If a route is registered for the job's type via
+    /// [`JobRouter`](crate::JobRouter), that route's queue is used instead of
+    /// the [`Job::queue`](crate::Job::queue) default.
     ///
     /// # Example
     ///
@@ -80,7 +99,7 @@ impl QueueManager {
     /// # }
     /// ```
     pub async fn dispatch<J: Job>(&self, job: J) -> Result<Uuid, QueueError> {
-        let queue = job.queue().to_string();
+        let queue = Self::resolve_queue(&job);
         self.dispatch_to(job, &queue).await
     }
 
@@ -130,7 +149,7 @@ impl QueueManager {
         job: J,
         priority: QueuePriority,
     ) -> Result<Uuid, QueueError> {
-        let base_queue = job.queue().to_string();
+        let base_queue = Self::resolve_queue(&job);
         let queue_name = format!("{}:{}", base_queue, priority.suffix());
         self.dispatch_to(job, &queue_name).await
     }
@@ -426,9 +445,15 @@ impl QueueManager {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::routing::JobRouter;
     use crate::Job;
     use async_trait::async_trait;
     use serde::{Deserialize, Serialize};
+    use std::sync::Mutex;
+
+    /// Serializes every test that mutates the process-global route registry to
+    /// prevent flaky cross-test races.
+    static ROUTE_TEST_GUARD: Mutex<()> = Mutex::new(());
 
     #[derive(Debug, Clone, Serialize, Deserialize)]
     struct TestJob {
@@ -439,6 +464,26 @@ mod tests {
     impl Job for TestJob {
         async fn handle(&self, _ctx: crate::JobContext) -> crate::JobResult {
             Ok(())
+        }
+
+        fn queue(&self) -> &str {
+            "default"
+        }
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    struct RoutedTestJob {
+        value: i32,
+    }
+
+    #[async_trait]
+    impl Job for RoutedTestJob {
+        async fn handle(&self, _ctx: crate::JobContext) -> crate::JobResult {
+            Ok(())
+        }
+
+        fn queue(&self) -> &str {
+            "default"
         }
     }
 
@@ -507,5 +552,78 @@ mod tests {
 
         let payload = manager.pop_nowait("test").await.unwrap();
         assert!(payload.is_some());
+    }
+
+    #[test]
+    fn test_resolve_queue_uses_registered_route() {
+        let _guard = ROUTE_TEST_GUARD.lock().unwrap_or_else(|e| e.into_inner());
+        JobRouter::clear();
+
+        // Without a route, falls back to `Job::queue()`.
+        let job = RoutedTestJob { value: 1 };
+        assert_eq!(QueueManager::resolve_queue(&job), "default");
+
+        // A registered route wins over the `Job::queue()` default.
+        JobRouter::route::<RoutedTestJob>("routed");
+        assert_eq!(QueueManager::resolve_queue(&job), "routed");
+
+        JobRouter::clear();
+    }
+
+    #[tokio::test]
+    async fn test_dispatch_lands_in_routed_queue() {
+        let _guard = ROUTE_TEST_GUARD.lock().unwrap_or_else(|e| e.into_inner());
+        JobRouter::clear();
+
+        if !redis_available().await {
+            eprintln!("⏭️  Skipping test_dispatch_lands_in_routed_queue: Redis not available");
+            eprintln!("   Start services with: ./scripts/test-env-up.sh");
+            JobRouter::clear();
+            return;
+        }
+        let manager = QueueManager::new("redis://localhost:6379").await.unwrap();
+        manager.clear("routed-q").await.unwrap();
+        manager.clear("default").await.unwrap();
+
+        JobRouter::route::<RoutedTestJob>("routed-q");
+
+        let job = RoutedTestJob { value: 42 };
+        manager.dispatch(job).await.unwrap();
+
+        // The routed queue received the job; the default queue did not.
+        assert_eq!(manager.size("routed-q").await.unwrap(), 1);
+
+        let payload = manager.pop_nowait("routed-q").await.unwrap();
+        assert!(payload.is_some());
+        assert_eq!(payload.unwrap().queue, "default"); // payload.queue still from Job::queue()
+
+        JobRouter::clear();
+    }
+
+    #[tokio::test]
+    async fn test_dispatch_to_overrides_route() {
+        let _guard = ROUTE_TEST_GUARD.lock().unwrap_or_else(|e| e.into_inner());
+        JobRouter::clear();
+
+        if !redis_available().await {
+            eprintln!("⏭️  Skipping test_dispatch_to_overrides_route: Redis not available");
+            eprintln!("   Start services with: ./scripts/test-env-up.sh");
+            JobRouter::clear();
+            return;
+        }
+        let manager = QueueManager::new("redis://localhost:6379").await.unwrap();
+        manager.clear("routed-q").await.unwrap();
+        manager.clear("explicit-q").await.unwrap();
+
+        // Even with a route registered, an explicit `dispatch_to` wins.
+        JobRouter::route::<RoutedTestJob>("routed-q");
+
+        let job = RoutedTestJob { value: 7 };
+        manager.dispatch_to(job, "explicit-q").await.unwrap();
+
+        assert_eq!(manager.size("explicit-q").await.unwrap(), 1);
+        assert_eq!(manager.size("routed-q").await.unwrap(), 0);
+
+        JobRouter::clear();
     }
 }
