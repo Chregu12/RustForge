@@ -594,6 +594,10 @@ async fn cache_stats() -> Response {
 }
 ```
 
+> New in recent versions: `Cache::touch(key, ttl)` extends an existing entry's
+> TTL without rewriting its value (`rf_cache::CacheFacade::touch`, returns
+> `CacheResult<bool>`).
+
 ### Validation
 
 ```rust
@@ -649,6 +653,15 @@ Queue::push(SendEmailJob {
     template: "welcome".to_string()
 }).await?;
 ```
+
+> New: `JobRouter` (`rf_jobs::JobRouter`) routes job classes to specific
+> queues/connections — `JobRouter::route::<SendEmailJob>("emails")`. Per-job
+> queue selection is also available via `Job::queue()`.
+
+> New crates: `rf-ai` (LLM SDK with an Anthropic provider, agents, embeddings),
+> `rf-vector` (vector search with pgvector helpers), and the `jsonapi` module in
+> `rf-api-resources` (JSON:API documents: `JsonApiDocument`, `ResourceObject`,
+> `Relationship`).
 
 ### CLI Commands
 
@@ -1117,8 +1130,11 @@ use foundry_auth::JwtAuth;
 
 // New (1.0)
 use rf_orm::prelude::*;
-use rf_http::{Router, Request};
-use rf_auth::JwtAuth;
+// Note: there is no `rf-http` crate. `Request` lives in `rf-request`,
+// `Response` in `rf-response`, routing in `rf-routing`/`rf-route-facade`.
+use rf_request::Request;
+// The JWT type is `JwtManager` (not `JwtAuth`):
+use rf_auth::JwtManager;
 ```
 
 #### Storage API

@@ -25,9 +25,10 @@ app.run().await?;
 ```
 
 **Key Types:**
-- `Application` - Main application container
-- `Config` - Configuration management
-- `Environment` - Environment variable access
+- `Application` - Main application container. Note: the builder shown above (`Application::builder().env_file().log_level().build()`) is not implemented in `rf-core`; application bootstrapping lives in `rf-application` (`rf_application::Application::builder(...)`). `rf-core` itself provides runtime/context primitives.
+- `Environment` - Environment enum (`rf_core::Environment`: `Development`, `Staging`, `Production`)
+- `Config` - Configuration management (lives in `rf-config`, not `rf-core`)
+- `AppError` - Core error type (`rf_core::AppError`)
 
 ---
 
@@ -166,7 +167,11 @@ Route::middleware(&["auth", "verified", "admin"]).group(|| {
 #### Request Handling
 
 ```rust
-use rf_http::{Request, Json, Query, Path, Form};
+// `Request` comes from rf-request; the Json/Query/Path/Form extractors are
+// re-exported from axum (RustForge has no `rf-http` crate).
+use rf_request::Request;
+use axum::extract::{Json, Query, Path};
+use axum::Form;
 
 // JSON body
 async fn create_user(Json(payload): Json<CreateUserRequest>) -> Result<Response> {
@@ -197,7 +202,7 @@ async fn handler(req: Request) -> Result<Response> {
 #### Response Building
 
 ```rust
-use rf_http::Response;
+use rf_response::Response;
 
 // JSON response
 Response::json(data)
@@ -224,13 +229,13 @@ Response::json(data)
 ```
 
 **Key Types:**
-- `Router` - Route definition
-- `Request` - HTTP request
-- `Response` - HTTP response
-- `Json<T>` - JSON extractor
-- `Query<T>` - Query param extractor
-- `Path<T>` - Path param extractor
-- `Form<T>` - Form data extractor
+- `Route` - Laravel-style route facade (`rf_routing::RouteFacade`, re-exported as `rf::Route`)
+- `Request` - HTTP request (`rf_request::Request`)
+- `Response` - HTTP response (`rf_response::Response`)
+- `Json<T>` - JSON extractor (`axum::extract::Json`)
+- `Query<T>` - Query param extractor (`axum::extract::Query`)
+- `Path<T>` - Path param extractor (`axum::extract::Path`)
+- `Form<T>` - Form data extractor (`axum::Form`)
 
 ---
 
@@ -305,13 +310,14 @@ if Auth::has_any_role(&["admin", "moderator"]).await {
 #### Password Hashing
 
 ```rust
-use rf_auth::Hash;
+// `Hash` lives in rf-global-helpers and is re-exported as `rf::Hash`.
+use rf::Hash;
 
-// Hash password
-let hash = Hash::make("password123")?;
+// Hash password (returns String, not Result)
+let hash = Hash::make("password123");
 
-// Verify password
-let is_valid = Hash::check("password123", &hash)?;
+// Verify password (returns bool, not Result)
+let is_valid = Hash::check("password123", &hash);
 ```
 
 #### Protect Routes
@@ -340,7 +346,9 @@ Input validation framework.
 #### Validation Rules
 
 ```rust
-use rf_validation::{Validate, ValidationRule};
+// The `Validate` derive comes from rf-validation-derive (re-exported as
+// `rf::Validate`). There is no `ValidationRule` type; the rule trait is `Rule`.
+use rf::Validate;
 
 #[derive(Debug, Deserialize, Validate)]
 pub struct CreateUserRequest {
@@ -392,10 +400,10 @@ impl Validator for UniqueEmail {
 ```
 
 **Key Types:**
-- `Validate` - Validation trait
-- `Validator` - Custom validator trait
-- `ValidationError` - Validation error
-- `ValidationResult` - Validation result
+- `Validate` - Validation derive (`rf_validation_derive::Validate`, re-exported as `rf::Validate`)
+- `Rule` - Custom validation rule trait (`rf_validation::Rule`) — named `Rule`, not `Validator`
+- `ValidationErrors` - Validation errors collection (`rf_validation::ValidationErrors`)
+- `RuleResult` - Rule result (`rf_validation::RuleResult` = `Result<(), String>`)
 
 ---
 
@@ -489,23 +497,19 @@ pub struct SendEmailJob {
 
 #[async_trait]
 impl Job for SendEmailJob {
-    async fn handle(&self, _ctx: &JobContext) -> Result<(), Error> {
+    async fn handle(&self, _ctx: JobContext) -> JobResult {
         // Send email
-        Mail::to(&self.to)
-            .subject(&self.subject)
-            .body(&self.body)
-            .send()
-            .await?;
+        Mail::to(&self.to).send(/* a Mailable */).await?;
 
         Ok(())
     }
 
-    fn max_tries(&self) -> u32 {
+    fn max_attempts(&self) -> u32 {
         3
     }
 
-    fn timeout(&self) -> u64 {
-        60
+    fn timeout(&self) -> Duration {
+        Duration::from_secs(60)
     }
 }
 ```
@@ -513,34 +517,27 @@ impl Job for SendEmailJob {
 #### Dispatching Jobs
 
 ```rust
-use rf_queue::Queue;
+// The dispatch facade is `rf_queue::QueueFacade` (or the module-level
+// `rf_queue::dispatch` / `dispatch_later` helpers). `rf_queue::Queue` is the
+// backend trait, not a facade.
+use rf_queue::QueueFacade as Queue;
 
 // Dispatch immediately
-Queue::push(SendEmailJob {
-    to: "user@example.com".to_string(),
-    subject: "Hello".to_string(),
-    body: "Welcome!".to_string(),
-}).await?;
+Queue::push(metadata).await?;
 
-// Delay (in seconds)
-Queue::later(60, job).await?;
-
-// Specific queue
-Queue::on("emails").push(job).await?;
-
-// Chain jobs
-Queue::chain(vec![
-    Box::new(job1),
-    Box::new(job2),
-    Box::new(job3),
-]).await?;
+// Delayed dispatch
+Queue::push_later(metadata).await?;
 ```
 
+> Note: per-call queue selection is done via `Job::queue()` (or `JobRouter`,
+> see below), not a `Queue::on(...)` chain. `Queue::chain(...)` is not
+> currently implemented.
+
 **Key Types:**
-- `Job` - Job trait
-- `Queue` - Queue facade
-- `QueueManager` - Queue manager
-- `JobContext` - Job execution context
+- `Job` - Job trait (`rf_jobs::Job`); key methods: `handle`, `queue`, `max_attempts`, `backoff`, `timeout`, `failed`
+- `QueueFacade` - Dispatch facade (`rf_queue::QueueFacade`)
+- `JobContext` - Job execution context (`rf_jobs::JobContext`)
+- `JobRouter` - Routes job classes to queues/connections (`rf_jobs::JobRouter`): `route::<J>(queue)`, `route_to::<J>(queue, connection)`, `resolve(type_name)`
 
 ---
 
@@ -592,9 +589,9 @@ Mail::to("user@example.com")
 ```
 
 **Key Types:**
-- `Mail` - Mail facade
-- `Mailable` - Mailable trait
-- `MailDriver` - Mail driver trait
+- `Mail` - Mail facade (`rf_mail::MailFacade`, re-exported as `rf::Mail`)
+- `Mailable` - Mailable trait (`rf_mail::Mailable`)
+- `Mailer` - Mail driver trait (`rf_mail::Mailer`); note: the chainable `.subject()/.body()/.cc()/.attach()` builder methods live on `MailBuilder`, not on the `Mail` facade
 
 ---
 
@@ -670,32 +667,39 @@ let url = Storage::disk("s3")
 
 ### Available Middleware
 
+> Note: there is no `rf_http::middleware` module. Named middleware (`"auth"`,
+> `"verified"`, etc.) is applied via the route facade — `Route::middleware(&["auth"])`.
+> Tower-layer style middleware lives in `rf-web`: `rf_web::cors_layer(CorsConfig)`
+> and `rf_web::compression_layer()`. CSRF is token-based via `rf_web::{CsrfToken, csrf_token, csrf_field}`.
+> Pre-built `auth()` / `rate_limit()` / `logger()` free functions are not provided as shown below.
+
 ```rust
-use rf_http::middleware;
+use rf_web::{cors_layer, CorsConfig, compression_layer};
 
-// Authentication
-router.use_middleware(middleware::auth());
+// CORS (Tower layer)
+let cors = cors_layer(CorsConfig::default());
 
-// CORS
-router.use_middleware(middleware::cors());
+// Compression (Tower layer)
+let compress = compression_layer();
 
-// Rate limiting
-router.use_middleware(middleware::rate_limit(60, 60)); // 60 req/min
-
-// Logging
-router.use_middleware(middleware::logger());
-
-// CSRF protection
-router.use_middleware(middleware::csrf());
-
-// Compression
-router.use_middleware(middleware::compress());
+// Named middleware via the Route facade:
+Route::middleware(&["auth"]).group(|| {
+    // protected routes
+});
 ```
 
 ### Custom Middleware
 
+> Note: RustForge does not ship a custom `Middleware` trait. Custom middleware
+> uses axum's function-style pattern (`async fn(Request, Next) -> Response` with
+> `axum::middleware::Next`), or named middleware registered via
+> `rf_routing::middleware_pipeline`. The trait example below is illustrative,
+> not a real RustForge API.
+
 ```rust
-use rf_http::{Middleware, Request, Response, Next};
+use axum::extract::Request;
+use axum::middleware::Next;
+use axum::response::Response;
 
 pub struct CustomMiddleware;
 
@@ -722,17 +726,22 @@ impl Middleware for CustomMiddleware {
 ### Error Types
 
 ```rust
-use rf_core::Error;
+// The core error type is `AppError` (not `Error`). Variants use struct-style
+// fields, e.g. `NotFound { resource }`, `BadRequest { message }`.
+use rf_core::AppError;
 
-// Application errors
-pub enum Error {
-    NotFound(String),
-    BadRequest(String),
-    Unauthorized(String),
-    Forbidden(String),
-    InternalError(String),
-    ValidationError(ValidationErrors),
-    DatabaseError(DbErr),
+// Approximate shape of the real enum (rf-core/src/error/app_error.rs):
+pub enum AppError {
+    NotFound { resource: String },
+    BadRequest { message: String },
+    Unauthorized,
+    Forbidden { reason: String },
+    Conflict { message: String },
+    RateLimitExceeded,
+    ServiceUnavailable { service: String },
+    Internal(anyhow::Error),
+    Validation(/* validator::ValidationErrors, feature-gated */),
+    // Note: there is no `DatabaseError` variant.
 }
 
 // Convert to HTTP response
@@ -792,11 +801,13 @@ AWS_BUCKET=bucket
 ### Accessing Config
 
 ```rust
-use rf_core::Config;
+// Config lives in rf-config (re-exported as `rf::Config`), not rf-core.
+// `Config::get` returns `Option<String>`.
+use rf_config::Config;
 
-let app_name = Config::get("app.name")?;
-let database_url = Config::get("database.url")?;
-let debug = Config::get("app.debug").unwrap_or(false);
+let app_name = Config::get("app.name");                 // Option<String>
+let database_url = Config::get("database.url");          // Option<String>
+let debug = Config::get_or("app.debug", "false");        // String with default
 ```
 
 ---
@@ -806,11 +817,13 @@ let debug = Config::get("app.debug").unwrap_or(false);
 ### HTTP Testing
 
 ```rust
-use rf_testing::TestCase;
+// The HTTP test entrypoint is `HttpTester` (returns `TestResponse`).
+// There is no `TestCase` type in rf-testing.
+use rf_testing::HttpTester;
 
 #[tokio::test]
 async fn test_user_registration() {
-    let test = TestCase::new().await;
+    let test = HttpTester::new().await;
 
     let response = test.post("/auth/register", json!({
         "email": "test@example.com",
@@ -827,17 +840,18 @@ async fn test_user_registration() {
 
 ### Database Testing
 
+> Note: there is no `DatabaseTestCase` type. Database assertions are provided
+> as macros (`assert_database_has!`, `assert_database_count!`, ...). The example
+> below is illustrative.
+
 ```rust
-use rf_testing::DatabaseTestCase;
+use rf_testing::{assert_database_has, assert_database_count};
 
 #[tokio::test]
 async fn test_user_creation() {
-    let test = DatabaseTestCase::new().await;
+    let user = User::factory().create(&db).await?;
 
-    let user = User::factory()
-        .create(&test.db())
-        .await?;
-
+    assert_database_has!("users", { "email" => "test@example.com" });
     assert_eq!(user.email, "test@example.com");
 }
 ```
@@ -988,9 +1002,9 @@ Docker development environment management.
 use rf_sail::{Sail, Service};
 
 let sail = Sail::new()
-    .service(Service::Postgres)
-    .service(Service::Redis)
-    .service(Service::Mailhog);
+    .with_service(Service::Postgres)
+    .with_service(Service::Redis)
+    .with_service(Service::Mailhog);
 
 // Start services
 sail.up().await?;
@@ -1011,6 +1025,11 @@ sail.down().await?;
 ## rf-spark (SaaS Billing)
 
 Stripe-based SaaS billing.
+
+> Note: `rf-spark` exists, but the primary Stripe billing implementation is
+> `rf-cashier` (re-exported as `rf::Cashier`), which provides `Billable`,
+> `Subscription`, `CheckoutSession`, `Invoice`, and `WebhookEvent`. The
+> `Spark` API below is approximate (`Spark` exposes `new()` and `user()`).
 
 ### Basic Usage
 
@@ -1041,6 +1060,42 @@ user.subscription("pro-monthly")
 - `Spark` - Billing manager
 - `Billable` - Billable trait
 - `Subscription` - Subscription model
+
+---
+
+## rf-ai (AI SDK)
+
+LLM integration with provider abstraction and agents.
+
+**Key Types:**
+- `ChatProvider` / `EmbeddingProvider` - provider traits (`rf_ai`)
+- `AnthropicProvider` - Anthropic Claude provider (`rf_ai::provider`)
+- `Agent` - tool-using agent loop
+- `ChatRequest`, `Tool`, `MockChatProvider`
+
+---
+
+## rf-vector (Vector Search)
+
+Vector storage and similarity search.
+
+**Key Types:**
+- `Vector` - vector value type (`rf_vector`)
+- `DistanceMetric` - distance metric enum
+- `InMemoryVectorStore` - in-memory vector store
+- `pgvector` - pgvector/Postgres helper module
+
+---
+
+## rf-api-resources (JSON:API)
+
+API resource transformation, including a JSON:API module.
+
+**Key Types (`rf_api_resources::jsonapi`):**
+- `JsonApiDocument` - top-level JSON:API document
+- `ResourceObject`, `ResourceIdentifier`
+- `Relationship`, `RelationshipData`, `RelationshipMap`
+- `PrimaryData`
 
 ---
 
