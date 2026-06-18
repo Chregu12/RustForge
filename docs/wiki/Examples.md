@@ -137,130 +137,141 @@ pub struct ListQuery {
     published: Option<bool>,
 }
 
-// `#[auto_await]` once on the impl block: every model/facade call below
-// (`remember`, `find`, `all`, `create`, `update_by_id`, `delete`, `flush`,
-// `dispatch`, `id`, ...) is awaited for you, so the bodies read await-free.
-#[auto_await]
-impl PostController {
-    pub async fn index(
-        Query(params): Query<ListQuery>,
-    ) -> Result<Response> {
-        let page = params.page.unwrap_or(1);
-        let per_page = params.per_page.unwrap_or(15);
+pub async fn index(
+    Query(params): Query<ListQuery>,
+    Extension(db): Extension<DatabaseConnection>,
+) -> Result<Response> {
+    let page = params.page.unwrap_or(1);
+    let per_page = params.per_page.unwrap_or(15);
 
-        let cache_key = format!(
-            "posts:page:{}:{}:{}",
-            page, per_page, params.published.unwrap_or(true)
-        );
+    let cache_key = format!(
+        "posts:page:{}:{}:{}",
+        page, per_page, params.published.unwrap_or(true)
+    );
 
-        // `remember` is in the auto-await set — no `.await`.
-        let posts: Vec<Post> = Cache::remember(&cache_key, Duration::from_secs(300), || async {
-            let mut query = Post::query().order_by_desc("created_at");
+    // `Cache::remember` is SYNC (the closure is async, the call is not).
+    let posts: Vec<Post> = Cache::remember(&cache_key, Duration::from_secs(300), || async {
+        let mut query = Post::find();
 
-            if let Some(published) = params.published {
-                query = query.r#where("published", published);
-            }
-
-            Ok(query.get()?)
-        })?;
-
-        Ok(Response::json(&posts))
-    }
-
-    pub async fn show(
-        Path(id): Path<i32>,
-        Extension(queue): Extension<QueueManager>,
-    ) -> Result<Response> {
-        let post = Post::find_or_fail(id)?;
-
-        // Dispatch a job (in the auto-await set).
-        dispatch(&queue, IncrementViewsJob { post_id: id })?;
-
-        Ok(Response::json(&post))
-    }
-
-    pub async fn store(
-        Json(payload): Json<CreatePostRequest>,
-    ) -> Result<Response> {
-        payload.validate()?;
-
-        let user_id = Auth::id().ok_or_else(|| anyhow::anyhow!("Not logged in"))?;
-
-        // Laravel-style create — `create` is in the auto-await set.
-        let post = Post::create(json!({
-            "user_id": user_id as i32,
-            "title": payload.title.clone(),
-            "slug": Model::generate_slug(&payload.title),
-            "content": payload.content,
-            "published": payload.published.unwrap_or(false),
-        }))?;
-
-        // Clear tagged cache. `flush` is in the auto-await set.
-        Cache::tags(&["posts"]).flush()?;
-
-        Ok(Response::json(&post).status(StatusCode::CREATED))
-    }
-
-    pub async fn update(
-        Path(id): Path<i32>,
-        Json(payload): Json<UpdatePostRequest>,
-    ) -> Result<Response> {
-        payload.validate()?;
-
-        let user_id = Auth::id().ok_or_else(|| anyhow::anyhow!("Not logged in"))?;
-
-        let post = Post::find_or_fail(id)?;
-
-        if post.user_id != user_id as i32 {
-            return Err(anyhow::anyhow!("Not authorized").into());
+        if let Some(published) = params.published {
+            query = query.filter(post::Column::Published.eq(published));
         }
 
-        let mut changes = json!({});
-        if let Some(title) = payload.title {
-            changes["slug"] = json!(Model::generate_slug(&title));
-            changes["title"] = json!(title);
-        }
-        if let Some(content) = payload.content {
-            changes["content"] = json!(content);
-        }
-        if let Some(published) = payload.published {
-            changes["published"] = json!(published);
-        }
+        Ok(query
+            .order_by_desc(post::Column::CreatedAt)
+            .all(&db)
+            .await?)
+    })?;
 
-        // `update_by_id` is in the auto-await set.
-        let post = Post::update_by_id(id, changes)?;
+    Ok(Response::json(&posts))
+}
 
-        Cache::tags(&["posts"]).flush()?;
+pub async fn show(
+    Path(id): Path<i32>,
+    Extension(db): Extension<DatabaseConnection>,
+    Extension(queue): Extension<QueueManager>,
+) -> Result<Response> {
+    let post = Post::find_by_id(id)
+        .one(&db)
+        .await?
+        .ok_or_else(|| anyhow::anyhow!("Post not found"))?;
 
-        Ok(Response::json(&post))
+    // Dispatch a job (sync free fn, returns the job's Uuid).
+    dispatch(&queue, IncrementViewsJob { post_id: id })?;
+
+    Ok(Response::json(&post))
+}
+
+pub async fn store(
+    Extension(db): Extension<DatabaseConnection>,
+    Json(payload): Json<CreatePostRequest>,
+) -> Result<Response> {
+    payload.validate()?;
+
+    // `Auth::id()` is SYNC and returns Option<u64>.
+    let user_id = Auth::id().ok_or_else(|| anyhow::anyhow!("Not logged in"))?;
+
+    let post = post::ActiveModel {
+        user_id: Set(user_id as i32),
+        title: Set(payload.title.clone()),
+        slug: Set(Model::generate_slug(&payload.title)),
+        content: Set(payload.content),
+        published: Set(payload.published.unwrap_or(false)),
+        ..Default::default()
+    }
+    .insert(&db)
+    .await?;
+
+    // Clear tagged cache. `Cache::tags(...)` is sync; the returned TaggedCache is async.
+    Cache::tags(&["posts"]).flush().await?;
+
+    Ok(Response::json(&post).status(StatusCode::CREATED))
+}
+
+pub async fn update(
+    Path(id): Path<i32>,
+    Extension(db): Extension<DatabaseConnection>,
+    Json(payload): Json<UpdatePostRequest>,
+) -> Result<Response> {
+    payload.validate()?;
+
+    let user_id = Auth::id().ok_or_else(|| anyhow::anyhow!("Not logged in"))?;
+
+    let post = Post::find_by_id(id)
+        .one(&db)
+        .await?
+        .ok_or_else(|| anyhow::anyhow!("Post not found"))?;
+
+    if post.user_id != user_id as i32 {
+        return Err(anyhow::anyhow!("Not authorized").into());
     }
 
-    pub async fn destroy(
-        Path(id): Path<i32>,
-    ) -> Result<Response> {
-        let user_id = Auth::id().ok_or_else(|| anyhow::anyhow!("Not logged in"))?;
-
-        let post = Post::find_or_fail(id)?;
-
-        if post.user_id != user_id as i32 {
-            return Err(anyhow::anyhow!("Not authorized").into());
-        }
-
-        // `delete` is in the auto-await set.
-        post.delete()?;
-
-        Cache::tags(&["posts"]).flush()?;
-
-        Ok(Response::no_content())
+    let mut active: post::ActiveModel = post.into();
+    if let Some(title) = payload.title {
+        active.slug = Set(Model::generate_slug(&title));
+        active.title = Set(title);
     }
+    if let Some(content) = payload.content {
+        active.content = Set(content);
+    }
+    if let Some(published) = payload.published {
+        active.published = Set(published);
+    }
+
+    let post = active.update(&db).await?;
+
+    Cache::tags(&["posts"]).flush().await?;
+
+    Ok(Response::json(&post))
+}
+
+pub async fn destroy(
+    Path(id): Path<i32>,
+    Extension(db): Extension<DatabaseConnection>,
+) -> Result<Response> {
+    let user_id = Auth::id().ok_or_else(|| anyhow::anyhow!("Not logged in"))?;
+
+    let post = Post::find_by_id(id)
+        .one(&db)
+        .await?
+        .ok_or_else(|| anyhow::anyhow!("Post not found"))?;
+
+    if post.user_id != user_id as i32 {
+        return Err(anyhow::anyhow!("Not authorized").into());
+    }
+
+    post.delete(&db).await?;
+
+    Cache::tags(&["posts"]).flush().await?;
+
+    Ok(Response::no_content())
 }
 ```
 
-> **Note:** With `#[auto_await]` on the `impl` block you write Laravel-style, await-free code:
-> the macro inserts `.await` after model/facade calls like `find_or_fail`, `create`,
-> `update_by_id`, `delete`, `remember`, `flush`, `dispatch`, and `id`, and rewrites
-> `where(...)` to `r#where(...)`. `Response::json` takes a reference (`&post`) and
-> `.status(...)` takes a `StatusCode`, not an integer.
+> **Note:** `Cache::remember`, `Cache::tags`, and `Auth::id` are all **synchronous** — there is
+> no `.await` on the facade call itself (`TaggedCache::flush` returned by `Cache::tags` *is*
+> async). `Response::json` takes a reference (`&post`) and `.status(...)` takes a
+> `StatusCode`, not an integer.
 
 ### Routes (src/main.rs)
 
@@ -277,21 +288,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     dotenvy::dotenv()?;
 
     let app = Application::new();
-    // `Database::connect` is infra/bootstrap (not in the auto-await set), so it keeps `.await`.
     let db = Database::connect(&std::env::var("DATABASE_URL")?).await?;
 
     // Public routes using Laravel-style Route facade
-    Route::get("/posts", PostController::index);
-    Route::get("/posts/:id", PostController::show);
+    Route::get("/posts", controllers::post_controller::index);
+    Route::get("/posts/:id", controllers::post_controller::show);
 
     // Protected routes
     Route::middleware(&["auth"]).group(|| {
-        Route::post("/posts", PostController::store);
-        Route::put("/posts/:id", PostController::update);
-        Route::delete("/posts/:id", PostController::destroy);
+        Route::post("/posts", controllers::post_controller::store);
+        Route::put("/posts/:id", controllers::post_controller::update);
+        Route::delete("/posts/:id", controllers::post_controller::destroy);
     });
 
-    // `app.serve(...)` is bootstrap infra (not in the auto-await set), so it keeps `.await`.
     app.serve(Route::router()).with_database(db).await?;
 
     Ok(())
@@ -334,115 +343,123 @@ pub struct AuthResponse {
     pub user: User,
 }
 
-// `#[auto_await]` once on the impl block. Model lookups (`first`, `create`),
-// `Mail::send`/`send`, and `Auth::login`/`logout`/`user`/`id` are all in the
-// auto-await set, and `where(...)` is rewritten to `r#where(...)`.
-#[auto_await]
-impl AuthController {
-    pub async fn register(
-        Json(payload): Json<RegisterRequest>,
-    ) -> Result<Response> {
-        payload.validate()?;
+pub async fn register(
+    Json(payload): Json<RegisterRequest>,
+    db: Database,
+) -> Result<Response> {
+    payload.validate()?;
 
-        // Check if email exists — `first` is in the auto-await set.
-        let existing = User::query()
-            .r#where("email", &payload.email)
-            .first()?;
+    // Check if email exists
+    let existing = User::find()
+        .filter(User::Column::Email.eq(&payload.email))
+        .one(&db)
+        .await?;
 
-        if existing.is_some() {
-            return Err(anyhow::anyhow!("Email already registered").into());
+    if existing.is_some() {
+        return Err(anyhow::anyhow!("Email already registered").into());
+    }
+
+    // Hash password — `Hash::make` returns a String directly (no Result, no `?`).
+    let password_hash = Hash::make(&payload.password);
+
+    // Create user
+    let user = User::ActiveModel {
+        email: Set(payload.email.clone()),
+        name: Set(payload.name),
+        password: Set(password_hash),
+        email_verified_at: Set(None),
+        ..Default::default()
+    };
+
+    let user = user.insert(&db).await?;
+
+    // Send verification email using a Mailable (see the Email System section).
+    Mail::send(VerifyEmail { user: user.clone() })?;
+
+    // Login using the Auth facade. `Auth::login` is SYNC and returns Result<(), String>.
+    Auth::login(user.clone()).map_err(|e| anyhow::anyhow!(e))?;
+
+    Ok(Response::json(&AuthResponse {
+        message: "Registration successful".to_string(),
+        user
+    }).status(StatusCode::CREATED))
+}
+
+pub async fn login(
+    Json(payload): Json<LoginRequest>,
+    db: Database,
+) -> Result<Response> {
+    payload.validate()?;
+
+    let user = User::find()
+        .filter(User::Column::Email.eq(&payload.email))
+        .one(&db)
+        .await?
+        .ok_or_else(|| anyhow::anyhow!("Invalid credentials"))?;
+
+    // `Hash::check` returns a bool directly (no Result, no `?`).
+    if !Hash::check(&payload.password, &user.password) {
+        return Err(anyhow::anyhow!("Invalid credentials").into());
+    }
+
+    // Login using the Auth facade (sync, returns Result<(), String>).
+    Auth::login(user.clone()).map_err(|e| anyhow::anyhow!(e))?;
+
+    Ok(Response::json(&AuthResponse {
+        message: "Login successful".to_string(),
+        user
+    }))
+}
+
+pub async fn logout() -> Result<Response> {
+    // `Auth::logout` is SYNC and returns unit — no `.await`, no `?`.
+    Auth::logout();
+    Ok(Response::json(&json!({ "message": "Logged out successfully" })))
+}
+
+pub async fn me() -> Result<Response> {
+    // `Auth::user::<T>()` is SYNC and returns Option<T>.
+    if let Some(user) = Auth::user::<User>() {
+        Ok(Response::json(&user))
+    } else {
+        Err(anyhow::anyhow!("Not authenticated").into())
+    }
+}
+
+pub async fn forgot_password(
+    Json(payload): Json<ForgotPasswordRequest>,
+    db: Database,
+) -> Result<Response> {
+    payload.validate()?;
+
+    let user = User::find()
+        .filter(User::Column::Email.eq(&payload.email))
+        .one(&db)
+        .await?;
+
+    if let Some(user) = user {
+        // Generate reset token
+        let token = uuid::Uuid::new_v4().to_string();
+
+        // Store token
+        PasswordReset::ActiveModel {
+            email: Set(user.email.clone()),
+            token: Set(token.clone()),
+            created_at: Set(Utc::now()),
+            ..Default::default()
         }
+        .insert(&db)
+        .await?;
 
-        // Hash password — `Hash::make` returns a String directly (no Result, no `?`).
-        let password_hash = Hash::make(&payload.password);
-
-        // Create user — `create` is in the auto-await set.
-        let user = User::create(json!({
-            "email": payload.email.clone(),
-            "name": payload.name,
-            "password": password_hash,
-            "email_verified_at": null,
-        }))?;
-
-        // Send verification email using a Mailable (see the Email System section).
-        Mail::send(VerifyEmail { user: user.clone() })?;
-
-        // Login using the Auth facade — `login` is in the auto-await set.
-        Auth::login(user.clone()).map_err(|e| anyhow::anyhow!(e))?;
-
-        Ok(Response::json(&AuthResponse {
-            message: "Registration successful".to_string(),
-            user
-        }).status(StatusCode::CREATED))
+        // Send email via a Mailable. `Mail::to(addr).send(mailable)` is sync
+        // (returns MailResult<()>); the closure inside a Mailable does the work.
+        Mail::to(&user.email)
+            .send(PasswordResetMail { user: user.clone(), token: token.clone() })?;
     }
 
-    pub async fn login(
-        Json(payload): Json<LoginRequest>,
-    ) -> Result<Response> {
-        payload.validate()?;
-
-        let user = User::query()
-            .r#where("email", &payload.email)
-            .first()?
-            .ok_or_else(|| anyhow::anyhow!("Invalid credentials"))?;
-
-        // `Hash::check` returns a bool directly (no Result, no `?`).
-        if !Hash::check(&payload.password, &user.password) {
-            return Err(anyhow::anyhow!("Invalid credentials").into());
-        }
-
-        Auth::login(user.clone()).map_err(|e| anyhow::anyhow!(e))?;
-
-        Ok(Response::json(&AuthResponse {
-            message: "Login successful".to_string(),
-            user
-        }))
-    }
-
-    pub async fn logout() -> Result<Response> {
-        // `logout` is in the auto-await set.
-        Auth::logout();
-        Ok(Response::json(&json!({ "message": "Logged out successfully" })))
-    }
-
-    pub async fn me() -> Result<Response> {
-        // `user` is in the auto-await set.
-        if let Some(user) = Auth::user::<User>() {
-            Ok(Response::json(&user))
-        } else {
-            Err(anyhow::anyhow!("Not authenticated").into())
-        }
-    }
-
-    pub async fn forgot_password(
-        Json(payload): Json<ForgotPasswordRequest>,
-    ) -> Result<Response> {
-        payload.validate()?;
-
-        let user = User::query()
-            .r#where("email", &payload.email)
-            .first()?;
-
-        if let Some(user) = user {
-            // Generate reset token
-            let token = uuid::Uuid::new_v4().to_string();
-
-            // Store token — `create` is in the auto-await set.
-            PasswordReset::create(json!({
-                "email": user.email.clone(),
-                "token": token.clone(),
-                "created_at": Utc::now(),
-            }))?;
-
-            // Send email via a Mailable — `send` is in the auto-await set.
-            Mail::to(&user.email)
-                .send(PasswordResetMail { user: user.clone(), token: token.clone() })?;
-        }
-
-        Ok(Response::json(&json!({
-            "message": "If the email exists, a reset link will be sent"
-        })))
-    }
+    Ok(Response::json(&json!({
+        "message": "If the email exists, a reset link will be sent"
+    })))
 }
 ```
 
@@ -454,11 +471,8 @@ Handle file uploads with validation and storage.
 
 RustForge uses axum's `Multipart` extractor for uploads, and the `Storage` facade
 (`rf::Storage` = `rf_storage::StorageFacade`) to persist the bytes. Every `Storage`
-facade call is **synchronous** — no `.await` — and `Auth::id()` is await-free too, so the
-business logic reads await-free without needing `#[auto_await]`. `Storage::exists` returns
-a bool, and `Storage::put` takes the path plus a `Vec<u8>` and returns `Result<(), String>`.
-(The only remaining `.await` calls are on axum's `Multipart` reader — `next_field`, `text`,
-`bytes` — which are transport infra, not RustForge facade calls.)
+facade call is **synchronous** — no `.await`. `Storage::exists` returns a bool, and
+`Storage::put` takes the path plus a `Vec<u8>` and returns `Result<(), String>`.
 
 ```rust
 use rf::prelude::*;          // brings in Storage, Response, Auth, json!
@@ -608,16 +622,15 @@ pub struct ProcessOrderJob {
 }
 
 #[async_trait]
-#[auto_await]
 impl Job for ProcessOrderJob {
     // `handle` takes `JobContext` BY VALUE and returns `JobResult`.
     async fn handle(&self, ctx: JobContext) -> JobResult {
         ctx.log(&format!("Processing order {}", self.order_id));
 
-        // Load order (`find_or_fail` is in the auto-await set).
-        let order = Order::find_or_fail(self.order_id)?;
+        // Load order, process payment, update inventory... (app-specific)
+        let order = load_order(self.order_id).await?;
 
-        // Send confirmation email via a Mailable — `send` is in the auto-await set.
+        // Send confirmation email via a Mailable (sync facade call).
         Mail::send(OrderConfirmation {
             order: order.clone(),
             customer: order.customer.clone(),
@@ -645,23 +658,17 @@ impl Job for ProcessOrderJob {
     }
 }
 
-// Dispatch jobs. With `#[auto_await]` on the handler, `Order::create`, `dispatch`,
-// and `Auth::id` are all awaited for you. `dispatch`/`dispatch_later` are free
-// functions that take a `&QueueManager` and return the job's `Uuid`.
-#[auto_await]
+// Dispatch jobs. `dispatch`/`dispatch_later` are sync free functions that take a
+// `&QueueManager` and return the job's `Uuid`. There is NO `Queue::push` facade.
 pub async fn checkout(
     Extension(queue): Extension<QueueManager>,
     Json(payload): Json<CheckoutRequest>,
 ) -> Result<Response> {
     let user_id = Auth::id().ok_or_else(|| anyhow::anyhow!("Not logged in"))?;
 
-    // `create` is in the auto-await set.
-    let order = Order::create(json!({
-        "user_id": user_id,
-        "items": payload.items,
-    }))?;
+    let order = Order::create(user_id, payload).await?;
 
-    // Queue immediate processing — `dispatch` is in the auto-await set.
+    // Queue immediate processing.
     dispatch(&queue, ProcessOrderJob { order_id: order.id })?;
 
     // Queue a follow-up 24 hours later.
@@ -738,9 +745,9 @@ impl Mailable for OrderConfirmation {
     }
 }
 
-// Usage (inside an `#[auto_await]` fn/impl/mod — `find_or_fail` is awaited for you).
-let order = Order::find_or_fail(123)?;
-let customer = User::find_or_fail(order.user_id)?;
+// Usage
+let order = Order::find_by_id(123).one(&db).await?.unwrap();
+let customer = User::find_by_id(order.user_id).one(&db).await?.unwrap();
 
 let email = OrderConfirmation { order, customer };
 
@@ -763,23 +770,20 @@ use std::time::Duration;
 
 pub struct PostRepository;
 
-// `#[auto_await]` once on the impl: `get`, `find`, `all`, `remember`, `forget`,
-// and `flush` are all in the auto-await set, so the bodies stay await-free.
-#[auto_await]
 impl PostRepository {
-    pub async fn find(id: i32) -> Result<Option<Post>> {
+    pub async fn find_by_id(id: i32, db: &Database) -> Result<Option<Post>> {
         let cache_key = format!("post:{}", id);
 
-        // `get` is in the auto-await set.
+        // `Cache::get` is SYNC — no `.await` on the facade call.
         if let Some(post) = Cache::get::<Post>(&cache_key)? {
             return Ok(Some(post));
         }
 
-        // Query database — `find` is in the auto-await set.
-        let post = Post::find(id)?;
+        // Query database
+        let post = Post::find_by_id(id).one(db).await?;
 
-        // Cache result with tags. `TaggedCache::set` is NOT in the auto-await set,
-        // so it keeps its `.await`.
+        // Cache result with tags. `Cache::tags(...)` is sync; the returned
+        // `TaggedCache::set` IS async.
         if let Some(ref post) = post {
             let tagged = Cache::tags(&["posts"]);
             tagged.set(&cache_key, post, Duration::from_secs(3600)).await?;
@@ -788,35 +792,36 @@ impl PostRepository {
         Ok(post)
     }
 
-    pub async fn all_published() -> Result<Vec<Post>> {
-        // `remember` is in the auto-await set; the closure body uses `get` (also in the set).
+    pub async fn all_published(db: &Database) -> Result<Vec<Post>> {
+        // `Cache::remember` is SYNC (only the closure is async). No trailing `.await`.
         let posts = Cache::remember("posts:published", Duration::from_secs(300), || async {
-            Ok(Post::query()
-                .r#where("published", true)
-                .order_by_desc("created_at")
-                .get()?)
+            Ok(Post::find()
+                .filter(Post::Column::Published.eq(true))
+                .order_by_desc(Post::Column::CreatedAt)
+                .all(db)
+                .await?)
         })?;
 
         Ok(posts)
     }
 
-    pub async fn update(id: i32, data: UpdatePost) -> Result<Post> {
-        // `update_by_id` is in the auto-await set.
-        let post = Post::update_by_id(id, data)?;
+    pub async fn update(id: i32, data: UpdatePost, db: &Database) -> Result<Post> {
+        let post = /* update logic */;
 
-        // Invalidate cache — `forget` and `flush` are in the auto-await set.
+        // Invalidate cache. `Cache::forget` and `Cache::tags` are sync;
+        // `TaggedCache::flush` is async.
         Cache::forget(&format!("post:{}", id))?;
-        Cache::tags(&["posts"]).flush()?;
+        Cache::tags(&["posts"]).flush().await?;
 
         Ok(post)
     }
 }
 ```
 
-> **Note:** Under `#[auto_await]` the `Cache` facade calls (`get`, `remember`, `forget`,
-> `flush`) and model lookups (`find`) are awaited for you, so the code reads Laravel-style.
-> The one exception here is `TaggedCache::set`, which is not in the auto-await set and keeps
-> its explicit `.await`.
+> **Note:** The `Cache` facade (`rf::Cache` / `rf_cache::CacheFacade`) is **synchronous** — its
+> methods return `CacheResult<T>` directly and are NOT `async`. Use `Cache::get("k")?` rather
+> than `Cache::get("k").await?`. (`TaggedCache` returned by `Cache::tags(...)` is async internally
+> but `Cache::tags(...)` itself is synchronous.)
 
 ### Extending TTL with `Cache::touch`
 
@@ -863,24 +868,23 @@ struct Post {
 
 struct Query;
 
-// `#[auto_await]` on the resolver impl: `all`, `find`, and `create` are awaited for you.
 #[Object]
-#[auto_await]
 impl Query {
-    async fn posts(&self, _ctx: &Context<'_>) -> Result<Vec<Post>> {
-        Ok(Post::all()?)
+    async fn posts(&self, ctx: &Context<'_>) -> Result<Vec<Post>> {
+        let db = ctx.data::<Database>()?;
+        Ok(Post::find().all(db).await?)
     }
 
-    async fn post(&self, _ctx: &Context<'_>, id: ID) -> Result<Option<Post>> {
+    async fn post(&self, ctx: &Context<'_>, id: ID) -> Result<Option<Post>> {
+        let db = ctx.data::<Database>()?;
         let id: i32 = id.parse()?;
-        Ok(Post::find(id)?)
+        Ok(Post::find_by_id(id).one(db).await?)
     }
 }
 
 struct Mutation;
 
 #[Object]
-#[auto_await]
 impl Mutation {
     async fn create_post(
         &self,
@@ -888,14 +892,17 @@ impl Mutation {
         title: String,
         content: String,
     ) -> Result<Post> {
+        let db = ctx.data::<Database>()?;
         let auth = ctx.data::<AuthGuard>()?;
 
-        // `create` is in the auto-await set.
-        let post = Post::create(json!({
-            "user_id": auth.user_id(),
-            "title": title,
-            "content": content,
-        }))?;
+        let post = Post::ActiveModel {
+            user_id: Set(auth.user_id()),
+            title: Set(title),
+            content: Set(content),
+            ..Default::default()
+        };
+
+        let post = post.insert(db).await?;
 
         // Publish subscription event
         SimpleBroker::publish(PostCreated { post: post.clone() });
