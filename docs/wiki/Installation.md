@@ -269,23 +269,25 @@ Create a simple test file to verify your installation:
 
 ```rust
 // src/main.rs
-use rf::prelude::*;
+use rf::prelude::*;          // Auth, DB, Hash, Response, ...
+use serde_json::json;        // `json!` is not part of `rf::prelude`
 
 #[tokio::main]
 async fn main() {
-    // Define routes
-    Route::get("/", || async {
-        Response::json(json!({"message": "Hello, RustForge!"}))
-    });
+    // Hash facade (synchronous) — make() returns a String, check() returns a bool
+    let hashed = Hash::make("secret");
+    assert!(Hash::check("secret", &hashed));
+    println!("Hash facade works");
 
-    Route::get("/users", || async {
-        let users = DB::table("users").get().await.unwrap();
-        Response::json(users)
-    });
+    // DB facade query builder — get() is async and yields a Vec of rows
+    let users = DB::table("users").get().await.unwrap();
+    println!("Fetched {} user row(s)", users.len());
 
-    // Start server
-    println!("Server running at http://localhost:8000");
-    // app.serve().await.unwrap();
+    // Response builder — json() takes a reference and returns a ResponseBuilder
+    let _response = Response::json(&json!({ "message": "Hello, RustForge!" }));
+    println!("Response facade works");
+
+    println!("RustForge is installed correctly!");
 }
 ```
 
@@ -295,7 +297,8 @@ Run your application:
 cargo run
 ```
 
-Visit `http://localhost:8000` in your browser. You should see "Hello, RustForge!".
+You should see the facade checks print successfully, confirming RustForge is
+installed and the core facades (`Hash`, `DB`, `Response`) are available.
 
 ## Troubleshooting
 

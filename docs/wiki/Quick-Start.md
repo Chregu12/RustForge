@@ -279,10 +279,18 @@ forge migrate
 
 Create `src/controllers/auth_controller.rs`:
 
+Handlers are plain `axum` handlers. The shared `DatabaseConnection`
+(from SeaORM) is injected with axum's `State` extractor, request bodies with
+`Json`, and the `Auth` facade is fully synchronous (no `.await`).
+
 ```rust
-use rf::prelude::*;
-use rf_validation::Validate;
+use rf::prelude::*;            // Auth, Hash, Response, ...
+use axum::extract::{Json, State};
+use axum::http::StatusCode;
+use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
 use serde::{Deserialize, Serialize};
+use serde_json::json;
+use rf_validation::Validate;
 use crate::models::user;
 
 #[derive(Debug, Deserialize, Validate)]
@@ -312,24 +320,27 @@ pub struct AuthResponse {
 }
 
 pub async fn register(
+    State(db): State<DatabaseConnection>,
     Json(payload): Json<RegisterRequest>,
-    db: Database,
-) -> Result<Response, Error> {
+) -> Result<ResponseBuilder, (StatusCode, String)> {
     // Validate input
-    payload.validate()?;
+    payload
+        .validate()
+        .map_err(|e| (StatusCode::UNPROCESSABLE_ENTITY, e.to_string()))?;
 
     // Check if user exists
     let existing = user::Entity::find()
         .filter(user::Column::Email.eq(&payload.email))
         .one(&db)
-        .await?;
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
     if existing.is_some() {
-        return Err(Error::BadRequest("Email already registered".into()));
+        return Err((StatusCode::BAD_REQUEST, "Email already registered".into()));
     }
 
-    // Hash password
-    let password_hash = Hash::make(&payload.password)?;
+    // Hash password (Hash::make is synchronous and returns a String)
+    let password_hash = Hash::make(&payload.password);
 
     // Create user
     let user = user::ActiveModel {
@@ -339,71 +350,87 @@ pub async fn register(
         ..Default::default()
     };
 
-    let user = user.insert(&db).await?;
+    let user = user
+        .insert(&db)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
-    // Login user using Laravel-style Auth facade
-    Auth::login(user.clone()).await?;
+    // Login user using the Laravel-style Auth facade (synchronous, no `.await`)
+    Auth::login(user.clone()).map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e))?;
 
-    Ok(Response::json(AuthResponse {
+    Ok(Response::json(&AuthResponse {
         message: "Registration successful".to_string(),
-        user
+        user,
     }))
 }
 
 pub async fn login(
+    State(db): State<DatabaseConnection>,
     Json(payload): Json<LoginRequest>,
-    db: Database,
-) -> Result<Response, Error> {
+) -> Result<ResponseBuilder, (StatusCode, String)> {
     // Validate input
-    payload.validate()?;
+    payload
+        .validate()
+        .map_err(|e| (StatusCode::UNPROCESSABLE_ENTITY, e.to_string()))?;
 
     // Find user
     let user = user::Entity::find()
         .filter(user::Column::Email.eq(&payload.email))
         .one(&db)
-        .await?
-        .ok_or_else(|| Error::Unauthorized("Invalid credentials".into()))?;
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
+        .ok_or((StatusCode::UNAUTHORIZED, "Invalid credentials".to_string()))?;
 
-    // Verify password
-    if !Hash::check(&payload.password, &user.password)? {
-        return Err(Error::Unauthorized("Invalid credentials".into()));
+    // Verify password (Hash::check is synchronous and returns a bool)
+    if !Hash::check(&payload.password, &user.password) {
+        return Err((StatusCode::UNAUTHORIZED, "Invalid credentials".into()));
     }
 
-    // Login using Laravel-style Auth facade
-    Auth::login(user.clone()).await?;
+    // Login using the Laravel-style Auth facade (synchronous, no `.await`)
+    Auth::login(user.clone()).map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e))?;
 
-    Ok(Response::json(AuthResponse {
+    Ok(Response::json(&AuthResponse {
         message: "Login successful".to_string(),
-        user
+        user,
     }))
 }
 
-pub async fn logout() -> Result<Response, Error> {
-    // Logout using Laravel-style Auth facade
-    Auth::logout().await;
+pub async fn logout() -> ResponseBuilder {
+    // Logout using the Auth facade (returns unit, no `?` and no `.await`)
+    Auth::logout();
 
-    Ok(Response::json(json!({ "message": "Logged out successfully" })))
+    Response::json(&json!({ "message": "Logged out successfully" }))
 }
 
-pub async fn me() -> Result<Response, Error> {
-    // Get current user using Auth facade
-    if let Some(user) = Auth::user::<user::Model>().await {
-        Ok(Response::json(user))
+pub async fn me() -> Result<ResponseBuilder, (StatusCode, String)> {
+    // Get the current user using the Auth facade (synchronous)
+    if let Some(user) = Auth::user::<user::Model>() {
+        Ok(Response::json(&user))
     } else {
-        Err(Error::Unauthorized("Not authenticated".into()))
+        Err((StatusCode::UNAUTHORIZED, "Not authenticated".into()))
     }
 }
 ```
+
+`Response::json` takes a reference and returns a `ResponseBuilder`, which
+implements `axum::response::IntoResponse`. Import it from the prelude with
+`use rf::web::ResponseBuilder;` (or `use rf_response::ResponseBuilder;`).
 
 ### Post Controller
 
 Create `src/controllers/post_controller.rs`:
 
+There is no `AuthGuard` extractor. Read the authenticated user (and its id)
+inside the handler via the synchronous `Auth` facade. `Auth::id()` returns
+`Option<u64>`; the example casts it to `i32` to match the `user_id` column.
+
 ```rust
-use rf::prelude::*;
-use rf_auth::Guard;  // NOTE: rf_auth exports `Guard`, not `AuthGuard`
-use rf_validation::Validate;
+use rf::prelude::*;            // Auth, Response, ...
+use axum::extract::{Json, Path, State};
+use axum::http::StatusCode;
+use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, ModelTrait, QueryFilter, Set};
 use serde::{Deserialize, Serialize};
+use rf_validation::Validate;
 use crate::models::post;
 
 #[derive(Debug, Deserialize, Validate)]
@@ -417,95 +444,122 @@ pub struct CreatePostRequest {
     pub published: Option<bool>,
 }
 
-pub async fn index(db: Database) -> Result<Response, Error> {
+/// Resolve the authenticated user id (the `auth` middleware must run first).
+fn current_user_id() -> Result<i32, (StatusCode, String)> {
+    Auth::id()
+        .map(|id| id as i32)
+        .ok_or((StatusCode::UNAUTHORIZED, "Not authenticated".to_string()))
+}
+
+pub async fn index(
+    State(db): State<DatabaseConnection>,
+) -> Result<ResponseBuilder, (StatusCode, String)> {
     let posts = post::Entity::find()
         .filter(post::Column::Published.eq(true))
         .all(&db)
-        .await?;
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
-    Ok(Response::json(posts))
+    Ok(Response::json(&posts))
 }
 
 pub async fn show(
+    State(db): State<DatabaseConnection>,
     Path(id): Path<i32>,
-    db: Database,
-) -> Result<Response, Error> {
+) -> Result<ResponseBuilder, (StatusCode, String)> {
     let post = post::Entity::find_by_id(id)
         .one(&db)
-        .await?
-        .ok_or_else(|| Error::NotFound("Post not found".into()))?;
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
+        .ok_or((StatusCode::NOT_FOUND, "Post not found".to_string()))?;
 
-    Ok(Response::json(post))
+    Ok(Response::json(&post))
 }
 
 pub async fn store(
-    auth: AuthGuard,
+    State(db): State<DatabaseConnection>,
     Json(payload): Json<CreatePostRequest>,
-    db: Database,
-) -> Result<Response, Error> {
+) -> Result<ResponseBuilder, (StatusCode, String)> {
     // Validate input
-    payload.validate()?;
+    payload
+        .validate()
+        .map_err(|e| (StatusCode::UNPROCESSABLE_ENTITY, e.to_string()))?;
+
+    let user_id = current_user_id()?;
 
     // Create post
     let post = post::ActiveModel {
-        user_id: Set(auth.user_id()),
+        user_id: Set(user_id),
         title: Set(payload.title),
         content: Set(payload.content),
         published: Set(payload.published.unwrap_or(false)),
         ..Default::default()
     };
 
-    let post = post.insert(&db).await?;
+    let post = post
+        .insert(&db)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
-    Ok(Response::json(post).status(201))
+    Ok(Response::json(&post).status(StatusCode::CREATED))
 }
 
 pub async fn update(
-    auth: AuthGuard,
+    State(db): State<DatabaseConnection>,
     Path(id): Path<i32>,
     Json(payload): Json<CreatePostRequest>,
-    db: Database,
-) -> Result<Response, Error> {
+) -> Result<ResponseBuilder, (StatusCode, String)> {
+    let user_id = current_user_id()?;
+
     // Find post
     let post = post::Entity::find_by_id(id)
         .one(&db)
-        .await?
-        .ok_or_else(|| Error::NotFound("Post not found".into()))?;
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
+        .ok_or((StatusCode::NOT_FOUND, "Post not found".to_string()))?;
 
     // Check ownership
-    if post.user_id != auth.user_id() {
-        return Err(Error::Forbidden("Not your post".into()));
+    if post.user_id != user_id {
+        return Err((StatusCode::FORBIDDEN, "Not your post".into()));
     }
 
     // Update post
+    let published = payload.published.unwrap_or(post.published);
     let mut post: post::ActiveModel = post.into();
     post.title = Set(payload.title);
     post.content = Set(payload.content);
-    post.published = Set(payload.published.unwrap_or(post.published.unwrap()));
+    post.published = Set(published);
 
-    let post = post.update(&db).await?;
+    let post = post
+        .update(&db)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
-    Ok(Response::json(post))
+    Ok(Response::json(&post))
 }
 
 pub async fn destroy(
-    auth: AuthGuard,
+    State(db): State<DatabaseConnection>,
     Path(id): Path<i32>,
-    db: Database,
-) -> Result<Response, Error> {
+) -> Result<ResponseBuilder, (StatusCode, String)> {
+    let user_id = current_user_id()?;
+
     // Find post
     let post = post::Entity::find_by_id(id)
         .one(&db)
-        .await?
-        .ok_or_else(|| Error::NotFound("Post not found".into()))?;
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
+        .ok_or((StatusCode::NOT_FOUND, "Post not found".to_string()))?;
 
     // Check ownership
-    if post.user_id != auth.user_id() {
-        return Err(Error::Forbidden("Not your post".into()));
+    if post.user_id != user_id {
+        return Err((StatusCode::FORBIDDEN, "Not your post".into()));
     }
 
     // Delete post
-    post.delete(&db).await?;
+    post.delete(&db)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
     Ok(Response::no_content())
 }
@@ -513,51 +567,59 @@ pub async fn destroy(
 
 ## Step 7: Set Up Routes
 
-Edit `src/main.rs`:
+Edit `src/main.rs`. RustForge handlers are `axum` handlers, so wire them up with
+an `axum::Router`, share the SeaORM `DatabaseConnection` with `.with_state(...)`,
+and serve with `axum::serve`. The database connection is established with SeaORM's
+`Database::connect` (there is no `rf_orm::Database` type — `rf_orm` re-exports
+SeaORM and adds the `DB` facade / `DatabaseManager` on top).
 
 ```rust
 mod models;
 mod controllers;
 
-use rf::prelude::*;
-use rf_orm::Database;
+use axum::routing::{delete, get, post, put};
+use axum::Router;
+use sea_orm::{Database, DatabaseConnection};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Load environment variables
     dotenvy::dotenv()?;
 
-    // Initialize application
-    let app = Application::new();
+    // Connect to the database (SeaORM connection, shared as axum state)
+    let db: DatabaseConnection = Database::connect(std::env::var("DATABASE_URL")?).await?;
 
-    // Connect to database
-    let db = Database::connect(&std::env::var("DATABASE_URL")?).await?;
+    // Public routes
+    let public = Router::new()
+        .route("/auth/register", post(controllers::auth_controller::register))
+        .route("/auth/login", post(controllers::auth_controller::login))
+        .route("/posts", get(controllers::post_controller::index))
+        .route("/posts/:id", get(controllers::post_controller::show));
 
-    // Public routes using Laravel-style Route facade
-    Route::post("/auth/register", controllers::auth_controller::register);
-    Route::post("/auth/login", controllers::auth_controller::login);
+    // Protected routes (attach your auth middleware layer here, e.g. via
+    // `.layer(...)`, so the `Auth` facade is populated before the handler runs).
+    let protected = Router::new()
+        .route("/auth/logout", post(controllers::auth_controller::logout))
+        .route("/auth/me", get(controllers::auth_controller::me))
+        .route("/posts", post(controllers::post_controller::store))
+        .route("/posts/:id", put(controllers::post_controller::update))
+        .route("/posts/:id", delete(controllers::post_controller::destroy));
 
-    // Post routes (public)
-    Route::get("/posts", controllers::post_controller::index);
-    Route::get("/posts/:id", controllers::post_controller::show);
+    let app = public.merge(protected).with_state(db);
 
-    // Protected routes (require authentication)
-    Route::middleware(&["auth"]).group(|| {
-        Route::post("/auth/logout", controllers::auth_controller::logout);
-        Route::get("/auth/me", controllers::auth_controller::me);
-
-        Route::post("/posts", controllers::post_controller::store);
-        Route::put("/posts/:id", controllers::post_controller::update);
-        Route::delete("/posts/:id", controllers::post_controller::destroy);
-    });
-
-    // Start server
+    // Start the server
+    let listener = tokio::net::TcpListener::bind("0.0.0.0:8000").await?;
     println!("Server running at http://localhost:8000");
-    app.serve(Route::router()).with_database(db).await?;
+    axum::serve(listener, app).await?;
 
     Ok(())
 }
 ```
+
+> The `Route` facade (`rf::Route`) registers routes by string handler name
+> (`Route::get("/", "HomeController@index")`) for Laravel-style route tables; it
+> does not wire up `axum` handler functions. For a runnable server that calls the
+> handlers above, use the `axum::Router` setup shown here.
 
 ## Step 8: Run Your Application
 
