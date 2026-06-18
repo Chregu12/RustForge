@@ -9,19 +9,25 @@ Comprehensive API documentation for RustForge v1.0.0.
 `rf-core` provides runtime/context primitives (environment, request context, error
 types). Application bootstrapping lives in `rf-application` via `FoundryApp`.
 
+The console `dispatch` is written AWAIT-FREE under `#[auto_await]` — the macro
+inserts `.await` for you. `build()` is a sync builder call (not part of the
+auto-await set), so it stays as-is.
+
 ```rust
 use rf_application::FoundryApp;
 
-// Build the application from a config value plus the artifact/migration/seed ports.
-let app = FoundryApp::builder(config, artifacts, migrations, seeds)
-    .with_storage_port(storage)
-    .with_cache_port(cache)
-    .build()?; // Result<FoundryApp, ApplicationError>
+#[auto_await]
+async fn bootstrap() -> Result<(), ApplicationError> {
+    // Build the application from a config value plus the artifact/migration/seed ports.
+    let app = FoundryApp::builder(config, artifacts, migrations, seeds)
+        .with_storage_port(storage)
+        .with_cache_port(cache)
+        .build()?; // Result<FoundryApp, ApplicationError>
 
-// Dispatch a console command through the registry.
-let result = app
-    .dispatch("migrate", vec![], ResponseFormat::Text, ExecutionOptions::default())
-    .await?;
+    // Dispatch a console command through the registry (no `.await` — the macro inserts it).
+    let _result = app.dispatch("migrate", vec![], ResponseFormat::Text, ExecutionOptions::default());
+    Ok(())
+}
 ```
 
 **Key Types:**
@@ -68,51 +74,56 @@ impl ActiveModelBehavior for ActiveModel {}
 
 #### Query Builder
 
+Write queries AWAIT-FREE: put `#[auto_await]` once on the enclosing `async fn`
+(or `mod`/`impl`) and the macro inserts `.await` after framework calls (`all`,
+`find`, `first`, `get`, `paginate`, ...) and rewrites `where(...)` →
+`r#where(...)`. You write the bodies exactly like Laravel — no `.await`.
+
 ```rust
-// Find all
-let users = User::find().all(&db).await?;
+#[auto_await]
+async fn examples() {
+    // Find all
+    let users = User::all();
 
-// Find by primary key
-let user = User::find_by_id(1).one(&db).await?;
+    // Find by primary key
+    let user = User::find(1);
 
-// Filtering
-let active_users = User::find()
-    .filter(User::Column::Active.eq(true))
-    .order_by_asc(User::Column::Name)
-    .all(&db)
-    .await?;
+    // Filtering (no `query!`, no `.await` — just like Laravel)
+    let active_users = User::where("active", true)
+        .orderBy("name", "asc")
+        .get();
 
-// Pagination
-let page = User::find()
-    .paginate(&db, 20)
-    .fetch_page(0)
-    .await?;
+    // Pagination (15 per page, page 1)
+    let page = User::query().paginate(15, 1);
 
-// Relationships
-let user_with_posts = User::find_by_id(1)
-    .find_with_related(Post::Entity)
-    .all(&db)
-    .await?;
+    // Relationships
+    let user = User::find(1);
+    let posts = user.posts().get();
+}
 ```
 
 #### Creating & Updating
 
 ```rust
-// Create
-let user = User::ActiveModel {
-    name: Set("John".to_string()),
-    email: Set("john@example.com".to_string()),
-    ..Default::default()
-};
-let user = user.insert(&db).await?;
+#[auto_await]
+async fn examples() {
+    // Create
+    let user = User::create(json!({
+        "name": "John",
+        "email": "john@example.com",
+    }));
 
-// Update
-let mut user: User::ActiveModel = user.into();
-user.name = Set("Jane".to_string());
-let user = user.update(&db).await?;
+    // Update by id
+    User::updateById(user.id, json!({ "name": "Jane" }));
 
-// Delete
-user.delete(&db).await?;
+    // Update an instance and persist
+    let mut user = User::find(user.id);
+    user.name = "Jane".to_string();
+    user.save();
+
+    // Delete
+    user.delete();
+}
 ```
 
 **Key Types:**
@@ -382,6 +393,7 @@ use std::collections::HashMap;
 
 pub struct UniqueEmail;
 
+#[auto_await]  // <- inserts `.await` on framework calls like `exists`; `where` -> `r#where`
 #[async_trait]
 impl Rule for UniqueEmail {
     fn name(&self) -> &str {
@@ -390,12 +402,10 @@ impl Rule for UniqueEmail {
 
     async fn validate(&self, value: &Value, _data: &HashMap<String, Value>) -> RuleResult {
         let email = value.as_str().unwrap_or_default();
-        let exists = User::find()
-            .filter(User::Column::Email.eq(email))
-            .count(&db)
-            .await? > 0;
+        // No `.await` — the macro inserts it on `exists`
+        let taken = User::where("email", email).exists();
 
-        if exists {
+        if taken {
             return Err("Email already registered".to_string());
         }
 
@@ -440,9 +450,9 @@ if Cache::has("key")? {
 }
 
 // Remember (cache with closure) - like Laravel's Cache::remember.
-// The facade call is synchronous; the closure returns a future.
+// Inside an `#[auto_await]` scope the closure body is await-free too.
 let users = Cache::remember("users:all", 3600, || async {
-    Ok(User::find().all(&db).await?)
+    Ok(User::all())
 })?;
 
 // Remember forever
@@ -475,16 +485,21 @@ Cache::decrement("counter", 1)?;
 
 #### Cache Tags
 
+Write tagged cache usage AWAIT-FREE under `#[auto_await]`: `tags`, `put` and
+`flush` are all framework calls the macro awaits for you.
+
 ```rust
 use rf::Cache;
 use std::time::Duration;
 
-// Create tagged cache (Cache::tags is synchronous; TaggedCache ops are async).
-let tagged = Cache::tags(&["users", "posts"]);
-tagged.set("key", &"value", Duration::from_secs(3600)).await?;
+#[auto_await]
+async fn tagged_cache() {
+    // Create tagged cache, then write (no `.await` — the macro inserts it)
+    Cache::tags(&["users", "posts"]).put("key", "value", Duration::from_secs(3600));
 
-// Flush all entries with specific tag
-Cache::tags(&["users"]).flush().await?;
+    // Flush all entries with a specific tag
+    Cache::tags(&["users"]).flush();
+}
 ```
 
 **Key Types:**
@@ -871,13 +886,19 @@ Database assertions are provided as async macros
 (`assert_database_has!`, `assert_database_missing!`, `assert_database_count!`,
 `assert_database_empty!`). Each expands to an async call, so add `.await`.
 
+The model `create` call is written AWAIT-FREE under `#[auto_await]`. The test
+harness calls (`TestDatabase::new`) and the async assertion macros are not part of
+the auto-await set, so they keep their explicit `.await`.
+
 ```rust
 use rf_testing::{TestDatabase, assert_database_has, assert_database_count};
 
 #[tokio::test]
+#[auto_await]
 async fn test_user_creation() -> Result<(), Box<dyn std::error::Error>> {
-    let test_db = TestDatabase::new().await?;
-    let user = User::factory().create(&db).await?;
+    let _test_db = TestDatabase::new().await?;
+    // No `.await` — the macro inserts it on the model `create`
+    let user = User::factory().create();
 
     assert_database_has!("users", { "email" => "test@example.com" }).await?;
     assert_database_count!("users", 1).await?;

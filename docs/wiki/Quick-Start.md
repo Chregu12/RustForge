@@ -279,19 +279,20 @@ forge migrate
 
 Create `src/controllers/auth_controller.rs`:
 
-Handlers are plain `axum` handlers. The shared `DatabaseConnection`
-(from SeaORM) is injected with axum's `State` extractor, request bodies with
-`Json`, and the `Auth` facade is fully synchronous (no `.await`).
+Handlers are written in the AWAIT-FREE style: put `#[auto_await]` **once** on the
+controller `mod` and the macro auto-inserts `.await` after framework calls
+(`find`, `first`, `create`, `save`, `login`, ...) and rewrites `where(...)` →
+`r#where(...)`. You write the bodies exactly like Laravel — no `.await`. The
+`Auth` facade is a genuinely-sync facade, so its calls are await-free either way.
 
 ```rust
-use rf::prelude::*;            // Auth, Hash, Response, ...
-use axum::extract::{Json, State};
+use rf::prelude::*;            // User model, Auth, Hash, Response, ...
+use axum::extract::Json;
 use axum::http::StatusCode;
-use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use rf_validation::Validate;
-use crate::models::user;
+use crate::models::user::User;
 
 #[derive(Debug, Deserialize, Validate)]
 pub struct RegisterRequest {
@@ -313,102 +314,93 @@ pub struct LoginRequest {
     pub password: String,
 }
 
+#[auto_await]  // <- Once here: bodies below are await-free, Laravel-style.
+mod handlers {
+    use super::*;
+
+    pub async fn register(
+        Json(payload): Json<RegisterRequest>,
+    ) -> Result<ResponseBuilder, (StatusCode, String)> {
+        // Validate input
+        payload
+            .validate()
+            .map_err(|e| (StatusCode::UNPROCESSABLE_ENTITY, e.to_string()))?;
+
+        // Check if user exists (no `.await` — the macro inserts it on `exists`)
+        let taken = User::where("email", &payload.email).exists();
+        if taken {
+            return Err((StatusCode::BAD_REQUEST, "Email already registered".into()));
+        }
+
+        // Hash password (Hash::make is synchronous and returns a String)
+        let password_hash = Hash::make(&payload.password);
+
+        // Create user (no `.await` — the macro inserts it on `create`)
+        let user = User::create(json!({
+            "email": payload.email,
+            "name": payload.name,
+            "password": password_hash,
+        }));
+
+        // Login via the sync Auth facade
+        Auth::login(user.clone()).map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e))?;
+
+        Ok(Response::json(&AuthResponse {
+            message: "Registration successful".to_string(),
+            user,
+        }))
+    }
+
+    pub async fn login(
+        Json(payload): Json<LoginRequest>,
+    ) -> Result<ResponseBuilder, (StatusCode, String)> {
+        // Validate input
+        payload
+            .validate()
+            .map_err(|e| (StatusCode::UNPROCESSABLE_ENTITY, e.to_string()))?;
+
+        // Find user (no `.await` — the macro inserts it on `first_or_fail`)
+        let user = User::where("email", &payload.email)
+            .first_or_fail()
+            .map_err(|_| (StatusCode::UNAUTHORIZED, "Invalid credentials".to_string()))?;
+
+        // Verify password (Hash::check is synchronous and returns a bool)
+        if !Hash::check(&payload.password, &user.password) {
+            return Err((StatusCode::UNAUTHORIZED, "Invalid credentials".into()));
+        }
+
+        // Login via the sync Auth facade
+        Auth::login(user.clone()).map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e))?;
+
+        Ok(Response::json(&AuthResponse {
+            message: "Login successful".to_string(),
+            user,
+        }))
+    }
+
+    pub async fn logout() -> ResponseBuilder {
+        // Logout via the sync Auth facade (returns unit)
+        Auth::logout();
+
+        Response::json(&json!({ "message": "Logged out successfully" }))
+    }
+
+    pub async fn me() -> Result<ResponseBuilder, (StatusCode, String)> {
+        // Get the current user via the sync Auth facade
+        if let Some(user) = Auth::user::<User>() {
+            Ok(Response::json(&user))
+        } else {
+            Err((StatusCode::UNAUTHORIZED, "Not authenticated".into()))
+        }
+    }
+}
+
+pub use handlers::*;
+
 #[derive(Debug, Serialize)]
 pub struct AuthResponse {
     pub message: String,
-    pub user: user::Model,
-}
-
-pub async fn register(
-    State(db): State<DatabaseConnection>,
-    Json(payload): Json<RegisterRequest>,
-) -> Result<ResponseBuilder, (StatusCode, String)> {
-    // Validate input
-    payload
-        .validate()
-        .map_err(|e| (StatusCode::UNPROCESSABLE_ENTITY, e.to_string()))?;
-
-    // Check if user exists
-    let existing = user::Entity::find()
-        .filter(user::Column::Email.eq(&payload.email))
-        .one(&db)
-        .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
-
-    if existing.is_some() {
-        return Err((StatusCode::BAD_REQUEST, "Email already registered".into()));
-    }
-
-    // Hash password (Hash::make is synchronous and returns a String)
-    let password_hash = Hash::make(&payload.password);
-
-    // Create user
-    let user = user::ActiveModel {
-        email: Set(payload.email),
-        name: Set(payload.name),
-        password: Set(password_hash),
-        ..Default::default()
-    };
-
-    let user = user
-        .insert(&db)
-        .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
-
-    // Login user using the Laravel-style Auth facade (synchronous, no `.await`)
-    Auth::login(user.clone()).map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e))?;
-
-    Ok(Response::json(&AuthResponse {
-        message: "Registration successful".to_string(),
-        user,
-    }))
-}
-
-pub async fn login(
-    State(db): State<DatabaseConnection>,
-    Json(payload): Json<LoginRequest>,
-) -> Result<ResponseBuilder, (StatusCode, String)> {
-    // Validate input
-    payload
-        .validate()
-        .map_err(|e| (StatusCode::UNPROCESSABLE_ENTITY, e.to_string()))?;
-
-    // Find user
-    let user = user::Entity::find()
-        .filter(user::Column::Email.eq(&payload.email))
-        .one(&db)
-        .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
-        .ok_or((StatusCode::UNAUTHORIZED, "Invalid credentials".to_string()))?;
-
-    // Verify password (Hash::check is synchronous and returns a bool)
-    if !Hash::check(&payload.password, &user.password) {
-        return Err((StatusCode::UNAUTHORIZED, "Invalid credentials".into()));
-    }
-
-    // Login using the Laravel-style Auth facade (synchronous, no `.await`)
-    Auth::login(user.clone()).map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e))?;
-
-    Ok(Response::json(&AuthResponse {
-        message: "Login successful".to_string(),
-        user,
-    }))
-}
-
-pub async fn logout() -> ResponseBuilder {
-    // Logout using the Auth facade (returns unit, no `?` and no `.await`)
-    Auth::logout();
-
-    Response::json(&json!({ "message": "Logged out successfully" }))
-}
-
-pub async fn me() -> Result<ResponseBuilder, (StatusCode, String)> {
-    // Get the current user using the Auth facade (synchronous)
-    if let Some(user) = Auth::user::<user::Model>() {
-        Ok(Response::json(&user))
-    } else {
-        Err((StatusCode::UNAUTHORIZED, "Not authenticated".into()))
-    }
+    pub user: User,
 }
 ```
 
@@ -420,18 +412,20 @@ implements `axum::response::IntoResponse`. Import it from the prelude with
 
 Create `src/controllers/post_controller.rs`:
 
-There is no `AuthGuard` extractor. Read the authenticated user (and its id)
-inside the handler via the synchronous `Auth` facade. `Auth::id()` returns
-`Option<u64>`; the example casts it to `i32` to match the `user_id` column.
+There is no `AuthGuard` extractor. Read the authenticated user id inside the
+handler via the sync `Auth` facade. `Auth::id()` returns `Option<u64>`; the
+example casts it to `i32` to match the `user_id` column. As before, `#[auto_await]`
+goes **once** on the `mod`, so model calls (`where`, `find_or_fail`, `create`,
+`save`, `delete`, ...) are written without `.await`.
 
 ```rust
-use rf::prelude::*;            // Auth, Response, ...
-use axum::extract::{Json, Path, State};
+use rf::prelude::*;            // Post model, Auth, Response, ...
+use axum::extract::{Json, Path};
 use axum::http::StatusCode;
-use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, ModelTrait, QueryFilter, Set};
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
+use serde_json::json;
 use rf_validation::Validate;
-use crate::models::post;
+use crate::models::post::Post;
 
 #[derive(Debug, Deserialize, Validate)]
 pub struct CreatePostRequest {
@@ -451,118 +445,93 @@ fn current_user_id() -> Result<i32, (StatusCode, String)> {
         .ok_or((StatusCode::UNAUTHORIZED, "Not authenticated".to_string()))
 }
 
-pub async fn index(
-    State(db): State<DatabaseConnection>,
-) -> Result<ResponseBuilder, (StatusCode, String)> {
-    let posts = post::Entity::find()
-        .filter(post::Column::Published.eq(true))
-        .all(&db)
-        .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+#[auto_await]  // <- Once here: bodies below are await-free, Laravel-style.
+mod handlers {
+    use super::*;
 
-    Ok(Response::json(&posts))
-}
-
-pub async fn show(
-    State(db): State<DatabaseConnection>,
-    Path(id): Path<i32>,
-) -> Result<ResponseBuilder, (StatusCode, String)> {
-    let post = post::Entity::find_by_id(id)
-        .one(&db)
-        .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
-        .ok_or((StatusCode::NOT_FOUND, "Post not found".to_string()))?;
-
-    Ok(Response::json(&post))
-}
-
-pub async fn store(
-    State(db): State<DatabaseConnection>,
-    Json(payload): Json<CreatePostRequest>,
-) -> Result<ResponseBuilder, (StatusCode, String)> {
-    // Validate input
-    payload
-        .validate()
-        .map_err(|e| (StatusCode::UNPROCESSABLE_ENTITY, e.to_string()))?;
-
-    let user_id = current_user_id()?;
-
-    // Create post
-    let post = post::ActiveModel {
-        user_id: Set(user_id),
-        title: Set(payload.title),
-        content: Set(payload.content),
-        published: Set(payload.published.unwrap_or(false)),
-        ..Default::default()
-    };
-
-    let post = post
-        .insert(&db)
-        .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
-
-    Ok(Response::json(&post).status(StatusCode::CREATED))
-}
-
-pub async fn update(
-    State(db): State<DatabaseConnection>,
-    Path(id): Path<i32>,
-    Json(payload): Json<CreatePostRequest>,
-) -> Result<ResponseBuilder, (StatusCode, String)> {
-    let user_id = current_user_id()?;
-
-    // Find post
-    let post = post::Entity::find_by_id(id)
-        .one(&db)
-        .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
-        .ok_or((StatusCode::NOT_FOUND, "Post not found".to_string()))?;
-
-    // Check ownership
-    if post.user_id != user_id {
-        return Err((StatusCode::FORBIDDEN, "Not your post".into()));
+    pub async fn index() -> Result<ResponseBuilder, (StatusCode, String)> {
+        // No `.await` — the macro inserts it on `get`
+        let posts = Post::where("published", true).get();
+        Ok(Response::json(&posts))
     }
 
-    // Update post
-    let published = payload.published.unwrap_or(post.published);
-    let mut post: post::ActiveModel = post.into();
-    post.title = Set(payload.title);
-    post.content = Set(payload.content);
-    post.published = Set(published);
+    pub async fn show(
+        Path(id): Path<i32>,
+    ) -> Result<ResponseBuilder, (StatusCode, String)> {
+        // No `.await` — the macro inserts it on `find_or_fail`
+        let post = Post::find_or_fail(id)
+            .map_err(|_| (StatusCode::NOT_FOUND, "Post not found".to_string()))?;
 
-    let post = post
-        .update(&db)
-        .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
-
-    Ok(Response::json(&post))
-}
-
-pub async fn destroy(
-    State(db): State<DatabaseConnection>,
-    Path(id): Path<i32>,
-) -> Result<ResponseBuilder, (StatusCode, String)> {
-    let user_id = current_user_id()?;
-
-    // Find post
-    let post = post::Entity::find_by_id(id)
-        .one(&db)
-        .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
-        .ok_or((StatusCode::NOT_FOUND, "Post not found".to_string()))?;
-
-    // Check ownership
-    if post.user_id != user_id {
-        return Err((StatusCode::FORBIDDEN, "Not your post".into()));
+        Ok(Response::json(&post))
     }
 
-    // Delete post
-    post.delete(&db)
-        .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    pub async fn store(
+        Json(payload): Json<CreatePostRequest>,
+    ) -> Result<ResponseBuilder, (StatusCode, String)> {
+        // Validate input
+        payload
+            .validate()
+            .map_err(|e| (StatusCode::UNPROCESSABLE_ENTITY, e.to_string()))?;
 
-    Ok(Response::no_content())
+        let user_id = current_user_id()?;
+
+        // Create post (no `.await` — the macro inserts it on `create`)
+        let post = Post::create(json!({
+            "user_id": user_id,
+            "title": payload.title,
+            "content": payload.content,
+            "published": payload.published.unwrap_or(false),
+        }));
+
+        Ok(Response::json(&post).status(StatusCode::CREATED))
+    }
+
+    pub async fn update(
+        Path(id): Path<i32>,
+        Json(payload): Json<CreatePostRequest>,
+    ) -> Result<ResponseBuilder, (StatusCode, String)> {
+        let user_id = current_user_id()?;
+
+        // Find post (no `.await` — the macro inserts it on `find_or_fail`)
+        let mut post = Post::find_or_fail(id)
+            .map_err(|_| (StatusCode::NOT_FOUND, "Post not found".to_string()))?;
+
+        // Check ownership
+        if post.user_id != user_id {
+            return Err((StatusCode::FORBIDDEN, "Not your post".into()));
+        }
+
+        // Update fields and persist (no `.await` — the macro inserts it on `save`)
+        post.title = payload.title;
+        post.content = payload.content;
+        post.published = payload.published.unwrap_or(post.published);
+        post.save();
+
+        Ok(Response::json(&post))
+    }
+
+    pub async fn destroy(
+        Path(id): Path<i32>,
+    ) -> Result<ResponseBuilder, (StatusCode, String)> {
+        let user_id = current_user_id()?;
+
+        // Find post (no `.await` — the macro inserts it on `find_or_fail`)
+        let post = Post::find_or_fail(id)
+            .map_err(|_| (StatusCode::NOT_FOUND, "Post not found".to_string()))?;
+
+        // Check ownership
+        if post.user_id != user_id {
+            return Err((StatusCode::FORBIDDEN, "Not your post".into()));
+        }
+
+        // Delete post (no `.await` — the macro inserts it on `delete`)
+        post.delete();
+
+        Ok(Response::no_content())
+    }
 }
+
+pub use handlers::*;
 ```
 
 ## Step 7: Set Up Routes

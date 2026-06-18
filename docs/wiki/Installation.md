@@ -267,20 +267,26 @@ See [CLI Commands](CLI-Commands) for full documentation.
 
 Create a simple test file to verify your installation:
 
+The handler is written AWAIT-FREE: `#[auto_await]` goes once on the `async fn` and
+the macro inserts `.await` after framework calls such as `get`. You never write
+`.await` yourself. The `Hash` facade is a genuinely-sync facade (no `.await` either
+way).
+
 ```rust
 // src/main.rs
 use rf::prelude::*;          // Auth, DB, Hash, Response, ...
 use serde_json::json;        // `json!` is not part of `rf::prelude`
 
 #[tokio::main]
+#[auto_await]                // <- inserts `.await` on framework calls like `get`
 async fn main() {
     // Hash facade (synchronous) — make() returns a String, check() returns a bool
     let hashed = Hash::make("secret");
     assert!(Hash::check("secret", &hashed));
     println!("Hash facade works");
 
-    // DB facade query builder — get() is async and yields a Vec of rows
-    let users = DB::table("users").get().await.unwrap();
+    // DB facade query builder — written await-free; the macro awaits `get`
+    let users = DB::table("users").get().unwrap();
     println!("Fetched {} user row(s)", users.len());
 
     // Response builder — json() takes a reference and returns a ResponseBuilder
