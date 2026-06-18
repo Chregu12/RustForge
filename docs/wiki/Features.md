@@ -138,38 +138,38 @@ let password_hash = Hash::make("password123")?;
 let user = User::create(email, name, password_hash).await?;
 
 // Login with Laravel-style Auth facade
-Auth::login(user).await?;
+Auth::login(user)?;
 
 // Or attempt login with credentials (like Laravel's Auth::attempt)
 let credentials = json!({
     "email": "user@example.com",
     "password": "secret"
 });
-if Auth::attempt(credentials).await? {
+if Auth::attempt(credentials)? {
     println!("Login successful!");
 }
 
 // Check authentication
-if Auth::check().await {
+if Auth::check() {
     println!("User is authenticated");
 }
 
 // Get current user
-if let Some(user) = Auth::user::<User>().await {
+if let Some(user) = Auth::user::<User>() {
     println!("Welcome, {}", user.name);
 }
 
 // Get user ID
-if let Some(id) = Auth::id().await {
+if let Some(id) = Auth::id() {
     println!("User ID: {}", id);
 }
 
 // Logout
-Auth::logout().await;
+Auth::logout();
 
-// Protect routes with middleware
-router.group(middleware::auth(), |router| {
-    router.get("/profile", get_profile);
+// Protect routes with middleware (named middleware via the Route facade)
+Route::middleware(&["auth"]).group(|| {
+    Route::get("/profile", "get_profile");
 });
 
 // Check authorization
@@ -271,7 +271,7 @@ Powerful validation framework with custom rules.
 ### Example
 
 ```rust
-use rf_validation::{Validate, ValidationRule};
+use rf_validation::Validate;
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize, Validate)]
@@ -367,7 +367,7 @@ async fn store(Validated(req): Validated<CreateUserRequest>) -> Response {
         "password": bcrypt!(req.password),
         "name": req.name,
     })).await;
-    Response::json(user).status(201)
+    Response::json(&user).status(StatusCode::CREATED)
 }
 ```
 
@@ -437,12 +437,13 @@ exception_handler! {
         match error {
             AppError::NotFound { .. } => {
                 if request.wants_json() {
-                    Response::json(json!({ "error": "Not found" })).status(404)
+                    Response::json(&json!({ "error": "Not found" }))
+                        .status(StatusCode::NOT_FOUND)
                 } else {
-                    view!("errors.404").status(404)
+                    view!("errors.404").status(StatusCode::NOT_FOUND)
                 }
             }
-            _ => Response::error(500, "Server Error")
+            _ => Response::text("Server Error").status(StatusCode::INTERNAL_SERVER_ERROR)
         }
     }
 
@@ -575,50 +576,51 @@ High-performance caching layer with multiple drivers.
 use rf::Cache;
 use std::time::Duration;
 
-// Simple caching with Laravel-style facade
-Cache::put("key", &"value", Duration::from_secs(3600)).await?;
-let value: Option<String> = Cache::get("key").await?;
+// Simple caching with Laravel-style facade (synchronous - no .await)
+Cache::put("key", "value", Duration::from_secs(3600))?;
+let value: Option<String> = Cache::get("key")?;
 
 // Check if key exists
-if Cache::has("key").await? {
+if Cache::has("key")? {
     println!("Key exists");
 }
 
-// Cache with closure (like Laravel's Cache::remember)
+// Cache with closure (like Laravel's Cache::remember).
+// The facade call is synchronous; the closure itself is async.
 let users = Cache::remember("users:all", Duration::from_secs(3600), || async {
     Ok(User::find().all(&db).await?)
-}).await?;
+})?;
 
 // Store forever
-Cache::forever("config", &"value").await?;
+Cache::forever("config", "value")?;
 
 // Remember forever
 let settings = Cache::remember_forever("settings", || async {
     Ok(load_settings().await?)
-}).await?;
+})?;
 
 // Pull: get and delete
-let value: Option<String> = Cache::pull("temp_key").await?;
+let value: Option<String> = Cache::pull("temp_key")?;
 
 // Add only if doesn't exist
-let added = Cache::add("unique_key", &"value", Duration::from_secs(60)).await?;
+let added = Cache::add("unique_key", "value", Duration::from_secs(60))?;
 
 // Increment/decrement
-Cache::increment("counter", 1).await?;
-Cache::decrement("counter", 1).await?;
+Cache::increment("counter", 1)?;
+Cache::decrement("counter", 1)?;
 
-// Cache tags
-let tagged = Cache::tags(&["users", "posts"]).await;
+// Cache tags (tags() is synchronous; the returned TaggedCache is async)
+let tagged = Cache::tags(&["users", "posts"]);
 tagged.set("key", &"value", Duration::from_secs(3600)).await?;
 
 // Flush tagged cache
-Cache::tags(&["users"]).await.flush().await?;
+Cache::tags(&["users"]).flush().await?;
 
 // Remove single key
-Cache::forget("key").await?;
+Cache::forget("key")?;
 
 // Flush all cache
-Cache::flush().await?;
+Cache::flush()?;
 ```
 
 ### Supported Cache Drivers
@@ -652,45 +654,46 @@ Background job processing with multiple queue drivers.
 ### Example
 
 ```rust
-use rf_queue::{Queue, Job};
+use rf_jobs::{dispatch, dispatch_later, Job, JobContext, JobResult, QueueManager};
 use serde::{Serialize, Deserialize};
+use std::time::Duration;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SendEmailJob {
     pub to: String,
     pub subject: String,
     pub body: String,
 }
 
-#[async_trait]
 impl Job for SendEmailJob {
-    async fn handle(&self) -> Result<(), Error> {
-        // Send email
-        Mail::to(&self.to)
-            .subject(&self.subject)
-            .body(&self.body)
-            .send()
-            .await?;
+    async fn handle(&self, _ctx: JobContext) -> JobResult {
+        // Send email (build a Mailable, then send it)
+        // Mail::to(&self.to).send(my_mailable)?;
         Ok(())
     }
+
+    // Optional overrides:
+    fn queue(&self) -> &str { "emails" }
+    fn max_attempts(&self) -> u32 { 5 }
+    fn backoff(&self) -> Duration { Duration::from_secs(30) }
 }
 
-// Dispatch job
-Queue::push(SendEmailJob {
+// Build the queue manager once (e.g. during bootstrap)
+let queue_manager = QueueManager::new("redis://localhost:6379").await?;
+
+// Dispatch job (synchronous API - takes a &QueueManager)
+dispatch(&queue_manager, SendEmailJob {
     to: "user@example.com".to_string(),
     subject: "Welcome!".to_string(),
     body: "Welcome to RustForge!".to_string(),
-}).await?;
+})?;
 
 // Delayed job
-Queue::later(60, SendEmailJob { /* ... */ }).await?;
-
-// Job chain
-Queue::chain(vec![
-    Box::new(ProcessOrder { /* ... */ }),
-    Box::new(SendConfirmation { /* ... */ }),
-    Box::new(UpdateInventory { /* ... */ }),
-]).await?;
+dispatch_later(&queue_manager, SendEmailJob {
+    to: "user@example.com".to_string(),
+    subject: "Welcome!".to_string(),
+    body: "Welcome to RustForge!".to_string(),
+}, Duration::from_secs(60))?;
 ```
 
 ### Running Workers
@@ -873,37 +876,38 @@ user.notify(OrderShipped { order }).await?;
 
 ```rust
 use rf::Mail;
+use rf_mail::{Mailable, MailBuilder};
 
-// Simple email
-Mail::to("user@example.com")
-    .subject("Welcome!")
-    .body("Welcome to RustForge!")
-    .send()
-    .await?;
+// A Mailable describes the message by building a MailBuilder.
+struct WelcomeEmail;
 
-// With template
-Mail::to("user@example.com")
-    .subject("Order Confirmation")
-    .view("emails.order_confirmation", json!({
-        "order_number": "12345",
-        "total": 99.99
-    }))
-    .send()
-    .await?;
+impl Mailable for WelcomeEmail {
+    fn build(&self) -> MailBuilder {
+        MailBuilder::new()
+            .subject("Welcome!")
+            .text("Welcome to RustForge!")
+    }
+}
 
-// With attachment
-Mail::to("user@example.com")
-    .subject("Invoice")
-    .attach("/path/to/invoice.pdf")
-    .send()
-    .await?;
+// Send to a recipient (Mail::to is synchronous; send returns MailResult<()>)
+Mail::to("user@example.com").send(WelcomeEmail)?;
 
-// Queue email
-Mail::to("user@example.com")
-    .subject("Newsletter")
-    .body("...")
-    .queue()
-    .await?;
+// Or send without specifying a recipient on the facade (the Mailable can
+// carry its own `to`/`from` via the builder)
+Mail::send(WelcomeEmail)?;
+
+// Build with an HTML body or attachments using the same builder:
+struct InvoiceEmail { path: String }
+
+impl Mailable for InvoiceEmail {
+    fn build(&self) -> MailBuilder {
+        MailBuilder::new()
+            .subject("Invoice")
+            .html("<p>Your invoice is attached.</p>")
+            .attach(&self.path)
+            .expect("attachment exists")
+    }
+}
 ```
 
 ### Markdown Emails
@@ -953,43 +957,37 @@ Unified file storage interface for local and cloud storage.
 ```rust
 use rf::Storage;
 
-// Store file with Laravel-style facade
-Storage::put("uploads/photo.jpg", file_contents).await?;
+// Store file with Laravel-style facade (synchronous - no .await).
+// `put` takes the file contents as a Vec<u8>.
+Storage::put("uploads/photo.jpg", file_contents)?;
 
-// Get file
-let contents = Storage::get("uploads/photo.jpg").await?;
+// Get file (returns Vec<u8>; use get_string for text)
+let contents = Storage::get("uploads/photo.jpg")?;
 
 // Delete file
-Storage::delete("uploads/photo.jpg").await?;
+Storage::delete("uploads/photo.jpg")?;
 
-// Check if file exists
-if Storage::exists("uploads/photo.jpg").await? {
+// Check if file exists (returns bool - no ?)
+if Storage::exists("uploads/photo.jpg") {
     println!("File exists");
 }
 
-// Use specific disk
-Storage::disk("s3").put("uploads/photo.jpg", file_contents).await?;
-let contents = Storage::disk("s3").get("uploads/photo.jpg").await?;
+// Select the active disk for subsequent operations
+Storage::disk("s3");
 
-// Generate temporary URL (1 hour)
-let url = Storage::disk("s3")
-    .temporary_url("uploads/photo.jpg", 3600)
-    .await?;
-
-// List files in directory
-let files = Storage::files("uploads/").await?;
-let all_files = Storage::all_files("uploads/").await?; // recursive
+// List files (returns Vec<String> - no ?)
+let files = Storage::files();
+let files_in_uploads = Storage::files_in("uploads/");
 
 // List directories
-let dirs = Storage::directories("uploads/").await?;
+let dirs = Storage::directories();
 
 // Copy and move
-Storage::copy("old/path.jpg", "new/path.jpg").await?;
-Storage::move_file("old/path.jpg", "new/path.jpg").await?;
+Storage::copy("old/path.jpg", "new/path.jpg")?;
+Storage::move_file("old/path.jpg", "new/path.jpg")?;
 
-// Get file info
-let size = Storage::size("uploads/photo.jpg").await?;
-let modified = Storage::last_modified("uploads/photo.jpg").await?;
+// Get file size
+let size = Storage::size("uploads/photo.jpg")?;
 ```
 
 ### Supported Storage Drivers
@@ -1057,21 +1055,23 @@ Protect your API from abuse with rate limiting.
 ### Example
 
 ```rust
-use rf_http::middleware;
+use rf_ratelimit::{MemoryRateLimiter, RateLimitConfig, RateLimiter};
+use rf::Route;
 
-// Global rate limit (60 requests per minute)
-router.use_middleware(middleware::rate_limit(60, 60));
+// Configure an in-memory rate limiter (e.g. 60 requests per minute)
+let config = RateLimitConfig::per_minute(60);
+let limiter = MemoryRateLimiter::new(config);
 
-// Per-route rate limit
-router.get("/api/data", middleware::rate_limit(10, 60).apply(handler));
+// Check a limit for a key (per IP, user, API key, ...)
+let result = limiter.check("user:1").await?;
+if !result.allowed {
+    // Reject the request with a 429
+}
 
-// Custom rate limiter
-let limiter = RateLimiter::for_user()
-    .max_attempts(100)
-    .decay_minutes(1)
-    .by(|req| req.user_id());
-
-router.use_middleware(limiter);
+// Apply rate limiting to routes via named middleware on the Route facade
+Route::middleware(&["throttle"]).group(|| {
+    Route::get("/api/data", "get_data");
+});
 ```
 
 ---
@@ -1361,34 +1361,35 @@ Comprehensive testing utilities.
 ### Example
 
 ```rust
-use rf_testing::{TestCase, DatabaseTestCase};
+use rf_testing::{HttpTester, TestDatabase};
+use axum::http::StatusCode;
+use serde_json::json;
 
 #[tokio::test]
 async fn test_user_registration() {
-    let mut test = TestCase::new().await;
+    // Spin up a test database (async)
+    let _db = TestDatabase::new().await.unwrap();
 
-    let response = test.post("/auth/register", json!({
-        "email": "test@example.com",
-        "name": "Test User",
-        "password": "password123"
-    }))
-    .await;
+    // `app` is your axum Router
+    let tester = HttpTester::new(app);
 
-    response.assert_status(201);
-    response.assert_json_contains(json!({
-        "user": {
-            "email": "test@example.com"
-        }
-    }));
+    let response = tester
+        .post("/auth/register", json!({
+            "email": "test@example.com",
+            "name": "Test User",
+            "password": "password123"
+        }))
+        .await;
 
-    // Verify in database
-    let user = User::find()
-        .filter(User::Column::Email.eq("test@example.com"))
-        .one(&test.db())
-        .await?
-        .unwrap();
-
-    assert_eq!(user.name, "Test User");
+    // assert_status takes a StatusCode (chainable)
+    response
+        .assert_status(StatusCode::CREATED)
+        .assert_json(json!({
+            "user": {
+                "email": "test@example.com"
+            }
+        }))
+        .await;
 }
 ```
 
