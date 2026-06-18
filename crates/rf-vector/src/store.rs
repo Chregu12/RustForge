@@ -199,3 +199,168 @@ mod tests {
         assert_eq!(hits[0].id, "ok");
     }
 }
+
+#[cfg(test)]
+mod adversarial {
+    use super::*;
+    use serde_json::json;
+
+    // Independently compute the expected ranking and compare against the store.
+    fn brute_force_rank(
+        items: &[(&str, Vec<f32>)],
+        query: &Vector,
+        metric: DistanceMetric,
+    ) -> Vec<String> {
+        let mut scored: Vec<(String, f32)> = items
+            .iter()
+            .filter(|(_, v)| v.len() == query.dimension())
+            .map(|(id, v)| {
+                ((*id).to_string(), metric.score(query, &Vector::new(v.clone())))
+            })
+            .collect();
+        scored.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        scored.into_iter().map(|(id, _)| id).collect()
+    }
+
+    #[test]
+    fn fresh_store_is_empty() {
+        let store = InMemoryVectorStore::new();
+        assert_eq!(store.len(), 0);
+        assert!(store.is_empty());
+        // searching an empty store yields nothing, not a panic
+        let hits = store.search(&Vector::new(vec![1.0, 0.0]), 5, DistanceMetric::Cosine);
+        assert!(hits.is_empty());
+    }
+
+    #[test]
+    fn results_sorted_descending_under_all_metrics() {
+        let items = [
+            ("a", vec![1.0, 0.0, 0.0]),
+            ("b", vec![0.0, 1.0, 0.0]),
+            ("c", vec![0.9, 0.1, 0.0]),
+            ("d", vec![0.5, 0.5, 0.7]),
+            ("e", vec![-1.0, 0.0, 0.2]),
+        ];
+        let q = Vector::new(vec![1.0, 0.05, 0.0]);
+
+        for metric in [
+            DistanceMetric::Cosine,
+            DistanceMetric::Euclidean,
+            DistanceMetric::DotProduct,
+        ] {
+            let mut store = InMemoryVectorStore::new();
+            for (id, v) in &items {
+                store.add(*id, Vector::new(v.clone()), json!({ "id": id }));
+            }
+            let hits = store.search(&q, items.len(), metric);
+
+            // (a) strictly non-increasing score
+            for w in hits.windows(2) {
+                assert!(
+                    w[0].score >= w[1].score,
+                    "metric {metric:?} not sorted: {} then {}",
+                    w[0].score,
+                    w[1].score
+                );
+            }
+
+            // (d) order matches independent brute-force ranking
+            let expected = brute_force_rank(&items, &q, metric);
+            let got: Vec<String> = hits.iter().map(|h| h.id.clone()).collect();
+            assert_eq!(got, expected, "metric {metric:?} ranking mismatch");
+
+            // (c) metadata travels with the right id
+            for h in &hits {
+                assert_eq!(h.metadata, json!({ "id": h.id }));
+            }
+        }
+    }
+
+    #[test]
+    fn truncation_to_k() {
+        let mut store = InMemoryVectorStore::new();
+        for i in 0..10 {
+            store.add(
+                format!("v{i}"),
+                Vector::new(vec![i as f32, 0.0]),
+                json!(i),
+            );
+        }
+        let q = Vector::new(vec![1.0, 0.0]);
+        assert_eq!(store.search(&q, 3, DistanceMetric::Cosine).len(), 3);
+        assert_eq!(store.search(&q, 0, DistanceMetric::Cosine).len(), 0);
+        // k larger than store size: returns everything, no panic
+        assert_eq!(store.search(&q, 100, DistanceMetric::Cosine).len(), 10);
+    }
+
+    #[test]
+    fn nearest_neighbor_correct_per_metric() {
+        // Distinct nearest neighbors for euclidean vs dot product can differ,
+        // so verify each picks the truly-best entry.
+        let items = [
+            ("origin_ish", vec![0.1, 0.1]),
+            ("big_same_dir", vec![10.0, 10.0]),
+            ("unit", vec![1.0, 0.0]),
+        ];
+        let q = Vector::new(vec![0.2, 0.2]);
+
+        let mut store = InMemoryVectorStore::new();
+        for (id, v) in &items {
+            store.add(*id, Vector::new(v.clone()), json!(null));
+        }
+
+        // Euclidean: closest in L2 is origin_ish.
+        let euc = store.search(&q, 1, DistanceMetric::Euclidean);
+        assert_eq!(euc[0].id, brute_force_rank(&items, &q, DistanceMetric::Euclidean)[0]);
+        assert_eq!(euc[0].id, "origin_ish");
+
+        // Dot product: largest dot with q is big_same_dir.
+        let dp = store.search(&q, 1, DistanceMetric::DotProduct);
+        assert_eq!(dp[0].id, "big_same_dir");
+    }
+
+    #[test]
+    fn overwrite_updates_vector_and_metadata() {
+        let mut store = InMemoryVectorStore::new();
+        store.add("x", Vector::new(vec![1.0, 0.0]), json!({"v": 1}));
+        store.add("y", Vector::new(vec![0.0, 1.0]), json!({"v": 2}));
+        // Overwrite x to point the other way + new metadata
+        store.add("x", Vector::new(vec![0.0, 1.0]), json!({"v": 99}));
+        assert_eq!(store.len(), 2);
+
+        let hits = store.search(&Vector::new(vec![0.0, 1.0]), 2, DistanceMetric::Cosine);
+        // x now aligns with [0,1]; its metadata must reflect the overwrite.
+        let x = hits.iter().find(|h| h.id == "x").unwrap();
+        assert_eq!(x.metadata, json!({"v": 99}));
+        assert!((x.score - 1.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn remove_len_is_empty_lifecycle() {
+        let mut store = InMemoryVectorStore::new();
+        assert!(store.is_empty());
+        store.add("a", Vector::new(vec![1.0]), json!(null));
+        store.add("b", Vector::new(vec![2.0]), json!(null));
+        assert_eq!(store.len(), 2);
+        assert!(!store.is_empty());
+
+        assert!(store.remove("a"));
+        assert_eq!(store.len(), 1);
+        assert!(!store.remove("a")); // already gone
+        assert!(!store.remove("nope")); // never existed
+        assert!(store.remove("b"));
+        assert_eq!(store.len(), 0);
+        assert!(store.is_empty());
+    }
+
+    #[test]
+    fn with_metric_nearest_uses_default() {
+        let mut store = InMemoryVectorStore::with_metric(DistanceMetric::Euclidean);
+        store.add("origin_ish", Vector::new(vec![0.1, 0.1]), json!(null));
+        store.add("big", Vector::new(vec![10.0, 10.0]), json!(null));
+        let q = Vector::new(vec![0.2, 0.2]);
+        // Euclidean default -> origin_ish nearest, NOT big (which dot-product would pick)
+        let hits = store.nearest(&q, 1);
+        assert_eq!(hits[0].id, "origin_ish");
+    }
+}
