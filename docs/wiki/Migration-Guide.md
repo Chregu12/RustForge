@@ -626,8 +626,11 @@ pub async fn store(Json(payload): Json<CreateUserRequest>) -> Result<Response> {
 ### Jobs & Queues
 
 ```rust
+use rf_jobs::{Job, JobContext, JobResult, dispatch};
+use async_trait::async_trait;
 
-#[derive(Debug, Serialize, Deserialize)]
+// Jobs must be Clone + Serialize + Deserialize.
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SendEmailJob {
     pub user_id: i32,
     pub template: String,
@@ -635,23 +638,22 @@ pub struct SendEmailJob {
 
 #[async_trait]
 impl Job for SendEmailJob {
-    async fn handle(&self, ctx: &JobContext) -> Result<(), Error> {
+    async fn handle(&self, ctx: JobContext) -> JobResult {
         let user = User::find(self.user_id).await?;
 
-        Mail::to(&user.email)
-            .template(&self.template)
-            .send()
-            .await?;
+        // The Mail facade is synchronous (no .await).
+        Mail::send(WelcomeEmail { user, template: self.template.clone() })?;
 
         Ok(())
     }
 }
 
-// Dispatch job
-Queue::push(SendEmailJob {
+// Dispatch job with the synchronous `dispatch` free function
+// (takes a &QueueManager, returns Result<Uuid, QueueError>).
+let id = dispatch(&queue_manager, SendEmailJob {
     user_id: 1,
-    template: "welcome".to_string()
-}).await?;
+    template: "welcome".to_string(),
+})?;
 ```
 
 > New: `JobRouter` (`rf_jobs::JobRouter`) routes job classes to specific
@@ -910,9 +912,10 @@ Auth::logout();
 async fn login(email: &str, password: &str) -> Response {
     if Auth::attempt(json!({ "email": email, "password": password })) {
         let user = Auth::user::<User>();
-        Response::json(user)
+        Response::json(&user)
     } else {
-        Response::error(401, "Invalid credentials")
+        Response::json(&json!({ "error": "Invalid credentials" }))
+            .status(StatusCode::UNAUTHORIZED)
     }
 }
 ```
@@ -1001,17 +1004,16 @@ where
 }
 ```
 
-**RustForge:**
+**RustForge** (axum function-style middleware, registered with `from_fn`):
 ```rust
-pub struct AuthMiddleware;
+use axum::extract::Request;
+use axum::middleware::Next;
+use axum::response::Response;
 
-#[async_trait]
-impl Middleware for AuthMiddleware {
-    async fn handle(&self, req: Request, next: Next) -> Result<Response> {
-        let token = req.headers().get("Authorization");
-        // Verify token
-        next.run(req).await
-    }
+async fn auth_middleware(req: Request, next: Next) -> Response {
+    let _token = req.headers().get("Authorization");
+    // Verify token
+    next.run(req).await
 }
 ```
 
@@ -1125,15 +1127,14 @@ All packages have been renamed from `foundry-*` to `rf-*`:
 ```rust
 // Old (0.x)
 use foundry_orm::prelude::*;
-use foundry_http::{Router, Request};
-use foundry_auth::JwtAuth;
+use foundry_request::Request;
+use foundry_auth::JwtManager;
 
-// New (1.0)
+// New (1.0) - the rename is purely the `foundry_` -> `rf_` crate prefix.
+// `Request` lives in `rf-request`, `Response` in `rf-response`,
+// routing in `rf-routing`/`rf-route-facade` (there is no `rf-http` crate).
 use rf_orm::prelude::*;
-// Note: there is no `rf-http` crate. `Request` lives in `rf-request`,
-// `Response` in `rf-response`, routing in `rf-routing`/`rf-route-facade`.
 use rf_request::Request;
-// The JWT type is `JwtManager` (not `JwtAuth`):
 use rf_auth::JwtManager;
 ```
 
@@ -1144,10 +1145,10 @@ use rf_auth::JwtManager;
 let disk = storage_manager.disk(Some("s3"))?;
 disk.put("file.txt", data).await?;
 
-// New (1.0)
-Storage::disk("s3")
-    .put("file.txt", data)
-    .await?;
+// New (1.0) - select the disk, then call the synchronous facade (no .await).
+// `put` takes the contents as a Vec<u8>.
+Storage::disk("s3");
+Storage::put("file.txt", data)?;
 ```
 
 #### Queue API
@@ -1157,8 +1158,8 @@ Storage::disk("s3")
 use foundry_queue::Queue;
 
 // New (1.0)
-use rf_jobs::Job;
-use rf_queue::Queue;
+use rf_jobs::{Job, dispatch};   // Job trait + synchronous dispatch helpers
+use rf_queue::Queue;            // backend trait
 ```
 
 ### Migration Steps for 1.0
@@ -1383,12 +1384,14 @@ exception_handler! {
         match error {
             AppError::NotFound { .. } => {
                 if request.wants_json() {
-                    Response::json(json!({ "error": "Not found" })).status(404)
+                    Response::json(&json!({ "error": "Not found" }))
+                        .status(StatusCode::NOT_FOUND)
                 } else {
-                    view!("errors.404").status(404)
+                    view!("errors.404").status(StatusCode::NOT_FOUND)
                 }
             }
-            _ => Response::error(500, "Server Error")
+            _ => Response::json(&json!({ "error": "Server Error" }))
+                .status(StatusCode::INTERNAL_SERVER_ERROR)
         }
     }
 
@@ -1566,19 +1569,12 @@ mailable! {
     }
 }
 
-// Send email
+// Send email (the Mail facade is synchronous - no .await).
 Mail::to("user@example.com")
     .send(WelcomeEmail {
         user,
         activation_url: "https://rustforge.dev/activate/abc123".into(),
-    })
-    .await?;
-
-// Queue for later sending
-Mail::to("user@example.com")
-    .queue(WelcomeEmail { user, activation_url })
-    .delay(Duration::from_secs(60))
-    .await?;
+    })?;
 ```
 
 **Simple Attribute Syntax:**
@@ -1589,8 +1585,8 @@ pub struct WelcomeEmail {
     pub user: User,
 }
 
-// Send
-Mail::to(&user.email).send(WelcomeEmail { user }).await?;
+// Send (synchronous facade - no .await)
+Mail::to(&user.email).send(WelcomeEmail { user })?;
 ```
 
 **Notifications - Multi-channel Messaging:**
