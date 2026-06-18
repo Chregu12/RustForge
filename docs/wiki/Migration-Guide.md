@@ -65,17 +65,17 @@ rustforge! {
             .take(10)
             .get();  // No .await!
 
-        Response::json(users)
+        Response::json(&users)
     }
 
     async fn users_show(id: i64) -> Response {
         let user = User::findOrFail(id);  // No .await!
-        Response::json(user)
+        Response::json(&user)
     }
 
     async fn users_store(data: Json<Value>) -> Response {
         let user = User::create(data.0);  // No .await!
-        Response::json(user).status(201)
+        Response::json(&user).status(StatusCode::CREATED)
     }
 
     // Use #[sync] to opt-out for synchronous helpers
@@ -191,13 +191,13 @@ async fn show_user(id: i64) -> Response {
     // Get user's profile (hasOne)
     let profile = user.profile();
 
-    Response::json(json!({ "user": user, "posts": posts, "profile": profile }))
+    Response::json(&json!({ "user": user, "posts": posts, "profile": profile }))
 }
 
 async fn show_post(id: i64) -> Response {
     let post = Post::find(id);
     let author = post.user();  // belongsTo
-    Response::json(json!({ "post": post, "author": author }))
+    Response::json(&json!({ "post": post, "author": author }))
 }
 ```
 
@@ -207,18 +207,18 @@ async fn show_post(id: i64) -> Response {
 async fn delete_user(id: i64) -> Response {
     let mut user = User::find(id);
     user.soft_delete();  // Sets deleted_at
-    Response::json(json!({ "message": "User deleted" }))
+    Response::json(&json!({ "message": "User deleted" }))
 }
 
 async fn restore_user(id: i64) -> Response {
     let mut user = User::with_trashed().find(id);
     user.restore();  // Clears deleted_at
-    Response::json(user)
+    Response::json(&user)
 }
 
 async fn get_trashed() -> Response {
     let trashed = User::only_trashed().get();
-    Response::json(trashed)
+    Response::json(&trashed)
 }
 
 async fn force_delete(id: i64) -> Response {
@@ -241,12 +241,12 @@ async fn index() -> Response {
         .orderBy("name", "asc")
         .take(10)
         .get();
-    Response::json(admins)
+    Response::json(&admins)
 }
 
 async fn show(id: i64) -> Response {
     let user = User::findOrFail(id);  // 404 if not found
-    Response::json(user)
+    Response::json(&user)
 }
 
 async fn search(role: &str) -> Response {
@@ -266,7 +266,7 @@ async fn search(role: &str) -> Response {
         .whereMonth("created_at", 11)
         .get();
 
-    Response::json(users)
+    Response::json(&users)
 }
 
 async fn stats() -> Response {
@@ -274,7 +274,7 @@ async fn stats() -> Response {
     let emails = User::where("active", true).pluck("email");
     let exists = User::where("email", "test@example.com").exists();
 
-    Response::json(json!({ "total": total, "emails": emails }))
+    Response::json(&json!({ "total": total, "emails": emails }))
 }
 
 // Conditional queries
@@ -283,7 +283,7 @@ async fn list_users(is_admin: bool) -> Response {
         .when(is_admin, |q| q.where("role", "admin"))
         .latest()
         .get();
-    Response::json(users)
+    Response::json(&users)
 }
 
 // Increment/Decrement
@@ -302,13 +302,13 @@ async fn store(data: Json<Value>) -> Response {
         "name": data["name"],
         "email": data["email"]
     }));
-    Response::json(user).status(201)
+    Response::json(&user).status(StatusCode::CREATED)
 }
 
 async fn update(id: i64, data: Json<Value>) -> Response {
     User::updateById(id, data.0);
     let user = User::find(id);
-    Response::json(user)
+    Response::json(&user)
 }
 
 async fn destroy(id: i64) -> Response {
@@ -322,7 +322,7 @@ async fn find_or_create(email: &str) -> Response {
         json!({"email": email}),
         json!({"name": "New User", "email": email})
     );
-    Response::json(user)
+    Response::json(&user)
 }
 
 // Update or create - upsert single record
@@ -331,7 +331,7 @@ async fn upsert_user(email: &str, name: &str) -> Response {
         json!({"email": email}),
         json!({"name": name})
     );
-    Response::json(user)
+    Response::json(&user)
 }
 
 // Bulk upsert
@@ -341,7 +341,7 @@ async fn bulk_import(users: Vec<Value>) -> Response {
         &["email"],  // Unique columns
         &["name"]    // Columns to update on conflict
     );
-    Response::json(json!({ "message": "Import complete" }))
+    Response::json(&json!({ "message": "Import complete" }))
 }
 ```
 
@@ -377,17 +377,17 @@ mod app {
         let users = User::where("active", true)
             .orderBy("name", "asc")
             .get();
-        Response::json(users)
+        Response::json(&users)
     }
 
     pub async fn show(id: i64) -> Response {
         let user = User::findOrFail(id);
-        Response::json(user)
+        Response::json(&user)
     }
 
     pub async fn store(data: Json<Value>) -> Response {
         let user = User::create(data.0);
-        Response::json(user)
+        Response::json(&user)
     }
 
     pub async fn destroy(id: i64) -> Response {
@@ -526,7 +526,7 @@ pub struct CreateUserRequest {
 #[auto_await]
 pub async fn index() -> Result<Response> {
     let users = User::filter("active", true).get();
-    Ok(Response::json(users))
+    Ok(Response::json(&users))
 }
 
 #[auto_await]
@@ -538,7 +538,7 @@ pub async fn store(Json(payload): Json<CreateUserRequest>) -> Result<Response> {
         "email": payload.email
     }));
 
-    Ok(Response::json(user).status(201))
+    Ok(Response::json(&user).status(StatusCode::CREATED))
 }
 ```
 
@@ -551,23 +551,23 @@ async fn login(data: Json<LoginRequest>) -> Response {
         "email": data.email,
         "password": data.password
     })) {
-        Response::json(json!({ "message": "Login successful" }))
+        Response::json(&json!({ "message": "Login successful" }))
     } else {
-        Response::json(json!({ "error": "Invalid credentials" })).status(401)
+        Response::json(&json!({ "error": "Invalid credentials" })).status(StatusCode::UNAUTHORIZED)
     }
 }
 
 async fn profile() -> Response {
     if let Some(user) = Auth::user::<User>() {
-        Response::json(user)
+        Response::json(&user)
     } else {
-        Response::json(json!({ "error": "Not authenticated" })).status(401)
+        Response::json(&json!({ "error": "Not authenticated" })).status(StatusCode::UNAUTHORIZED)
     }
 }
 
 async fn logout() -> Response {
     Auth::logout();
-    Response::json(json!({ "message": "Logged out" }))
+    Response::json(&json!({ "message": "Logged out" }))
 }
 ```
 
@@ -580,17 +580,17 @@ async fn get_users() -> Response {
     let users = Cache::remember("users:all", 3600, || async {
         User::all()
     });
-    Response::json(users)
+    Response::json(&users)
 }
 
 async fn clear_cache() -> Response {
     Cache::forget("users:all");
-    Response::json(json!({ "message": "Cache cleared" }))
+    Response::json(&json!({ "message": "Cache cleared" }))
 }
 
 async fn cache_stats() -> Response {
     let has_users = Cache::has("users:all");
-    Response::json(json!({ "cached": has_users }))
+    Response::json(&json!({ "cached": has_users }))
 }
 ```
 
@@ -729,17 +729,17 @@ rustforge! {
             .take(10)
             .get();
 
-        Response::json(users)
+        Response::json(&users)
     }
 
     async fn show(id: i64) -> Response {
         let user = User::findOrFail(id);
-        Response::json(user)
+        Response::json(&user)
     }
 
     async fn store(data: Json<Value>) -> Response {
         let user = User::create(data.0);
-        Response::json(user).status(201)
+        Response::json(&user).status(StatusCode::CREATED)
     }
 }
 ```
@@ -830,7 +830,7 @@ async fn get_admins() -> Response {
             .limit(10)
             .get()
     };
-    Response::json(admins)
+    Response::json(&admins)
 }
 ```
 
@@ -865,7 +865,7 @@ async fn store(data: Json<Value>) -> Response {
         "name": data["name"],
         "email": data["email"]
     }));
-    Response::json(user).status(201)
+    Response::json(&user).status(StatusCode::CREATED)
 }
 
 async fn update(id: i64) -> Response {
@@ -893,7 +893,7 @@ $users = Cache::remember('users', 3600, fn() => User::all());
 #[auto_await]
 async fn cached_users() -> Response {
     let users = Cache::remember("users", 3600, || async { User::all() });
-    Response::json(users)
+    Response::json(&users)
 }
 ```
 
@@ -987,7 +987,7 @@ pub async fn create_user(
     db: Database,
 ) -> Result<Response, Error> {
     let user = User::create(payload).await?;
-    Ok(Response::json(user).status(201))
+    Ok(Response::json(&user).status(StatusCode::CREATED))
 }
 ```
 
@@ -1199,7 +1199,7 @@ rustforge! {
 
     async fn index() -> Response {
         let users = User::where("active", true).get();
-        Response::json(users)
+        Response::json(&users)
     }
 }
 ```
@@ -1343,7 +1343,7 @@ async fn store(Validated(req): Validated<CreateUserRequest>) -> Response {
         "password": bcrypt!(req.password),
         "name": req.name,
     })).await;
-    Response::json(user).status(201)
+    Response::json(&user).status(StatusCode::CREATED)
 }
 ```
 
@@ -1426,7 +1426,7 @@ async fn show(id: i64) -> Response {
     // Rescue with fallback
     let profile = rescue!(user.profile(), Profile::default());
 
-    Response::json(json!({
+    Response::json(&json!({
         "user": user,
         "profile": profile
     }))
