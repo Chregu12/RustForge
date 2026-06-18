@@ -400,8 +400,8 @@ pub async fn me() -> Result<Response, Error> {
 Create `src/controllers/post_controller.rs`:
 
 ```rust
-use rf_http::{Request, Response, Json};
-use rf_auth::AuthGuard;
+use rf::prelude::*;
+use rf_auth::Guard;  // NOTE: rf_auth exports `Guard`, not `AuthGuard`
 use rf_validation::Validate;
 use serde::{Deserialize, Serialize};
 use crate::models::post;

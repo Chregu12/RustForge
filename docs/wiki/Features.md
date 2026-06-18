@@ -1,6 +1,6 @@
 # Features
 
-RustForge provides 100% Laravel 12 feature parity, bringing the elegant Laravel developer experience to Rust. This page provides a comprehensive overview of all features.
+RustForge targets Laravel feature parity, bringing the elegant Laravel developer experience to Rust, and includes recent Laravel 13 additions (`Cache::touch`, queue routing by job class, JSON:API resources, a provider-agnostic AI SDK, and vector/semantic search). This page provides a comprehensive overview of all features.
 
 ## Table of Contents
 
@@ -30,6 +30,9 @@ RustForge provides 100% Laravel 12 feature parity, bringing the elegant Laravel 
 - [SSH Deployment (Envoy)](#ssh-deployment-envoy)
 - [Docker Environment (Sail)](#docker-environment-sail)
 - [SaaS Billing (Spark)](#saas-billing-spark)
+- [AI SDK (rf-ai)](#ai-sdk-rf-ai)
+- [Vector & Semantic Search (rf-vector)](#vector--semantic-search-rf-vector)
+- [JSON:API Resources](#jsonapi-resources)
 - [Simplified Imports (rf)](#simplified-imports-rf)
 
 ---
@@ -564,6 +567,7 @@ High-performance caching layer with multiple drivers.
 - **Remember**: Cache query results
 - **Cache Aside**: Automatic cache population
 - **TTL Support**: Time-to-live for cache items
+- **Touch (Laravel 13)**: Reset an entry's TTL without rewriting its value via `Cache::touch(key, ttl)`
 
 ### Example
 
@@ -643,6 +647,7 @@ Background job processing with multiple queue drivers.
 - **Failed Job Handling**: Dedicated failed jobs table
 - **Queue Workers**: Multiple concurrent workers
 - **Job Monitoring**: Track job progress
+- **Queue Routing by Class (Laravel 13)**: Route a job type to a specific queue via `JobRouter::route::<MyJob>("queue-name")` (in `rf-jobs`); a registered route takes precedence over a job's default queue
 
 ### Example
 
@@ -1655,6 +1660,76 @@ let handler = spark.webhook_handler()
         println!("Subscription cancelled: {:?}", event);
     });
 ```
+
+---
+
+## AI SDK (rf-ai)
+
+A provider-agnostic AI toolkit (`rf-ai`) for text generation, embeddings, and tool-calling agents, with an Anthropic provider built in. Application code targets the `ChatProvider` / `EmbeddingProvider` traits, so a live `AnthropicProvider` can be swapped for a `MockChatProvider` in tests.
+
+### Features
+
+- **Provider-Agnostic Traits**: `ChatProvider` and `EmbeddingProvider`
+- **Anthropic Provider**: Speaks the Anthropic Messages API directly over `reqwest` (no official Rust SDK required); default model `claude-opus-4-8`
+- **Tool-Calling Agents**: An `Agent` loop runs tools over any `ChatProvider`, with a configurable max-turns guard
+- **Mock Providers**: Deterministic `MockChatProvider` / `MockEmbeddingProvider` for offline tests
+
+### Example
+
+```rust
+use rf_ai::prelude::*;
+
+let provider = AnthropicProvider::new(std::env::var("ANTHROPIC_API_KEY").unwrap());
+
+let request = ChatRequest::default_model()
+    .max_tokens(256)
+    .system("You are a terse assistant.")
+    .message(Message::user("Name the capital of France."));
+
+let response = provider.chat(&request).await?;
+println!("{}", response.text());
+```
+
+---
+
+## Vector & Semantic Search (rf-vector)
+
+Vector and semantic search primitives (`rf-vector`): dense embedding vectors, similarity/distance metrics, an in-memory brute-force store, and pure SQL helpers for the Postgres `pgvector` extension.
+
+### Features
+
+- **`Vector`**: Dense `f32` embeddings with `dot`, `cosine_similarity`, `euclidean_distance`, `magnitude`, `normalized`, and checked `try_*` variants
+- **`DistanceMetric`**: `Cosine`, `Euclidean`, `DotProduct`, with a unified "higher score = more similar" scoring helper
+- **`InMemoryVectorStore`**: Brute-force k-nearest-neighbour search with JSON metadata
+- **`pgvector` helpers**: String builders (`to_literal`, `operator`, `order_by_nearest`, `nearest_neighbor_sql`) for use with rf-orm raw query fragments (no database dependency required)
+
+### Example
+
+```rust
+use rf_vector::*;
+use serde_json::json;
+
+let mut store = InMemoryVectorStore::new();
+store.add("doc:cat", Vector::new(vec![1.0, 0.0, 0.0]), json!({"title": "cats"}));
+store.add("doc:dog", Vector::new(vec![0.0, 1.0, 0.0]), json!({"title": "dogs"}));
+
+let query = Vector::new(vec![0.9, 0.1, 0.0]);
+let hits = store.search(&query, 1, DistanceMetric::Cosine);
+assert_eq!(hits[0].id, "doc:cat");
+```
+
+---
+
+## JSON:API Resources
+
+The `rf-api-resources` crate includes a `jsonapi` module for building JSON:API-compliant responses (a Laravel 13 addition).
+
+### Features
+
+- **`JsonApiResource`**: Render a model as a JSON:API resource object
+- **`JsonApiDocument`**: Top-level document with primary data, relationships, and links
+- **Relationships**: Model relationships as JSON:API `Relationship` objects
+- **Collections**: `document_from_collection` to build a document from a resource collection
 
 ---
 

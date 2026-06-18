@@ -4,7 +4,7 @@
 [![License](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-green)](LICENSE)
 [![Rust](https://img.shields.io/badge/rust-1.75%2B-orange)](https://www.rust-lang.org/)
 
-**RustForge** is a production-ready web application framework for Rust, inspired by Laravel. It provides a complete, batteries-included development experience with 100% Laravel 12 feature parity.
+**RustForge** is a production-ready web application framework for Rust, inspired by Laravel. It provides a complete, batteries-included development experience targeting Laravel feature parity, including recent Laravel 13 additions such as `Cache::touch`, queue routing by job class, JSON:API resources, a provider-agnostic AI SDK (`rf-ai`), and vector/semantic search (`rf-vector`).
 
 ## What is RustForge?
 
@@ -48,6 +48,18 @@ RustForge now includes all major Laravel ecosystem packages:
 | **rf-envoy** | SSH deployment task runner |
 | **rf-sail** | Docker development environment |
 | **rf-spark** | SaaS billing with Stripe integration |
+
+## 🆕 Laravel 13 Features
+
+RustForge has adopted recent Laravel 13 capabilities:
+
+| Feature | Package | Description |
+|---------|---------|-------------|
+| **Cache::touch** | `rf-cache` | Reset a cache entry's TTL without rewriting its value (`Cache::touch(key, ttl)`) |
+| **Queue routing by class** | `rf-jobs` | Route jobs to queues by their type via `JobRouter::route::<Job>("queue")` |
+| **JSON:API resources** | `rf-api-resources` | `jsonapi` module with `JsonApiResource`, `JsonApiDocument`, relationships |
+| **AI SDK** | `rf-ai` | Provider-agnostic chat/embeddings/tool-calling agents with an Anthropic provider |
+| **Vector search** | `rf-vector` | Embedding vectors, similarity metrics, in-memory store, and pgvector SQL helpers |
 
 ## 🆕 Additional Features
 
@@ -144,7 +156,9 @@ rf-envoy/         # SSH deployment (NEW)
 rf-sail/          # Docker environment (NEW)
 rf-spark/         # SaaS billing (NEW)
 rf/               # Simplified imports (NEW)
-...               # 114+ total packages
+rf-ai/            # Provider-agnostic AI SDK (NEW)
+rf-vector/        # Vector & semantic search (NEW)
+...               # 134+ total packages
 ```
 
 ## System Requirements
@@ -170,7 +184,7 @@ Ready to build something amazing? Start with our [Installation Guide](Installati
 - **Current Version**: 1.0.0
 - **Release Date**: December 20, 2024
 - **Status**: Production Ready
-- **Total Packages**: 114+
+- **Total Packages**: 134+
 - **Rust Edition**: 2021
 
 ## Credits
