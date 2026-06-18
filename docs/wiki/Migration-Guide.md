@@ -636,14 +636,12 @@ pub struct SendEmailJob {
     pub template: String,
 }
 
-#[auto_await]  // <- inserts `.await` on framework calls like `find` and `send`
 #[async_trait]
 impl Job for SendEmailJob {
     async fn handle(&self, ctx: JobContext) -> JobResult {
-        // No `.await` — the macro inserts it on `find`
-        let user = User::find(self.user_id);
+        let user = User::find(self.user_id).await?;
 
-        // Mail facade — `send` is covered by the macro too
+        // The Mail facade is synchronous (no .await).
         Mail::send(WelcomeEmail { user, template: self.template.clone() })?;
 
         Ok(())
@@ -799,23 +797,40 @@ $admins = User::where('role', 'admin')
     ->get();
 ```
 
-**RustForge - mit `#[auto_await]`, kein `.await` nötig (`where` wie in Laravel!):**
+**RustForge:**
 ```rust
 use rustforge::*;
 
 Model!(User: name, email, hidden password);
 
-#[auto_await]  // <- once: bodies are await-free, `where` -> `r#where`
-async fn list_users() -> Response {
-    let users = User::where("active", true).get();
-    let user = User::find(1);
-    let admins = User::where("role", "admin")
+// Mit query! macro - `where` wie in Laravel!
+let users = query!(User::where("active", true).get()).await;
+let user = User::find(1).await;
+let admins = query! {
+    User::where("role", "admin")
         .where("active", true)
         .orderBy("name", "asc")
         .limit(10)
-        .get();
+        .get()
+}.await;
+```
 
-    Response::json(&json!({ "users": users, "user": user, "admins": admins }))
+**Mit `#[auto_await]` - kein `.await` nötig:**
+```rust
+use rustforge::*;
+
+Model!(User: name, email, hidden password);
+
+#[auto_await]
+async fn get_admins() -> Response {
+    let admins = query! {
+        User::where("role", "admin")
+            .where("active", true)
+            .orderBy("name", "asc")
+            .limit(10)
+            .get()
+    };
+    Response::json(&admins)
 }
 ```
 
@@ -965,13 +980,13 @@ async fn create_user(
 }
 ```
 
-**RustForge** (AWAIT-FREE with `#[auto_await]` — the macro awaits `create`):
+**RustForge:**
 ```rust
-#[auto_await]
 pub async fn create_user(
     Json(payload): Json<CreateUserRequest>,
+    db: Database,
 ) -> Result<Response, Error> {
-    let user = User::create(payload);
+    let user = User::create(payload).await?;
     Ok(Response::json(&user).status(StatusCode::CREATED))
 }
 ```
@@ -1321,14 +1336,13 @@ form_request! {
     }
 }
 
-// Use in handler - automatic validation! (await-free with `#[auto_await]`)
-#[auto_await]
+// Use in handler - automatic validation!
 async fn store(Validated(req): Validated<CreateUserRequest>) -> Response {
     let user = User::create(json!({
         "email": req.email,
         "password": bcrypt!(req.password),
         "name": req.name,
-    }));
+    })).await;
     Response::json(&user).status(StatusCode::CREATED)
 }
 ```
@@ -1396,7 +1410,7 @@ exception_handler! {
 | `abort_if!` | Abort if condition true | `abort_if!(user.is_banned(), 403, "Banned")` |
 | `abort_unless!` | Abort unless condition true | `abort_unless!(user.can_edit(&post), 403)` |
 | `report!` | Report without throwing | `report!(error)` |
-| `rescue!` | Rescue with fallback | `rescue!(User::find(id), User::default())` (await-free under `#[auto_await]`) |
+| `rescue!` | Rescue with fallback | `rescue!(User::find(id).await, User::default())` |
 
 **Example Usage:**
 
@@ -1426,10 +1440,8 @@ Write HTML templates with familiar Blade-like syntax:
 ```rust
 use rustforge::*;
 
-#[auto_await]  // <- model calls below are await-free
-async fn render() -> Response {
-let user = User::find(1);
-let posts = user.posts().get();
+let user = User::find(1).await;
+let posts = user.posts().get().await;
 
 let html = blade! {
     <div class="container">
@@ -1471,9 +1483,6 @@ let html = blade! {
         </form>
     </div>
 };
-
-    Response::html(html)
-}
 ```
 
 **Available Blade Directives:**
@@ -1614,17 +1623,11 @@ notification! {
     }
 }
 
-// `Notification::send` is await-free under `#[auto_await]`. The `notify` method
-// is not part of the auto-await set, so it keeps an explicit `.await`.
-#[auto_await]
-async fn notify_users(user: User, users: Vec<User>, order: Order) -> Result<()> {
-    // Send notification to a user (not in the auto-await set)
-    user.notify(OrderShipped { order: order.clone() }).await?;
+// Send notification to a user
+user.notify(OrderShipped { order }).await?;
 
-    // Send to multiple users (the macro awaits `send`)
-    Notification::send(users, OrderShipped { order })?;
-    Ok(())
-}
+// Send to multiple users
+Notification::send(users, OrderShipped { order }).await?;
 ```
 
 **Markdown Email Content:**
