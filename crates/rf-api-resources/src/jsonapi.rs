@@ -494,4 +494,189 @@ mod tests {
         let back: JsonApiDocument = serde_json::from_str(&json).unwrap();
         assert_eq!(doc, back);
     }
+
+    // --- Adversarial JSON:API shape tests (Feature 3 validation) ---
+
+    #[test]
+    fn test_type_and_id_are_json_strings() {
+        let json = serde_json::to_value(&sample().to_document()).unwrap();
+        // Per JSON:API, both `type` and `id` MUST be strings (not numbers).
+        assert!(json["data"]["type"].is_string());
+        assert!(json["data"]["id"].is_string());
+        // Even though Article.id is a u64, the document id is "1" (string).
+        assert_eq!(json["data"]["id"].as_str(), Some("1"));
+    }
+
+    #[test]
+    fn test_attributes_is_object_without_id_but_keeps_other_fields() {
+        let json = serde_json::to_value(&sample().to_document()).unwrap();
+        let attrs = &json["data"]["attributes"];
+        assert!(attrs.is_object());
+        // Default attributes() drops only "id", not other fields.
+        assert!(attrs.get("id").is_none());
+        assert!(attrs.get("title").is_some());
+        assert!(attrs.get("body").is_some());
+    }
+
+    #[test]
+    fn test_attributes_only_drops_id_key_not_id_substrings() {
+        // A field literally named "id" is dropped; "identifier" must survive.
+        #[derive(Serialize)]
+        struct Weird {
+            id: u64,
+            identifier: String,
+        }
+        impl JsonApiResource for Weird {
+            fn json_api_type() -> &'static str {
+                "weird"
+            }
+            fn json_api_id(&self) -> String {
+                self.id.to_string()
+            }
+        }
+        let json = serde_json::to_value(
+            &Weird {
+                id: 3,
+                identifier: "keep-me".into(),
+            }
+            .to_document(),
+        )
+        .unwrap();
+        assert!(json["data"]["attributes"].get("id").is_none());
+        assert_eq!(json["data"]["attributes"]["identifier"], "keep-me");
+        assert_eq!(json["data"]["id"], "3");
+    }
+
+    #[test]
+    fn test_to_one_present_shape() {
+        let rel = Relationship::to_one(Some(ResourceIdentifier::new("people", "9")));
+        let json = serde_json::to_value(&rel).unwrap();
+        // to-one present: data is a single object {type,id}.
+        assert!(json["data"].is_object());
+        assert_eq!(json["data"]["type"], "people");
+        assert_eq!(json["data"]["id"], "9");
+        // No links member when none set.
+        assert!(json.get("links").is_none());
+    }
+
+    #[test]
+    fn test_to_many_empty_is_empty_array_not_null() {
+        let rel = Relationship::to_many(vec![]);
+        let json = serde_json::to_value(&rel).unwrap();
+        // to-many with no members must serialize as [] (array), not null.
+        // NOTE: untagged enum -> an empty Vec matches `One(None)` shape? Verify.
+        assert!(
+            json["data"].is_array(),
+            "empty to-many must be an array, got: {}",
+            json["data"]
+        );
+        assert_eq!(json["data"].as_array().unwrap().len(), 0);
+    }
+
+    #[test]
+    fn test_empty_to_many_roundtrips_as_many() {
+        // {"data":[]} must deserialize back to Many(vec![]), not be mis-parsed by
+        // the untagged enum as a to-one.
+        let rel = Relationship::to_many(vec![]);
+        let s = serde_json::to_string(&rel).unwrap();
+        let back: Relationship = serde_json::from_str(&s).unwrap();
+        match back.data {
+            Some(RelationshipData::Many(v)) => assert!(v.is_empty()),
+            other => panic!("expected Many([]), got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_resource_identifier_renames_to_type() {
+        let id = ResourceIdentifier::new("people", "9");
+        let json = serde_json::to_value(&id).unwrap();
+        // The field MUST serialize as "type", never "resource_type".
+        assert_eq!(json["type"], "people");
+        assert_eq!(json["id"], "9");
+        assert!(json.get("resource_type").is_none());
+    }
+
+    #[test]
+    fn test_resource_identifier_deserializes_from_type() {
+        // Deserialization must also accept the wire name "type".
+        let id: ResourceIdentifier =
+            serde_json::from_str(r#"{"type":"people","id":"9"}"#).unwrap();
+        assert_eq!(id.resource_type, "people");
+        assert_eq!(id.id, "9");
+    }
+
+    #[test]
+    fn test_empty_relationship_map_still_serializes_as_object() {
+        // A resource that returns Some(empty map) -> relationships present but {}.
+        #[derive(Serialize)]
+        struct Empties {
+            id: u64,
+        }
+        impl JsonApiResource for Empties {
+            fn json_api_type() -> &'static str {
+                "empties"
+            }
+            fn json_api_id(&self) -> String {
+                self.id.to_string()
+            }
+            fn relationships(&self) -> Option<RelationshipMap> {
+                Some(RelationshipMap::new())
+            }
+        }
+        let json = serde_json::to_value(&Empties { id: 1 }.to_document()).unwrap();
+        // Some(empty) is still "present" (Option::is_none is false), so it appears
+        // as an empty object. This documents current behavior.
+        assert!(json["data"]["relationships"].is_object());
+        assert_eq!(json["data"]["relationships"].as_object().unwrap().len(), 0);
+    }
+
+    #[test]
+    fn test_collection_document_data_is_array() {
+        let doc = JsonApiDocument::collection(vec![]);
+        let json = serde_json::to_value(&doc).unwrap();
+        // Empty collection => data: [] (array), not null/object.
+        assert!(json["data"].is_array());
+        assert_eq!(json["data"].as_array().unwrap().len(), 0);
+        // Empty optional members omitted.
+        assert!(json.get("meta").is_none());
+        assert!(json.get("links").is_none());
+        assert!(json.get("included").is_none());
+    }
+
+    #[test]
+    fn test_included_omitted_when_empty_present_when_set() {
+        let bare = sample().to_document();
+        let json = serde_json::to_value(&bare).unwrap();
+        assert!(json.get("included").is_none());
+
+        let with = sample().to_document().with_included(vec![ResourceObject {
+            resource_type: "people".into(),
+            id: "9".into(),
+            attributes: Map::new(),
+            relationships: None,
+            links: None,
+        }]);
+        let json2 = serde_json::to_value(&with).unwrap();
+        assert!(json2["included"].is_array());
+        assert_eq!(json2["included"].as_array().unwrap().len(), 1);
+    }
+
+    #[test]
+    fn test_single_object_with_no_links_omits_links() {
+        #[derive(Serialize)]
+        struct NoLink {
+            id: u64,
+            v: i32,
+        }
+        impl JsonApiResource for NoLink {
+            fn json_api_type() -> &'static str {
+                "nolink"
+            }
+            fn json_api_id(&self) -> String {
+                self.id.to_string()
+            }
+        }
+        let json = serde_json::to_value(&NoLink { id: 1, v: 2 }.to_document()).unwrap();
+        assert!(json["data"].get("links").is_none());
+    }
 }

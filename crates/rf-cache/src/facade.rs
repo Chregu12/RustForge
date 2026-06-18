@@ -444,6 +444,58 @@ mod tests {
     }
 
     #[test]
+    fn test_facade_touch_value_unchanged() {
+        Cache::forget("touch_unchanged").ok();
+        Cache::put("touch_unchanged", "original", 60).unwrap();
+        assert!(Cache::touch("touch_unchanged", 3600).unwrap());
+        // Value must not be rewritten by touch.
+        let v: Option<String> = Cache::get("touch_unchanged").unwrap();
+        assert_eq!(v, Some("original".to_string()));
+        Cache::forget("touch_unchanged").unwrap();
+    }
+
+    #[test]
+    fn test_facade_touch_extends_lifetime_past_original_expiry() {
+        Cache::forget("touch_extend").ok();
+        // Use Duration to confirm IntoTtl-for-Duration reaches the backend.
+        Cache::put("touch_extend", "v", Duration::from_millis(60)).unwrap();
+        assert!(Cache::touch("touch_extend", Duration::from_secs(10)).unwrap());
+        // Sleep past the original 60ms expiry; key must survive.
+        std::thread::sleep(Duration::from_millis(150));
+        assert!(
+            Cache::has("touch_extend").unwrap(),
+            "facade touch must extend lifetime through the same backend as put"
+        );
+        let v: Option<String> = Cache::get("touch_extend").unwrap();
+        assert_eq!(v, Some("v".to_string()));
+        Cache::forget("touch_extend").unwrap();
+    }
+
+    #[test]
+    fn test_facade_touch_expired_returns_false() {
+        Cache::forget("touch_expired").ok();
+        Cache::put("touch_expired", "v", Duration::from_millis(30)).unwrap();
+        std::thread::sleep(Duration::from_millis(80));
+        // Expired key: touch must not resurrect it.
+        assert!(!Cache::touch("touch_expired", 3600).unwrap());
+        assert!(!Cache::has("touch_expired").unwrap());
+        Cache::forget("touch_expired").unwrap();
+    }
+
+    #[test]
+    fn test_facade_touch_ttl_conversion_matches_put() {
+        // i64 IntoTtl: negative clamps to 0 (immediate expiry), same as put's path.
+        Cache::forget("touch_i64").ok();
+        Cache::put("touch_i64", "v", 60i64).unwrap();
+        // Touch with a negative i64 -> Duration::ZERO -> expires immediately.
+        assert!(Cache::touch("touch_i64", -5i64).unwrap());
+        // Now expired (tiny sleep guards against same-instant strict comparison).
+        std::thread::sleep(Duration::from_millis(5));
+        assert!(!Cache::has("touch_i64").unwrap());
+        Cache::forget("touch_i64").unwrap();
+    }
+
+    #[test]
     fn test_cache_increment_decrement() {
         Cache::forget("counter").ok();
 

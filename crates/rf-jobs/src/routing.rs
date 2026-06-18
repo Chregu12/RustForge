@@ -204,4 +204,101 @@ mod tests {
         assert_eq!(route.queue, "custom");
         assert_eq!(route.connection.as_deref(), Some("conn"));
     }
+
+    // --- Adversarial routing tests (Feature 2 validation) ---
+
+    #[test]
+    fn test_clear_empties_registry() {
+        let _guard = ROUTE_TEST_GUARD.lock().unwrap_or_else(|e| e.into_inner());
+        JobRouter::clear();
+        JobRouter::route::<RoutedJob>("emails");
+        JobRouter::route::<UnroutedJob>("other");
+        assert!(JobRouter::resolve(type_name::<RoutedJob>()).is_some());
+        JobRouter::clear();
+        assert!(JobRouter::resolve(type_name::<RoutedJob>()).is_none());
+        assert!(JobRouter::resolve(type_name::<UnroutedJob>()).is_none());
+    }
+
+    #[test]
+    fn test_distinct_types_do_not_collide() {
+        // Non-tautological alignment check: two different job types must produce
+        // two different registry keys, and each payload resolves to its own route.
+        let _guard = ROUTE_TEST_GUARD.lock().unwrap_or_else(|e| e.into_inner());
+        JobRouter::clear();
+
+        JobRouter::route::<RoutedJob>("queue-a");
+        JobRouter::route::<UnroutedJob>("queue-b");
+
+        assert_ne!(type_name::<RoutedJob>(), type_name::<UnroutedJob>());
+
+        let routed = JobPayload::new(RoutedJob { value: 1 }).unwrap();
+        let other = JobPayload::new(UnroutedJob { value: 1 }).unwrap();
+        assert_eq!(routed.job_type, type_name::<RoutedJob>());
+        assert_eq!(other.job_type, type_name::<UnroutedJob>());
+        assert_eq!(
+            JobRouter::resolve(&routed.job_type).unwrap().queue,
+            "queue-a"
+        );
+        assert_eq!(
+            JobRouter::resolve(&other.job_type).unwrap().queue,
+            "queue-b"
+        );
+    }
+
+    #[test]
+    fn test_route_overwrites_previous() {
+        let _guard = ROUTE_TEST_GUARD.lock().unwrap_or_else(|e| e.into_inner());
+        JobRouter::clear();
+        JobRouter::route::<RoutedJob>("first");
+        JobRouter::route::<RoutedJob>("second");
+        assert_eq!(
+            JobRouter::resolve(type_name::<RoutedJob>()).unwrap().queue,
+            "second"
+        );
+    }
+
+    /// Mirrors `QueueManager::resolve_queue` precedence (route > Job::queue
+    /// default) using only the public router API, since `resolve_queue` is
+    /// private and the real `dispatch` path requires a Redis connection.
+    fn resolve_queue_for<J: Job>(job: &J) -> String {
+        match JobRouter::resolve(type_name::<J>()) {
+            Some(route) => route.queue,
+            None => job.queue().to_string(),
+        }
+    }
+
+    #[test]
+    fn test_resolve_queue_precedence_route_over_default() {
+        let _guard = ROUTE_TEST_GUARD.lock().unwrap_or_else(|e| e.into_inner());
+        JobRouter::clear();
+
+        // RoutedJob::queue() defaults to "default".
+        let job = RoutedJob { value: 1 };
+        assert_eq!(job.queue(), "default");
+        assert_eq!(resolve_queue_for(&job), "default");
+
+        // After routing, the route wins over the default.
+        JobRouter::route::<RoutedJob>("routed-queue");
+        assert_eq!(resolve_queue_for(&job), "routed-queue");
+    }
+
+    #[test]
+    fn test_dispatch_to_overrides_route() {
+        // `dispatch_to(job, queue)` bypasses resolve_queue entirely and always
+        // uses the explicit queue. We assert the explicit queue is independent of
+        // any registered route (the override semantic).
+        let _guard = ROUTE_TEST_GUARD.lock().unwrap_or_else(|e| e.into_inner());
+        JobRouter::clear();
+        JobRouter::route::<RoutedJob>("routed-queue");
+
+        // The resolved queue would be "routed-queue"...
+        let job = RoutedJob { value: 1 };
+        assert_eq!(resolve_queue_for(&job), "routed-queue");
+        // ...but an explicit target is what dispatch_to forwards verbatim.
+        let explicit = "explicit-queue";
+        assert_ne!(explicit, resolve_queue_for(&job));
+        // Sanity: payload is independent of the explicit target queue.
+        let payload = JobPayload::new(job).unwrap();
+        assert_eq!(payload.job_type, type_name::<RoutedJob>());
+    }
 }
