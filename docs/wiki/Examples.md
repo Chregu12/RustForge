@@ -445,8 +445,12 @@ pub async fn forgot_password(
 Handle file uploads with validation and storage.
 
 ```rust
-use rf_http::{Request, Response, Multipart};
-use rf_storage::Storage;
+// NOTE: there is no `rf_http` crate. `Request` lives in `rf_request`, `Response` in
+// `rf_response` (both re-exported via `rf::web::*`). A `Multipart` extractor is not yet
+// exported by any rf-* crate — this upload example is illustrative/aspirational.
+use rf_request::Request;
+use rf_response::Response;
+use rf_storage::StorageFacade as Storage;
 use rf_validation::Validate;
 
 #[derive(Debug, Validate)]
@@ -535,8 +539,11 @@ pub async fn upload_image(
 WebSocket chat application with broadcasting.
 
 ```rust
-use rf_broadcast::{Broadcast, Channel};
-use rf_http::{WebSocket, Message};
+// NOTE: this example is aspirational and does not match the current API.
+// `rf_broadcast` exports `Broadcaster` and `Channel` (with `Channel::presence`),
+// not a `Broadcast` facade. There is no `rf_http` crate; `rf_broadcasting` provides
+// `WebSocketServer`/`WebSocketConfig` rather than a `WebSocket` extractor + `Message` type.
+use rf_broadcast::{Broadcaster, Channel};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -713,6 +720,31 @@ pub async fn checkout(
 }
 ```
 
+> **Note:** There is no `Queue` facade in RustForge. To dispatch jobs use the free functions
+> `rf_jobs::dispatch(job)` / `rf_jobs::dispatch_later(delay, job)`, a `SyncQueueManager`, or
+> `rf_queue::QueueFacade` (`push` / `push_later`). Also note the `Job` trait signature is
+> `async fn handle(&self, ctx: JobContext) -> JobResult` (`JobContext` is taken by value), and
+> `Job::backoff()` / `Job::timeout()` both return `std::time::Duration` (not `Vec<u64>` / `u64`).
+
+### Routing jobs to queues with `JobRouter`
+
+Laravel-13-style queue routing lets the application centrally assign a job *type* to a
+specific queue at boot, instead of each job hard-coding its queue via `Job::queue`. A route
+registered for a type wins over that job's own `queue()` when dispatched:
+
+```rust
+use rf_jobs::JobRouter;
+
+// During application boot:
+fn register_queue_routes() {
+    // Every ProcessOrderJob goes to the "orders" queue
+    JobRouter::route::<ProcessOrderJob>("orders");
+
+    // Route to a queue on a specific connection
+    JobRouter::route_to::<SendFeedbackRequestJob>("emails", "redis");
+}
+```
+
 ---
 
 ## Email System
@@ -825,6 +857,36 @@ impl PostRepository {
 }
 ```
 
+> **Note:** The `Cache` facade (`rf::Cache` / `rf_cache::CacheFacade`) is **synchronous** — its
+> methods return `CacheResult<T>` directly and are NOT `async`. Use `Cache::get("k")?` rather
+> than `Cache::get("k").await?`. (`TaggedCache` returned by `Cache::tags(...)` is async internally
+> but `Cache::tags(...)` itself is synchronous.)
+
+### Extending TTL with `Cache::touch`
+
+Extend a key's expiration to `now + ttl` without re-reading or rewriting its value.
+Accepts seconds (integer) or a `Duration`, and returns `true` if the key existed:
+
+```rust
+use rf::Cache;
+use std::time::Duration;
+
+// Refresh a session's TTL on each request (sliding expiration)
+fn keep_session_alive(session_id: &str) -> rf_cache::CacheResult<()> {
+    let key = format!("session:{session_id}");
+
+    // Laravel style - pass seconds directly...
+    let touched = Cache::touch(&key, 3600)?;
+
+    // ...or a Duration
+    if !touched {
+        Cache::touch(&key, Duration::from_secs(3600))?;
+    }
+
+    Ok(())
+}
+```
+
 ---
 
 ## GraphQL API
@@ -914,8 +976,13 @@ router.post("/graphql", async move |req: GraphQLRequest| {
 
 Comprehensive test examples.
 
+> **Note:** `rf_testing` does not export `TestCase` / `DatabaseTestCase`. The real test
+> harness types are `HttpTester`, `TestClient`, `TestResponse`, and `TestDatabase`
+> (plus `refresh_database`, `Factory`, `Seeder`). The example below is illustrative; adapt
+> the entry points to those types.
+
 ```rust
-use rf_testing::{TestCase, DatabaseTestCase};
+use rf_testing::{HttpTester, TestClient, TestResponse, TestDatabase};
 
 #[tokio::test]
 async fn test_post_crud() {
