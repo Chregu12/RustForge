@@ -278,6 +278,12 @@ fn transform_function(function: &mut ItemFn, extra: &[String]) {
         transformer.visit_stmt_mut(stmt);
     }
     if transformer.wrapped {
+        // The wrapped calls now contain `.await`, so the function must be async.
+        // Make a plain `fn` async automatically (it then returns `impl Future`),
+        // so a developer can write `#[auto_await] fn handler()` without `async`.
+        if function.sig.asyncness.is_none() {
+            function.sig.asyncness = Some(syn::token::Async::default());
+        }
         let mut stmts = AwaitTransformer::adapter_prelude();
         stmts.append(&mut function.block.stmts);
         function.block.stmts = stmts;
