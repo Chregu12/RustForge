@@ -209,16 +209,20 @@ pub fn controller(attr: TokenStream, item: TokenStream) -> TokenStream {
 /// }
 /// ```
 #[proc_macro_attribute]
-pub fn auto_await(_attr: TokenStream, item: TokenStream) -> TokenStream {
+pub fn auto_await(attr: TokenStream, item: TokenStream) -> TokenStream {
+    // `#[auto_await(also("foo", "bar"))]` adds extra method names to resolve, so
+    // a developer can cover their own async methods alongside the framework's.
+    let extra = extra_method_names(attr);
+
     // First: Transform `where` to `r#where` at token level
     let transformed_tokens = transform_where_tokens(item.clone());
 
     // Try to parse as module first
     if let Ok(mut module) = syn::parse::<syn::ItemMod>(transformed_tokens.clone()) {
-        if let Some((brace, items)) = &mut module.content {
+        if let Some((_brace, items)) = &mut module.content {
             for item in items.iter_mut() {
                 if let syn::Item::Fn(func) = item {
-                    transform_function(func);
+                    transform_function(func, &extra);
                 }
             }
         }
@@ -229,7 +233,7 @@ pub fn auto_await(_attr: TokenStream, item: TokenStream) -> TokenStream {
     if let Ok(mut impl_block) = syn::parse::<syn::ItemImpl>(transformed_tokens.clone()) {
         for item in &mut impl_block.items {
             if let syn::ImplItem::Fn(method) = item {
-                transform_impl_method(method);
+                transform_impl_method(method, &extra);
             }
         }
         return TokenStream::from(quote! { #impl_block });
@@ -238,16 +242,38 @@ pub fn auto_await(_attr: TokenStream, item: TokenStream) -> TokenStream {
     // Otherwise parse as function
     let transformed_tokens = transform_where_tokens(item);
     let mut function = parse_macro_input!(transformed_tokens as ItemFn);
-    transform_function(&mut function);
+    transform_function(&mut function, &extra);
 
     TokenStream::from(quote! {
         #function
     })
 }
 
+/// Extract the string-literal method names from an `also(...)` attribute argument.
+fn extra_method_names(attr: TokenStream) -> Vec<String> {
+    use proc_macro2::{TokenStream as TS2, TokenTree};
+    fn walk(ts: TS2, out: &mut Vec<String>) {
+        for tt in ts {
+            match tt {
+                TokenTree::Literal(lit) => {
+                    let s = lit.to_string();
+                    if s.len() >= 2 && s.starts_with('"') && s.ends_with('"') {
+                        out.push(s[1..s.len() - 1].to_string());
+                    }
+                }
+                TokenTree::Group(g) => walk(g.stream(), out),
+                _ => {}
+            }
+        }
+    }
+    let mut out = Vec::new();
+    walk(attr.into(), &mut out);
+    out
+}
+
 /// Transform a function so framework calls resolve transparently (sync or async).
-fn transform_function(function: &mut ItemFn) {
-    let mut transformer = AwaitTransformer::new();
+fn transform_function(function: &mut ItemFn, extra: &[String]) {
+    let mut transformer = AwaitTransformer::with_extra(extra.to_vec());
     for stmt in &mut function.block.stmts {
         transformer.visit_stmt_mut(stmt);
     }
@@ -259,8 +285,8 @@ fn transform_function(function: &mut ItemFn) {
 }
 
 /// Transform an impl method so framework calls resolve transparently.
-fn transform_impl_method(method: &mut syn::ImplItemFn) {
-    let mut transformer = AwaitTransformer::new();
+fn transform_impl_method(method: &mut syn::ImplItemFn, extra: &[String]) {
+    let mut transformer = AwaitTransformer::with_extra(extra.to_vec());
     for stmt in &mut method.block.stmts {
         transformer.visit_stmt_mut(stmt);
     }

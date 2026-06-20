@@ -17,6 +17,12 @@ use syn::{
 pub struct AwaitTransformer {
     /// List of known framework call names that should be resolved.
     async_functions: Vec<String>,
+    /// Extra call names supplied per use via `#[auto_await(also("a", "b"))]`,
+    /// so a developer can cover their own async methods without editing the
+    /// framework. Wrapping is name-scoped (not "everything") on purpose: blindly
+    /// wrapping every call injects `.await` into synchronous closures (e.g. the
+    /// `|x| ...` of `.map`) and breaks inference on calls like `.collect()`.
+    extra: Vec<String>,
     /// Set to `true` once at least one call has been wrapped, so the caller
     /// knows whether the adapter prelude needs to be injected.
     pub wrapped: bool,
@@ -96,9 +102,28 @@ impl AwaitTransformer {
                 // Queue
                 "push".to_string(),
                 "dispatch".to_string(),
+                "dispatch_later".to_string(),
+                // Broadcasting / WebSockets / Notifications
+                "broadcast".to_string(),
+                "publish".to_string(),
+                "subscribe".to_string(),
+                "notify".to_string(),
+                // AI (rf-ai)
+                "chat".to_string(),
+                "embed".to_string(),
+                "complete".to_string(),
+                "generate".to_string(),
             ],
+            extra: Vec::new(),
             wrapped: false,
         }
+    }
+
+    /// Construct with extra method names to resolve, from `#[auto_await(also(..))]`.
+    pub fn with_extra(extra: Vec<String>) -> Self {
+        let mut t = Self::new();
+        t.extra = extra;
+        t
     }
 
     /// Wrap a matched call expression in the maybe-await adapter so it resolves
@@ -156,9 +181,10 @@ impl AwaitTransformer {
         self.async_functions.push(name);
     }
 
-    /// Check if a method call should be awaited
+    /// Check if a method call should be resolved (framework list or user `also`).
     fn should_await_method(&self, method_name: &Ident) -> bool {
         self.async_functions.iter().any(|f| method_name == f)
+            || self.extra.iter().any(|f| method_name == f)
     }
 
     /// Transform an expression by adding .await where necessary
@@ -182,7 +208,6 @@ impl VisitMut for AwaitTransformer {
             }
             // Handle function calls: function()
             Expr::Call(call) => {
-                // Check if it's a path (e.g., User::find())
                 let matched = if let Expr::Path(path) = &*call.func {
                     path.path
                         .segments
