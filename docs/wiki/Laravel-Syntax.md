@@ -120,17 +120,50 @@ Route::view("/about", "about");
 ```rust
 use rustforge::*;
 
-// Define a model (3 options)
-Model!(User: name, email, hidden password);
+// CANONICAL: the #[model] attribute. Prefer this for all new code.
+// `id`, `created_at`, `updated_at` are added automatically; `#[hidden]`
+// fields are skipped during serialization.
+#[model]
+pub struct User {
+    pub name: String,
+    pub email: String,
 
-// Or with types
-Model!(User {
-    name: String,
-    email: String,
-    hidden password: String,
-});
+    #[hidden]
+    pub password: String,
+}
+```
 
-// Or Laravel-style class syntax
+#### Choosing a model syntax
+
+RustForge ships several model-definition macros. They all generate the same
+underlying SeaORM entity and `Model` trait impl — pick by ergonomics, but for
+**new code use `#[model]`**:
+
+| Syntax | When to use |
+| --- | --- |
+| `#[model] struct User { .. }` | **Canonical.** Idiomatic Rust attribute macro; best IDE support. |
+| `model! { Post => "posts" { .. belongs_to User, has_many Comment } }` | When you want to declare relationships inline. |
+| `laravel! { class User extends Model { protected fillable = [..]; } }` | For developers porting Laravel/PHP mental models. |
+| `model!(User, "users")` | Lightweight: a query-only type with no field schema. |
+| `Model!(User: name, email, hidden password)` | **Deprecated** PascalCase inline form, kept for backwards compatibility. Prefer `#[model]`. |
+
+The alternative forms remain available:
+
+```rust
+// Inline relationships
+model! {
+    Post => "posts" {
+        id: i32 primary,
+        user_id: i32,
+        title: String,
+        timestamps,
+
+        belongs_to User via user_id,
+        has_many Comment,
+    }
+}
+
+// Laravel-style class syntax
 laravel! {
     class User extends Model {
         protected fillable = [name: String, email: String];
@@ -492,22 +525,6 @@ function(request: Request) {
 ```
 
 **Status**: Integration needs completion (~2-3 hours)
-
-### Model Macro
-
-```rust
-#[model]
-pub struct User {
-    // id, created_at, updated_at automatically added
-    pub name: String,
-    pub email: String,
-
-    #[hidden]
-    pub password: String,
-}
-```
-
-**Status**: Works but needs duplicate definition fixes (~2-3 hours)
 
 ---
 
