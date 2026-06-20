@@ -163,6 +163,10 @@ pub use rf_macros::query;
 /// ```
 pub use rf_macros::auto_await;
 
+/// String-free way to cover your own async methods alongside the framework's:
+/// `#[await_calls(fetch_report, charge)]` (a clearer alias for `#[auto_await(..)]`).
+pub use rf_macros::await_calls;
+
 /// Controller macro
 pub use rf_macros::controller;
 

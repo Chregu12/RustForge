@@ -210,10 +210,22 @@ pub fn controller(attr: TokenStream, item: TokenStream) -> TokenStream {
 /// ```
 #[proc_macro_attribute]
 pub fn auto_await(attr: TokenStream, item: TokenStream) -> TokenStream {
-    // `#[auto_await(also("foo", "bar"))]` adds extra method names to resolve, so
-    // a developer can cover their own async methods alongside the framework's.
-    let extra = extra_method_names(attr);
+    // Extra async method names to also resolve, from either form:
+    //   #[auto_await(fetch_report, charge)]   (identifiers — preferred)
+    //   #[auto_await(also("fetch_report"))]   (strings — still accepted)
+    auto_await_core(extra_method_names(attr), item)
+}
 
+/// `#[await_calls(fetch_report, charge)]` — a clearer, string-free alias for
+/// `#[auto_await(...)]` that lists your own async methods as plain identifiers.
+#[proc_macro_attribute]
+pub fn await_calls(attr: TokenStream, item: TokenStream) -> TokenStream {
+    auto_await_core(extra_method_names(attr), item)
+}
+
+/// Shared implementation: resolve framework calls (plus `extra`) on a function,
+/// impl block, or module — transparently for sync and async calls.
+fn auto_await_core(extra: Vec<String>, item: TokenStream) -> TokenStream {
     // First: Transform `where` to `r#where` at token level
     let transformed_tokens = transform_where_tokens(item.clone());
 
@@ -249,7 +261,9 @@ pub fn auto_await(attr: TokenStream, item: TokenStream) -> TokenStream {
     })
 }
 
-/// Extract the string-literal method names from an `also(...)` attribute argument.
+/// Extract extra method names from an attribute: bare identifiers (e.g.
+/// `fetch_report, charge`) and/or string literals inside `also("...")`. The
+/// `also` keyword itself is ignored.
 fn extra_method_names(attr: TokenStream) -> Vec<String> {
     use proc_macro2::{TokenStream as TS2, TokenTree};
     fn walk(ts: TS2, out: &mut Vec<String>) {
@@ -259,6 +273,12 @@ fn extra_method_names(attr: TokenStream) -> Vec<String> {
                     let s = lit.to_string();
                     if s.len() >= 2 && s.starts_with('"') && s.ends_with('"') {
                         out.push(s[1..s.len() - 1].to_string());
+                    }
+                }
+                TokenTree::Ident(id) => {
+                    let s = id.to_string();
+                    if s != "also" {
+                        out.push(s);
                     }
                 }
                 TokenTree::Group(g) => walk(g.stream(), out),
