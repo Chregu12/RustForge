@@ -146,8 +146,9 @@ impl QueryBuilder {
         self
     }
 
-    /// Legacy method - use `r#where` instead
-    #[deprecated(note = "Use `r#where` for Laravel-style syntax")]
+    /// Legacy method - use [`r#where`](Self::where) (2-arg equality) or
+    /// [`where_op`](Self::where_op) (explicit operator) instead.
+    #[deprecated(note = "Use `where_op(column, operator, value)` for an explicit operator, or `r#where(column, value)` for equality")]
     pub fn where_clause(mut self, column: impl Into<String>, operator: impl Into<String>, value: Value) -> Self {
         self.wheres.push((column.into(), operator.into(), value));
         self
@@ -426,6 +427,11 @@ impl QueryBuilder {
         self
     }
 
+    /// snake_case alias for [`groupBy`](Self::groupBy)
+    pub fn group_by(self, column: impl Into<String>) -> Self {
+        self.groupBy(column)
+    }
+
     /// Laravel-style having
     ///
     /// # Examples
@@ -580,6 +586,11 @@ impl QueryBuilder {
             .ok_or_else(|| format!("No record found in {}", table))
     }
 
+    /// snake_case alias for [`firstOrFail`](Self::firstOrFail)
+    pub async fn first_or_fail(self) -> Result<Value, String> {
+        self.firstOrFail().await
+    }
+
     /// Laravel-style pluck - get array of single column values
     ///
     /// # Examples
@@ -645,6 +656,11 @@ impl QueryBuilder {
             .first()
             .await?
             .ok_or_else(|| format!("Record not found in {}", table))
+    }
+
+    /// snake_case alias for [`findOrFail`](Self::findOrFail)
+    pub async fn find_or_fail<V: Into<Value>>(self, id: V) -> Result<Value, String> {
+        self.findOrFail(id).await
     }
 
     /// Laravel-style inRandomOrder - randomize results
@@ -1442,12 +1458,13 @@ impl QueryBuilder {
     /// use rf_orm::DB;
     ///
     /// async fn example() {
+    ///     // Arguments are (page, per_page) — page 1, 15 rows per page.
     ///     let page = DB::table("users")
     ///         .where_clause("active", "=", true.into())
-    ///         .paginate(15, 1).await.unwrap();
+    ///         .paginate(1, 15).await.unwrap();
     /// }
     /// ```
-    pub async fn paginate(self, per_page: usize, page: usize) -> Result<PaginatedResult, String> {
+    pub async fn paginate(self, page: usize, per_page: usize) -> Result<PaginatedResult, String> {
         let per_page = per_page.max(1);
         let offset = (page.saturating_sub(1)) * per_page;
         let data = self.clone().limit(per_page).offset(offset).get().await?;

@@ -436,7 +436,16 @@ pub fn laravel(input: TokenStream) -> TokenStream {
 /// - `impl Model` with table name
 /// - `FILLABLE` and `HIDDEN` constants
 /// - `Default` implementation
+///
+/// Deprecated naming: prefer the snake_case model macro.
+///
+/// `Model!` uses PascalCase, which violates the Rust convention that
+/// function-like macros be snake_case. It is kept working for backwards
+/// compatibility and for the short inline model form. For new code prefer the
+/// `#[model]` attribute macro (canonical) or the snake_case `model!` macro.
+/// (proc-macro fns can't carry a useful `#[deprecated]`, so this is a doc note.)
 #[proc_macro]
+#[allow(non_snake_case)]
 pub fn Model(input: TokenStream) -> TokenStream {
     simple_model::simple_model_impl(input)
 }
@@ -1000,10 +1009,11 @@ pub fn rustforge(input: TokenStream) -> TokenStream {
     rustforge_block::rustforge_block_impl(input)
 }
 
-/// Marker attribute for opting out of auto_await inside rustforge! blocks
+/// Marker attribute for opting out of auto_await inside rustforge! blocks.
 ///
-/// Use this when you have a synchronous function that shouldn't have
-/// auto_await applied:
+/// Both `#[sync]` and its clearer alias `#[no_auto_await]` mean the same thing:
+/// "skip auto_await for this item". Use either when you have a synchronous
+/// function that shouldn't have auto_await applied:
 ///
 /// ```ignore
 /// rustforge! {
@@ -1015,6 +1025,26 @@ pub fn rustforge(input: TokenStream) -> TokenStream {
 /// ```
 #[proc_macro_attribute]
 pub fn sync(_attr: TokenStream, item: TokenStream) -> TokenStream {
+    // This is just a marker - the actual handling is in rustforge! macro
+    item
+}
+
+/// Marker attribute for opting out of auto_await — a clearer alias for `#[sync]`.
+///
+/// Both `#[no_auto_await]` and `#[sync]` mean the same thing: "skip auto_await
+/// for this item". This passthrough marker behaves identically to `#[sync]`; the
+/// actual handling is in the `rustforge!` macro.
+///
+/// ```ignore
+/// rustforge! {
+///     #[no_auto_await]
+///     fn helper() -> String {
+///         "I'm synchronous!".to_string()
+///     }
+/// }
+/// ```
+#[proc_macro_attribute]
+pub fn no_auto_await(_attr: TokenStream, item: TokenStream) -> TokenStream {
     // This is just a marker - the actual handling is in rustforge! macro
     item
 }

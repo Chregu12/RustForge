@@ -56,6 +56,16 @@
 //!
 //! pub use app::*;
 //! ```
+//!
+//! ## Canonical entry points
+//!
+//! Use `#[auto_await]` (or its string-free alias `#[await_calls(..)]`) to write
+//! await-free async code, and `#[model]` to define models. The PascalCase
+//! `Model!` macro is kept for the short inline form, but `#[model]` is preferred
+//! for new code. Opt a single item out of auto-await with `#[no_auto_await]`
+//! (alias `#[sync]`). The Laravel-style helper macros (`now!`, `view!`,
+//! `cache!`, `create!`, `find!`, `routes!`, `dispatch!`, ...) are available from
+//! both `rf` and `rustforge` so the public macro surface stays consistent.
 
 // ============================================================================
 // Macros - These are automatically available after `use rustforge::*;`
@@ -194,6 +204,8 @@ pub use rf_macros::rustforge;
 
 /// Opt-out of auto_await inside rustforge! blocks
 ///
+/// Both `#[sync]` and `#[no_auto_await]` mean "skip auto_await for this item".
+///
 /// ```rust,ignore
 /// rustforge! {
 ///     #[sync]
@@ -203,6 +215,20 @@ pub use rf_macros::rustforge;
 /// }
 /// ```
 pub use rf_macros::sync;
+
+/// Opt-out of auto_await — clearer alias for `#[sync]`.
+///
+/// Both `#[no_auto_await]` and `#[sync]` mean "skip auto_await for this item".
+///
+/// ```rust,ignore
+/// rustforge! {
+///     #[no_auto_await]
+///     fn helper() -> String {
+///         "synchronous".to_string()
+///     }
+/// }
+/// ```
+pub use rf_macros::no_auto_await;
 
 // ============================================================================
 // Laravel Helper Macros
@@ -898,6 +924,25 @@ pub use rf_macros::notification;
 /// };
 /// ```
 pub use rf_macros::markdown;
+
+// ============================================================================
+// Eloquent CRUD & Laravel Helper Macros (aligned with `rf`)
+// ============================================================================
+
+// Eloquent CRUD macros - Laravel-style without json! or explicit .await!
+pub use rf_macros::create;
+pub use rf_macros::delete;
+pub use rf_macros::find;
+pub use rf_macros::update;
+
+// Routing / migrations / form requests / mail / jobs / events
+pub use rf_macros::routes;        // Route definition DSL (German keyboard friendly)
+pub use rf_macros::resource;      // RESTful resource routes
+pub use rf_macros::migration;     // Database migration DSL
+pub use rf_macros::request;       // Form request validation
+pub use rf_macros::send_mail;     // Email sending
+pub use rf_macros::dispatch;      // Event dispatching
+pub use rf_macros::job;           // Background job definition
 
 // ============================================================================
 // Common Re-exports

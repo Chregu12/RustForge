@@ -57,14 +57,16 @@ pub fn rustforge_block_impl(input: TokenStream) -> TokenStream {
     for item in block.items {
         match item {
             Item::Fn(mut func) => {
-                // Check if function has #[sync] attribute
+                // Check if function has #[sync] / #[no_auto_await] attribute
                 let has_sync = func.attrs.iter().any(|attr| {
-                    attr.path().is_ident("sync")
+                    attr.path().is_ident("sync") || attr.path().is_ident("no_auto_await")
                 });
 
                 if has_sync {
-                    // Remove #[sync] attribute and keep function as-is
-                    func.attrs.retain(|attr| !attr.path().is_ident("sync"));
+                    // Remove the opt-out attribute and keep function as-is
+                    func.attrs.retain(|attr| {
+                        !attr.path().is_ident("sync") && !attr.path().is_ident("no_auto_await")
+                    });
                     output_items.push(quote! { #func });
                 } else if func.sig.asyncness.is_some() {
                     // Apply auto_await transformation to async functions
@@ -77,13 +79,15 @@ pub fn rustforge_block_impl(input: TokenStream) -> TokenStream {
                 }
             }
             Item::Impl(mut impl_block) => {
-                // Check for #[sync] on impl block
+                // Check for #[sync] / #[no_auto_await] on impl block
                 let has_sync = impl_block.attrs.iter().any(|attr| {
-                    attr.path().is_ident("sync")
+                    attr.path().is_ident("sync") || attr.path().is_ident("no_auto_await")
                 });
 
                 if has_sync {
-                    impl_block.attrs.retain(|attr| !attr.path().is_ident("sync"));
+                    impl_block.attrs.retain(|attr| {
+                        !attr.path().is_ident("sync") && !attr.path().is_ident("no_auto_await")
+                    });
                     output_items.push(quote! { #impl_block });
                 } else {
                     output_items.push(quote! {
@@ -93,13 +97,15 @@ pub fn rustforge_block_impl(input: TokenStream) -> TokenStream {
                 }
             }
             Item::Mod(mut module) => {
-                // Check for #[sync] on module
+                // Check for #[sync] / #[no_auto_await] on module
                 let has_sync = module.attrs.iter().any(|attr| {
-                    attr.path().is_ident("sync")
+                    attr.path().is_ident("sync") || attr.path().is_ident("no_auto_await")
                 });
 
                 if has_sync {
-                    module.attrs.retain(|attr| !attr.path().is_ident("sync"));
+                    module.attrs.retain(|attr| {
+                        !attr.path().is_ident("sync") && !attr.path().is_ident("no_auto_await")
+                    });
                     output_items.push(quote! { #module });
                 } else {
                     output_items.push(quote! {

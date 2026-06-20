@@ -181,6 +181,15 @@ where
         self
     }
 
+    /// Add a WHERE NOT LIKE clause
+    pub fn where_not_like<C>(mut self, column: C, pattern: &str) -> Self
+    where
+        C: ColumnTrait,
+    {
+        self.select = self.select.filter(column.not_like(pattern));
+        self
+    }
+
     /// Add a WHERE IS NULL clause
     pub fn where_null<C>(mut self, column: C) -> Self
     where
@@ -206,6 +215,120 @@ where
     {
         self.select = self.select.filter(f());
         self
+    }
+
+    // ===== Laravel-style camelCase aliases (forward to snake_case) =====
+
+    /// Laravel-style `whereEq` (camelCase alias for [`where_eq`](Self::where_eq))
+    #[allow(non_snake_case)]
+    pub fn whereEq<C, V>(self, column: C, value: V) -> Self
+    where
+        C: ColumnTrait,
+        V: Into<sea_orm::Value>,
+    {
+        self.where_eq(column, value)
+    }
+
+    /// Laravel-style `whereIn` (camelCase alias for [`where_in`](Self::where_in))
+    #[allow(non_snake_case)]
+    pub fn whereIn<C, V>(self, column: C, values: Vec<V>) -> Self
+    where
+        C: ColumnTrait,
+        V: Into<sea_orm::Value>,
+    {
+        self.where_in(column, values)
+    }
+
+    /// Laravel-style `whereNotIn` (camelCase alias for [`where_not_in`](Self::where_not_in))
+    #[allow(non_snake_case)]
+    pub fn whereNotIn<C, V>(self, column: C, values: Vec<V>) -> Self
+    where
+        C: ColumnTrait,
+        V: Into<sea_orm::Value>,
+    {
+        self.where_not_in(column, values)
+    }
+
+    /// Laravel-style `whereNull` (camelCase alias for [`where_null`](Self::where_null))
+    #[allow(non_snake_case)]
+    pub fn whereNull<C>(self, column: C) -> Self
+    where
+        C: ColumnTrait,
+    {
+        self.where_null(column)
+    }
+
+    /// Laravel-style `whereNotNull` (camelCase alias for [`where_not_null`](Self::where_not_null))
+    #[allow(non_snake_case)]
+    pub fn whereNotNull<C>(self, column: C) -> Self
+    where
+        C: ColumnTrait,
+    {
+        self.where_not_null(column)
+    }
+
+    /// Laravel-style `whereLike` (camelCase alias for [`where_like`](Self::where_like))
+    #[allow(non_snake_case)]
+    pub fn whereLike<C>(self, column: C, pattern: &str) -> Self
+    where
+        C: ColumnTrait,
+    {
+        self.where_like(column, pattern)
+    }
+
+    /// Laravel-style `whereNotLike` (camelCase alias for [`where_not_like`](Self::where_not_like))
+    #[allow(non_snake_case)]
+    pub fn whereNotLike<C>(self, column: C, pattern: &str) -> Self
+    where
+        C: ColumnTrait,
+    {
+        self.where_not_like(column, pattern)
+    }
+
+    /// Laravel-style `whereBetween` (camelCase alias for [`where_between`](Self::where_between))
+    #[allow(non_snake_case)]
+    pub fn whereBetween<C, V>(self, column: C, min: V, max: V) -> Self
+    where
+        C: ColumnTrait,
+        V: Into<sea_orm::Value> + Clone,
+    {
+        self.where_between(column, min, max)
+    }
+
+    /// Laravel-style `orderBy` (camelCase alias for [`order_by`](Self::order_by))
+    #[allow(non_snake_case)]
+    pub fn orderBy<C>(self, column: C, direction: &str) -> Self
+    where
+        C: ColumnTrait,
+    {
+        self.order_by(column, direction)
+    }
+
+    /// Laravel-style `orderByAsc` (camelCase alias for [`order_by_asc`](Self::order_by_asc))
+    #[allow(non_snake_case)]
+    pub fn orderByAsc<C>(self, column: C) -> Self
+    where
+        C: ColumnTrait,
+    {
+        self.order_by_asc(column)
+    }
+
+    /// Laravel-style `orderByDesc` (camelCase alias for [`order_by_desc`](Self::order_by_desc))
+    #[allow(non_snake_case)]
+    pub fn orderByDesc<C>(self, column: C) -> Self
+    where
+        C: ColumnTrait,
+    {
+        self.order_by_desc(column)
+    }
+
+    /// Laravel-style `groupBy` (camelCase alias for [`group_by`](Self::group_by))
+    #[allow(non_snake_case)]
+    pub fn groupBy<C>(self, column: C) -> Self
+    where
+        C: ColumnTrait,
+    {
+        self.group_by(column)
     }
 
     /// Add an ORDER BY clause
@@ -804,13 +927,28 @@ where
     ///
     /// Note: This is a simplified implementation. For production use,
     /// you may want to use raw SQL for more complex aggregations.
-    pub async fn sum(self, _column_name: &str) -> Result<Option<f64>, DbErr> {
-        // Note: This is a placeholder. In a real implementation, you would:
-        // 1. Convert the Select to SQL
-        // 2. Wrap it in a SUM() query
-        // 3. Execute it
-        // For now, we return None as this requires more complex SeaORM integration
-        Ok(None)
+    pub async fn sum(self, column_name: &str) -> Result<Option<f64>, DbErr> {
+        self.aggregate("SUM", column_name).await
+    }
+
+    /// Run an aggregate function (`SUM`/`AVG`/`MIN`/`MAX`) over a column,
+    /// preserving any WHERE/filter clauses already applied to the query.
+    ///
+    /// Returns `Ok(None)` when there are no matching rows (NULL aggregate).
+    async fn aggregate(self, func: &str, column_name: &str) -> Result<Option<f64>, DbErr> {
+        let db = self.db.clone();
+        // Re-use the existing filters/joins but project only the aggregate.
+        let expr = Expr::cust(&format!("{}({})", func, column_name));
+        let result: Option<Option<f64>> = self
+            .select
+            .select_only()
+            .column_as(expr, "agg")
+            .into_tuple::<Option<f64>>()
+            .one(db.as_ref())
+            .await?;
+
+        // Outer Option: row presence; inner Option: NULL aggregate.
+        Ok(result.flatten())
     }
 
     /// Average a column
@@ -833,9 +971,8 @@ where
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn avg(self, _column_name: &str) -> Result<Option<f64>, DbErr> {
-        // Placeholder - similar to sum()
-        Ok(None)
+    pub async fn avg(self, column_name: &str) -> Result<Option<f64>, DbErr> {
+        self.aggregate("AVG", column_name).await
     }
 
     /// Minimum value of a column
@@ -858,9 +995,8 @@ where
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn min(self, _column_name: &str) -> Result<Option<f64>, DbErr> {
-        // Placeholder - similar to sum()
-        Ok(None)
+    pub async fn min(self, column_name: &str) -> Result<Option<f64>, DbErr> {
+        self.aggregate("MIN", column_name).await
     }
 
     /// Maximum value of a column
@@ -883,9 +1019,8 @@ where
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn max(self, _column_name: &str) -> Result<Option<f64>, DbErr> {
-        // Placeholder - similar to sum()
-        Ok(None)
+    pub async fn max(self, column_name: &str) -> Result<Option<f64>, DbErr> {
+        self.aggregate("MAX", column_name).await
     }
 
     // ----- Chunking -----
@@ -2219,6 +2354,112 @@ mod tests {
     #[test]
     fn test_convenience_methods() {
         // Verify latest(), oldest(), lock() are proper aliases
+    }
+}
+
+// DB-backed tests for aggregate functions (use in-memory SQLite, same pattern as
+// the rest of the crate's `Database::connect("sqlite::memory:")` tests).
+#[cfg(test)]
+mod aggregate_tests {
+    use super::*;
+    use sea_orm::{
+        ConnectionTrait, Database, DatabaseConnection, DbBackend, EntityTrait, Set, Statement,
+    };
+
+    mod product {
+        use sea_orm::entity::prelude::*;
+
+        #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+        #[sea_orm(table_name = "products")]
+        pub struct Model {
+            #[sea_orm(primary_key)]
+            pub id: i32,
+            pub price: f64,
+        }
+
+        #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
+        pub enum Relation {}
+
+        impl ActiveModelBehavior for ActiveModel {}
+    }
+
+    use product::Entity as Product;
+
+    async fn setup() -> DatabaseConnection {
+        let db = Database::connect("sqlite::memory:")
+            .await
+            .expect("connect in-memory sqlite");
+
+        db.execute(Statement::from_string(
+            DbBackend::Sqlite,
+            "CREATE TABLE products (id INTEGER PRIMARY KEY AUTOINCREMENT, price REAL NOT NULL)"
+                .to_owned(),
+        ))
+        .await
+        .expect("create table");
+
+        for price in [10.0_f64, 20.0, 30.0] {
+            Product::insert(product::ActiveModel {
+                price: Set(price),
+                ..Default::default()
+            })
+            .exec(&db)
+            .await
+            .expect("insert row");
+        }
+
+        db
+    }
+
+    #[tokio::test]
+    async fn test_sum_returns_real_value() {
+        let db = setup().await;
+        let sum = QueryBuilder::<Product>::new(db).sum("price").await.unwrap();
+        assert_eq!(sum, Some(60.0));
+    }
+
+    #[tokio::test]
+    async fn test_avg_returns_real_value() {
+        let db = setup().await;
+        let avg = QueryBuilder::<Product>::new(db).avg("price").await.unwrap();
+        assert_eq!(avg, Some(20.0));
+    }
+
+    #[tokio::test]
+    async fn test_min_returns_real_value() {
+        let db = setup().await;
+        let min = QueryBuilder::<Product>::new(db).min("price").await.unwrap();
+        assert_eq!(min, Some(10.0));
+    }
+
+    #[tokio::test]
+    async fn test_max_returns_real_value() {
+        let db = setup().await;
+        let max = QueryBuilder::<Product>::new(db).max("price").await.unwrap();
+        assert_eq!(max, Some(30.0));
+    }
+
+    #[tokio::test]
+    async fn test_aggregate_respects_filters() {
+        let db = setup().await;
+        // Only the rows with price >= 20 (20 + 30) should be summed.
+        let sum = QueryBuilder::<Product>::new(db)
+            .where_gte(product::Column::Price, 20.0)
+            .sum("price")
+            .await
+            .unwrap();
+        assert_eq!(sum, Some(50.0));
+    }
+
+    #[tokio::test]
+    async fn test_aggregate_no_rows_is_none() {
+        let db = setup().await;
+        let sum = QueryBuilder::<Product>::new(db)
+            .where_gt(product::Column::Price, 1000.0)
+            .sum("price")
+            .await
+            .unwrap();
+        assert_eq!(sum, None);
     }
 }
 

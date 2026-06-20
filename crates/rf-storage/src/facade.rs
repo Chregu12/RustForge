@@ -62,6 +62,13 @@ impl StorageFacade {
         manager.delete(path)
     }
 
+    /// Alias for [`delete`] — naming-consistency convenience.
+    ///
+    /// [`delete`]: StorageFacade::delete
+    pub fn forget(path: &str) -> Result<(), String> {
+        Self::delete(path)
+    }
+
     /// Get the size of a file
     pub fn size(path: &str) -> Result<u64, String> {
         let manager = GLOBAL_STORAGE.read().unwrap();

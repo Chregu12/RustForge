@@ -36,6 +36,13 @@ impl Session {
         session.remove(key);
     }
 
+    /// Alias for [`forget`] — naming-consistency convenience.
+    ///
+    /// [`forget`]: Session::forget
+    pub fn delete(key: &str) {
+        Self::forget(key)
+    }
+
     pub fn flush() {
         let mut session = GLOBAL_SESSION.write().unwrap();
         session.clear();

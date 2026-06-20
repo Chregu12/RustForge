@@ -78,6 +78,13 @@ impl EventFacade {
         manager.forget(event_name);
     }
 
+    /// Alias for [`forget`] — naming-consistency convenience.
+    ///
+    /// [`forget`]: EventFacade::forget
+    pub fn delete(event_name: &str) {
+        Self::forget(event_name)
+    }
+
     /// Forget all event listeners
     pub fn forget_all() {
         let mut manager = GLOBAL_EVENT.write().unwrap();

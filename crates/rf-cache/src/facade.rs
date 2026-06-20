@@ -163,6 +163,13 @@ impl Cache {
         manager.forget(key)
     }
 
+    /// Alias for [`forget`] — naming-consistency convenience.
+    ///
+    /// [`forget`]: Cache::forget
+    pub fn delete(key: &str) -> CacheResult<()> {
+        Self::forget(key)
+    }
+
     /// Check if a key exists in cache
     ///
     /// # Examples

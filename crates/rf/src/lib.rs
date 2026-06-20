@@ -20,6 +20,16 @@
 //! | `rf::data` | Database & Validation | ORM, Eloquent, Cache, Validator |
 //! | `rf::background` | Background Processing | Jobs, Queue, Events, Broadcast |
 //! | `rf::services` | Infrastructure | Storage, Mail, Logging, Metrics |
+//!
+//! ## Canonical entry points
+//!
+//! Use `#[auto_await]` (or its string-free alias `#[await_calls(..)]`) to write
+//! await-free async code, and `#[model]` to define models. The PascalCase
+//! `Model!` macro is kept for the short inline form, but `#[model]` is preferred
+//! for new code. Opt a single item out of auto-await with `#[no_auto_await]`
+//! (alias `#[sync]`). The Laravel-style helper macros (`now!`, `view!`,
+//! `cache!`, `create!`, `find!`, `routes!`, `dispatch!`, ...) are available from
+//! both `rf` and `rustforge` so the public macro surface stays consistent.
 
 // ============================================================================
 // DIRECT RE-EXPORTS (Most Common - Laravel-style)
@@ -56,6 +66,12 @@ pub use rf_macros::route;
 pub use rf_macros::controller;
 pub use rf_macros::Model;
 
+// Await-handling attribute macros (aligned with `rustforge`)
+pub use rf_macros::auto_await;
+pub use rf_macros::await_calls;
+pub use rf_macros::sync;
+pub use rf_macros::no_auto_await;
+
 // Eloquent CRUD Macros (Laravel-style without json! or .await!)
 pub use rf_macros::update;
 pub use rf_macros::create;
@@ -64,11 +80,24 @@ pub use rf_macros::delete;
 
 // Laravel Helper Macros (Phase 23)
 pub use rf_macros::routes;        // Route definition without || (German keyboard friendly)
+pub use rf_macros::resource;      // RESTful resource routes
 pub use rf_macros::migration;     // Database migration DSL
 pub use rf_macros::request;       // Form request validation
 pub use rf_macros::send_mail;     // Email sending
 pub use rf_macros::dispatch;      // Event dispatching
 pub use rf_macros::job;           // Background job definition
+
+// Laravel-style helper macros (aligned with `rustforge`).
+// These are function-like macros from rf_macros; the `redirect`/`csrf` macros
+// live in the macro namespace and coexist with the same-named helper functions
+// re-exported above from rf_global_helpers.
+pub use rf_macros::{now, view, bcrypt, redirect, cache, auth, csrf};
+pub use rf_macros::{dd, dump, event, logger, session, storage, asset};
+pub use rf_macros::{back, old, url, collect, config, env_var};
+pub use rf_macros::{abort, abort_if, response, rescue, report, function};
+pub use rf_macros::{mail, mailable, markdown, notification, blade, html};
+pub use rf_macros::{section, push, stack, form_request, validated};
+pub use rf_macros::{exception_handler, handle_exceptions};
 
 // Validation
 pub use rf_validation_derive::Validate;
@@ -120,8 +149,17 @@ pub mod prelude {
 
     // Macros
     pub use rf_macros::{rules, route, controller, Model};
+    pub use rf_macros::{auto_await, await_calls, sync, no_auto_await};  // Await-handling attributes
     pub use rf_macros::{update, create, find, delete};  // Eloquent CRUD macros
-    pub use rf_macros::{routes, migration, request, send_mail, dispatch, job};  // Laravel helper macros
+    pub use rf_macros::{routes, resource, migration, request, send_mail, dispatch, job};  // Laravel helper macros
+    // Laravel-style helper macros (aligned with `rustforge`)
+    pub use rf_macros::{now, view, bcrypt, redirect, cache, auth, csrf};
+    pub use rf_macros::{dd, dump, event, logger, session, storage, asset};
+    pub use rf_macros::{back, old, url, collect, config, env_var};
+    pub use rf_macros::{abort, abort_if, response, rescue, report, function};
+    pub use rf_macros::{mail, mailable, markdown, notification, blade, html};
+    pub use rf_macros::{section, push, stack, form_request, validated};
+    pub use rf_macros::{exception_handler, handle_exceptions};
     pub use rf_validation_derive::Validate;
 
     // Core Types
