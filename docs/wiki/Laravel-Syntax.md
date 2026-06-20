@@ -143,7 +143,12 @@ laravel! {
 
 The `#[auto_await]` macro does TWO things automatically:
 1. **Transforms `where` to `r#where`** - so you can use `where()` like in Laravel
-2. **Adds `.await` automatically** - no need to write `.await` after async calls
+2. **Resolves calls automatically** - you never write `.await`. The macro wraps
+   each framework call in a tiny "maybe-await" adapter: an **async** call (e.g.
+   `User::find(1)`) is awaited for you, while a **synchronous** facade call (e.g.
+   `Cache::put(..)`, `Auth::login(..)`) is passed through unchanged. You don't
+   have to know — or specify — whether a given call is sync or async; the
+   framework decides per call, so the same await-free code compiles either way.
 
 **Recommended file structure - `#[auto_await]` once at top:**
 
