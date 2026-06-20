@@ -776,41 +776,37 @@ pub struct UserRegistered {
     pub email: String,
 }
 
-// Register listeners (typically in bootstrap). `Event::listen` is registration
-// infra (not in the auto-await set), so it keeps `.await`. Inside the listener
-// the `send` call IS in the auto-await set under `#[auto_await]`.
+// The `Event` facade is fully synchronous — like `Cache`/`Auth`, you never
+// write `.await` on it (and `#[auto_await]` resolves the `dispatch`/`send`
+// calls transparently).
 #[auto_await]
 async fn register_events() {
-    Event::listen("user.registered", |event: UserRegistered| async move {
-        // Send welcome email — `send` is in the auto-await set.
-        Mail::to(&event.email)
-            .subject("Welcome!")
-            .send()?;
+    Event::listen("user.registered", |event: UserRegistered| {
+        // Send a welcome email (a Mailable). `send` resolves under #[auto_await].
+        Mail::to(&event.email).send(WelcomeEmail::new(&event.email))?;
         Ok(())
-    }).await;
+    });
 
-    Event::listen("user.registered", |event: UserRegistered| async move {
-        // Log the registration (`Log::info` is not in the auto-await set).
-        Log::info(&format!("New user registered: {}", event.email)).await;
+    Event::listen("user.registered", |event: UserRegistered| {
+        // Log the registration — `Log::info` is synchronous.
+        Log::info(&format!("New user registered: {}", event.email));
         Ok(())
-    }).await;
+    });
 
-    // Dispatch event — `dispatch` is in the auto-await set.
+    // Dispatch an event.
     Event::dispatch("user.registered", UserRegistered {
         user_id: 1,
         email: "user@example.com".to_string(),
     })?;
 
-    // Check if event has listeners (`has_listeners` is not in the auto-await set).
-    if Event::has_listeners("user.registered").await {
+    // Check if an event has listeners.
+    if Event::has_listeners("user.registered") {
         println!("Event has listeners");
     }
 
-    // Dispatch multiple events (`dispatch_many` is not in the auto-await set).
-    Event::dispatch_many(vec![
-        ("user.created", json!({"id": 1})),
-        ("notification.send", json!({"type": "welcome"})),
-    ]).await?;
+    // Dispatch several events.
+    Event::dispatch("user.created", json!({ "id": 1 }))?;
+    Event::dispatch("notification.send", json!({ "type": "welcome" }))?;
 }
 ```
 
@@ -864,16 +860,12 @@ mailable! {
     }
 }
 
-// Send email (under `#[auto_await]`, `send` is awaited for you)
+// Send a Mailable to a recipient. No `.await` needed under `#[auto_await]`.
 Mail::to("user@example.com")
     .send(WelcomeEmail { user, activation_url })?;
 
-// Queue for later (`queue`/`delay` are not in the auto-await set, so this builder
-// chain keeps its `.await`)
-Mail::to("user@example.com")
-    .queue(WelcomeEmail { user, activation_url })
-    .delay(Duration::from_secs(60))
-    .await?;
+// To send in the background, dispatch a job that sends the mail (see Queue & Jobs).
+dispatch(&queue, SendWelcomeEmailJob { email: "user@example.com".to_string() })?;
 ```
 
 ### Simple Attribute Syntax
