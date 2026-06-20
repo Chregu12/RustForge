@@ -60,6 +60,10 @@ pub enum DbError {
     /// Internal database error
     #[error("Internal database error: {0}")]
     Internal(#[from] DbErr),
+
+    /// Generic facade-level error message
+    #[error("{0}")]
+    Other(String),
 }
 
 /// Result type for database operations

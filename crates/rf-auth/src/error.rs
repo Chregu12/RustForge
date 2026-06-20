@@ -60,6 +60,10 @@ pub enum AuthError {
     /// Token not found or invalid
     #[error("Invalid token: {0}")]
     InvalidToken(String),
+
+    /// Generic facade-level error message
+    #[error("{0}")]
+    Other(String),
 }
 
 /// Result type for auth operations
@@ -102,6 +106,8 @@ impl From<AuthError> for AppError {
             AuthError::AlreadyVerified => AppError::BadRequest {
                 message: "Email is already verified".to_string(),
             },
+
+            AuthError::Other(msg) => AppError::Internal(anyhow::anyhow!(msg)),
         }
     }
 }

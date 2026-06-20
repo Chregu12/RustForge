@@ -1,5 +1,6 @@
 //! Storage facade providing Laravel-style static storage API
 
+use crate::error::{StorageError, StorageResult};
 use crate::storage_manager::GLOBAL_STORAGE;
 
 /// The StorageFacade providing a static-like API for file storage.
@@ -32,22 +33,22 @@ pub struct StorageFacade;
 
 impl StorageFacade {
     /// Put a file
-    pub fn put(path: &str, contents: Vec<u8>) -> Result<(), String> {
+    pub fn put(path: &str, contents: Vec<u8>) -> StorageResult<()> {
         let mut manager = GLOBAL_STORAGE.write().unwrap();
-        manager.put(path, contents)
+        manager.put(path, contents).map_err(StorageError::Other)
     }
 
     /// Get a file's contents
-    pub fn get(path: &str) -> Result<Vec<u8>, String> {
+    pub fn get(path: &str) -> StorageResult<Vec<u8>> {
         let manager = GLOBAL_STORAGE.read().unwrap();
-        manager.get(path)
+        manager.get(path).map_err(StorageError::Other)
     }
 
     /// Get a file's contents as a string
-    pub fn get_string(path: &str) -> Result<String, String> {
+    pub fn get_string(path: &str) -> StorageResult<String> {
         let contents = Self::get(path)?;
         String::from_utf8(contents)
-            .map_err(|e| format!("Failed to convert file to UTF-8: {}", e))
+            .map_err(|e| StorageError::Other(format!("Failed to convert file to UTF-8: {}", e)))
     }
 
     /// Check if a file exists
@@ -57,22 +58,22 @@ impl StorageFacade {
     }
 
     /// Delete a file
-    pub fn delete(path: &str) -> Result<(), String> {
+    pub fn delete(path: &str) -> StorageResult<()> {
         let mut manager = GLOBAL_STORAGE.write().unwrap();
-        manager.delete(path)
+        manager.delete(path).map_err(StorageError::Other)
     }
 
     /// Alias for [`delete`] — naming-consistency convenience.
     ///
     /// [`delete`]: StorageFacade::delete
-    pub fn forget(path: &str) -> Result<(), String> {
+    pub fn forget(path: &str) -> StorageResult<()> {
         Self::delete(path)
     }
 
     /// Get the size of a file
-    pub fn size(path: &str) -> Result<u64, String> {
+    pub fn size(path: &str) -> StorageResult<u64> {
         let manager = GLOBAL_STORAGE.read().unwrap();
-        manager.size(path)
+        manager.size(path).map_err(StorageError::Other)
     }
 
     /// List all files
@@ -94,27 +95,27 @@ impl StorageFacade {
     }
 
     /// Copy a file
-    pub fn copy(from: &str, to: &str) -> Result<(), String> {
+    pub fn copy(from: &str, to: &str) -> StorageResult<()> {
         let mut manager = GLOBAL_STORAGE.write().unwrap();
-        manager.copy(from, to)
+        manager.copy(from, to).map_err(StorageError::Other)
     }
 
     /// Move a file
-    pub fn move_file(from: &str, to: &str) -> Result<(), String> {
+    pub fn move_file(from: &str, to: &str) -> StorageResult<()> {
         let mut manager = GLOBAL_STORAGE.write().unwrap();
-        manager.move_file(from, to)
+        manager.move_file(from, to).map_err(StorageError::Other)
     }
 
     /// Prepend content to a file
-    pub fn prepend(path: &str, data: Vec<u8>) -> Result<(), String> {
+    pub fn prepend(path: &str, data: Vec<u8>) -> StorageResult<()> {
         let mut manager = GLOBAL_STORAGE.write().unwrap();
-        manager.prepend(path, data)
+        manager.prepend(path, data).map_err(StorageError::Other)
     }
 
     /// Append content to a file
-    pub fn append(path: &str, data: Vec<u8>) -> Result<(), String> {
+    pub fn append(path: &str, data: Vec<u8>) -> StorageResult<()> {
         let mut manager = GLOBAL_STORAGE.write().unwrap();
-        manager.append(path, data)
+        manager.append(path, data).map_err(StorageError::Other)
     }
 
     /// Get the current disk name

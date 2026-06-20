@@ -1,5 +1,6 @@
 //! DB facade providing Laravel-style static database API
 
+use crate::error::{DbError, DbResult};
 use crate::facade::db_manager::GLOBAL_DB;
 use crate::facade::query_builder::QueryBuilder;
 use serde_json::Value;
@@ -51,9 +52,9 @@ impl DB {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn select(query: &str, bindings: &[Value]) -> Result<Vec<Value>, String> {
+    pub fn select(query: &str, bindings: &[Value]) -> DbResult<Vec<Value>> {
         let manager = GLOBAL_DB.read().unwrap();
-        manager.select(query, bindings)
+        manager.select(query, bindings).map_err(DbError::Other)
     }
 
     /// Execute an insert query
@@ -69,9 +70,9 @@ impl DB {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn insert(query: &str, bindings: &[Value]) -> Result<u64, String> {
+    pub fn insert(query: &str, bindings: &[Value]) -> DbResult<u64> {
         let mut manager = GLOBAL_DB.write().unwrap();
-        manager.insert(query, bindings)
+        manager.insert(query, bindings).map_err(DbError::Other)
     }
 
     /// Execute an update query
@@ -87,9 +88,9 @@ impl DB {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn update(query: &str, bindings: &[Value]) -> Result<u64, String> {
+    pub fn update(query: &str, bindings: &[Value]) -> DbResult<u64> {
         let mut manager = GLOBAL_DB.write().unwrap();
-        manager.update(query, bindings)
+        manager.update(query, bindings).map_err(DbError::Other)
     }
 
     /// Execute a delete query
@@ -105,9 +106,9 @@ impl DB {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn delete(query: &str, bindings: &[Value]) -> Result<u64, String> {
+    pub fn delete(query: &str, bindings: &[Value]) -> DbResult<u64> {
         let mut manager = GLOBAL_DB.write().unwrap();
-        manager.delete(query, bindings)
+        manager.delete(query, bindings).map_err(DbError::Other)
     }
 
     /// Execute a statement
@@ -122,9 +123,9 @@ impl DB {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn statement(query: &str) -> Result<bool, String> {
+    pub fn statement(query: &str) -> DbResult<bool> {
         let mut manager = GLOBAL_DB.write().unwrap();
-        manager.statement(query)
+        manager.statement(query).map_err(DbError::Other)
     }
 
     /// Get a query builder for a table
@@ -161,25 +162,25 @@ impl DB {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn begin_transaction() -> Result<(), String> {
+    pub fn begin_transaction() -> DbResult<()> {
         let mut manager = GLOBAL_DB.write().unwrap();
-        manager.begin_transaction()
+        manager.begin_transaction().map_err(DbError::Other)
     }
 
     /// Commit the current transaction
-    pub fn commit() -> Result<(), String> {
+    pub fn commit() -> DbResult<()> {
         let mut manager = GLOBAL_DB.write().unwrap();
-        manager.commit()
+        manager.commit().map_err(DbError::Other)
     }
 
     /// Rollback the current transaction
-    pub fn rollback() -> Result<(), String> {
+    pub fn rollback() -> DbResult<()> {
         let mut manager = GLOBAL_DB.write().unwrap();
-        manager.rollback()
+        manager.rollback().map_err(DbError::Other)
     }
 
     /// Set the database connection to use
-    pub fn connection(name: &str) -> Result<(), String> {
+    pub fn connection(name: &str) -> DbResult<()> {
         let mut manager = GLOBAL_DB.write().unwrap();
         manager.set_connection(name.to_string());
         Ok(())

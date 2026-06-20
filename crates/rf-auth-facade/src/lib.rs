@@ -34,7 +34,7 @@
 //!     name: String,
 //! }
 //!
-//! fn example() -> Result<(), String> {
+//! fn example() -> Result<(), rf_auth::AuthError> {
 //!     // Login a user
 //!     let user = User {
 //!         id: 1,
@@ -70,7 +70,7 @@
 //! // Recommended: use rf::Auth;
 //! use rf_auth_facade::Auth;  // Direct import also works
 //!
-//! fn example() -> Result<(), String> {
+//! fn example() -> Result<(), rf_auth::AuthError> {
 //!     // Attempt login with credentials
 //!     let credentials = serde_json::json!({
 //!         "email": "user@example.com",

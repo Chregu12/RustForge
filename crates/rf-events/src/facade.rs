@@ -1,6 +1,7 @@
 //! Event facade providing Laravel-style static event API
 
 use crate::event_manager::GLOBAL_EVENT;
+use crate::{EventError, EventResult};
 use serde::Serialize;
 use serde_json::Value;
 
@@ -43,12 +44,12 @@ pub struct EventFacade;
 
 impl EventFacade {
     /// Dispatch an event
-    pub fn dispatch<T: Serialize>(event_name: &str, data: T) -> Result<(), String> {
+    pub fn dispatch<T: Serialize>(event_name: &str, data: T) -> EventResult<()> {
         let value = serde_json::to_value(data)
-            .map_err(|e| format!("Failed to serialize event data: {}", e))?;
+            .map_err(|e| EventError::Serialization(e.to_string()))?;
 
         let mut manager = GLOBAL_EVENT.write().unwrap();
-        manager.dispatch(event_name, value)
+        manager.dispatch(event_name, value).map_err(EventError::Other)
     }
 
     /// Listen for an event

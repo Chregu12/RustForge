@@ -26,6 +26,14 @@ pub enum EventError {
 
     #[error("Dispatch error: {0}")]
     DispatchError(String),
+
+    /// Failed to serialize event data before dispatch
+    #[error("Failed to serialize event data: {0}")]
+    Serialization(String),
+
+    /// Generic facade-level error message
+    #[error("{0}")]
+    Other(String),
 }
 
 pub type EventResult<T> = Result<T, EventError>;

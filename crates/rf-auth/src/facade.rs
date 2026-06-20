@@ -3,6 +3,7 @@
 //! All methods are simple to use - no `.await` needed!
 //! I/O operations (like database queries) are handled internally.
 
+use crate::error::{AuthError, AuthResult};
 use crate::guard::Guard;
 use crate::auth_manager::GLOBAL_AUTH;
 use serde::Serialize;
@@ -25,7 +26,7 @@ use serde_json::Value;
 ///     name: String,
 /// }
 ///
-/// fn example() -> Result<(), String> {
+/// fn example() -> Result<(), rf_auth::AuthError> {
 ///     // Login
 ///     let user = User { id: 1, email: "user@example.com".into(), name: "John".into() };
 ///     Auth::login(user)?;
@@ -150,9 +151,9 @@ impl Auth {
     /// Auth::login(user).unwrap();
     /// assert!(Auth::check());
     /// ```
-    pub fn login<T: Serialize>(user: T) -> Result<(), String> {
+    pub fn login<T: Serialize>(user: T) -> AuthResult<()> {
         let mut manager = GLOBAL_AUTH.write().unwrap();
-        manager.login(user)
+        manager.login(user).map_err(AuthError::Other)
     }
 
     /// Login a user with remember me
@@ -165,13 +166,15 @@ impl Auth {
     /// Auth::login_using_id(1, true).unwrap();
     /// assert!(Auth::check());
     /// ```
-    pub fn login_using_id(id: u64, remember: bool) -> Result<(), String> {
+    pub fn login_using_id(id: u64, remember: bool) -> AuthResult<()> {
         let user = serde_json::json!({
             "id": id,
         });
 
         let mut manager = GLOBAL_AUTH.write().unwrap();
-        manager.login_with_remember(user, remember)
+        manager
+            .login_with_remember(user, remember)
+            .map_err(AuthError::Other)
     }
 
     /// Logout the currently authenticated user
@@ -206,9 +209,9 @@ impl Auth {
     ///     println!("Login successful!");
     /// }
     /// ```
-    pub fn attempt(credentials: Value) -> Result<bool, String> {
+    pub fn attempt(credentials: Value) -> AuthResult<bool> {
         let mut manager = GLOBAL_AUTH.write().unwrap();
-        manager.attempt(credentials)
+        manager.attempt(credentials).map_err(AuthError::Other)
     }
 
     /// Check if the user was authenticated via remember me

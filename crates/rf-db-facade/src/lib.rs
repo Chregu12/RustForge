@@ -63,5 +63,8 @@ pub use manager::{DBManager, GLOBAL_DB};
 pub use model::Model;
 pub use query_builder::{QueryBuilder, PaginatedResult};
 
+// Re-export the typed DB error from rf-orm so facade consumers can name it
+pub use rf_orm::{DbError, DbResult};
+
 // Re-export commonly used types
 pub use serde_json::Value;
