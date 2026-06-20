@@ -87,6 +87,34 @@ RustForge ist ein Full-Stack Web-Framework für Rust, das sich an Laravels API u
 
 ### Installation
 
+Wie bei Laravel (`laravel new app`) erzeugst du ein **neues Projekt**, ohne das
+Framework selbst auszuchecken.
+
+**Option A — `forge`-CLI (empfohlen, wie `laravel new`):**
+
+```bash
+# Einmalig: die CLI installieren (Binary heisst `forge`)
+cargo install --git https://github.com/Chregu12/RustForge forge-cli
+
+# Neues Projekt erzeugen – funktioniert aus jedem Verzeichnis
+forge new my-app
+cd my-app
+forge serve            # Dev-Server (Artisan-Äquivalent: forge migrate, forge make:model, …)
+```
+
+**Option B — Installer-One-Liner (wie `laravel.build`):**
+
+```bash
+bash <(curl -s https://raw.githubusercontent.com/Chregu12/RustForge/main/install.sh) my-app
+cd my-app
+forge serve
+```
+
+> Das Starter-Template ist in die `forge`-Binary eingebettet – `forge new`
+> braucht weder einen Repo-Checkout noch Netzwerkzugriff.
+
+**Am Framework selbst mitentwickeln?** Nur dann das Repo klonen:
+
 ```bash
 git clone https://github.com/Chregu12/RustForge.git
 cd RustForge

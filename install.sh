@@ -62,14 +62,14 @@ fi
 echo -e "${GREEN}→ Cloning RustForge repository...${NC}"
 git clone --quiet --depth 1 "$REPO_URL" "$TEMP_DIR" 2>&1 | grep -v "Cloning into" || true
 
-if [ ! -d "$TEMP_DIR/starter-template" ]; then
+if [ ! -d "$TEMP_DIR/rustforge-starter" ]; then
     echo -e "${RED}Error: Starter template not found in repository${NC}"
     rm -rf "$TEMP_DIR"
     exit 1
 fi
 
 echo -e "${GREEN}→ Setting up project '$PROJECT_NAME'...${NC}"
-cp -r "$TEMP_DIR/starter-template" "$PROJECT_NAME"
+cp -r "$TEMP_DIR/rustforge-starter" "$PROJECT_NAME"
 
 # Cleanup
 rm -rf "$TEMP_DIR"
@@ -89,10 +89,10 @@ fi
 # Update project name in Cargo.toml
 if [ "$(uname)" == "Darwin" ]; then
     # macOS
-    sed -i '' "s/name = \"rustforge-app\"/name = \"$PROJECT_NAME\"/" Cargo.toml
+    sed -i '' "s/name = \"my-rustforge-app\"/name = \"$PROJECT_NAME\"/" Cargo.toml
 else
     # Linux
-    sed -i "s/name = \"rustforge-app\"/name = \"$PROJECT_NAME\"/" Cargo.toml
+    sed -i "s/name = \"my-rustforge-app\"/name = \"$PROJECT_NAME\"/" Cargo.toml
 fi
 
 echo ""
@@ -101,7 +101,7 @@ echo ""
 echo "Next steps:"
 echo ""
 echo -e "  ${BLUE}cd $PROJECT_NAME${NC}"
-echo -e "  ${BLUE}cargo run${NC}"
+echo -e "  ${BLUE}forge serve${NC}   ${GREEN}# or: cargo run${NC}"
 echo ""
 echo "Your API will be available at: ${GREEN}http://localhost:3000${NC}"
 echo ""

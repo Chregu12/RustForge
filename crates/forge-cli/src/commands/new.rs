@@ -1,8 +1,16 @@
 use anyhow::{Context, Result};
 use colored::*;
 use fs_extra::dir::{self, CopyOptions};
+use include_dir::{include_dir, Dir};
+use regex::Regex;
 use std::fs;
 use std::path::{Path, PathBuf};
+
+/// The `rustforge-starter` project skeleton, embedded into the binary at
+/// compile time. This lets `forge new <name>` scaffold a full application from
+/// any directory after `cargo install` — no framework checkout required, the
+/// same way `laravel new` works.
+static STARTER_TEMPLATE: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/../../rustforge-starter");
 
 pub async fn run(name: &str) -> Result<()> {
     println!(
@@ -44,11 +52,20 @@ pub async fn run(name: &str) -> Result<()> {
     // Find the rustforge-starter template directory
     let starter_template = find_starter_template()?;
 
+    // A "standalone" project is one created outside the framework checkout. Its
+    // `../crates/rf-*` path dependencies cannot resolve, so they must be
+    // rewritten to git dependencies during customization.
+    let standalone = !starter_template.exists();
+
     if starter_template.exists() {
-        // Copy from rustforge-starter template
+        // Running inside the framework checkout: copy the on-disk template so
+        // local edits to rustforge-starter are picked up (path deps resolve).
         copy_starter_template(&starter_template, name)?;
+    } else if !STARTER_TEMPLATE.entries().is_empty() {
+        // Installed globally (cargo install): write out the embedded template.
+        extract_embedded_starter(name)?;
     } else {
-        // Fallback: create basic structure
+        // Last-resort fallback: generate a minimal structure from scratch.
         println!(
             "{}",
             "  ⚠ Starter template not found, creating basic structure...".yellow()
@@ -58,7 +75,7 @@ pub async fn run(name: &str) -> Result<()> {
     }
 
     // Customize the project
-    customize_project(name)?;
+    customize_project(name, standalone)?;
 
     // Initialize git repository
     init_git_repo(name)?;
@@ -147,6 +164,30 @@ fn copy_starter_template(template_path: &Path, project_name: &str) -> Result<()>
     Ok(())
 }
 
+/// Write the binary-embedded starter template into a new project directory.
+/// Used when `forge` runs outside the framework checkout (the common case after
+/// `cargo install forge-cli`).
+fn extract_embedded_starter(project_name: &str) -> Result<()> {
+    println!("  {} Extracting starter template...", "•".cyan());
+
+    let base = Path::new(project_name);
+    fs::create_dir_all(base)
+        .context(format!("Failed to create directory '{}'", project_name))?;
+
+    STARTER_TEMPLATE
+        .extract(base)
+        .context("Failed to extract embedded starter template")?;
+
+    // A template should never ship its own VCS state.
+    let git_dir = base.join(".git");
+    if git_dir.exists() {
+        fs::remove_dir_all(git_dir).ok();
+    }
+
+    println!("  {} Starter template ready", "✓".green());
+    Ok(())
+}
+
 fn create_project_directory(name: &str) -> Result<()> {
     fs::create_dir(name).context(format!("Failed to create directory '{}'", name))?;
     Ok(())
@@ -199,20 +240,40 @@ fn create_basic_structure(name: &str) -> Result<()> {
     Ok(())
 }
 
-fn customize_project(name: &str) -> Result<()> {
+fn customize_project(name: &str, standalone: bool) -> Result<()> {
     println!("  {} Customizing project...", "•".cyan());
     let base = Path::new(name);
 
     // Update Cargo.toml with project name
     let cargo_path = base.join("Cargo.toml");
     if cargo_path.exists() {
-        let content = fs::read_to_string(&cargo_path)?;
-        let updated = content.replace("my-rustforge-app", name);
-        fs::write(&cargo_path, updated)?;
+        let mut content = fs::read_to_string(&cargo_path)?;
+        content = content.replace("my-rustforge-app", name);
+
+        // Outside the framework checkout the `{ path = "../crates/rf-*" }`
+        // dependencies don't exist, so point them at the public git repo. This
+        // is what makes `forge new` produce a project that builds anywhere.
+        if standalone {
+            content = rewrite_path_deps_to_git(&content);
+        }
+
+        fs::write(&cargo_path, content)?;
     }
 
     println!("  {} Project customized", "✓".green());
     Ok(())
+}
+
+/// Replace `{ path = "../crates/<crate>" }` dependency sources with a git
+/// dependency on the RustForge repository, so a standalone generated project
+/// resolves the framework crates without a local checkout.
+fn rewrite_path_deps_to_git(cargo_toml: &str) -> String {
+    let re = Regex::new(r#"path\s*=\s*"\.\./crates/[^"]+""#).expect("valid regex");
+    re.replace_all(
+        cargo_toml,
+        r#"git = "https://github.com/Chregu12/RustForge""#,
+    )
+    .into_owned()
 }
 
 fn init_git_repo(name: &str) -> Result<()> {

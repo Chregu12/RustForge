@@ -35,6 +35,36 @@ Before installing RustForge, ensure you have the following installed:
 
 - **Git** (for version control)
 
+## Quick Start (Recommended)
+
+Just like Laravel's `laravel new app`, you scaffold a **new project** without
+checking out the framework itself. The starter template is embedded in the
+`forge` binary, so this works from any directory — no repo clone, no network.
+
+```bash
+# 1. Install the CLI once (the binary is called `forge`)
+cargo install --git https://github.com/Chregu12/RustForge forge-cli
+
+# 2. Create a new application
+forge new my-app
+cd my-app
+
+# 3. Set up and run
+cp .env.example .env
+forge migrate
+forge serve            # or: cargo run
+```
+
+Prefer a one-liner (like `laravel.build`)? This clones the starter and sets up
+the project for you:
+
+```bash
+bash <(curl -s https://raw.githubusercontent.com/Chregu12/RustForge/main/install.sh) my-app
+```
+
+That's it — `forge new` is the canonical entry point. The sections below cover
+adding RustForge to an **existing** crate and building the framework from source.
+
 ## Installation Methods
 
 ### Method 1: Using the `rf` Crate (Recommended)
@@ -237,10 +267,13 @@ DATABASE_URL=mysql://user:password@localhost:3306/myapp
 
 ## Installing the CLI Tool (Forge)
 
-RustForge comes with a powerful CLI tool called `forge`:
+RustForge comes with a powerful CLI tool called `forge` (the Artisan equivalent):
 
 ```bash
-# If you cloned the repository
+# Recommended: install directly from GitHub (no clone required)
+cargo install --git https://github.com/Chregu12/RustForge forge-cli
+
+# Or, if you already cloned the repository
 cargo install --path crates/forge-cli
 
 # Verify installation

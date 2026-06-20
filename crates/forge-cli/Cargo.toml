@@ -34,6 +34,9 @@ toml = "0.8"
 # File operations
 tokio = { version = "1.0", features = ["full"] }
 fs_extra = "1.3"
+# Starter template embedded into the binary so `forge new` works after
+# `cargo install` from any directory (Laravel `laravel new` parity).
+include_dir = "0.7"
 
 # String manipulation
 Inflector = "0.11"
