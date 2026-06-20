@@ -313,10 +313,9 @@ mod tests {
 
     #[test]
     fn test_metrics_registry_exists() {
-        // The global REGISTRY should be initialized
-        let families = REGISTRY.gather();
-        // Registry should exist (may or may not have metrics registered)
-        assert!(families.len() >= 0);
+        // The global REGISTRY should be initialized and gatherable without
+        // panicking (it may or may not have metrics registered yet).
+        let _families = REGISTRY.gather();
     }
 
     #[test]
