@@ -449,3 +449,117 @@ RustForge is a Laravel-inspired Rust web framework with:
         name
     )
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ---- is_valid_project_name -------------------------------------------
+
+    #[test]
+    fn accepts_typical_project_names() {
+        for name in ["app", "my-app", "my_app", "acme-api2", "a1-b2_c3"] {
+            assert!(is_valid_project_name(name), "{name} should be valid");
+        }
+    }
+
+    #[test]
+    fn rejects_invalid_project_names() {
+        for name in ["", "My-App", "my app", "app!", "café", "foo/bar"] {
+            assert!(!is_valid_project_name(name), "{name:?} should be invalid");
+        }
+    }
+
+    // ---- rewrite_path_deps_to_git ----------------------------------------
+
+    #[test]
+    fn rewrites_a_single_framework_path_dep_to_git() {
+        let input = r#"rf-core = { path = "../crates/rf-core" }"#;
+        let out = rewrite_path_deps_to_git(input);
+        assert_eq!(
+            out,
+            r#"rf-core = { git = "https://github.com/Chregu12/RustForge" }"#
+        );
+    }
+
+    #[test]
+    fn rewrites_every_framework_path_dep() {
+        let input = "\
+rf-core = { path = \"../crates/rf-core\" }\n\
+rf-web = { path = \"../crates/rf-web\" }\n\
+rf-orm = { path = \"../crates/rf-orm\" }\n";
+        let out = rewrite_path_deps_to_git(&input);
+        assert!(
+            !out.contains("path = \"../crates"),
+            "no `../crates` path dep should remain:\n{out}"
+        );
+        assert_eq!(
+            out.matches(r#"git = "https://github.com/Chregu12/RustForge""#)
+                .count(),
+            3,
+            "each of the three deps should become a git dep"
+        );
+    }
+
+    #[test]
+    fn tolerates_whitespace_variations() {
+        let input = r#"rf-core = { path="../crates/rf-core" , features = ["x"] }"#;
+        let out = rewrite_path_deps_to_git(input);
+        assert!(out.contains(r#"git = "https://github.com/Chregu12/RustForge""#));
+        assert!(!out.contains("path="));
+        // Unrelated keys on the same line are preserved.
+        assert!(out.contains(r#"features = ["x"]"#));
+    }
+
+    #[test]
+    fn leaves_non_framework_and_versioned_deps_untouched() {
+        let input = "\
+tokio = { version = \"1\", features = [\"full\"] }\n\
+local = { path = \"./vendor/local\" }\n";
+        let out = rewrite_path_deps_to_git(input);
+        assert_eq!(out, input, "only `../crates/*` path deps should change");
+    }
+
+    #[test]
+    fn rewrite_is_idempotent() {
+        let input = r#"rf-core = { path = "../crates/rf-core" }"#;
+        let once = rewrite_path_deps_to_git(input);
+        let twice = rewrite_path_deps_to_git(&once);
+        assert_eq!(once, twice);
+    }
+
+    // ---- embedded starter template integrity -----------------------------
+
+    #[test]
+    fn embedded_starter_template_is_not_empty() {
+        assert!(
+            !STARTER_TEMPLATE.entries().is_empty(),
+            "the starter template must be embedded into the binary"
+        );
+    }
+
+    #[test]
+    fn embedded_starter_contains_core_files() {
+        for path in ["Cargo.toml", "src/main.rs", "routes/api.rs", ".env.example"] {
+            assert!(
+                STARTER_TEMPLATE.get_file(path).is_some(),
+                "embedded starter should contain `{path}`"
+            );
+        }
+    }
+
+    #[test]
+    fn embedded_starter_cargo_toml_uses_the_placeholder_name() {
+        let cargo = STARTER_TEMPLATE
+            .get_file("Cargo.toml")
+            .expect("embedded Cargo.toml")
+            .contents_utf8()
+            .expect("utf8");
+        assert!(
+            cargo.contains("my-rustforge-app"),
+            "template Cargo.toml should carry the placeholder name that customize_project replaces"
+        );
+        // And it must declare the path deps that the standalone path rewrites.
+        assert!(cargo.contains("path = \"../crates/rf-core\""));
+    }
+}
