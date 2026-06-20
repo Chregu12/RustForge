@@ -1,10 +1,9 @@
-/// Application logic and business domain
-///
-/// This module contains all the application-specific code including:
-/// - HTTP Controllers
-/// - Middleware
-/// - Models
-/// - Services
+//! Application logic and business domain.
+//!
+//! This module contains all the application-specific code:
+//! - HTTP Controllers & Middleware
+//! - Models
+//! - Services
 
 pub mod Http;
 pub mod Models;

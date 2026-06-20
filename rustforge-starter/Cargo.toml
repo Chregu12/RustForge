@@ -7,7 +7,7 @@ description = "A RustForge application"
 
 [dependencies]
 # RustForge Framework - Core
-rf-core = { path = "../crates/rf-core" }
+rf-core = { path = "../crates/rf-core", features = ["axum"] }
 rf-web = { path = "../crates/rf-web" }
 rf-config = { path = "../crates/rf-config" }
 
@@ -31,6 +31,9 @@ rf-queue = { path = "../crates/rf-queue" }
 
 # RustForge Framework - Cache
 rf-cache = { path = "../crates/rf-cache" }
+
+# Web framework (RustForge builds on Axum; pin to 0.8 to match rf-web)
+axum = { version = "0.8", features = ["macros", "json"] }
 
 # Async Runtime
 tokio = { version = "1", features = ["full"] }

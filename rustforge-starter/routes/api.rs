@@ -1,23 +1,22 @@
-/// API Routes
-///
-/// Routes for API endpoints (JSON responses)
-/// These routes use token-based authentication
+//! API Routes
+//!
+//! Routes for JSON API endpoints, mounted under `/api/v1`.
 
-use rf_web::{Router, Route};
 use crate::app::Http::Controllers::UserController;
+use axum::{routing::get, Router};
 
 pub fn routes() -> Router {
-    Router::new()
-        .prefix("/api/v1")
-        // .middleware(Middleware::auth_api())
+    let users = Router::new()
+        .route(
+            "/users",
+            get(UserController::index).post(UserController::store),
+        )
+        .route(
+            "/users/{id}",
+            get(UserController::show)
+                .put(UserController::update)
+                .delete(UserController::destroy),
+        );
 
-        // API User endpoints
-        .group("/users", |router| {
-            router
-                .route("/", Route::get(UserController::index))
-                .route("/{id}", Route::get(UserController::show))
-                .route("/", Route::post(UserController::store))
-                .route("/{id}", Route::put(UserController::update))
-                .route("/{id}", Route::delete(UserController::destroy))
-        })
+    Router::new().nest("/api/v1", users)
 }
