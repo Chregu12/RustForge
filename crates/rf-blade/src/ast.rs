@@ -87,6 +87,53 @@ pub enum AstNode {
     /// Validation error display
     Error { field: String },
 
+    /// @unless(cond) ... @endunless — render body when cond is falsy
+    Unless { condition: Expr, body: Vec<AstNode> },
+
+    /// @isset($var) ... @endisset — render body when var is set (present & non-null)
+    Isset { target: Expr, body: Vec<AstNode> },
+
+    /// @empty($var) ... @endempty — render body when var is empty
+    Empty { target: Expr, body: Vec<AstNode> },
+
+    /// @switch($n) @case(..) .. @break @default .. @endswitch
+    Switch {
+        subject: Expr,
+        cases: Vec<(Expr, Vec<AstNode>)>,
+        default: Option<Vec<AstNode>>,
+    },
+
+    /// @forelse($xs as $x) ... @empty ... @endforelse
+    Forelse {
+        collection: Expr,
+        item_var: String,
+        key_var: Option<String>,
+        body: Vec<AstNode>,
+        empty: Vec<AstNode>,
+    },
+
+    /// @break / @break(cond) — loop control
+    Break { condition: Option<Expr> },
+
+    /// @continue / @continue(cond) — loop control
+    Continue { condition: Option<Expr> },
+
+    /// @once ... @endonce — render body once (request-scoped dedup out of scope)
+    Once { body: Vec<AstNode> },
+
+    /// @php ... @endphp — RustForge cannot execute PHP; renders nothing
+    Php,
+
+    /// Attribute helper directives (@checked/@selected/@disabled/@required/@readonly).
+    /// Renders the bare `word` when the condition is truthy, else empty string.
+    AttributeHelper { word: String, condition: Expr },
+
+    /// @class([...]) — renders `class="..."`
+    ClassList { items: Vec<ConditionalEntry> },
+
+    /// @style([...]) — renders `style="..."`
+    StyleList { items: Vec<ConditionalEntry> },
+
     /// Custom directive
     Custom { name: String, args: String },
 
@@ -106,6 +153,17 @@ pub enum AstNode {
 
     /// Props directive (for component prop access)
     Props { name: String },
+}
+
+/// An entry in a `@class([...])` / `@style([...])` array.
+///
+/// - `Always(value)` — a bare string entry, always included.
+/// - `Conditional { value, condition }` — `'value' => condition`, included
+///   when `condition` evaluates truthy.
+#[derive(Debug, Clone, PartialEq)]
+pub enum ConditionalEntry {
+    Always(String),
+    Conditional { value: String, condition: Expr },
 }
 
 /// Expression node for conditions and values

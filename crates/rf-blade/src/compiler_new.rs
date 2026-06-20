@@ -1,6 +1,6 @@
 //! Blade template compiler - executes AST to generate HTML
 
-use crate::ast::{AstNode, BinaryOperator, Expr, UnaryOperator};
+use crate::ast::{AstNode, BinaryOperator, ConditionalEntry, Expr, UnaryOperator};
 use crate::components::{AttributeBag, ComponentProps, ComponentRegistry};
 use serde_json::Value;
 use std::collections::HashMap;
@@ -24,6 +24,14 @@ pub enum CompileError {
 
 pub type CompileResult<T> = Result<T, CompileError>;
 
+/// Loop-control signal raised by `@break` / `@continue` while compiling a loop
+/// body. Propagated up through `compile` so the enclosing loop can react.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum LoopSignal {
+    Break,
+    Continue,
+}
+
 /// Execution context for template rendering
 #[derive(Debug, Clone)]
 pub struct RenderContext {
@@ -41,6 +49,10 @@ pub struct RenderContext {
 
     /// Component registry (shared reference)
     pub component_registry: Option<Arc<ComponentRegistry>>,
+
+    /// Pending loop-control signal (set by `@break` / `@continue`, consumed by
+    /// the enclosing loop). Not part of public template data.
+    loop_signal: Option<LoopSignal>,
 }
 
 impl RenderContext {
@@ -52,6 +64,7 @@ impl RenderContext {
             parent: None,
             is_authenticated: false,
             component_registry: None,
+            loop_signal: None,
         }
     }
 
@@ -63,6 +76,7 @@ impl RenderContext {
             parent: None,
             is_authenticated: false,
             component_registry: Some(registry),
+            loop_signal: None,
         }
     }
 
@@ -70,6 +84,15 @@ impl RenderContext {
     pub fn get_var(&self, name: &str) -> Option<&Value> {
         // Remove $ prefix if present
         let name = name.strip_prefix('$').unwrap_or(name);
+
+        // Normalize PHP-style arrow access (`loop->index`) to dot notation.
+        let normalized;
+        let name = if name.contains("->") {
+            normalized = name.replace("->", ".");
+            normalized.as_str()
+        } else {
+            name
+        };
 
         // Support dot notation: user.name
         if name.contains('.') {
@@ -129,6 +152,12 @@ impl Compiler {
         for node in nodes {
             let html = self.compile_node(node, context)?;
             output.push_str(&html);
+
+            // If a @break / @continue fired inside this node, stop compiling
+            // the rest of this node sequence and let the enclosing loop react.
+            if context.loop_signal.is_some() {
+                break;
+            }
         }
 
         Ok(output)
@@ -259,6 +288,118 @@ impl Compiler {
                 ))
             }
 
+            AstNode::Unless { condition, body } => {
+                // Render body when the condition is falsy (inverse of @if).
+                if self.evaluate_expr(condition, context)? {
+                    Ok(String::new())
+                } else {
+                    self.compile(body, context)
+                }
+            }
+
+            AstNode::Isset { target, body } => {
+                // "set" = present AND not null.
+                if self.expr_is_set(target, context) {
+                    self.compile(body, context)
+                } else {
+                    Ok(String::new())
+                }
+            }
+
+            AstNode::Empty { target, body } => {
+                // "empty" = null/false/0/""/[]/missing.
+                if self.expr_is_empty(target, context) {
+                    self.compile(body, context)
+                } else {
+                    Ok(String::new())
+                }
+            }
+
+            AstNode::Switch {
+                subject,
+                cases,
+                default,
+            } => self.compile_switch(subject, cases, default, context),
+
+            AstNode::Forelse {
+                collection,
+                item_var,
+                key_var,
+                body,
+                empty,
+            } => self.compile_forelse(
+                collection,
+                item_var,
+                key_var.as_deref(),
+                body,
+                empty,
+                context,
+            ),
+
+            AstNode::Break { condition } => {
+                let act = match condition {
+                    Some(cond) => self.evaluate_expr(cond, context)?,
+                    None => true,
+                };
+                if act {
+                    context.loop_signal = Some(LoopSignal::Break);
+                }
+                Ok(String::new())
+            }
+
+            AstNode::Continue { condition } => {
+                let act = match condition {
+                    Some(cond) => self.evaluate_expr(cond, context)?,
+                    None => true,
+                };
+                if act {
+                    context.loop_signal = Some(LoopSignal::Continue);
+                }
+                Ok(String::new())
+            }
+
+            AstNode::Once { body } => {
+                // Render the body. Full request-scoped @once deduplication
+                // (rendering only once across an entire request) needs the
+                // higher-level engine and is out of scope for the string
+                // compiler; here we simply render the body.
+                self.compile(body, context)
+            }
+
+            AstNode::Php => {
+                // RustForge has no PHP runtime, so @php ... @endphp cannot be
+                // executed. Render nothing (and, importantly, no passthrough
+                // HTML comment).
+                Ok(String::new())
+            }
+
+            AstNode::AttributeHelper { word, condition } => {
+                // e.g. @checked(cond) -> "checked" when truthy, else "".
+                if self.evaluate_expr(condition, context)? {
+                    Ok(word.clone())
+                } else {
+                    Ok(String::new())
+                }
+            }
+
+            AstNode::ClassList { items } => {
+                let classes = self.collect_conditional_entries(items, context, " ")?;
+                if classes.is_empty() {
+                    Ok(String::new())
+                } else {
+                    Ok(format!(r#"class="{}""#, classes))
+                }
+            }
+
+            AstNode::StyleList { items } => {
+                let styles = self.collect_conditional_entries(items, context, "; ")?;
+                if styles.is_empty() {
+                    Ok(String::new())
+                } else {
+                    Ok(format!(r#"style="{}""#, styles))
+                }
+            }
+
             AstNode::Custom { name, args } => {
                 // Custom directives - placeholder
                 Ok(format!("<!-- custom: {} {} -->", name, args))
@@ -351,6 +492,12 @@ impl Compiler {
         // Remove $ and whitespace
         let var_name = var.trim().strip_prefix('$').unwrap_or(var.trim());
 
+        // Normalize PHP-style member access (`$loop->index`, `$user->name`) to
+        // dot notation so the same resolution path handles both. This is what
+        // makes `{{ $loop->index }}` resolve against the injected $loop object.
+        let normalized = var_name.replace("->", ".");
+        let var_name = normalized.as_str();
+
         // Check if it's a member access (contains dot)
         let value = if var_name.contains('.') {
             // Handle member access: user.name -> get "user" then access "name"
@@ -422,92 +569,192 @@ impl Compiler {
         body: &[AstNode],
         context: &mut RenderContext,
     ) -> CompileResult<String> {
+        self.run_loop(collection, item_var, key_var, body, context)
+    }
+
+    /// Shared loop runner for @foreach / @forelse.
+    ///
+    /// Builds the per-iteration context (item var, optional key var, and the
+    /// `$loop` object) and honors `@break` / `@continue` signals. Returns the
+    /// number of iterations performed so callers (e.g. @forelse) can detect an
+    /// empty collection.
+    fn run_loop(
+        &self,
+        collection: &Expr,
+        item_var: &str,
+        key_var: Option<&str>,
+        body: &[AstNode],
+        context: &mut RenderContext,
+    ) -> CompileResult<String> {
+        let (output, _count) = self.run_loop_counted(collection, item_var, key_var, body, context)?;
+        Ok(output)
+    }
+
+    /// Like `run_loop` but also reports how many items were iterated.
+    fn run_loop_counted(
+        &self,
+        collection: &Expr,
+        item_var: &str,
+        key_var: Option<&str>,
+        body: &[AstNode],
+        context: &mut RenderContext,
+    ) -> CompileResult<(String, usize)> {
         let collection_value = self.resolve_expr(collection, context)?;
 
+        // Normalize the collection into an ordered list of (key, value) pairs.
+        let entries: Vec<(Value, Value)> = match collection_value {
+            Value::Array(items) => items
+                .into_iter()
+                .enumerate()
+                .map(|(i, v)| (Value::Number(serde_json::Number::from(i as i64)), v))
+                .collect(),
+            Value::Object(map) => map
+                .into_iter()
+                .map(|(k, v)| (Value::String(k), v))
+                .collect(),
+            _ => Vec::new(),
+        };
+
+        let count = entries.len();
         let mut output = String::new();
 
-        match collection_value {
-            Value::Array(items) => {
-                for (index, item) in items.iter().enumerate() {
-                    // Create new context with loop variables
-                    let loop_data = match &context.data {
-                        Value::Object(map) => {
-                            let mut new_map = map.clone();
-                            new_map.insert(item_var.to_string(), item.clone());
+        for (index, (key, value)) in entries.into_iter().enumerate() {
+            // Build the per-iteration data object.
+            let mut new_map = match &context.data {
+                Value::Object(map) => map.clone(),
+                _ => serde_json::Map::new(),
+            };
 
-                            // Set key variable if specified
-                            if let Some(key) = key_var {
-                                new_map.insert(
-                                    key.to_string(),
-                                    Value::Number(serde_json::Number::from(index as i64)),
-                                );
-                            }
+            new_map.insert(item_var.to_string(), value);
 
-                            Value::Object(new_map)
-                        }
-                        _ => {
-                            // If context.data is not an object, create a new one
-                            let mut new_map = serde_json::Map::new();
-                            new_map.insert(item_var.to_string(), item.clone());
-
-                            if let Some(key) = key_var {
-                                new_map.insert(
-                                    key.to_string(),
-                                    Value::Number(serde_json::Number::from(index as i64)),
-                                );
-                            }
-
-                            Value::Object(new_map)
-                        }
-                    };
-
-                    let mut loop_context = context.clone();
-                    loop_context.data = loop_data;
-
-                    let html = self.compile(body, &mut loop_context)?;
-                    output.push_str(&html);
-                }
+            if let Some(key_name) = key_var {
+                new_map.insert(key_name.to_string(), key);
             }
 
-            Value::Object(map) => {
-                for (key, value) in map.iter() {
-                    let loop_data = match &context.data {
-                        Value::Object(base_map) => {
-                            let mut new_map = base_map.clone();
-                            new_map.insert(item_var.to_string(), value.clone());
+            // Expose $loop for the current iteration.
+            new_map.insert("loop".to_string(), build_loop_object(index, count));
 
-                            if let Some(key_name) = key_var {
-                                new_map.insert(key_name.to_string(), Value::String(key.clone()));
-                            }
+            let mut loop_context = context.clone();
+            loop_context.data = Value::Object(new_map);
+            loop_context.loop_signal = None;
 
-                            Value::Object(new_map)
-                        }
-                        _ => {
-                            let mut new_map = serde_json::Map::new();
-                            new_map.insert(item_var.to_string(), value.clone());
+            let html = self.compile(body, &mut loop_context)?;
+            output.push_str(&html);
 
-                            if let Some(key_name) = key_var {
-                                new_map.insert(key_name.to_string(), Value::String(key.clone()));
-                            }
-
-                            Value::Object(new_map)
-                        }
-                    };
-
-                    let mut loop_context = context.clone();
-                    loop_context.data = loop_data;
-
-                    let html = self.compile(body, &mut loop_context)?;
-                    output.push_str(&html);
-                }
-            }
-
-            _ => {
-                // Not iterable, skip
+            // React to loop-control signals raised inside the body.
+            match loop_context.loop_signal {
+                Some(LoopSignal::Break) => break,
+                Some(LoopSignal::Continue) | None => {}
             }
         }
 
-        Ok(output)
+        Ok((output, count))
+    }
+
+    /// Compile @forelse directive
+    fn compile_forelse(
+        &self,
+        collection: &Expr,
+        item_var: &str,
+        key_var: Option<&str>,
+        body: &[AstNode],
+        empty: &[AstNode],
+        context: &mut RenderContext,
+    ) -> CompileResult<String> {
+        let (output, count) =
+            self.run_loop_counted(collection, item_var, key_var, body, context)?;
+
+        if count == 0 {
+            self.compile(empty, context)
+        } else {
+            Ok(output)
+        }
+    }
+
+    /// Compile @switch directive
+    fn compile_switch(
+        &self,
+        subject: &Expr,
+        cases: &[(Expr, Vec<AstNode>)],
+        default: &Option<Vec<AstNode>>,
+        context: &mut RenderContext,
+    ) -> CompileResult<String> {
+        let subject_value = self.resolve_expr(subject, context)?;
+
+        for (case_expr, body) in cases {
+            let case_value = self.resolve_expr(case_expr, context)?;
+            if values_loosely_equal(&subject_value, &case_value) {
+                return self.compile(body, context);
+            }
+        }
+
+        if let Some(default_body) = default {
+            self.compile(default_body, context)
+        } else {
+            Ok(String::new())
+        }
+    }
+
+    /// Collect the truthy entries of a @class / @style array into a joined
+    /// string (joined by `separator`).
+    fn collect_conditional_entries(
+        &self,
+        items: &[ConditionalEntry],
+        context: &RenderContext,
+        separator: &str,
+    ) -> CompileResult<String> {
+        let mut parts: Vec<String> = Vec::new();
+        for entry in items {
+            match entry {
+                ConditionalEntry::Always(value) => {
+                    if !value.is_empty() {
+                        parts.push(value.clone());
+                    }
+                }
+                ConditionalEntry::Conditional { value, condition } => {
+                    if self.evaluate_expr(condition, context)? {
+                        parts.push(value.clone());
+                    }
+                }
+            }
+        }
+        Ok(parts.join(separator))
+    }
+
+    /// Whether an expression resolves to a "set" value (present and non-null).
+    fn expr_is_set(&self, expr: &Expr, context: &RenderContext) -> bool {
+        match self.lookup_optional(expr, context) {
+            Some(Value::Null) | None => false,
+            Some(_) => true,
+        }
+    }
+
+    /// Whether an expression resolves to an "empty" value
+    /// (null/false/0/0.0/""/[]/{}/missing).
+    fn expr_is_empty(&self, expr: &Expr, context: &RenderContext) -> bool {
+        match self.lookup_optional(expr, context) {
+            None => true,
+            Some(v) => !self.is_truthy(&v),
+        }
+    }
+
+    /// Resolve an expression but distinguish "missing" (None) from a present
+    /// null value (Some(Null)) for @isset / @empty semantics.
+    fn lookup_optional(&self, expr: &Expr, context: &RenderContext) -> Option<Value> {
+        match expr {
+            Expr::Variable(var) => context.get_var(var).cloned(),
+            Expr::MemberAccess { .. } | Expr::ArrayAccess { .. } => {
+                // resolve_expr returns Null for missing chained access; treat a
+                // resolved Null the same as missing for these forms.
+                match self.resolve_expr(expr, context) {
+                    Ok(Value::Null) => None,
+                    Ok(v) => Some(v),
+                    Err(_) => None,
+                }
+            }
+            Expr::Raw(s) => context.get_var(s).cloned(),
+            other => self.resolve_expr(other, context).ok(),
+        }
     }
 
     /// Compile @for directive
@@ -545,9 +792,16 @@ impl Compiler {
                 ));
             }
 
+            context.loop_signal = None;
             let html = self.compile(body, context)?;
             output.push_str(&html);
             iterations += 1;
+
+            // Honor @break / @continue raised in the body.
+            match context.loop_signal.take() {
+                Some(LoopSignal::Break) => break,
+                Some(LoopSignal::Continue) | None => {}
+            }
         }
 
         Ok(output)
@@ -581,12 +835,10 @@ impl Compiler {
             }
 
             Expr::Raw(s) => {
-                // For raw expressions, try to get as variable
-                if let Some(value) = context.get_var(s) {
-                    Ok(self.is_truthy(value))
-                } else {
-                    Ok(false)
-                }
+                // Raw expressions (e.g. "x == 3", "loop->first") are not pre-parsed
+                // into BinaryOp nodes by Expr::parse, so evaluate them here. This
+                // is shared by @if, @break(cond), @continue(cond), etc.
+                self.evaluate_raw(s, context)
             }
 
             _ => {
@@ -594,6 +846,78 @@ impl Compiler {
                 Ok(self.is_truthy(&value))
             }
         }
+    }
+
+    /// Evaluate a raw (un-pre-parsed) expression string to a boolean.
+    ///
+    /// Supports a single top-level logical (`&&`/`and`/`||`/`or`) or comparison
+    /// (`==`, `!=`, `<=`, `>=`, `<`, `>`) operator with literal/variable
+    /// operands, plus a leading `!` negation and bare truthiness. Operands may
+    /// use `->` member access (e.g. `loop->first`).
+    fn evaluate_raw(&self, s: &str, context: &RenderContext) -> CompileResult<bool> {
+        let s = s.trim();
+
+        // Logical OR (lowest precedence).
+        if let Some((l, r)) = split_top_level_op(s, &["||", " or "]) {
+            return Ok(self.evaluate_raw(&l, context)? || self.evaluate_raw(&r, context)?);
+        }
+        // Logical AND.
+        if let Some((l, r)) = split_top_level_op(s, &["&&", " and "]) {
+            return Ok(self.evaluate_raw(&l, context)? && self.evaluate_raw(&r, context)?);
+        }
+
+        // Comparisons (order matters: two-char operators before single-char).
+        for op in ["==", "!=", "<=", ">="] {
+            if let Some((l, r)) = split_top_level_op(s, &[op]) {
+                let lv = self.resolve_raw_operand(&l, context);
+                let rv = self.resolve_raw_operand(&r, context);
+                return Ok(compare_values(&lv, op, &rv));
+            }
+        }
+        for op in ["<", ">"] {
+            if let Some((l, r)) = split_top_level_op(s, &[op]) {
+                let lv = self.resolve_raw_operand(&l, context);
+                let rv = self.resolve_raw_operand(&r, context);
+                return Ok(compare_values(&lv, op, &rv));
+            }
+        }
+
+        // Leading negation.
+        if let Some(rest) = s.strip_prefix('!') {
+            return Ok(!self.evaluate_raw(rest, context)?);
+        }
+
+        // Bare value: truthiness.
+        Ok(self.is_truthy(&self.resolve_raw_operand(s, context)))
+    }
+
+    /// Resolve a raw operand (literal or variable/member-access) to a Value.
+    fn resolve_raw_operand(&self, s: &str, context: &RenderContext) -> Value {
+        let s = s.trim();
+        let s = s.strip_prefix('$').unwrap_or(s);
+
+        // String literal.
+        if s.len() >= 2
+            && ((s.starts_with('\'') && s.ends_with('\''))
+                || (s.starts_with('"') && s.ends_with('"')))
+        {
+            return Value::String(s[1..s.len() - 1].to_string());
+        }
+        // Boolean / null literals.
+        match s {
+            "true" => return Value::Bool(true),
+            "false" => return Value::Bool(false),
+            "null" => return Value::Null,
+            _ => {}
+        }
+        // Numeric literal.
+        if let Ok(n) = s.parse::<f64>() {
+            return serde_json::Number::from_f64(n)
+                .map(Value::Number)
+                .unwrap_or(Value::Null);
+        }
+        // Variable / member access.
+        context.get_var(s).cloned().unwrap_or(Value::Null)
     }
 
     /// Resolve expression to a value
@@ -716,6 +1040,128 @@ impl Compiler {
 impl Default for Compiler {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+/// Split `s` on the first top-level occurrence of any of `ops` (ignoring
+/// matches inside quotes or parentheses, and not splitting on `->`).
+/// Returns (left, right) trimmed.
+fn split_top_level_op(s: &str, ops: &[&str]) -> Option<(String, String)> {
+    let bytes = s.as_bytes();
+    let mut depth = 0i32;
+    let mut in_string = false;
+    let mut string_char = b' ';
+    let mut i = 0;
+    while i < bytes.len() {
+        let b = bytes[i];
+        match b {
+            b'\'' | b'"' => {
+                if in_string && b == string_char {
+                    in_string = false;
+                } else if !in_string {
+                    in_string = true;
+                    string_char = b;
+                }
+                i += 1;
+                continue;
+            }
+            b'(' | b'[' if !in_string => depth += 1,
+            b')' | b']' if !in_string => depth -= 1,
+            _ => {}
+        }
+
+        if !in_string && depth == 0 {
+            // Don't treat the `-` / `>` of a `->` accessor as an operator.
+            if b == b'-' && i + 1 < bytes.len() && bytes[i + 1] == b'>' {
+                i += 2;
+                continue;
+            }
+            for op in ops {
+                if s[i..].starts_with(op) {
+                    let left = s[..i].trim().to_string();
+                    let right = s[i + op.len()..].trim().to_string();
+                    if !left.is_empty() && !right.is_empty() {
+                        return Some((left, right));
+                    }
+                }
+            }
+        }
+        i += 1;
+    }
+    None
+}
+
+/// Compare two values with a comparison operator string (PHP-ish loose rules).
+fn compare_values(left: &Value, op: &str, right: &Value) -> bool {
+    match op {
+        "==" => values_loosely_equal(left, right),
+        "!=" => !values_loosely_equal(left, right),
+        "<" | "<=" | ">" | ">=" => {
+            if let (Some(l), Some(r)) = (left.as_f64(), right.as_f64()) {
+                match op {
+                    "<" => l < r,
+                    "<=" => l <= r,
+                    ">" => l > r,
+                    ">=" => l >= r,
+                    _ => false,
+                }
+            } else if let (Value::String(l), Value::String(r)) = (left, right) {
+                match op {
+                    "<" => l < r,
+                    "<=" => l <= r,
+                    ">" => l > r,
+                    ">=" => l >= r,
+                    _ => false,
+                }
+            } else {
+                false
+            }
+        }
+        _ => false,
+    }
+}
+
+/// Build the `$loop` object exposed inside `@foreach` / `@forelse` for the
+/// iteration at `index` (0-based) within a collection of `count` items.
+///
+/// Mirrors Laravel's loop variable: `index` (0-based), `iteration` (1-based),
+/// `first`, `last`, `count`, `remaining`, `index0`, `even`, `odd`.
+fn build_loop_object(index: usize, count: usize) -> Value {
+    let iteration = index + 1;
+    let remaining = count.saturating_sub(iteration);
+    let mut map = serde_json::Map::new();
+    map.insert("index".to_string(), Value::from(index as i64));
+    map.insert("index0".to_string(), Value::from(index as i64));
+    map.insert("iteration".to_string(), Value::from(iteration as i64));
+    map.insert("count".to_string(), Value::from(count as i64));
+    map.insert("remaining".to_string(), Value::from(remaining as i64));
+    map.insert("first".to_string(), Value::Bool(index == 0));
+    map.insert("last".to_string(), Value::Bool(iteration == count));
+    map.insert("even".to_string(), Value::Bool(iteration % 2 == 0));
+    map.insert("odd".to_string(), Value::Bool(iteration % 2 == 1));
+    Value::Object(map)
+}
+
+/// Loose equality for `@switch` case matching (mirrors PHP's `==` for the
+/// common scalar cases): numbers compare numerically, and a number compares
+/// equal to a numeric string.
+fn values_loosely_equal(a: &Value, b: &Value) -> bool {
+    if a == b {
+        return true;
+    }
+    match (a, b) {
+        (Value::Number(_), Value::Number(_)) => {
+            a.as_f64() == b.as_f64()
+        }
+        (Value::Number(_), Value::String(s)) | (Value::String(s), Value::Number(_)) => {
+            let n = if matches!(a, Value::Number(_)) {
+                a.as_f64()
+            } else {
+                b.as_f64()
+            };
+            s.trim().parse::<f64>().ok() == n
+        }
+        _ => false,
     }
 }
 

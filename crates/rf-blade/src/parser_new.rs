@@ -1,6 +1,6 @@
 //! Blade template parser - builds AST from tokens
 
-use crate::ast::{AstNode, Expr};
+use crate::ast::{AstNode, ConditionalEntry, Expr};
 use crate::lexer::{DirectiveType, Lexer, Token};
 use thiserror::Error;
 
@@ -68,6 +68,24 @@ impl Parser {
             {
                 break;
             }
+
+            // Break out at @switch mid-block markers (@case / @default) so the
+            // switch parser can collect each case body explicitly.
+            if let Some(Token::DirectiveStart(DirectiveType::Case, _))
+            | Some(Token::DirectiveStart(DirectiveType::Default, _)) = self.current()
+            {
+                break;
+            }
+
+            // Break out at the @forelse separator: a bare `@empty` (no args).
+            // `@empty($var)...@endempty` (with args) is a normal block and is
+            // parsed via parse_node like any other directive.
+            if let Some(Token::DirectiveStart(DirectiveType::Empty, args)) = self.current() {
+                if args.trim().is_empty() {
+                    break;
+                }
+            }
+
 
             let node = self.parse_node()?;
             nodes.push(node);
@@ -162,6 +180,13 @@ impl Parser {
             DirectiveType::Auth => self.parse_auth(),
             DirectiveType::Guest => self.parse_guest(),
             DirectiveType::Slot => self.parse_slot(args),
+            DirectiveType::Unless => self.parse_unless(args),
+            DirectiveType::Isset => self.parse_isset(args),
+            DirectiveType::Empty => self.parse_empty(args),
+            DirectiveType::Switch => self.parse_switch(args),
+            DirectiveType::Forelse => self.parse_forelse(args),
+            DirectiveType::Once => self.parse_once(),
+            DirectiveType::Php => self.parse_php(),
             DirectiveType::Else => {
                 // Else is handled in parse_if
                 Err(ParseError::UnexpectedToken("@else".to_string()))
@@ -185,6 +210,38 @@ impl Parser {
             DirectiveType::Json => self.parse_json(args),
             DirectiveType::Dump => self.parse_dump(args),
             DirectiveType::Error => self.parse_error(args),
+            DirectiveType::Break => Ok(AstNode::Break {
+                condition: optional_condition(&args),
+            }),
+            DirectiveType::Continue => Ok(AstNode::Continue {
+                condition: optional_condition(&args),
+            }),
+            DirectiveType::Checked => Ok(AstNode::AttributeHelper {
+                word: "checked".to_string(),
+                condition: Expr::parse(&args),
+            }),
+            DirectiveType::Selected => Ok(AstNode::AttributeHelper {
+                word: "selected".to_string(),
+                condition: Expr::parse(&args),
+            }),
+            DirectiveType::Disabled => Ok(AstNode::AttributeHelper {
+                word: "disabled".to_string(),
+                condition: Expr::parse(&args),
+            }),
+            DirectiveType::Required => Ok(AstNode::AttributeHelper {
+                word: "required".to_string(),
+                condition: Expr::parse(&args),
+            }),
+            DirectiveType::Readonly => Ok(AstNode::AttributeHelper {
+                word: "readonly".to_string(),
+                condition: Expr::parse(&args),
+            }),
+            DirectiveType::Class => Ok(AstNode::ClassList {
+                items: parse_conditional_array(&args),
+            }),
+            DirectiveType::Style => Ok(AstNode::StyleList {
+                items: parse_conditional_array(&args),
+            }),
             DirectiveType::Custom(name) => Ok(AstNode::Custom { name, args }),
             _ => Err(ParseError::UnexpectedToken(format!("{:?}", directive_type))),
         }
@@ -236,35 +293,7 @@ impl Parser {
 
     /// Parse @foreach directive
     fn parse_foreach(&mut self, args: String) -> ParseResult<AstNode> {
-        // Parse: $items as $item or $items as $key => $value
-        let parts: Vec<&str> = args.split(" as ").collect();
-        if parts.len() != 2 {
-            return Err(ParseError::InvalidArguments(args));
-        }
-
-        let collection = Expr::parse(parts[0].trim());
-        let item_part = parts[1].trim();
-
-        let (key_var, item_var) = if item_part.contains("=>") {
-            let kv: Vec<&str> = item_part.split("=>").collect();
-            if kv.len() != 2 {
-                return Err(ParseError::InvalidArguments(args));
-            }
-            let key = kv[0]
-                .trim()
-                .strip_prefix('$')
-                .unwrap_or(kv[0].trim())
-                .to_string();
-            let item = kv[1]
-                .trim()
-                .strip_prefix('$')
-                .unwrap_or(kv[1].trim())
-                .to_string();
-            (Some(key), item)
-        } else {
-            let item = item_part.strip_prefix('$').unwrap_or(item_part).to_string();
-            (None, item)
-        };
+        let (collection, item_var, key_var) = parse_foreach_args(&args)?;
 
         let body = self.parse_nodes()?;
 
@@ -579,6 +608,191 @@ impl Parser {
         })
     }
 
+    /// Parse @unless directive
+    fn parse_unless(&mut self, condition_str: String) -> ParseResult<AstNode> {
+        let condition = Expr::parse(&condition_str);
+        let body = self.parse_nodes()?;
+
+        if !matches!(
+            self.current(),
+            Some(Token::DirectiveEnd(DirectiveType::EndUnless))
+        ) {
+            return Err(ParseError::UnclosedDirective("@unless".to_string()));
+        }
+        self.advance();
+
+        Ok(AstNode::Unless { condition, body })
+    }
+
+    /// Parse @isset directive
+    fn parse_isset(&mut self, args: String) -> ParseResult<AstNode> {
+        let target = Expr::parse(&args);
+        let body = self.parse_nodes()?;
+
+        if !matches!(
+            self.current(),
+            Some(Token::DirectiveEnd(DirectiveType::EndIsset))
+        ) {
+            return Err(ParseError::UnclosedDirective("@isset".to_string()));
+        }
+        self.advance();
+
+        Ok(AstNode::Isset { target, body })
+    }
+
+    /// Parse @empty directive (block form: @empty($var) ... @endempty)
+    fn parse_empty(&mut self, args: String) -> ParseResult<AstNode> {
+        let target = Expr::parse(&args);
+        let body = self.parse_nodes()?;
+
+        if !matches!(
+            self.current(),
+            Some(Token::DirectiveEnd(DirectiveType::EndEmpty))
+        ) {
+            return Err(ParseError::UnclosedDirective("@empty".to_string()));
+        }
+        self.advance();
+
+        Ok(AstNode::Empty { target, body })
+    }
+
+    /// Parse @switch directive
+    fn parse_switch(&mut self, args: String) -> ParseResult<AstNode> {
+        let subject = Expr::parse(&args);
+        let mut cases: Vec<(Expr, Vec<AstNode>)> = Vec::new();
+        let mut default: Option<Vec<AstNode>> = None;
+
+        loop {
+            match self.current() {
+                Some(Token::DirectiveStart(DirectiveType::Case, case_args)) => {
+                    let case_expr = Expr::parse(&case_args.clone());
+                    self.advance();
+                    let body = self.parse_case_body()?;
+                    cases.push((case_expr, body));
+                }
+                Some(Token::DirectiveStart(DirectiveType::Default, _)) => {
+                    self.advance();
+                    let body = self.parse_case_body()?;
+                    default = Some(body);
+                }
+                Some(Token::DirectiveEnd(DirectiveType::EndSwitch)) => {
+                    self.advance();
+                    break;
+                }
+                // Tolerate stray whitespace/text between @switch and the first
+                // @case (Laravel ignores it). Skip text/comment nodes.
+                Some(Token::Text(_)) | Some(Token::Comment(_)) => {
+                    self.advance();
+                }
+                _ => return Err(ParseError::UnclosedDirective("@switch".to_string())),
+            }
+        }
+
+        Ok(AstNode::Switch {
+            subject,
+            cases,
+            default,
+        })
+    }
+
+    /// Parse a @case / @default body: nodes up to (and consuming) a `@break`,
+    /// or up to the next @case/@default/@endswitch (not consumed).
+    fn parse_case_body(&mut self) -> ParseResult<Vec<AstNode>> {
+        let mut nodes = Vec::new();
+
+        while !self.is_at_end() {
+            match self.current() {
+                // @break ends the case body; consume it.
+                Some(Token::Directive(DirectiveType::Break, _)) => {
+                    self.advance();
+                    break;
+                }
+                // Next case / default / end — stop without consuming.
+                Some(Token::DirectiveStart(DirectiveType::Case, _))
+                | Some(Token::DirectiveStart(DirectiveType::Default, _))
+                | Some(Token::DirectiveEnd(DirectiveType::EndSwitch)) => {
+                    break;
+                }
+                _ => {
+                    let node = self.parse_node()?;
+                    nodes.push(node);
+                }
+            }
+        }
+
+        Ok(nodes)
+    }
+
+    /// Parse @forelse directive (like @foreach with an @empty fallback)
+    fn parse_forelse(&mut self, args: String) -> ParseResult<AstNode> {
+        let (collection, item_var, key_var) = parse_foreach_args(&args)?;
+        let body = self.parse_nodes()?;
+
+        // Expect the bare `@empty` separator.
+        if !matches!(
+            self.current(),
+            Some(Token::DirectiveStart(DirectiveType::Empty, _))
+        ) {
+            return Err(ParseError::UnclosedDirective("@forelse".to_string()));
+        }
+        self.advance();
+
+        let empty = self.parse_nodes()?;
+
+        if !matches!(
+            self.current(),
+            Some(Token::DirectiveEnd(DirectiveType::EndForelse))
+        ) {
+            return Err(ParseError::UnclosedDirective("@forelse".to_string()));
+        }
+        self.advance();
+
+        Ok(AstNode::Forelse {
+            collection,
+            item_var,
+            key_var,
+            body,
+            empty,
+        })
+    }
+
+    /// Parse @once directive
+    fn parse_once(&mut self) -> ParseResult<AstNode> {
+        let body = self.parse_nodes()?;
+
+        if !matches!(
+            self.current(),
+            Some(Token::DirectiveEnd(DirectiveType::EndOnce))
+        ) {
+            return Err(ParseError::UnclosedDirective("@once".to_string()));
+        }
+        self.advance();
+
+        Ok(AstNode::Once { body })
+    }
+
+    /// Parse @php ... @endphp directive.
+    ///
+    /// RustForge has no PHP runtime, so the body (raw PHP) cannot be executed.
+    /// We consume and discard the body entirely and emit `AstNode::Php`, which
+    /// renders nothing. This intentionally differs from Laravel (which runs the
+    /// PHP); inline PHP execution is out of scope for this engine.
+    fn parse_php(&mut self) -> ParseResult<AstNode> {
+        // Consume tokens until @endphp, discarding them.
+        while !self.is_at_end() {
+            if matches!(
+                self.current(),
+                Some(Token::DirectiveEnd(DirectiveType::EndPhp))
+            ) {
+                self.advance();
+                break;
+            }
+            self.advance();
+        }
+
+        Ok(AstNode::Php)
+    }
+
     /// Get current token
     fn current(&self) -> Option<&Token> {
         self.tokens.get(self.position)
@@ -592,6 +806,174 @@ impl Parser {
     /// Check if at end of tokens
     fn is_at_end(&self) -> bool {
         self.position >= self.tokens.len()
+    }
+}
+
+/// Parse `$items as $item` / `$items as $key => $value` into
+/// (collection expr, item var name, optional key var name).
+fn parse_foreach_args(args: &str) -> ParseResult<(Expr, String, Option<String>)> {
+    let parts: Vec<&str> = args.split(" as ").collect();
+    if parts.len() != 2 {
+        return Err(ParseError::InvalidArguments(args.to_string()));
+    }
+
+    let collection = Expr::parse(parts[0].trim());
+    let item_part = parts[1].trim();
+
+    let (key_var, item_var) = if item_part.contains("=>") {
+        let kv: Vec<&str> = item_part.split("=>").collect();
+        if kv.len() != 2 {
+            return Err(ParseError::InvalidArguments(args.to_string()));
+        }
+        let key = kv[0]
+            .trim()
+            .strip_prefix('$')
+            .unwrap_or(kv[0].trim())
+            .to_string();
+        let item = kv[1]
+            .trim()
+            .strip_prefix('$')
+            .unwrap_or(kv[1].trim())
+            .to_string();
+        (Some(key), item)
+    } else {
+        let item = item_part.strip_prefix('$').unwrap_or(item_part).to_string();
+        (None, item)
+    };
+
+    Ok((collection, item_var, key_var))
+}
+
+/// Parse the optional condition of `@break(cond)` / `@continue(cond)`.
+/// Empty args => unconditional (None).
+fn optional_condition(args: &str) -> Option<Expr> {
+    let trimmed = args.trim();
+    if trimmed.is_empty() {
+        None
+    } else {
+        Some(Expr::parse(trimmed))
+    }
+}
+
+/// Parse the inner array of `@class([...])` / `@style([...])`.
+///
+/// Accepts entries of two forms, comma-separated at the top level:
+///   - a bare string literal: `'p-4'`  -> always included
+///   - a `'value' => condition` pair    -> included when condition is truthy
+fn parse_conditional_array(args: &str) -> Vec<ConditionalEntry> {
+    let mut inner = args.trim();
+    // Strip the surrounding [ ... ] if present.
+    if let Some(stripped) = inner.strip_prefix('[') {
+        inner = stripped;
+    }
+    if let Some(stripped) = inner.strip_suffix(']') {
+        inner = stripped;
+    }
+
+    let mut entries = Vec::new();
+    for raw in split_top_level_commas(inner) {
+        let part = raw.trim();
+        if part.is_empty() {
+            continue;
+        }
+
+        if let Some(arrow) = find_top_level_arrow(part) {
+            let key = part[..arrow].trim();
+            let cond = part[arrow + 2..].trim();
+            let value = unquote(key);
+            entries.push(ConditionalEntry::Conditional {
+                value,
+                condition: Expr::parse(cond),
+            });
+        } else {
+            entries.push(ConditionalEntry::Always(unquote(part)));
+        }
+    }
+
+    entries
+}
+
+/// Split a string on top-level commas (ignoring commas inside quotes,
+/// parentheses, or brackets).
+fn split_top_level_commas(s: &str) -> Vec<String> {
+    let mut result = Vec::new();
+    let mut current = String::new();
+    let mut depth = 0i32;
+    let mut in_string = false;
+    let mut string_char = ' ';
+
+    for ch in s.chars() {
+        match ch {
+            '\'' | '"' => {
+                if in_string && ch == string_char {
+                    in_string = false;
+                } else if !in_string {
+                    in_string = true;
+                    string_char = ch;
+                }
+                current.push(ch);
+            }
+            '(' | '[' if !in_string => {
+                depth += 1;
+                current.push(ch);
+            }
+            ')' | ']' if !in_string => {
+                depth -= 1;
+                current.push(ch);
+            }
+            ',' if !in_string && depth == 0 => {
+                result.push(current.clone());
+                current.clear();
+            }
+            _ => current.push(ch),
+        }
+    }
+    if !current.trim().is_empty() {
+        result.push(current);
+    }
+    result
+}
+
+/// Find the byte index of a top-level `=>` (outside quotes/brackets).
+fn find_top_level_arrow(s: &str) -> Option<usize> {
+    let bytes = s.as_bytes();
+    let mut depth = 0i32;
+    let mut in_string = false;
+    let mut string_char = b' ';
+    let mut i = 0;
+    while i < bytes.len() {
+        let b = bytes[i];
+        match b {
+            b'\'' | b'"' => {
+                if in_string && b == string_char {
+                    in_string = false;
+                } else if !in_string {
+                    in_string = true;
+                    string_char = b;
+                }
+            }
+            b'(' | b'[' if !in_string => depth += 1,
+            b')' | b']' if !in_string => depth -= 1,
+            b'=' if !in_string && depth == 0 && i + 1 < bytes.len() && bytes[i + 1] == b'>' => {
+                return Some(i);
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    None
+}
+
+/// Strip surrounding single/double quotes from a string literal.
+fn unquote(s: &str) -> String {
+    let s = s.trim();
+    if s.len() >= 2
+        && ((s.starts_with('\'') && s.ends_with('\''))
+            || (s.starts_with('"') && s.ends_with('"')))
+    {
+        s[1..s.len() - 1].to_string()
+    } else {
+        s.to_string()
     }
 }
 

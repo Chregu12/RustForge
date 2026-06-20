@@ -89,6 +89,33 @@ pub enum DirectiveType {
     Slot,
     EndSlot,
     Props,
+    // Laravel 13 control / conditional directives
+    Unless,
+    EndUnless,
+    Isset,
+    EndIsset,
+    Empty,
+    EndEmpty,
+    Switch,
+    EndSwitch,
+    Case,
+    Default,
+    Break,
+    Continue,
+    Forelse,
+    EndForelse,
+    Once,
+    EndOnce,
+    Php,
+    EndPhp,
+    // Attribute / class helpers (standalone)
+    Checked,
+    Selected,
+    Disabled,
+    Required,
+    Readonly,
+    Class,
+    Style,
     Custom(String),
 }
 
@@ -123,6 +150,31 @@ impl DirectiveType {
             "slot" => Self::Slot,
             "endslot" => Self::EndSlot,
             "props" => Self::Props,
+            "unless" => Self::Unless,
+            "endunless" => Self::EndUnless,
+            "isset" => Self::Isset,
+            "endisset" => Self::EndIsset,
+            "empty" => Self::Empty,
+            "endempty" => Self::EndEmpty,
+            "switch" => Self::Switch,
+            "endswitch" => Self::EndSwitch,
+            "case" => Self::Case,
+            "default" => Self::Default,
+            "break" => Self::Break,
+            "continue" => Self::Continue,
+            "forelse" => Self::Forelse,
+            "endforelse" => Self::EndForelse,
+            "once" => Self::Once,
+            "endonce" => Self::EndOnce,
+            "php" => Self::Php,
+            "endphp" => Self::EndPhp,
+            "checked" => Self::Checked,
+            "selected" => Self::Selected,
+            "disabled" => Self::Disabled,
+            "required" => Self::Required,
+            "readonly" => Self::Readonly,
+            "class" => Self::Class,
+            "style" => Self::Style,
             _ => Self::Custom(s.to_string()),
         }
     }
@@ -139,6 +191,13 @@ impl DirectiveType {
                 | Self::EndAuth
                 | Self::EndGuest
                 | Self::EndSlot
+                | Self::EndUnless
+                | Self::EndIsset
+                | Self::EndEmpty
+                | Self::EndSwitch
+                | Self::EndForelse
+                | Self::EndOnce
+                | Self::EndPhp
         )
     }
 
@@ -155,6 +214,17 @@ impl DirectiveType {
                 | Self::Guest
                 | Self::ElseIf
                 | Self::Slot
+                // Laravel 13 block openers (and mid-block markers that the
+                // parser consumes via parse_nodes break-out below).
+                | Self::Unless
+                | Self::Isset
+                | Self::Empty
+                | Self::Switch
+                | Self::Case
+                | Self::Default
+                | Self::Forelse
+                | Self::Once
+                | Self::Php
         )
     }
 
@@ -169,6 +239,13 @@ impl DirectiveType {
             Self::Auth => Some(Self::EndAuth),
             Self::Guest => Some(Self::EndGuest),
             Self::Slot => Some(Self::EndSlot),
+            Self::Unless => Some(Self::EndUnless),
+            Self::Isset => Some(Self::EndIsset),
+            Self::Empty => Some(Self::EndEmpty),
+            Self::Switch => Some(Self::EndSwitch),
+            Self::Forelse => Some(Self::EndForelse),
+            Self::Once => Some(Self::EndOnce),
+            Self::Php => Some(Self::EndPhp),
             _ => None,
         }
     }
