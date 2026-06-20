@@ -150,6 +150,24 @@ The `#[auto_await]` macro does TWO things automatically:
    have to know — or specify — whether a given call is sync or async; the
    framework decides per call, so the same await-free code compiles either way.
 
+The macro resolves the framework's facade and model methods (the query builder,
+`Cache`, `Auth`, `Storage`, `Mail`, `Queue`/jobs, events, broadcasting,
+notifications, AI, …). It is intentionally **name-scoped** rather than wrapping
+*every* call: blindly wrapping arbitrary calls would inject `.await` into
+synchronous closures (the `|x| ...` of `.map`/`.filter`) and break inference on
+calls like `.collect()`. For your **own** async methods, extend it per use:
+
+```rust
+// Resolve your custom async methods too — no .await needed on them either.
+#[auto_await(also("my_service_call", "fetch_report"))]
+async fn handler() -> Response {
+    let report = service.fetch_report();   // your async method — awaited for you
+    let users = User::all();               // framework — awaited
+    Cache::put("count", users.len());      // framework facade — sync, passed through
+    // ...
+}
+```
+
 **Recommended file structure - `#[auto_await]` once at top:**
 
 ```rust
