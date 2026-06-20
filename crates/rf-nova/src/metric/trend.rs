@@ -3,7 +3,7 @@
 //! Shows how a value changes over time.
 
 use async_trait::async_trait;
-use chrono::{DateTime, Duration, NaiveDate, Utc};
+use chrono::{Duration, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 use std::collections::HashMap;
@@ -98,7 +98,7 @@ impl TrendData {
             data = data.add(current.format("%Y-%m").to_string(), value);
 
             // Move to next month using Duration
-            current = current + Duration::days(30); // Approximate month
+            current += Duration::days(30); // Approximate month
         }
 
         Ok(data.calculate_trend())

@@ -8,6 +8,12 @@ pub struct RouteFilter {
     routes: HashMap<String, String>,
 }
 
+impl Default for RouteFilter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl RouteFilter {
     pub fn new() -> Self {
         Self {

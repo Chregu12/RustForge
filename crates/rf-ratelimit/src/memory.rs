@@ -45,7 +45,7 @@ impl RateLimiter for MemoryRateLimiter {
                 .map_err(|_| RateLimitError::InvalidConfig("Invalid window duration".into()))?;
 
         let mut state = self.state.lock().unwrap();
-        let timestamps = state.entry(full_key.clone()).or_insert_with(Vec::new);
+        let timestamps = state.entry(full_key.clone()).or_default();
 
         // Remove old timestamps outside window
         timestamps.retain(|&ts| ts > window_start.timestamp_millis());

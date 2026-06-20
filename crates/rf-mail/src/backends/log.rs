@@ -25,9 +25,7 @@ impl LogMailer {
     fn format_message(mail: &Mail) -> String {
         let mut output = String::new();
 
-        output.push_str(&format!(
-            "================================================================================\n"
-        ));
+        output.push_str(&"================================================================================\n".to_string());
         output.push_str(&format!("Message ID: {}\n", mail.id));
         output.push_str(&format!(
             "From: {} <{}>\n",

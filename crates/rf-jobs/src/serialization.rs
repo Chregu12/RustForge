@@ -63,7 +63,7 @@ impl SerializedJob {
             id: uuid::Uuid::new_v4(),
             job_type: std::any::type_name::<J>().to_string(),
             queue: job.queue().to_string(),
-            payload: serde_json::to_value(&job).map_err(|e| JobError::SerializationError(e))?,
+            payload: serde_json::to_value(&job).map_err(JobError::SerializationError)?,
             attempts: 0,
             max_attempts: job.max_attempts(),
             backoff_seconds: job.backoff().as_secs(),
@@ -88,7 +88,7 @@ impl SerializedJob {
             id: uuid::Uuid::new_v4(),
             job_type: std::any::type_name::<J>().to_string(),
             queue: job.queue().to_string(),
-            payload: serde_json::to_value(&job).map_err(|e| JobError::SerializationError(e))?,
+            payload: serde_json::to_value(&job).map_err(JobError::SerializationError)?,
             attempts: 0,
             max_attempts: job.max_attempts(),
             backoff_seconds: job.backoff().as_secs(),
@@ -114,7 +114,7 @@ impl SerializedJob {
     /// Returns `JobError::SerializationError` if the payload is not valid JSON
     /// or doesn't match the expected structure.
     pub fn from_redis_payload(s: &str) -> Result<Self, JobError> {
-        serde_json::from_str(s).map_err(|e| JobError::SerializationError(e))
+        serde_json::from_str(s).map_err(JobError::SerializationError)
     }
 
     /// Check if job is ready to be processed

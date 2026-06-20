@@ -228,7 +228,7 @@ pub async fn get_upcoming(
 
     match StripeInvoice::upcoming(client, params).await {
         Ok(invoice) => Ok(Some(convert_invoice(invoice))),
-        Err(stripe::StripeError::Stripe(ref e)) if e.code == Some(stripe::ErrorCode::ResourceMissing.into()) => {
+        Err(stripe::StripeError::Stripe(ref e)) if e.code == Some(stripe::ErrorCode::ResourceMissing) => {
             Ok(None)
         }
         Err(e) => Err(SparkError::StripeError(e.to_string())),

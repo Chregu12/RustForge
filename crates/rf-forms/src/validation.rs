@@ -79,7 +79,7 @@ impl ValidationErrors {
     pub fn add(&mut self, field: impl Into<String>, message: impl Into<String>) {
         self.errors
             .entry(field.into())
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(message.into());
     }
 
@@ -227,8 +227,8 @@ impl ValidationRuleTrait for RequiredIf {
         data: &ValidationData,
     ) -> Result<(), ValidationError> {
         if let Some(other_value) = data.get(&self.other_field) {
-            if other_value == self.value {
-                if value.is_none() || value.unwrap().trim().is_empty() {
+            if other_value == self.value
+                && (value.is_none() || value.unwrap().trim().is_empty()) {
                     return Err(ValidationError::new(
                         field,
                         format!(
@@ -238,7 +238,6 @@ impl ValidationRuleTrait for RequiredIf {
                         "required_if",
                     ));
                 }
-            }
         }
         Ok(())
     }
@@ -269,8 +268,8 @@ impl ValidationRuleTrait for RequiredWith {
         value: Option<&str>,
         data: &ValidationData,
     ) -> Result<(), ValidationError> {
-        if data.has(&self.other_field) {
-            if value.is_none() || value.unwrap().trim().is_empty() {
+        if data.has(&self.other_field)
+            && (value.is_none() || value.unwrap().trim().is_empty()) {
                 return Err(ValidationError::new(
                     field,
                     format!(
@@ -280,7 +279,6 @@ impl ValidationRuleTrait for RequiredWith {
                     "required_with",
                 ));
             }
-        }
         Ok(())
     }
 
@@ -363,15 +361,14 @@ impl ValidationRuleTrait for Ip {
         _data: &ValidationData,
     ) -> Result<(), ValidationError> {
         if let Some(v) = value {
-            if !v.is_empty() {
-                if v.parse::<std::net::IpAddr>().is_err() {
+            if !v.is_empty()
+                && v.parse::<std::net::IpAddr>().is_err() {
                     return Err(ValidationError::new(
                         field,
                         format!("The {} field must be a valid IP address.", field),
                         "ip",
                     ));
                 }
-            }
         }
         Ok(())
     }
@@ -1143,15 +1140,14 @@ impl ValidationRuleTrait for Before {
         _data: &ValidationData,
     ) -> Result<(), ValidationError> {
         if let Some(v) = value {
-            if !v.is_empty() {
-                if v >= &self.date {
+            if !v.is_empty()
+                && v >= &self.date {
                     return Err(ValidationError::new(
                         field,
                         format!("The {} field must be before {}.", field, self.date),
                         "before",
                     ));
                 }
-            }
         }
         Ok(())
     }
@@ -1181,15 +1177,14 @@ impl ValidationRuleTrait for After {
         _data: &ValidationData,
     ) -> Result<(), ValidationError> {
         if let Some(v) = value {
-            if !v.is_empty() {
-                if v <= &self.date {
+            if !v.is_empty()
+                && v <= &self.date {
                     return Err(ValidationError::new(
                         field,
                         format!("The {} field must be after {}.", field, self.date),
                         "after",
                     ));
                 }
-            }
         }
         Ok(())
     }

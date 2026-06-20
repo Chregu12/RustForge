@@ -1494,7 +1494,7 @@ impl QueryBuilder {
             total,
             per_page,
             current_page: page,
-            last_page: (total + per_page - 1) / per_page,
+            last_page: total.div_ceil(per_page),
         })
     }
 

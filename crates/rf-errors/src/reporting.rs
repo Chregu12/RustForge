@@ -147,7 +147,7 @@ impl SentryReporter {
         // Add custom context values (sanitized)
         for (key, value) in &context.values {
             if let Ok(string_value) = serde_json::to_string(value) {
-                scope.set_extra(&key, string_value.into());
+                scope.set_extra(key, string_value.into());
             }
         }
 

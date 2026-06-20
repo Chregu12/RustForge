@@ -523,24 +523,22 @@ impl Lexer {
             }
 
             // Stop at {{ or {!!
-            if ch == '{' {
-                if self.peek() == Some('{')
-                    || (self.peek() == Some('!') && self.peek_ahead(2) == Some('!'))
+            if ch == '{'
+                && (self.peek() == Some('{')
+                    || (self.peek() == Some('!') && self.peek_ahead(2) == Some('!')))
                 {
                     break;
                 }
-            }
 
             // Stop at component tags <x- or </x-
-            if ch == '<' {
-                if (self.peek() == Some('x') && self.peek_ahead(2) == Some('-'))
+            if ch == '<'
+                && ((self.peek() == Some('x') && self.peek_ahead(2) == Some('-'))
                     || (self.peek() == Some('/')
                         && self.peek_ahead(2) == Some('x')
-                        && self.peek_ahead(3) == Some('-'))
+                        && self.peek_ahead(3) == Some('-')))
                 {
                     break;
                 }
-            }
 
             text.push(ch);
             self.advance();

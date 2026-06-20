@@ -108,16 +108,16 @@ where
                 // Check authorization
                 if gate.allows(&user, &gate_name).await {
                     let mut inner = inner.clone();
-                    return inner.call(req).await;
+                    inner.call(req).await
                 } else {
-                    return Ok(AuthorizationError::Forbidden(format!(
+                    Ok(AuthorizationError::Forbidden(format!(
                         "Gate '{}' denied access",
                         gate_name
                     ))
-                    .into_response());
+                    .into_response())
                 }
             } else {
-                return Ok(AuthorizationError::UserNotFound.into_response());
+                Ok(AuthorizationError::UserNotFound.into_response())
             }
         })
     }
@@ -223,7 +223,7 @@ where
                     let policy_opt = {
                         let registry = global_registry().lock().unwrap();
                         let type_id = TypeId::of::<R>();
-                        registry.policies.get(&type_id).map(|arc| Arc::clone(arc))
+                        registry.policies.get(&type_id).map(Arc::clone)
                     };
 
                     let authorized = if let Some(policy_arc_any) = policy_opt {
@@ -255,13 +255,13 @@ where
 
                     if authorized {
                         let mut inner = inner.clone();
-                        return inner.call(req).await;
+                        inner.call(req).await
                     } else {
-                        return Ok(AuthorizationError::Forbidden(format!(
+                        Ok(AuthorizationError::Forbidden(format!(
                             "Action '{}' denied on resource",
                             action
                         ))
-                        .into_response());
+                        .into_response())
                     }
                 }
                 (None, _) => Ok(AuthorizationError::UserNotFound.into_response()),
@@ -355,7 +355,7 @@ where
             let policy_opt = {
                 let registry = global_registry().lock().unwrap();
                 let type_id = TypeId::of::<R>();
-                registry.policies.get(&type_id).map(|arc| Arc::clone(arc))
+                registry.policies.get(&type_id).map(Arc::clone)
             };
 
             let authorized = if let Some(policy_arc_any) = policy_opt {

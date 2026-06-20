@@ -1,8 +1,7 @@
 //! Global Sanctum manager for facade pattern
 
-use chrono::{DateTime, Utc};
 use once_cell::sync::Lazy;
-use rf_sanctum::{PersonalAccessToken, TokenStats};
+use rf_sanctum::PersonalAccessToken;
 use sea_orm::DatabaseConnection;
 use std::sync::{Arc, RwLock};
 

@@ -2,10 +2,12 @@ use std::fmt;
 
 /// Verbosity level for output control
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Default)]
 pub enum VerbosityLevel {
     /// Quiet mode - only errors
     Quiet = 0,
     /// Normal mode - standard output
+    #[default]
     Normal = 1,
     /// Verbose mode (-v) - includes info messages
     Verbose = 2,
@@ -63,11 +65,6 @@ impl VerbosityLevel {
     }
 }
 
-impl Default for VerbosityLevel {
-    fn default() -> Self {
-        Self::Normal
-    }
-}
 
 impl fmt::Display for VerbosityLevel {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

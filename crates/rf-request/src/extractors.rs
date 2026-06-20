@@ -50,7 +50,6 @@ where
                 match json {
                     Value::Object(map) => map
                         .into_iter()
-                        .map(|(k, v)| (k, v))
                         .collect(),
                     _ => return Err(RequestError::InvalidBody(
                         "Expected JSON object".to_string(),

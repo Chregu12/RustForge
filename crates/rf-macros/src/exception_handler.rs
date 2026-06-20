@@ -44,8 +44,7 @@ use syn::{
     parse::{Parse, ParseStream},
     parse_macro_input,
     Ident, ItemFn, LitStr, Token,
-    punctuated::Punctuated,
-    braced, bracketed,
+    punctuated::Punctuated, bracketed,
 };
 
 /// Parsed exception handler definition

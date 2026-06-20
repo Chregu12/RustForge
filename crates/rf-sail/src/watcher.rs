@@ -23,7 +23,7 @@ impl FileWatcher {
             },
             Config::default(),
         )
-        .map_err(|e| SailError::IoError(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
+        .map_err(|e| SailError::IoError(std::io::Error::other(e)))?;
 
         Ok(Self { watcher, rx })
     }
@@ -32,14 +32,14 @@ impl FileWatcher {
     pub fn watch(&mut self, path: impl AsRef<Path>) -> SailResult<()> {
         self.watcher
             .watch(path.as_ref(), RecursiveMode::Recursive)
-            .map_err(|e| SailError::IoError(std::io::Error::new(std::io::ErrorKind::Other, e)))
+            .map_err(|e| SailError::IoError(std::io::Error::other(e)))
     }
 
     /// Stop watching a path
     pub fn unwatch(&mut self, path: impl AsRef<Path>) -> SailResult<()> {
         self.watcher
             .unwatch(path.as_ref())
-            .map_err(|e| SailError::IoError(std::io::Error::new(std::io::ErrorKind::Other, e)))
+            .map_err(|e| SailError::IoError(std::io::Error::other(e)))
     }
 
     /// Wait for the next event

@@ -6,7 +6,7 @@
 //! - Fresh migrations (drop all and re-run)
 //! - Show migration status
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use colored::*;
 use std::fs;
 use std::path::Path;
@@ -487,11 +487,10 @@ pub async fn status() -> Result<()> {
     } else {
         for migration in migrations {
             println!(
-                "  {} {:<58} {:<10} {:<6} {}",
+                "  {} {:<58} {:<10} {:<6} -",
                 "·".bright_black(),
                 migration,
                 "Pending".bright_black(),
-                "-",
                 "-"
             );
         }

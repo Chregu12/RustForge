@@ -87,17 +87,17 @@ impl TotpManager {
     /// Verify a TOTP code
     pub fn verify(&self, secret: &str, code: &str) -> TwoFactorResult<bool> {
         let totp = self.create_totp(secret, "")?;
-        Ok(totp
+        totp
             .check_current(code)
-            .map_err(|_| TwoFactorError::InvalidCode)?)
+            .map_err(|_| TwoFactorError::InvalidCode)
     }
 
     /// Generate current TOTP code (for testing)
     pub fn generate_code(&self, secret: &str) -> TwoFactorResult<String> {
         let totp = self.create_totp(secret, "")?;
-        Ok(totp
+        totp
             .generate_current()
-            .map_err(|e| TwoFactorError::TotpError(e.to_string()))?)
+            .map_err(|e| TwoFactorError::TotpError(e.to_string()))
     }
 
     fn create_totp(&self, secret: &str, account: &str) -> TwoFactorResult<TOTP> {

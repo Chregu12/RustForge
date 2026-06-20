@@ -239,7 +239,7 @@ pub fn table(headers: Vec<&str>, rows: Vec<Vec<&str>>) -> String {
     md.push_str(" |\n");
 
     // Separator
-    md.push_str("|");
+    md.push('|');
     for _ in &headers {
         md.push_str("---|");
     }

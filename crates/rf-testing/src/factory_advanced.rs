@@ -163,8 +163,8 @@ impl<F: Factory + Default> EnhancedFactory<F> {
 
     /// Use a named state
     pub fn as_state(mut self, name: impl AsRef<str>) -> Self {
-        if let Some(modifier) = self.states.get(name.as_ref()) {
-            let model = &mut self.inner;
+        if let Some(_modifier) = self.states.get(name.as_ref()) {
+            let _model = &mut self.inner;
             // Note: This is simplified - in real implementation we'd need to apply to the model
         }
         self
@@ -215,7 +215,7 @@ impl<F: Factory + Default + Send> Factory for EnhancedFactory<F> {
     where
         Fn: FnOnce(&mut Self::Model),
     {
-        let mut inner = self.inner.state(modifier);
+        let inner = self.inner.state(modifier);
         Self {
             inner,
             states: self.states,

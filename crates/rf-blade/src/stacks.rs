@@ -54,7 +54,7 @@ impl StackManager {
         let mut stacks = self.stacks.lock().unwrap();
         stacks
             .entry(name.to_string())
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(content);
     }
 
@@ -63,7 +63,7 @@ impl StackManager {
         let mut stacks = self.prepend_stacks.lock().unwrap();
         stacks
             .entry(name.to_string())
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(content);
     }
 

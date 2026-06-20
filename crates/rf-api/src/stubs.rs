@@ -93,7 +93,7 @@ impl Stub {
         // Replace all variables
         for (key, value) in variables.variables() {
             let placeholder = format!("{{{{{}}}}}", key);
-            content = content.replace(&placeholder, &value);
+            content = content.replace(&placeholder, value);
         }
 
         Ok(content)
@@ -242,30 +242,28 @@ impl StubManager {
 
     fn load_directory(&mut self, path: &Path) -> Result<(), StubError> {
         if let Ok(entries) = std::fs::read_dir(path) {
-            for entry in entries {
-                if let Ok(entry) = entry {
-                    let path = entry.path();
-                    if path.is_file() {
-                        if let Some(stem) = path.file_stem() {
-                            if let Ok(content) = std::fs::read_to_string(&path) {
-                                let id = stem.to_string_lossy().to_string();
-                                let extension = path
-                                    .extension()
-                                    .map(|e| e.to_string_lossy().to_string())
-                                    .unwrap_or_else(|| "stub".to_string());
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.is_file() {
+                    if let Some(stem) = path.file_stem() {
+                        if let Ok(content) = std::fs::read_to_string(&path) {
+                            let id = stem.to_string_lossy().to_string();
+                            let extension = path
+                                .extension()
+                                .map(|e| e.to_string_lossy().to_string())
+                                .unwrap_or_else(|| "stub".to_string());
 
-                                let stub = Stub {
-                                    id: id.clone(),
-                                    name: id.clone(),
-                                    description: String::new(),
-                                    content,
-                                    extension,
-                                    builtin: false,
-                                    path: Some(path),
-                                };
+                            let stub = Stub {
+                                id: id.clone(),
+                                name: id.clone(),
+                                description: String::new(),
+                                content,
+                                extension,
+                                builtin: false,
+                                path: Some(path),
+                            };
 
-                                self.register(stub);
-                            }
+                            self.register(stub);
                         }
                     }
                 }

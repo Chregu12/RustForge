@@ -1,6 +1,6 @@
 //! Template engine for variable substitution
 
-use crate::{EnvoyError, EnvoyResult};
+use crate::EnvoyResult;
 use regex::Regex;
 use std::collections::HashMap;
 

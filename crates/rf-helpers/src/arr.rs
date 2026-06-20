@@ -124,7 +124,7 @@ pub fn any<T, F>(items: &[T], mut predicate: F) -> bool
 where
     F: FnMut(&T) -> bool,
 {
-    items.iter().any(|item| predicate(item))
+    items.iter().any(predicate)
 }
 
 /// Check if all elements match the predicate
@@ -132,7 +132,7 @@ pub fn all<T, F>(items: &[T], mut predicate: F) -> bool
 where
     F: FnMut(&T) -> bool,
 {
-    items.iter().all(|item| predicate(item))
+    items.iter().all(predicate)
 }
 
 /// Create a HashMap from keys and values arrays
@@ -164,7 +164,7 @@ where
     let mut groups: HashMap<K, Vec<T>> = HashMap::new();
     for item in items {
         let key = key_fn(&item);
-        groups.entry(key).or_insert_with(Vec::new).push(item);
+        groups.entry(key).or_default().push(item);
     }
     groups
 }

@@ -254,7 +254,7 @@ impl MailFake {
     {
         let records = self.records.lock().unwrap();
 
-        if !records.iter().any(|r| predicate(r)) {
+        if !records.iter().any(predicate) {
             panic!("Failed asserting that mail was sent with matching properties");
         }
     }

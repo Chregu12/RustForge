@@ -3,11 +3,9 @@
 use crate::watchers::request::{RequestInfo, RequestWatcher};
 use crate::Telescope;
 use axum::{
-    body::Body,
     extract::Request,
-    http::StatusCode,
     middleware::Next,
-    response::{IntoResponse, Response},
+    response::Response,
 };
 use std::time::Instant;
 use uuid::Uuid;
@@ -32,7 +30,7 @@ pub async fn track_request(
 
 async fn track_request_impl(telescope: Telescope, req: Request, next: Next) -> Response {
     // Generate request ID
-    let request_id = Uuid::new_v4().to_string();
+    let _request_id = Uuid::new_v4().to_string();
     let started_at = Instant::now();
 
     // Extract request information
@@ -89,7 +87,7 @@ async fn track_request_impl(telescope: Telescope, req: Request, next: Next) -> R
 }
 
 /// Layer for Axum to add Telescope request tracking
-pub fn telescope_layer(telescope: Telescope) -> tower::layer::util::Identity {
+pub fn telescope_layer(_telescope: Telescope) -> tower::layer::util::Identity {
     // For now, return an identity layer
     // In a real implementation, this would use axum::middleware::from_fn
     // but that requires more complex type bounds

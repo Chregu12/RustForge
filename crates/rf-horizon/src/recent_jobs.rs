@@ -6,7 +6,6 @@ use std::collections::VecDeque;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-use crate::tags::JobTags;
 
 /// Job status
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]

@@ -90,7 +90,7 @@ where
     where
         F: FnMut(T, T) -> T,
     {
-        self.iterator.reduce(|acc, item| f(acc, item))
+        self.iterator.reduce(f)
     }
 }
 

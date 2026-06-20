@@ -1,6 +1,6 @@
 //! Browser control and automation
 
-use crate::{DuskError, DuskResult, Element};
+use crate::{DuskError, DuskResult};
 use fantoccini::{Client, ClientBuilder, Locator};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -10,18 +10,15 @@ use tokio::time::sleep;
 
 /// Browser types supported
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Default)]
 pub enum BrowserType {
+    #[default]
     Chrome,
     Firefox,
     Safari,
     Edge,
 }
 
-impl Default for BrowserType {
-    fn default() -> Self {
-        Self::Chrome
-    }
-}
 
 /// Browser configuration
 #[derive(Debug, Clone)]

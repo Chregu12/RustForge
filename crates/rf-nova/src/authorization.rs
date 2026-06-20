@@ -7,27 +7,27 @@ use serde_json::Value;
 /// Resource policy trait
 pub trait ResourcePolicy: Send + Sync {
     /// Can the user view any resources?
-    fn view_any(user: Option<&Value>) -> bool {
+    fn view_any(_user: Option<&Value>) -> bool {
         true
     }
 
     /// Can the user view this specific resource?
-    fn view(user: Option<&Value>, model: &Value) -> bool {
+    fn view(_user: Option<&Value>, _model: &Value) -> bool {
         true
     }
 
     /// Can the user create resources?
-    fn create(user: Option<&Value>) -> bool {
+    fn create(_user: Option<&Value>) -> bool {
         true
     }
 
     /// Can the user update this specific resource?
-    fn update(user: Option<&Value>, model: &Value) -> bool {
+    fn update(_user: Option<&Value>, _model: &Value) -> bool {
         true
     }
 
     /// Can the user delete this specific resource?
-    fn delete(user: Option<&Value>, model: &Value) -> bool {
+    fn delete(_user: Option<&Value>, _model: &Value) -> bool {
         true
     }
 

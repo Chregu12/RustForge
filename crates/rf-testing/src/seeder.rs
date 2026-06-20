@@ -269,12 +269,11 @@ impl DatabaseSeeder {
     /// Run all seeders with production safeguards
     pub async fn run_all(&self) -> Result<(), SeederError> {
         // Check production guard
-        if self.production_guard && self.is_production() {
-            if !self.confirm_production()? {
+        if self.production_guard && self.is_production()
+            && !self.confirm_production()? {
                 println!("✅ Seeding cancelled.");
                 return Ok(());
             }
-        }
 
         println!("🌱 Starting database seeding...\n");
 
@@ -317,12 +316,11 @@ impl DatabaseSeeder {
     /// Run a specific seeder by index
     pub async fn run_one(&self, index: usize) -> Result<(), SeederError> {
         // Check production guard
-        if self.production_guard && self.is_production() {
-            if !self.confirm_production()? {
+        if self.production_guard && self.is_production()
+            && !self.confirm_production()? {
                 println!("✅ Seeding cancelled.");
                 return Ok(());
             }
-        }
 
         if let Some(seeder) = self.seeders.get(index) {
             println!("🌱 Running seeder: {}", seeder.name());
@@ -340,12 +338,11 @@ impl DatabaseSeeder {
     /// Run a specific seeder by name
     pub async fn run_by_name(&self, name: &str) -> Result<(), SeederError> {
         // Check production guard
-        if self.production_guard && self.is_production() {
-            if !self.confirm_production()? {
+        if self.production_guard && self.is_production()
+            && !self.confirm_production()? {
                 println!("✅ Seeding cancelled.");
                 return Ok(());
             }
-        }
 
         for seeder in &self.seeders {
             if seeder.name() == name {

@@ -281,7 +281,7 @@ fn init_git_repo(name: &str) -> Result<()> {
 
     println!("  {} Initializing git repository...", "•".cyan());
 
-    let output = Command::new("git").args(&["init", name]).output();
+    let output = Command::new("git").args(["init", name]).output();
 
     if output.is_ok() {
         println!("  {} Git repository initialized", "✓".green());

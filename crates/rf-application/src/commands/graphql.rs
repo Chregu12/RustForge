@@ -35,8 +35,7 @@ impl FoundryCommand for MakeGraphQLTypeCommand {
 
     async fn execute(&self, ctx: CommandContext) -> Result<CommandResult, CommandError> {
         let name = ctx
-            .args
-            .get(0)
+            .args.first()
             .ok_or_else(|| CommandError::Message("Type name is required".to_string()))?;
 
         let with_model =

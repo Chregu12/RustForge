@@ -7,18 +7,17 @@ use axum::response::{
     IntoResponse,
 };
 use futures::Stream;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use std::{
     collections::HashMap,
     convert::Infallible,
     pin::Pin,
     sync::Arc,
     task::{Context, Poll},
-    time::Duration,
 };
 use thiserror::Error;
 use tokio::sync::{broadcast, RwLock};
-use tokio_stream::{wrappers::BroadcastStream, StreamExt};
+use tokio_stream::wrappers::BroadcastStream;
 
 pub use axum::response::sse::KeepAlive as SseKeepAlive;
 

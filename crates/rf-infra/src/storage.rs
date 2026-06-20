@@ -2,7 +2,6 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use bytes::Bytes;
 use rf_plugins::{CommandError, StoragePort, StoredFile};
 use rf_storage::{Storage, StorageManager};
 use tokio::sync::RwLock;
@@ -18,8 +17,7 @@ impl FileStorageAdapter {
     }
 
     fn disk(&self, name: &str) -> Result<Arc<dyn Storage>, CommandError> {
-        self.manager.disk(name)
-            .map(|d| d.clone())
+        self.manager.disk(name).cloned()
             .map_err(|e| CommandError::Other(e.into()))
     }
 }

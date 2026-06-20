@@ -2,7 +2,7 @@
 
 use crate::error::{AuthError, AuthResult};
 use async_trait::async_trait;
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
@@ -273,7 +273,7 @@ pub trait Verifiable: Send + Sync {
             .from(rf_mail::Address::new("noreply@example.com"))
             .to(rf_mail::Address::new(self.verification_email()))
             .subject("Verify Your Email Address")
-            .markdown(&format!(
+            .markdown(format!(
                 r#"
 # Verify Your Email Address
 

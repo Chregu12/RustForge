@@ -938,7 +938,7 @@ where
     async fn aggregate(self, func: &str, column_name: &str) -> Result<Option<f64>, DbErr> {
         let db = self.db.clone();
         // Re-use the existing filters/joins but project only the aggregate.
-        let expr = Expr::cust(&format!("{}({})", func, column_name));
+        let expr = Expr::cust(format!("{}({})", func, column_name));
         let result: Option<Option<f64>> = self
             .select
             .select_only()
@@ -1126,11 +1126,11 @@ where
             let mut chunk_query = Self::from_select(self.select.clone(), db.clone());
 
             if let Some(id) = last_id {
-                chunk_query = chunk_query.where_gt(id_column.clone(), id);
+                chunk_query = chunk_query.where_gt(id_column, id);
             }
 
             chunk_query = chunk_query
-                .order_by_asc(id_column.clone())
+                .order_by_asc(id_column)
                 .limit(chunk_size);
 
             let chunk = chunk_query.get().await?;

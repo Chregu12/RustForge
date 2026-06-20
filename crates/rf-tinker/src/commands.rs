@@ -111,13 +111,7 @@ impl CommandHandler {
         }
 
         // Search by alias
-        for cmd in self.commands.values() {
-            if cmd.aliases.contains(&name.to_string()) {
-                return Some(cmd);
-            }
-        }
-
-        None
+        self.commands.values().find(|&cmd| cmd.aliases.contains(&name.to_string())).map(|v| v as _)
     }
 
     /// Get all commands

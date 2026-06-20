@@ -98,10 +98,10 @@ impl FoundryCommand for AppDownCommand {
 
         if let Some(retry) = retry_after {
             mode.enable_with_retry(retry)
-                .map_err(|e| rf_plugins::CommandError::Other(e))?;
+                .map_err(rf_plugins::CommandError::Other)?;
         } else {
             mode.enable()
-                .map_err(|e| rf_plugins::CommandError::Other(e))?;
+                .map_err(rf_plugins::CommandError::Other)?;
         }
 
         Ok(
@@ -154,7 +154,7 @@ impl FoundryCommand for AppUpCommand {
         }
 
         mode.disable()
-            .map_err(|e| rf_plugins::CommandError::Other(e))?;
+            .map_err(rf_plugins::CommandError::Other)?;
 
         Ok(CommandResult::success("Application is now live"))
     }

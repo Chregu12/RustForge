@@ -68,7 +68,7 @@ impl MiddlewareStack {
         let mut groups = self.groups.write();
         groups
             .entry(group_name.to_string())
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(middleware.into());
         self
     }
@@ -94,7 +94,7 @@ impl MiddlewareStack {
         let mut route_mw = self.route_middleware.write();
         route_mw
             .entry(route_name.to_string())
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(middleware.into());
         self
     }

@@ -99,17 +99,15 @@ impl OptimizedInputParser {
         while i < args.len() {
             let arg = &args[i];
 
-            if arg.starts_with("--") {
+            if let Some(rest) = arg.strip_prefix("--") {
                 seen_option = true;
-                let rest = &arg[2..];
-
                 if let Some(eq_pos) = rest.find('=') {
                     // --name=value
                     let name = rest[..eq_pos].to_string();
                     let value = rest[eq_pos + 1..].to_string();
                     options
                         .entry(name)
-                        .or_insert_with(SmallVec::new)
+                        .or_default()
                         .push(value);
                 } else {
                     // --name or --name value
@@ -119,7 +117,7 @@ impl OptimizedInputParser {
                         let value = args[i + 1].clone();
                         options
                             .entry(name)
-                            .or_insert_with(SmallVec::new)
+                            .or_default()
                             .push(value);
                         i += 1;
                     } else {
@@ -140,7 +138,7 @@ impl OptimizedInputParser {
                         let value = args[i + 1].clone();
                         options
                             .entry(flag)
-                            .or_insert_with(SmallVec::new)
+                            .or_default()
                             .push(value);
                         i += 1;
                     } else {
@@ -229,7 +227,7 @@ impl OptimizedInputParser {
 
     /// Check if arguments fit in stack allocation (performance metric)
     pub fn is_stack_allocated(&self) -> bool {
-        self.arguments.spilled() == false && self.flags.spilled() == false
+        !self.arguments.spilled() && !self.flags.spilled()
     }
 
     /// Get memory statistics for this parser

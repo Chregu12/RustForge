@@ -73,7 +73,7 @@ impl RetryPolicy for DefaultRetryPolicy {
         // Retry on network errors or 5xx server errors
         error.is_timeout()
             || error.is_connect()
-            || error.status().map_or(false, |s| s.is_server_error())
+            || error.status().is_some_and(|s| s.is_server_error())
     }
 
     fn delay(&self, attempt: u32) -> Duration {

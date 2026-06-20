@@ -4,10 +4,10 @@
 
 use super::resource::{PaginatedResponse, PaginationMeta, ResourceError, ResourceQuery, ResourceResult};
 use sea_orm::{
-    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, IntoActiveModel, ModelTrait,
-    PaginatorTrait, QueryFilter, QueryOrder, QuerySelect, QueryTrait,
+    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait,
+    PaginatorTrait, QueryFilter,
 };
-use serde::{de::DeserializeOwned, Serialize};
+use serde::Serialize;
 use serde_json::Value;
 use std::collections::HashMap;
 
@@ -40,13 +40,13 @@ where
     }
 
     // Apply sorting
-    if let Some(sort_field) = &query.sort_by {
+    if let Some(_sort_field) = &query.sort_by {
         // Note: Sorting would need to be implemented based on the entity's columns
         // This is a placeholder for the actual implementation
     }
 
     // Apply filters
-    if let Some(filters) = &query.filters {
+    if let Some(_filters) = &query.filters {
         // Apply custom filters
         // This would be implemented based on the specific filter types
     }
@@ -65,7 +65,7 @@ where
 
 /// Show a single resource by ID
 /// Note: This is a placeholder - in production you would implement actual DB queries
-pub async fn show<E>(db: &DatabaseConnection, id: Value) -> ResourceResult<Value>
+pub async fn show<E>(_db: &DatabaseConnection, _id: Value) -> ResourceResult<Value>
 where
     E: EntityTrait,
 {
@@ -77,8 +77,8 @@ where
 /// Create a new resource
 /// Note: This is a placeholder - in production you would implement actual DB insert
 pub async fn create<E>(
-    db: &DatabaseConnection,
-    data: HashMap<String, Value>,
+    _db: &DatabaseConnection,
+    _data: HashMap<String, Value>,
 ) -> ResourceResult<Value>
 where
     E: EntityTrait,
@@ -91,9 +91,9 @@ where
 /// Update an existing resource
 /// Note: This is a placeholder - in production you would implement actual DB update
 pub async fn update<E>(
-    db: &DatabaseConnection,
+    _db: &DatabaseConnection,
     id: Value,
-    data: HashMap<String, Value>,
+    _data: HashMap<String, Value>,
 ) -> ResourceResult<Value>
 where
     E: EntityTrait,
@@ -105,7 +105,7 @@ where
 
 /// Delete a resource
 /// Note: This is a placeholder - in production you would implement actual DB delete
-pub async fn destroy<E>(db: &DatabaseConnection, id: Value) -> ResourceResult<()>
+pub async fn destroy<E>(_db: &DatabaseConnection, _id: Value) -> ResourceResult<()>
 where
     E: EntityTrait,
 {
@@ -115,7 +115,7 @@ where
 }
 
 /// Bulk delete resources
-pub async fn bulk_destroy<E>(db: &DatabaseConnection, ids: Vec<Value>) -> ResourceResult<u64>
+pub async fn bulk_destroy<E>(_db: &DatabaseConnection, _ids: Vec<Value>) -> ResourceResult<u64>
 where
     E: EntityTrait,
 {
@@ -133,7 +133,7 @@ pub enum ExportFormat {
 /// Export resources
 pub async fn export<E>(
     db: &DatabaseConnection,
-    query: ResourceQuery,
+    _query: ResourceQuery,
     format: ExportFormat,
 ) -> ResourceResult<String>
 where
@@ -141,7 +141,7 @@ where
     E::Model: Serialize + Send + Sync,
 {
     // Fetch all matching records (no pagination for export)
-    let mut select = E::find();
+    let select = E::find();
 
     // Apply filters similar to index()
     // ... (omitted for brevity)

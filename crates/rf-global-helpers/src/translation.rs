@@ -51,7 +51,7 @@ impl Translator {
 
         all_translations
             .entry(locale)
-            .or_insert_with(HashMap::new)
+            .or_default()
             .extend(translations);
     }
 
@@ -62,7 +62,7 @@ impl Translator {
 
         all_translations
             .entry(locale)
-            .or_insert_with(HashMap::new)
+            .or_default()
             .insert(key.into(), value.into());
     }
 

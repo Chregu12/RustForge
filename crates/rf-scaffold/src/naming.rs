@@ -67,7 +67,7 @@ impl NamingConvention {
                 if i > 0
                     && (prev_lowercase
                         || (prev_uppercase
-                            && name.chars().nth(i + 1).map_or(false, |c| c.is_lowercase())))
+                            && name.chars().nth(i + 1).is_some_and(|c| c.is_lowercase())))
                 {
                     result.push('_');
                 }

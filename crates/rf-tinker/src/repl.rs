@@ -271,7 +271,7 @@ impl Tinker {
             }
             ".reconnect" => {
                 if let Some(ref url) = self.config.database_url.clone() {
-                    self.connect(&url).await?;
+                    self.connect(url).await?;
                     println!("{}", "Reconnected to database.".green());
                 } else {
                     println!("{}", "No database URL configured.".yellow());
@@ -297,15 +297,15 @@ impl Tinker {
         println!();
         println!("{}", "Available Commands:".yellow().bold());
         println!();
-        println!("  {:<20} {}", ".help, .h, .?".green(), "Show this help message");
-        println!("  {:<20} {}", ".exit, .quit, .q".green(), "Exit Tinker");
-        println!("  {:<20} {}", ".clear".green(), "Clear the screen");
-        println!("  {:<20} {}", ".tables".green(), "List all database tables");
-        println!("  {:<20} {}", ".schema <table>".green(), "Show table schema");
-        println!("  {:<20} {}", ".databases".green(), "List available databases");
-        println!("  {:<20} {}", ".reconnect".green(), "Reconnect to database");
-        println!("  {:<20} {}", ".env".green(), "Show environment info");
-        println!("  {:<20} {}", ".history".green(), "Show history info");
+        println!("  {:<20} Show this help message", ".help, .h, .?".green());
+        println!("  {:<20} Exit Tinker", ".exit, .quit, .q".green());
+        println!("  {:<20} Clear the screen", ".clear".green());
+        println!("  {:<20} List all database tables", ".tables".green());
+        println!("  {:<20} Show table schema", ".schema <table>".green());
+        println!("  {:<20} List available databases", ".databases".green());
+        println!("  {:<20} Reconnect to database", ".reconnect".green());
+        println!("  {:<20} Show environment info", ".env".green());
+        println!("  {:<20} Show history info", ".history".green());
         println!();
         println!("{}", "Query Examples:".yellow().bold());
         println!();
@@ -486,7 +486,7 @@ impl Tinker {
         }
         if let Ok(val) = std::env::var("DATABASE_URL") {
             // Mask password in URL
-            let masked = val.split('@').last().unwrap_or(&val);
+            let masked = val.split('@').next_back().unwrap_or(&val);
             println!("  {:<15} ***@{}", "DATABASE:".cyan(), masked);
         }
         println!();

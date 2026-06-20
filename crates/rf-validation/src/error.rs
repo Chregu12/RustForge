@@ -25,7 +25,7 @@ impl ValidationErrors {
     pub fn add(&mut self, field: impl Into<String>, error: FieldError) {
         self.errors
             .entry(field.into())
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(error);
     }
 

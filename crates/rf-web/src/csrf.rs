@@ -32,7 +32,7 @@ impl CsrfToken {
         rand::thread_rng().fill_bytes(&mut bytes);
 
         Self {
-            token: base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(&bytes),
+            token: base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(bytes),
             created_at: Utc::now(),
         }
     }

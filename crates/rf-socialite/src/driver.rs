@@ -99,7 +99,7 @@ impl Driver {
         }
 
         let response = client
-            .post(&self.provider.token_url())
+            .post(self.provider.token_url())
             .form(&params)
             .send()
             .await?;
@@ -124,7 +124,7 @@ impl Driver {
         let client = reqwest::Client::new();
 
         let response = client
-            .get(&self.provider.user_url())
+            .get(self.provider.user_url())
             .header("Authorization", format!("Bearer {}", access_token))
             .header("Accept", "application/json")
             .send()
@@ -163,7 +163,7 @@ impl Driver {
         ];
 
         let response = client
-            .post(&self.provider.token_url())
+            .post(self.provider.token_url())
             .form(&params)
             .send()
             .await?;

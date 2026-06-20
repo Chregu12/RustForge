@@ -36,8 +36,7 @@ use axum::{
     http::{request::Parts, StatusCode},
     response::{IntoResponse, Response},
 };
-use sea_orm::{DatabaseConnection, EntityTrait, PrimaryKeyTrait};
-use serde::de::DeserializeOwned;
+use sea_orm::{DatabaseConnection, EntityTrait};
 use std::{any::Any, collections::HashMap, fmt, future::Future, pin::Pin, str::FromStr, sync::Arc};
 use thiserror::Error;
 

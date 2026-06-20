@@ -177,7 +177,7 @@ impl Nova {
 
         for resource in self.resources.values() {
             let group_name = resource.group.clone().unwrap_or_else(|| "Resources".to_string());
-            groups.entry(group_name).or_insert_with(Vec::new).push(resource);
+            groups.entry(group_name).or_default().push(resource);
         }
 
         groups

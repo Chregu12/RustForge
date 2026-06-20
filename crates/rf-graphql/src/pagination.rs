@@ -63,6 +63,7 @@ impl OffsetPaginationInput {
 
 /// Page information for cursor-based pagination
 #[derive(SimpleObject, Debug, Clone, Serialize, Deserialize)]
+#[derive(Default)]
 pub struct PageInfo {
     /// Whether there is a next page
     pub has_next_page: bool,
@@ -74,16 +75,6 @@ pub struct PageInfo {
     pub end_cursor: Option<String>,
 }
 
-impl Default for PageInfo {
-    fn default() -> Self {
-        Self {
-            has_next_page: false,
-            has_previous_page: false,
-            start_cursor: None,
-            end_cursor: None,
-        }
-    }
-}
 
 /// Edge for cursor-based pagination
 #[derive(Debug, Clone)]

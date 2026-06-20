@@ -2,17 +2,15 @@
 
 use crate::{
     error::Result,
-    props::{LazyProp, Props, SharedProps},
+    props::{LazyProp, Props},
     response::InertiaResponse,
 };
 use axum::{
-    extract::Request,
     http::HeaderMap,
     response::{IntoResponse, Response},
 };
 use serde::Serialize;
 use serde_json::Value;
-use std::sync::Arc;
 
 /// Main Inertia renderer
 ///

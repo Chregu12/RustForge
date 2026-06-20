@@ -96,21 +96,17 @@ fn apply_field_rules(
         .get("email")
         .and_then(|value| value.as_bool())
         .unwrap_or(false)
-    {
-        if !is_email(payload, field) {
+        && !is_email(payload, field) {
             errors.push(violation(field, "Must be a valid email address", "email"));
         }
-    }
 
     if map
         .get("numeric")
         .and_then(|value| value.as_bool())
         .unwrap_or(false)
-    {
-        if !is_numeric(payload, field) {
+        && !is_numeric(payload, field) {
             errors.push(violation(field, "Must be numeric", "numeric"));
         }
-    }
 
     if let Some(range) = map.get("between").and_then(|value| value.as_array()) {
         if let Some((min, max)) = parse_range(range) {
@@ -257,12 +253,12 @@ fn matches_regex(payload: &Value, field: &str, pattern: &str) -> bool {
 }
 
 fn is_in_list(payload: &Value, field: &str, allowed: &[Value]) -> bool {
-    lookup(payload, field).map_or(false, |value| match value {
+    lookup(payload, field).is_some_and(|value| match value {
         Value::String(text) => allowed
             .iter()
             .filter_map(|value| value.as_str())
             .any(|candidate| candidate == text),
-        Value::Number(num) => num.as_f64().map_or(false, |target| {
+        Value::Number(num) => num.as_f64().is_some_and(|target| {
             allowed
                 .iter()
                 .filter_map(|value| value.as_f64())
@@ -278,14 +274,14 @@ fn is_in_list(payload: &Value, field: &str, allowed: &[Value]) -> bool {
 
 fn numeric_min(payload: &Value, field: &str, min: f64) -> bool {
     lookup(payload, field)
-        .and_then(|value| numeric_value(value))
+        .and_then(numeric_value)
         .map(|value| value >= min)
         .unwrap_or(false)
 }
 
 fn numeric_max(payload: &Value, field: &str, max: f64) -> bool {
     lookup(payload, field)
-        .and_then(|value| numeric_value(value))
+        .and_then(numeric_value)
         .map(|value| value <= max)
         .unwrap_or(false)
 }

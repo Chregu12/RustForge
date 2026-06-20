@@ -38,11 +38,7 @@
 
 use super::polymorphic::{PolymorphicError, PolymorphicResult};
 use super::type_registry::{TypeResolver, GLOBAL_TYPE_REGISTRY};
-use async_trait::async_trait;
-use sea_orm::{
-    sea_query::{Expr, SimpleExpr},
-    ColumnTrait, DatabaseConnection, DbErr, EntityTrait, FromQueryResult, QueryFilter,
-};
+use sea_orm::DatabaseConnection;
 use std::any::Any;
 use std::marker::PhantomData;
 use std::sync::Arc;

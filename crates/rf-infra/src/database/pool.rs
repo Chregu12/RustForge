@@ -144,7 +144,7 @@ impl DatabasePool {
             .max_lifetime(Some(Duration::from_secs(config.max_lifetime_secs)))
             .connect(database_url)
             .await
-            .map_err(|e| PoolError::Connection(e))?;
+            .map_err(PoolError::Connection)?;
 
         Ok(Self {
             pool: Arc::new(pool),

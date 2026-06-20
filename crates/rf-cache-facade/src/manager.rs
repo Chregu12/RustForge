@@ -1,7 +1,7 @@
 //! Global cache manager
 
 use once_cell::sync::Lazy;
-use rf_cache::{Cache as CacheTrait, CacheError, CacheResult, MemoryCache};
+use rf_cache::{Cache as CacheTrait, CacheResult, MemoryCache};
 use serde::{de::DeserializeOwned, Serialize};
 use std::sync::RwLock;
 use std::time::Duration;

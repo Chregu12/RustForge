@@ -273,7 +273,7 @@ pub trait Resettable: Send + Sync {
             .from(rf_mail::Address::new("noreply@example.com"))
             .to(rf_mail::Address::new(self.reset_email()))
             .subject("Reset Your Password")
-            .markdown(&format!(
+            .markdown(format!(
                 r#"
 # Reset Your Password
 

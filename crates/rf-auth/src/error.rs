@@ -87,7 +87,7 @@ impl From<AuthError> for AppError {
                 message: "Email already exists".to_string(),
             },
 
-            AuthError::HashingFailed { source } => AppError::Internal(source.into()),
+            AuthError::HashingFailed { source } => AppError::Internal(source),
 
             AuthError::InvalidSecret | AuthError::InvalidBcryptCost => {
                 AppError::Internal(anyhow::anyhow!("Authentication configuration error"))

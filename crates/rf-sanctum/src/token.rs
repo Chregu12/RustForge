@@ -101,33 +101,33 @@ impl PersonalAccessToken {
 
     /// Get device name from user agent
     pub fn device_name(&self) -> Option<String> {
-        self.user_agent.as_ref().and_then(|ua| {
+        self.user_agent.as_ref().map(|ua| {
             // Simple device detection from user agent
             if ua.contains("Mobile") || ua.contains("Android") || ua.contains("iPhone") {
-                Some("Mobile Device".to_string())
+                "Mobile Device".to_string()
             } else if ua.contains("iPad") || ua.contains("Tablet") {
-                Some("Tablet".to_string())
+                "Tablet".to_string()
             } else if ua.contains("Windows") || ua.contains("Macintosh") || ua.contains("Linux") {
-                Some("Desktop".to_string())
+                "Desktop".to_string()
             } else {
-                Some("Unknown Device".to_string())
+                "Unknown Device".to_string()
             }
         })
     }
 
     /// Get browser name from user agent
     pub fn browser_name(&self) -> Option<String> {
-        self.user_agent.as_ref().and_then(|ua| {
+        self.user_agent.as_ref().map(|ua| {
             if ua.contains("Chrome") && !ua.contains("Edg") {
-                Some("Chrome".to_string())
+                "Chrome".to_string()
             } else if ua.contains("Safari") && !ua.contains("Chrome") {
-                Some("Safari".to_string())
+                "Safari".to_string()
             } else if ua.contains("Firefox") {
-                Some("Firefox".to_string())
+                "Firefox".to_string()
             } else if ua.contains("Edg") {
-                Some("Edge".to_string())
+                "Edge".to_string()
             } else {
-                Some("Unknown Browser".to_string())
+                "Unknown Browser".to_string()
             }
         })
     }

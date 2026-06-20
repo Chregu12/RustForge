@@ -30,7 +30,7 @@
 //! ```
 
 use super::polymorphic::PolymorphicResult;
-use sea_orm::{sea_query::Alias, DatabaseConnection, EntityTrait, FromQueryResult};
+use sea_orm::{DatabaseConnection, EntityTrait, FromQueryResult};
 use std::marker::PhantomData;
 
 /// MorphedByMany relationship - inverse of MorphToMany

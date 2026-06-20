@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 use std::collections::HashMap;
 use tokio::fs;
-use tracing::{debug, warn};
+use tracing::debug;
 use tera::{Tera, Context};
 
 use crate::error::{Result, StubError};
@@ -111,12 +111,10 @@ impl StubManager {
         }
 
         // Add special pluralized variables
-        let snake_plural = format!("{}",
-            crate::variables::CaseConverter::plural(&variables.snake));
+        let snake_plural = crate::variables::CaseConverter::plural(&variables.snake).to_string();
         tera_context.insert("snake_plural", &snake_plural);
 
-        let studly_plural = format!("{}",
-            crate::variables::CaseConverter::plural(&variables.studly));
+        let studly_plural = crate::variables::CaseConverter::plural(&variables.studly).to_string();
         tera_context.insert("studly_plural", &studly_plural);
 
         // Render the template

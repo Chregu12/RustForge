@@ -1,6 +1,6 @@
 //! Mail system commands
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use colored::*;
 use handlebars::Handlebars;
 use inflector::Inflector;
@@ -277,7 +277,7 @@ fn update_mail_mod(file_name: &str, mail_name: &str) -> Result<()> {
 /// forge mail:test user@example.com
 /// forge mail:test user@example.com --subject="Test Email"
 /// ```
-pub async fn test_mail(to: &str, subject: Option<&str>, markdown: bool) -> Result<()> {
+pub async fn test_mail(to: &str, subject: Option<&str>, _markdown: bool) -> Result<()> {
     ensure_forge_project()?;
 
     println!("{}", "Sending test email...".green().bold());

@@ -101,7 +101,7 @@ impl MessageBuilder {
     pub fn build(self) -> Result<Message, MailError> {
         self.message
             .validate()
-            .map_err(|e| MailError::InvalidMessage(e))?;
+            .map_err(MailError::InvalidMessage)?;
 
         Ok(self.message)
     }

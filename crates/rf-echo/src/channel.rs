@@ -41,7 +41,7 @@ impl Channel {
 
         self.handlers
             .entry(event_name)
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(handler);
 
         self
@@ -110,7 +110,7 @@ impl PrivateChannel {
 
         self.handlers
             .entry(event.to_string())
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(handler);
 
         self
@@ -168,7 +168,7 @@ impl PresenceChannel {
 
         self.handlers
             .entry(event.to_string())
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(handler);
 
         self

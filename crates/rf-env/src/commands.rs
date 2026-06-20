@@ -43,7 +43,7 @@ impl FoundryCommand for EnvValidateCommand {
 
         // Load current environment
         let env_path = PathBuf::from(".env");
-        let env_vars = crate::load_env(&env_path).map_err(|e| CommandError::Other(e))?;
+        let env_vars = crate::load_env(&env_path).map_err(CommandError::Other)?;
 
         let results = validator.validate(&env_vars);
         let output = validator.format_results(&results);
@@ -80,9 +80,9 @@ impl FoundryCommand for EnvReloadCommand {
             return Err(CommandError::Message(".env file not found".to_string()));
         }
 
-        let count = crate::reload_env(&env_path).map_err(|e| CommandError::Other(e))?;
+        let count = crate::reload_env(&env_path).map_err(CommandError::Other)?;
 
-        Ok(CommandResult::success(&format!(
+        Ok(CommandResult::success(format!(
             "Reloaded {} environment variables",
             count
         )))

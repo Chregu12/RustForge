@@ -4,19 +4,16 @@ use crate::error::Result;
 
 /// Priority for listener execution
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Default)]
 pub enum ListenerPriority {
     Highest = 1000,
     High = 750,
+    #[default]
     Normal = 500,
     Low = 250,
     Lowest = 0,
 }
 
-impl Default for ListenerPriority {
-    fn default() -> Self {
-        Self::Normal
-    }
-}
 
 /// Trait for event listeners
 #[async_trait]

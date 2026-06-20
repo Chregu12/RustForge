@@ -30,10 +30,12 @@ use std::fmt;
 /// Verbosity level enumeration
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+#[derive(Default)]
 pub enum VerbosityLevel {
     /// Quiet mode - suppress most output
     Quiet = 0,
     /// Normal mode - standard output (default)
+    #[default]
     Normal = 1,
     /// Verbose mode - additional information (-v)
     Verbose = 2,
@@ -97,11 +99,6 @@ impl VerbosityLevel {
     }
 }
 
-impl Default for VerbosityLevel {
-    fn default() -> Self {
-        VerbosityLevel::Normal
-    }
-}
 
 impl fmt::Display for VerbosityLevel {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

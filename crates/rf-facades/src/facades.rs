@@ -10,11 +10,11 @@ pub struct DatabaseFacade {
 
 impl DatabaseFacade {
     pub fn table(&self, _name: &str) -> QueryBuilder {
-        QueryBuilder::default()
+        QueryBuilder
     }
 
     pub fn query(&self, _sql: &str) -> QueryBuilder {
-        QueryBuilder::default()
+        QueryBuilder
     }
 
     pub fn connection(&self) -> &str {

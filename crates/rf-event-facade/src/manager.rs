@@ -55,7 +55,7 @@ impl EventManager {
         let listener = Arc::new(Box::new(callback) as EventListener);
         self.listeners
             .entry(event_name.to_string())
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(listener);
     }
 

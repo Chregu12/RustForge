@@ -563,7 +563,7 @@ impl<T> Collection<T> {
         let last_page = if total == 0 {
             1
         } else {
-            (total + per_page - 1) / per_page
+            total.div_ceil(per_page)
         };
         let offset = page.saturating_sub(1) * per_page;
         let items = if offset >= total {

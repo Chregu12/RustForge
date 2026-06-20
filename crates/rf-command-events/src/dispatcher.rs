@@ -2,7 +2,7 @@ use std::any::{Any, TypeId};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{debug, error, warn};
+use tracing::{debug, warn};
 
 use crate::error::{EventError, Result};
 use crate::listener::{EventListener, ListenerPriority};
@@ -66,7 +66,7 @@ impl EventDispatcher {
     }
 
     /// Register a one-time listener
-    pub async fn once<E, L>(&self, mut listener: L) -> usize
+    pub async fn once<E, L>(&self, listener: L) -> usize
     where
         E: Event,
         L: EventListener<E> + 'static,

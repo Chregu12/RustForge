@@ -124,7 +124,6 @@ pub use rf_macros::laravel;
 ///
 /// Note: shown as `text` because `Model!` expands to code requiring
 /// `chrono`, which is not a dependency of this crate.
-#[allow(non_snake_case)]
 pub use rf_macros::Model;
 
 /// Query macro - use `where` like Laravel!

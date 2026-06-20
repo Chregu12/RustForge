@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 
 /// Options for collection transformation
 #[derive(Debug, Clone)]
+#[derive(Default)]
 pub struct CollectionOptions {
     /// Pagination settings
     pub pagination: Option<Pagination>,
@@ -14,15 +15,6 @@ pub struct CollectionOptions {
     pub metadata: std::collections::HashMap<String, serde_json::Value>,
 }
 
-impl Default for CollectionOptions {
-    fn default() -> Self {
-        Self {
-            pagination: None,
-            context: ResourceContext::default(),
-            metadata: std::collections::HashMap::new(),
-        }
-    }
-}
 
 /// A collection of API resources with pagination
 #[derive(Debug, Serialize, Deserialize)]

@@ -1,7 +1,7 @@
 //! Container management using bollard
 
 use crate::{SailError, SailResult};
-use bollard::container::{Config, CreateContainerOptions, LogsOptions, StartContainerOptions};
+use bollard::container::{LogsOptions, StartContainerOptions};
 use bollard::exec::{CreateExecOptions, StartExecResults};
 use bollard::Docker;
 use futures::StreamExt;

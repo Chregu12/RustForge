@@ -54,15 +54,13 @@ impl InputParser {
         while i < args.len() {
             let arg = &args[i];
 
-            if arg.starts_with("--") {
+            if let Some(rest) = arg.strip_prefix("--") {
                 seen_option = true;
-                let rest = &arg[2..];
-
                 if let Some(eq_pos) = rest.find('=') {
                     // --name=value
                     let name = rest[..eq_pos].to_string();
                     let value = rest[eq_pos + 1..].to_string();
-                    options.entry(name).or_insert_with(Vec::new).push(value);
+                    options.entry(name).or_default().push(value);
                 } else {
                     // --name or --name value
                     let name = rest.to_string();
@@ -70,7 +68,7 @@ impl InputParser {
                     // Check if next arg is a value (doesn't start with -)
                     if i + 1 < args.len() && !args[i + 1].starts_with('-') {
                         let value = args[i + 1].clone();
-                        options.entry(name).or_insert_with(Vec::new).push(value);
+                        options.entry(name).or_default().push(value);
                         i += 1;
                     } else {
                         // It's a flag
@@ -91,7 +89,7 @@ impl InputParser {
                         && !args[i + 1].starts_with('-')
                     {
                         let value = args[i + 1].clone();
-                        options.entry(flag).or_insert_with(Vec::new).push(value);
+                        options.entry(flag).or_default().push(value);
                         i += 1;
                     } else {
                         flags.push(flag);
@@ -137,8 +135,7 @@ impl InputParser {
     /// Get all values for an option (supports arrays)
     pub fn option_array(&self, name: &str) -> Vec<String> {
         self.options
-            .get(name)
-            .map(|values| values.clone())
+            .get(name).cloned()
             .unwrap_or_default()
     }
 

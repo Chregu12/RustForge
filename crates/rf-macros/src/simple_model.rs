@@ -346,7 +346,7 @@ fn generate_full_model(
                 }
             }
             RelationType::BelongsTo => {
-                let related_key = format!("{}_id", to_snake_case(&related_type.to_string()));
+                let _related_key = format!("{}_id", to_snake_case(&related_type.to_string()));
                 quote! {
                     /// Get the parent record (belongsTo relationship)
                     pub async fn #method_name(&self) -> Result<Option<serde_json::Value>, String> {
@@ -358,9 +358,9 @@ fn generate_full_model(
                 }
             }
             RelationType::BelongsToMany => {
-                let pivot_table = rel.pivot_table.clone()
+                let _pivot_table = rel.pivot_table.clone()
                     .unwrap_or_else(|| {
-                        let mut names = vec![model_name_lower.clone(), to_snake_case(&related_type.to_string())];
+                        let mut names = [model_name_lower.clone(), to_snake_case(&related_type.to_string())];
                         names.sort();
                         names.join("_")
                     });

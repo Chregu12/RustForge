@@ -69,7 +69,7 @@ impl Queue for MemoryQueue {
 
     async fn fail(&self, job_id: &str, error: &str) -> QueueResult<()> {
         // Store in failed jobs
-        let mut failed = self.failed.lock().await;
+        let _failed = self.failed.lock().await;
 
         // We don't have the full metadata here, so just log
         tracing::warn!(job_id = %job_id, error = %error, "Job failed");

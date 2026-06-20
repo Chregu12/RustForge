@@ -616,7 +616,9 @@ impl FoundryCommand for DatabaseCreateCommand {
 
         let data = json!({
             "driver": driver,
-            "database_url": database_url.replace(|c| c == '/' && c != '/', "*").split(':').next().unwrap_or(""),
+            // Only expose the URL scheme (e.g. "postgres"); everything after the
+            // first ':' (credentials, host, db) is dropped.
+            "database_url": database_url.split(':').next().unwrap_or(""),
             "status": "Database configured successfully",
             "next_step": "foundry migrate"
         });

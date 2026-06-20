@@ -5,7 +5,7 @@
 
 use crate::validator::{Rule, RuleResult};
 use async_trait::async_trait;
-use sea_orm::{ColumnTrait, ConnectionTrait, DatabaseConnection, DbErr, EntityTrait};
+use sea_orm::{ColumnTrait, ConnectionTrait, DatabaseConnection, DbErr};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::marker::PhantomData;
@@ -490,7 +490,7 @@ impl Rule for SimpleUniqueRule {
             DbBackend::Sqlite => ("?", "?"),
         };
 
-        let (query, mut values) = match value {
+        let (query, values) = match value {
             Value::String(s) => {
                 let mut q = format!(
                     "SELECT COUNT(*) as count FROM {} WHERE {} = {}",

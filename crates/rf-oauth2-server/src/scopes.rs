@@ -33,7 +33,7 @@ impl Scope {
     pub fn parse_scopes(scope_string: &str) -> Vec<Scope> {
         scope_string
             .split_whitespace()
-            .map(|s| Scope::new(s))
+            .map(Scope::new)
             .collect()
     }
 

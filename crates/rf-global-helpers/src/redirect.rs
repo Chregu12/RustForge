@@ -6,7 +6,6 @@
 use axum::response::{IntoResponse, Redirect, Response};
 use axum::http::{StatusCode, header};
 use std::collections::HashMap;
-use serde::Serialize;
 use once_cell::sync::Lazy;
 use parking_lot::RwLock;
 
@@ -17,21 +16,13 @@ static FLASH_MESSAGES: Lazy<RwLock<HashMap<String, FlashData>>> = Lazy::new(|| {
 
 /// Flash data stored in session
 #[derive(Debug, Clone)]
+#[derive(Default)]
 pub struct FlashData {
     pub messages: HashMap<String, String>,
     pub old_input: HashMap<String, String>,
     pub errors: HashMap<String, Vec<String>>,
 }
 
-impl Default for FlashData {
-    fn default() -> Self {
-        Self {
-            messages: HashMap::new(),
-            old_input: HashMap::new(),
-            errors: HashMap::new(),
-        }
-    }
-}
 
 /// A redirect response with fluent API for adding flash data.
 ///

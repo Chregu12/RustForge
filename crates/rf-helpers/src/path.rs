@@ -1,7 +1,7 @@
 //! Path helper functions (storage_path, public_path, etc.)
 
 use std::env;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 /// Get the base path of the application
 pub fn base_path(path: Option<&str>) -> PathBuf {

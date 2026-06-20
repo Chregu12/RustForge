@@ -136,12 +136,12 @@ impl RedisSubscriber {
     {
         // Get a dedicated connection for pub/sub
         let client =
-            redis::Client::open(self.redis_url.clone()).map_err(|e| BroadcastError::Redis(e))?;
+            redis::Client::open(self.redis_url.clone()).map_err(BroadcastError::Redis)?;
 
         let conn = client
             .get_async_connection()
             .await
-            .map_err(|e| BroadcastError::Redis(e))?;
+            .map_err(BroadcastError::Redis)?;
 
         let mut pubsub = conn.into_pubsub();
 

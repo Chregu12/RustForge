@@ -283,7 +283,7 @@ pub fn input_component() -> ComponentRenderer {
             html.push_str(r#" required"#);
         }
 
-        html.push_str(">");
+        html.push('>');
 
         if let Some(err) = error {
             html.push_str(&format!(r#"<span class="error-message">{}</span>"#, escape_html(err)));

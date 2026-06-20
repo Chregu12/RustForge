@@ -177,7 +177,7 @@ impl QueryWatcher {
             if let Some(sql) = entry.content.get("sql").and_then(|s| s.as_str()) {
                 query_counts
                     .entry(sql.to_string())
-                    .or_insert_with(Vec::new)
+                    .or_default()
                     .push(entry);
             }
         }
@@ -216,7 +216,7 @@ impl QueryWatcher {
                 let normalized = normalize_sql(sql);
                 patterns
                     .entry(normalized)
-                    .or_insert_with(Vec::new)
+                    .or_default()
                     .push(entry);
             }
         }

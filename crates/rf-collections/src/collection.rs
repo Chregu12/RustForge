@@ -113,7 +113,7 @@ impl<T> Collection<T> {
     where
         F: FnMut(&T) -> bool,
     {
-        self.items.iter().any(|item| f(item))
+        self.items.iter().any(f)
     }
 
     /// Check if all items satisfy the predicate.
@@ -121,7 +121,7 @@ impl<T> Collection<T> {
     where
         F: FnMut(&T) -> bool,
     {
-        self.items.iter().all(|item| f(item))
+        self.items.iter().all(f)
     }
 
     /// Find the first item matching the predicate.
@@ -137,7 +137,7 @@ impl<T> Collection<T> {
     where
         F: FnMut(&T) -> U,
     {
-        let items: Vec<U> = self.items.iter().map(|item| f(item)).collect();
+        let items: Vec<U> = self.items.iter().map(f).collect();
         Collection::new(items)
     }
 }
@@ -242,7 +242,7 @@ impl<T> Collection<T> {
     where
         T: IntoIterator<Item = U>,
     {
-        Collection::new(self.items.into_iter().flat_map(|item| item).collect())
+        Collection::new(self.items.into_iter().flatten().collect())
     }
 
     /// Collapse a collection of collections
@@ -521,7 +521,7 @@ impl<T> Collection<T> {
         }
         self.items.sort();
         let mid = self.items.len() / 2;
-        if self.items.len() % 2 == 0 {
+        if self.items.len().is_multiple_of(2) {
             Some((self.items[mid - 1].into() + self.items[mid].into()) / 2.0)
         } else {
             Some(self.items[mid].into())

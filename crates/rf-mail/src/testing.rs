@@ -110,7 +110,7 @@ impl MailFake {
         F: Fn(&Mail) -> bool,
     {
         let sent = self.sent.lock();
-        let found = sent.iter().any(|msg| predicate(msg));
+        let found = sent.iter().any(predicate);
 
         if !found {
             panic!(
@@ -130,7 +130,7 @@ impl MailFake {
         F: Fn(&Mail) -> bool,
     {
         let sent = self.sent.lock();
-        let found = sent.iter().any(|msg| predicate(msg));
+        let found = sent.iter().any(predicate);
 
         if found {
             panic!("Expected not to find email matching predicate, but one was found.");

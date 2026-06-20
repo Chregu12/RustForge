@@ -199,21 +199,21 @@ impl TinkerRepl {
     fn print_help(&self) {
         println!("\n{}\n", "Available Commands:".bold());
         println!(
-            "  {:15} - {}",
-            "helpers", "Show all available helper functions"
+            "  {:15} - Show all available helper functions",
+            "helpers"
         );
-        println!("  {:15} - {}", "models", "List all available models");
-        println!("  {:15} - {}", "routes", "Show all registered routes");
-        println!("  {:15} - {}", "config <key>", "Show configuration value");
-        println!("  {:15} - {}", "env <key>", "Show environment variable");
-        println!("  {:15} - {}", "clear", "Clear the screen");
-        println!("  {:15} - {}", "history", "Show command history");
+        println!("  {:15} - List all available models", "models");
+        println!("  {:15} - Show all registered routes", "routes");
+        println!("  {:15} - Show configuration value", "config <key>");
+        println!("  {:15} - Show environment variable", "env <key>");
+        println!("  {:15} - Clear the screen", "clear");
+        println!("  {:15} - Show command history", "history");
         println!(
-            "  {:15} - {}",
-            "save <name>", "Save current session as script"
+            "  {:15} - Save current session as script",
+            "save <name>"
         );
-        println!("  {:15} - {}", "help", "Show this help message");
-        println!("  {:15} - {}", "exit / quit", "Exit Tinker REPL");
+        println!("  {:15} - Show this help message", "help");
+        println!("  {:15} - Exit Tinker REPL", "exit / quit");
         println!();
     }
 

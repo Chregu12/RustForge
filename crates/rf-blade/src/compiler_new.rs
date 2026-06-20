@@ -1137,7 +1137,7 @@ fn build_loop_object(index: usize, count: usize) -> Value {
     map.insert("remaining".to_string(), Value::from(remaining as i64));
     map.insert("first".to_string(), Value::Bool(index == 0));
     map.insert("last".to_string(), Value::Bool(iteration == count));
-    map.insert("even".to_string(), Value::Bool(iteration % 2 == 0));
+    map.insert("even".to_string(), Value::Bool(iteration.is_multiple_of(2)));
     map.insert("odd".to_string(), Value::Bool(iteration % 2 == 1));
     Value::Object(map)
 }

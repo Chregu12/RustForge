@@ -4,7 +4,6 @@
 
 use async_trait::async_trait;
 use sea_orm::DatabaseConnection;
-use std::any::Any;
 use thiserror::Error;
 
 /// Errors that can occur in polymorphic relationships

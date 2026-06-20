@@ -13,6 +13,7 @@ use super::message::WebSocketMessage;
 
 /// Optionen für Broadcasting
 #[derive(Debug, Clone)]
+#[derive(Default)]
 pub struct BroadcastOptions {
     /// Sende nur an spezifische Connections
     pub only_to: Option<Vec<ConnectionId>>,
@@ -22,15 +23,6 @@ pub struct BroadcastOptions {
     pub channel: Option<String>,
 }
 
-impl Default for BroadcastOptions {
-    fn default() -> Self {
-        Self {
-            only_to: None,
-            exclude: None,
-            channel: None,
-        }
-    }
-}
 
 impl BroadcastOptions {
     /// Erstellt neue Standard-Optionen

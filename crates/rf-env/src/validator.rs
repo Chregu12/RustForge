@@ -127,7 +127,7 @@ impl EnvValidator {
     /// Format validation results
     pub fn format_results(&self, results: &[ValidationResult]) -> String {
         let mut output = String::new();
-        output.push_str("\n");
+        output.push('\n');
         output.push_str(&"Environment Validation Results\n".bold().to_string());
         output.push_str(&"═".repeat(50));
         output.push('\n');

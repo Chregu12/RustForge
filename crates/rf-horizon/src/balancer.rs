@@ -6,21 +6,18 @@ use std::collections::HashMap;
 /// Queue balancing strategy
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
+#[derive(Default)]
 pub enum BalanceStrategy {
     /// No balancing - fixed worker allocation
     #[serde(rename = "false")]
     Fixed,
     /// Simple round-robin balancing
+    #[default]
     Simple,
     /// Auto-balance based on queue size and metrics
     Auto,
 }
 
-impl Default for BalanceStrategy {
-    fn default() -> Self {
-        Self::Simple
-    }
-}
 
 /// Queue information for balancing
 #[derive(Debug, Clone, Serialize, Deserialize)]

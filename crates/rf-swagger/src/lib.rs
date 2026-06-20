@@ -2,9 +2,7 @@
 //!
 //! This crate provides automatic API documentation generation with Swagger UI and ReDoc.
 
-use axum::{routing::get, Router};
 use serde::{Deserialize, Serialize};
-use utoipa::OpenApi;
 use utoipa_redoc::{Redoc, Servable};
 use utoipa_swagger_ui::SwaggerUi;
 
@@ -82,7 +80,7 @@ impl OpenApiBuilder {
 }
 
 /// Create Swagger UI router
-pub fn swagger_ui<S>(openapi_json: String) -> SwaggerUi
+pub fn swagger_ui<S>(_openapi_json: String) -> SwaggerUi
 where
     S: Clone + Send + Sync + 'static,
 {
@@ -93,7 +91,7 @@ where
 }
 
 /// Create ReDoc router
-pub fn redoc(openapi_json: String) -> Redoc<'static, 'static, utoipa::openapi::OpenApi> {
+pub fn redoc(_openapi_json: String) -> Redoc<'static, 'static, utoipa::openapi::OpenApi> {
     Redoc::with_url("/redoc", utoipa::openapi::OpenApi::default())
 }
 

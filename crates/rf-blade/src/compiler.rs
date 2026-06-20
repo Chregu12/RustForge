@@ -8,6 +8,12 @@ use crate::{BladeResult, CompiledTemplate};
 /// Blade template compiler
 pub struct BladeCompiler;
 
+impl Default for BladeCompiler {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl BladeCompiler {
     pub fn new() -> Self {
         Self

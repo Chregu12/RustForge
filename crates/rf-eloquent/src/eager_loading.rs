@@ -375,6 +375,7 @@ impl Default for RelationshipCache {
 
 /// Statistics for eager loading performance
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Default)]
 pub struct EagerLoadStats {
     pub relations_loaded: usize,
     pub models_loaded: usize,
@@ -383,17 +384,6 @@ pub struct EagerLoadStats {
     pub cache_misses: usize,
 }
 
-impl Default for EagerLoadStats {
-    fn default() -> Self {
-        Self {
-            relations_loaded: 0,
-            models_loaded: 0,
-            queries_executed: 0,
-            cache_hits: 0,
-            cache_misses: 0,
-        }
-    }
-}
 
 impl EagerLoadStats {
     /// Create new stats

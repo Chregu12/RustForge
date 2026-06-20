@@ -9,6 +9,12 @@ pub struct CsrfTokenFunction {
     token: Arc<RwLock<String>>,
 }
 
+impl Default for CsrfTokenFunction {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CsrfTokenFunction {
     pub fn new() -> Self {
         Self {
@@ -48,6 +54,12 @@ pub struct AuthFunction {
     user: Arc<RwLock<Option<Value>>>,
 }
 
+impl Default for AuthFunction {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AuthFunction {
     pub fn new() -> Self {
         Self {
@@ -82,6 +94,12 @@ impl Function for AuthFunction {
 #[derive(Clone)]
 pub struct OldFunction {
     old_input: Arc<RwLock<HashMap<String, Value>>>,
+}
+
+impl Default for OldFunction {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl OldFunction {
@@ -133,6 +151,12 @@ impl Function for OldFunction {
 #[derive(Clone)]
 pub struct ErrorFunction {
     errors: Arc<RwLock<HashMap<String, Vec<String>>>>,
+}
+
+impl Default for ErrorFunction {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl ErrorFunction {
@@ -200,6 +224,12 @@ pub struct ErrorsFunction {
     errors: Arc<RwLock<HashMap<String, Vec<String>>>>,
 }
 
+impl Default for ErrorsFunction {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ErrorsFunction {
     pub fn new() -> Self {
         Self {
@@ -252,6 +282,12 @@ pub struct HasErrorFunction {
     errors: Arc<RwLock<HashMap<String, Vec<String>>>>,
 }
 
+impl Default for HasErrorFunction {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl HasErrorFunction {
     pub fn new() -> Self {
         Self {
@@ -286,7 +322,7 @@ impl Function for HasErrorFunction {
             .read()
             .map_err(|e| tera::Error::msg(format!("Failed to read errors: {}", e)))?;
 
-        let has_error = errors.get(field).map_or(false, |errs| !errs.is_empty());
+        let has_error = errors.get(field).is_some_and(|errs| !errs.is_empty());
         Ok(Value::Bool(has_error))
     }
 }
@@ -295,6 +331,12 @@ impl Function for HasErrorFunction {
 #[derive(Clone)]
 pub struct FlashFunction {
     flash: Arc<RwLock<HashMap<String, String>>>,
+}
+
+impl Default for FlashFunction {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl FlashFunction {

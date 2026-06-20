@@ -1,8 +1,6 @@
 //! SSH connection handling using russh
 
 use crate::{EnvoyError, EnvoyResult, Server};
-use async_trait::async_trait;
-use std::sync::Arc;
 
 /// SSH session wrapper
 pub struct SshSession {
@@ -94,7 +92,7 @@ pub async fn generate_key_pair(key_type: KeyType, comment: &str) -> EnvoyResult<
     };
 
     let temp_dir = tempfile::tempdir()
-        .map_err(|e| EnvoyError::IoError(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
+        .map_err(|e| EnvoyError::IoError(std::io::Error::other(e)))?;
     let key_path = temp_dir.path().join("key");
 
     let output = tokio::process::Command::new("ssh-keygen")

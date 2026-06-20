@@ -1,7 +1,6 @@
 //! Element interactions
 
 use crate::{DuskError, DuskResult};
-use serde::{Deserialize, Serialize};
 
 /// Represents a DOM element
 #[derive(Debug, Clone)]

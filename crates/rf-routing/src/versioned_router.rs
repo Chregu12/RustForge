@@ -4,11 +4,9 @@
 
 use crate::versioning::{ApiVersion, VersionConfig, VersionError};
 use axum::{
-    body::Body,
     extract::Request,
     http::StatusCode,
     response::{IntoResponse, Response},
-    routing::MethodRouter,
     Router,
 };
 use std::collections::HashMap;
@@ -54,7 +52,7 @@ impl VersionedRouterBuilder {
     where
         F: FnOnce(Router) -> Router,
     {
-        let router = self.versions.remove(&version).unwrap_or_else(Router::new);
+        let router = self.versions.remove(&version).unwrap_or_default();
         let configured = configure(router);
         self.versions.insert(version, configured);
         self
@@ -114,7 +112,7 @@ struct VersionedRouterState {
     config: VersionConfig,
 }
 
-async fn versioned_handler(version: Result<ApiVersion, VersionError>, req: Request) -> Response {
+async fn versioned_handler(version: Result<ApiVersion, VersionError>, _req: Request) -> Response {
     match version {
         Ok(v) => {
             // Route to appropriate version handler

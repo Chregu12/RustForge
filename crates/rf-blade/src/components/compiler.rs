@@ -4,7 +4,7 @@
 
 use super::parser::{ComponentParser, ParseError};
 use super::registry::ComponentRegistry;
-use super::{AttributeBag, ComponentProps, SlotBag};
+use super::{AttributeBag, ComponentProps};
 use std::sync::Arc;
 use thiserror::Error;
 

@@ -83,9 +83,9 @@ impl Config {
         let config = GLOBAL_CONFIG
             .read()
             .expect("GLOBAL_CONFIG lock poisoned");
-        config.get(key).and_then(|v| match v {
-            Value::String(s) => Some(s.clone()),
-            other => Some(other.to_string()),
+        config.get(key).map(|v| match v {
+            Value::String(s) => s.clone(),
+            other => other.to_string(),
         })
     }
 

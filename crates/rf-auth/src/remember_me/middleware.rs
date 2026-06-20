@@ -3,9 +3,9 @@
 use crate::remember_me::RememberMe;
 use axum::{
     extract::Request,
-    http::{header, StatusCode},
+    http::header,
     middleware::Next,
-    response::{IntoResponse, Response},
+    response::Response,
 };
 
 /// Middleware for Remember Me authentication
@@ -113,7 +113,7 @@ impl RememberMeMiddleware {
                         })
                     });
 
-                let mut response = if let Some(token) = cookie_value {
+                let response = if let Some(token) = cookie_value {
                     // Verify token and get user_id
                     if let Ok(user_id) = remember.verify_token(&token) {
                         // Load user
@@ -125,7 +125,7 @@ impl RememberMeMiddleware {
                             let mut response = next.run(req).await;
 
                             // Generate new token and set cookie
-                            if let Ok(new_token) = remember.rotate_token(&token) {
+                            if let Ok(_new_token) = remember.rotate_token(&token) {
                                 if let Ok(cookie) = remember.create_cookie(user_id) {
                                     response.headers_mut().insert(header::SET_COOKIE, cookie);
                                 }

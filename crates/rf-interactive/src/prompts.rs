@@ -10,6 +10,7 @@ use rustyline::{CompletionType, Config, Editor};
 
 /// Options for configuring prompts
 #[derive(Debug, Clone)]
+#[derive(Default)]
 pub struct PromptOptions {
     /// Whether the prompt allows empty input
     pub allow_empty: bool,
@@ -19,15 +20,6 @@ pub struct PromptOptions {
     pub validator: Option<fn(&str) -> bool>,
 }
 
-impl Default for PromptOptions {
-    fn default() -> Self {
-        Self {
-            allow_empty: false,
-            default: None,
-            validator: None,
-        }
-    }
-}
 
 /// Represents a selectable option in choice/multi-select prompts
 #[derive(Debug, Clone)]
@@ -291,8 +283,7 @@ pub fn autocomplete(
     };
 
     let mut rl = Editor::with_config(config).map_err(|e| {
-        PromptError::IoError(std::io::Error::new(
-            std::io::ErrorKind::Other,
+        PromptError::IoError(std::io::Error::other(
             e.to_string(),
         ))
     })?;
@@ -319,8 +310,7 @@ pub fn autocomplete(
             }
         }
         Err(ReadlineError::Interrupted) | Err(ReadlineError::Eof) => Err(PromptError::Cancelled),
-        Err(err) => Err(PromptError::IoError(std::io::Error::new(
-            std::io::ErrorKind::Other,
+        Err(err) => Err(PromptError::IoError(std::io::Error::other(
             err.to_string(),
         ))),
     }

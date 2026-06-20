@@ -239,7 +239,7 @@ async fn jobs_api_handler(
     let jobs = Vec::new(); // TODO: Implement job listing from Redis
     let total = jobs.len();
     let per_page = query.per_page.max(1);
-    let total_pages = (total + per_page - 1) / per_page;
+    let total_pages = total.div_ceil(per_page);
 
     Ok(Json(JobsResponse {
         jobs,

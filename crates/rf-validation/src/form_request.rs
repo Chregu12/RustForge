@@ -2,18 +2,16 @@
 //!
 //! Provides Laravel-like form requests with automatic validation and authorization.
 
-use crate::error::{FieldError, ValidationErrors};
-use crate::validator::{Rule, Validator};
+use crate::error::ValidationErrors;
+use crate::validator::Rule;
 use async_trait::async_trait;
 use axum::{
-    body::Body,
     extract::{FromRequest, Request},
     http::StatusCode,
     response::{IntoResponse, Response},
     Json,
 };
 use serde::de::DeserializeOwned;
-use serde_json::Value;
 use std::collections::HashMap;
 
 /// Result type for form request validation

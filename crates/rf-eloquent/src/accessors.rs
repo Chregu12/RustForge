@@ -313,7 +313,7 @@ impl AttributeBag {
 
 /// Common accessor implementations
 pub mod common_accessors {
-    use super::*;
+    
 
     /// Uppercase accessor
     pub fn uppercase(value: &str) -> String {

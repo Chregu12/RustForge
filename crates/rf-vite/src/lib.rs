@@ -147,7 +147,7 @@ impl ViteDevServer {
     pub async fn start(config: ViteConfig) -> ViteResult<Self> {
         // Check if Vite is available
         let vite_check = Command::new("npx")
-            .args(&["vite", "--version"])
+            .args(["vite", "--version"])
             .stdout(Stdio::null())
             .stderr(Stdio::null())
             .status()
@@ -161,7 +161,7 @@ impl ViteDevServer {
 
         // Start dev server
         let child = Command::new("npx")
-            .args(&[
+            .args([
                 "vite",
                 "--port",
                 &config.port.to_string(),
@@ -231,7 +231,7 @@ impl ViteBuild {
     async fn run(config: ViteConfig) -> ViteResult<ViteManifest> {
         // Check if Vite is available
         let vite_check = Command::new("npx")
-            .args(&["vite", "--version"])
+            .args(["vite", "--version"])
             .stdout(Stdio::null())
             .stderr(Stdio::null())
             .status()
@@ -245,7 +245,7 @@ impl ViteBuild {
 
         // Run build
         let output = Command::new("npx")
-            .args(&["vite", "build"])
+            .args(["vite", "build"])
             .current_dir(&config.root)
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())

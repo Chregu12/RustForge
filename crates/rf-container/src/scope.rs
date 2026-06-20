@@ -7,6 +7,7 @@
 /// - **Scoped**: One instance per request/scope (not yet implemented)
 /// - **Transient**: New instance on every resolution
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Default)]
 pub enum Scope {
     /// Single instance shared across entire application
     ///
@@ -27,6 +28,7 @@ pub enum Scope {
     ///     || Arc::new(Config { value: "shared".to_string() })
     /// );
     /// ```
+    #[default]
     Singleton,
 
     /// One instance per request scope
@@ -62,11 +64,6 @@ pub enum Scope {
     Transient,
 }
 
-impl Default for Scope {
-    fn default() -> Self {
-        Self::Singleton
-    }
-}
 
 #[cfg(test)]
 mod tests {

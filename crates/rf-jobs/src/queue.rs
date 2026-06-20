@@ -397,7 +397,7 @@ impl QueueManager {
     pub async fn retry_failed(&self, job_id: Uuid) -> Result<(), QueueError> {
         let failed_jobs = self.failed_jobs().await?;
 
-        for (_idx, failed) in failed_jobs.iter().enumerate() {
+        for failed in failed_jobs.iter() {
             if failed.payload.id == job_id {
                 // Remove from failed queue
                 let mut conn = self.pool.get().await.map_err(|e| {

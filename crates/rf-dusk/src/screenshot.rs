@@ -1,6 +1,6 @@
 //! Screenshot functionality
 
-use crate::{Browser, DuskError, DuskResult};
+use crate::DuskResult;
 use std::path::PathBuf;
 
 /// Screenshot configuration

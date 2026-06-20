@@ -54,13 +54,11 @@
 //! tasks = ["pull", "build", "restart"]
 //! ```
 
-use async_trait::async_trait;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 use thiserror::Error;
-use tokio::sync::RwLock;
 
 pub mod runner;
 pub mod server;

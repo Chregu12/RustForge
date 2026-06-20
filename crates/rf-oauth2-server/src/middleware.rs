@@ -2,11 +2,9 @@
 
 use crate::{scopes::ScopeChecker, token::AccessToken, OAuth2Error};
 use axum::{
-    body::Body,
     extract::Request,
-    http::StatusCode,
     middleware::Next,
-    response::{IntoResponse, Response},
+    response::Response,
 };
 use std::future::Future;
 use std::pin::Pin;
@@ -79,7 +77,7 @@ pub fn require_any_scope(
 }
 
 /// Extract and verify OAuth2 bearer token from Authorization header
-pub async fn extract_bearer_token(mut req: Request, next: Next) -> Result<Response, OAuth2Error> {
+pub async fn extract_bearer_token(req: Request, next: Next) -> Result<Response, OAuth2Error> {
     // Extract bearer token from Authorization header
     let auth_header = req
         .headers()
@@ -87,7 +85,7 @@ pub async fn extract_bearer_token(mut req: Request, next: Next) -> Result<Respon
         .and_then(|h| h.to_str().ok())
         .ok_or_else(|| OAuth2Error::Unauthorized("Missing Authorization header".to_string()))?;
 
-    let token = auth_header
+    let _token = auth_header
         .strip_prefix("Bearer ")
         .ok_or_else(|| OAuth2Error::Unauthorized("Invalid Authorization format".to_string()))?;
 

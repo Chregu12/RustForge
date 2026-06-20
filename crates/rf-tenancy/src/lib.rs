@@ -34,7 +34,6 @@
 
 use async_trait::async_trait;
 use axum::{
-    extract::{FromRef, FromRequestParts},
     http::{header, request::Parts, StatusCode},
     response::{IntoResponse, Response},
 };

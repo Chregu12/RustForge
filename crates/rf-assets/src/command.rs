@@ -67,7 +67,7 @@ impl FoundryCommand for AssetPublishCommand {
         }
 
         if ctx.options.dry_run {
-            return Ok(CommandResult::success(&format!(
+            return Ok(CommandResult::success(format!(
                 "Would publish assets from {} to {} (dry run)",
                 source_dir.display(),
                 target_dir.display()
@@ -82,14 +82,14 @@ impl FoundryCommand for AssetPublishCommand {
         };
 
         let publisher = AssetPublisher::new(config);
-        let result = publisher.publish().map_err(|e| CommandError::Other(e))?;
+        let result = publisher.publish().map_err(CommandError::Other)?;
 
         // Save manifest
         let manifest_path = target_dir.join("asset-manifest.json");
         result
             .manifest
             .save(&manifest_path)
-            .map_err(|e| CommandError::Other(e))?;
+            .map_err(CommandError::Other)?;
 
         let message = format!(
             "Published {} files ({} bytes) to {}\nManifest saved to {}",

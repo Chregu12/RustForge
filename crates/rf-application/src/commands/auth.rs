@@ -55,7 +55,7 @@ impl FoundryCommand for MakeUserCommand {
             .interact_text()
             .map_err(|e| CommandError::Message(e.to_string()))?;
 
-        let password = Password::with_theme(&ColorfulTheme::default())
+        let _password = Password::with_theme(&ColorfulTheme::default())
             .with_prompt("Password")
             .with_confirmation("Confirm password", "Passwords do not match")
             .validate_with(|input: &String| -> Result<(), &str> {

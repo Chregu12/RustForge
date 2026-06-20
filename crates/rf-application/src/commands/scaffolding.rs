@@ -1,4 +1,3 @@
-use crate::commands::TinkerCommand;
 use async_trait::async_trait;
 use chrono::Utc;
 use rf_domain::{CommandDescriptor, CommandKind};

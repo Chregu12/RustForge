@@ -66,7 +66,7 @@ impl TracingMiddleware {
         let path = request.uri().path().to_string();
 
         // Extract parent trace context from headers
-        let parent_ctx = Self::extract_trace_context(request.headers());
+        let _parent_ctx = Self::extract_trace_context(request.headers());
 
         // Note: Full span integration requires compatible OpenTelemetry versions
         // For now, we focus on metrics and basic tracing logging

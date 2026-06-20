@@ -252,7 +252,7 @@ mod in_memory {
         fn add_term(&mut self, term: &str, doc_id: &str) {
             self.index
                 .entry(term.to_string())
-                .or_insert_with(HashSet::new)
+                .or_default()
                 .insert(doc_id.to_string());
         }
 
@@ -289,7 +289,7 @@ mod in_memory {
             let doc_id = document.id.clone();
 
             // Tokenize and index all fields
-            for (_field_name, field_value) in &document.fields {
+            for field_value in document.fields.values() {
                 let tokens = self.tokenizer.tokenize(field_value);
                 for token in tokens {
                     self.index.add_term(&token, &doc_id);

@@ -33,12 +33,10 @@
 
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
-use quote::{quote, format_ident};
+use quote::quote;
 use syn::{
     parse::{Parse, ParseStream},
-    parse_macro_input,
-    Field, Fields, Ident, ItemFn, ItemStruct, Token, Type, Visibility,
-    punctuated::Punctuated,
+    parse_macro_input, Ident, ItemFn, ItemStruct, Token, Type, Visibility,
     braced,
 };
 

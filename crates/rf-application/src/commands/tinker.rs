@@ -353,7 +353,7 @@ impl TinkerSession {
         let obj = data.as_object().ok_or("Data must be a JSON object")?;
 
         // Validate column names to prevent SQL injection
-        let columns: Vec<String> = obj.keys().map(|k| k.clone()).collect();
+        let columns: Vec<String> = obj.keys().cloned().collect();
         for col in &columns {
             if col.is_empty() || !col.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
                 return Err(format!("Invalid column name '{}': only alphanumeric characters and underscores are allowed", col));

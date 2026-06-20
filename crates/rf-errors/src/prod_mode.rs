@@ -84,7 +84,7 @@ impl<'a> ProdErrorDisplay<'a> {
 
     /// Format as HTML error page response
     pub fn to_html_response(&self) -> String {
-        let (message, code) = self.get_safe_message_and_code();
+        let (message, _code) = self.get_safe_message_and_code();
         let status_code = self.error.status_code();
 
         let error_id = self

@@ -220,7 +220,7 @@ impl FailedJobHandler {
     }
 
     /// Retry failed jobs by tag
-    pub async fn retry_by_tag(&self, tag: &str) -> Result<u64> {
+    pub async fn retry_by_tag(&self, _tag: &str) -> Result<u64> {
         // For now, we don't have tags on FailedJob struct
         // This would need to be enhanced to support tags
         // For compatibility, return 0

@@ -3,9 +3,7 @@
 //! Generates user-friendly, actionable error messages with helpful context
 //! and troubleshooting steps.
 
-use crate::code::ErrorCode;
 use crate::error::*;
-use std::fmt;
 
 /// Friendly error message trait
 pub trait FriendlyError {

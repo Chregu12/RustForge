@@ -45,8 +45,7 @@
 
 use super::polymorphic::{PolymorphicError, PolymorphicResult};
 use sea_orm::{
-    sea_query::{Alias, Iden as SeaIden},
-    ConnectionTrait, DatabaseConnection, EntityTrait, FromQueryResult, Statement,
+    sea_query::Iden as SeaIden, DatabaseConnection, EntityTrait, FromQueryResult,
 };
 use std::marker::PhantomData;
 
@@ -158,7 +157,7 @@ where
     /// ```
     pub async fn get<E>(
         &self,
-        db: &DatabaseConnection,
+        _db: &DatabaseConnection,
         entity: E,
         related_pivot_key: &str,
     ) -> PolymorphicResult<Vec<T>>
@@ -174,7 +173,7 @@ where
         let morph_type_col = self.morph_type_column();
         let morph_id_col = self.morph_id_column();
 
-        let sql = format!(
+        let _sql = format!(
             r#"
             SELECT {}.* FROM {}
             INNER JOIN {} ON {}.id = {}.{}
@@ -200,9 +199,9 @@ where
     /// Count related models
     pub async fn count<E>(
         &self,
-        db: &DatabaseConnection,
-        entity: E,
-        related_pivot_key: &str,
+        _db: &DatabaseConnection,
+        _entity: E,
+        _related_pivot_key: &str,
     ) -> PolymorphicResult<u64>
     where
         E: EntityTrait,
