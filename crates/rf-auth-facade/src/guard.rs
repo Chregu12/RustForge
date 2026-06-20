@@ -94,6 +94,11 @@ mod tests {
 
     #[test]
     fn test_guard_check() {
+        // Serialize against other tests that mutate the global auth state.
+        let _guard = crate::manager::AUTH_TEST_GUARD
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+
         // Reset global auth state (may be dirty from other tests)
         GLOBAL_AUTH.write().unwrap().logout();
 

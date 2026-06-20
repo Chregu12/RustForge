@@ -44,6 +44,16 @@ pub struct Hash;
 impl Hash {
     /// Hash a password using the default algorithm (BCrypt).
     ///
+    /// Returns the hash directly (a `String`, not a `Result`) to match
+    /// Laravel's `Hash::make`. Hashing with the built-in default cost is
+    /// infallible in practice — see the `# Panics` note below.
+    ///
+    /// # Panics
+    ///
+    /// Panics only on an unrecoverable cryptographic/RNG failure (e.g. the OS
+    /// entropy source is unavailable). This cannot happen for valid input with
+    /// the default cost, so callers are not expected to handle it.
+    ///
     /// # Examples
     ///
     /// ```rust
@@ -75,6 +85,11 @@ impl Hash {
 
     /// Hash a password using BCrypt with a custom cost.
     ///
+    /// # Panics
+    ///
+    /// Panics if `cost` is outside bcrypt's valid range (4..=31) or on an
+    /// unrecoverable RNG failure. Pass a cost in range to guarantee success.
+    ///
     /// # Examples
     ///
     /// ```rust
@@ -87,6 +102,11 @@ impl Hash {
     }
 
     /// Hash a password using Argon2.
+    ///
+    /// # Panics
+    ///
+    /// Panics only on an unrecoverable RNG failure when generating the salt.
+    /// This does not occur for valid input on a healthy system.
     ///
     /// # Examples
     ///

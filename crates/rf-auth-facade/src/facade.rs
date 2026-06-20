@@ -329,6 +329,11 @@ mod tests {
     fn test_auth_login_logout() {
         use serde::{Deserialize, Serialize};
 
+        // Serialize against other tests that mutate the global auth state.
+        let _guard = crate::manager::AUTH_TEST_GUARD
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+
         #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
         struct TestUser {
             id: u64,

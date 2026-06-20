@@ -11,6 +11,15 @@ pub static GLOBAL_AUTH: Lazy<RwLock<AuthManager>> = Lazy::new(|| {
     RwLock::new(AuthManager::new())
 });
 
+/// Serializes every test (across modules) that mutates the process-global
+/// [`GLOBAL_AUTH`]. Without this, e.g. `guard::test_guard_check` resets the
+/// global state with `logout()` while `facade::test_auth_login_logout` is
+/// mid-assertion, intermittently failing `Auth::check()`. Lock this guard at
+/// the start of any test that logs in/out through the global manager.
+/// `into_inner` ignores poisoning so one failing test does not cascade.
+#[cfg(test)]
+pub(crate) static AUTH_TEST_GUARD: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 /// Authentication manager that holds the current authentication state
 #[derive(Debug)]
 pub struct AuthManager {
