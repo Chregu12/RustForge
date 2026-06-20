@@ -245,19 +245,29 @@ pub fn auto_await(_attr: TokenStream, item: TokenStream) -> TokenStream {
     })
 }
 
-/// Transform a function by adding .await to async calls
+/// Transform a function so framework calls resolve transparently (sync or async).
 fn transform_function(function: &mut ItemFn) {
     let mut transformer = AwaitTransformer::new();
     for stmt in &mut function.block.stmts {
         transformer.visit_stmt_mut(stmt);
     }
+    if transformer.wrapped {
+        let mut stmts = AwaitTransformer::adapter_prelude();
+        stmts.append(&mut function.block.stmts);
+        function.block.stmts = stmts;
+    }
 }
 
-/// Transform an impl method by adding .await to async calls
+/// Transform an impl method so framework calls resolve transparently.
 fn transform_impl_method(method: &mut syn::ImplItemFn) {
     let mut transformer = AwaitTransformer::new();
     for stmt in &mut method.block.stmts {
         transformer.visit_stmt_mut(stmt);
+    }
+    if transformer.wrapped {
+        let mut stmts = AwaitTransformer::adapter_prelude();
+        stmts.append(&mut method.block.stmts);
+        method.block.stmts = stmts;
     }
 }
 
