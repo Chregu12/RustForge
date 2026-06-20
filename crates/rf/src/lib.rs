@@ -41,6 +41,9 @@ pub use std::time::Duration;
 // Facades (from merged locations in main crates)
 pub use rf_routing::{RouteFacade as Route, global_router, GlobalRouter};
 pub use rf_auth::Auth;
+/// Low-level `DB` string facade. **Not wired to a live database**: its
+/// `DB::table()` terminal methods return a clear error rather than fabricating
+/// results. For real persistence use the typed, SeaORM-backed model API.
 pub use rf_orm::DB;
 pub use rf_cache::CacheFacade as Cache;
 pub use rf_events::EventFacade as Event;

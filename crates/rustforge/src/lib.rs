@@ -479,6 +479,11 @@ pub use rf_cache_facade::Cache;
 
 /// Database facade
 ///
+/// **⚠️ In-memory stub:** `DB` is backed by an in-memory store, not a real
+/// database connection (it does not interpret SQL or `WHERE` clauses). It is
+/// intended for prototyping and tests. For real persistence, configure a
+/// database connection and use the typed, SeaORM-backed model API.
+///
 /// ```rust,no_run
 /// use rustforge::DB;
 ///
@@ -490,6 +495,11 @@ pub use rf_cache_facade::Cache;
 pub use rf_db_facade::DB;
 
 /// Model trait for Eloquent-style queries
+///
+/// **⚠️ In-memory stub:** this `Model` trait's query methods are backed by the
+/// in-memory [`DB`] store, not a real database (no SQL/`WHERE` interpretation).
+/// Use it for prototyping and tests; for real persistence use the typed,
+/// SeaORM-backed model API.
 ///
 /// ```rust,no_run
 /// use rustforge::Model;

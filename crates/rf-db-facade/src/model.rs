@@ -51,6 +51,13 @@ use serde_json::Value;
 ///     let user = User::find(1).await.unwrap();
 /// }
 /// ```
+///
+/// # ⚠️ In-memory stub
+///
+/// These query methods are backed by an **in-memory store** (see
+/// [`QueryBuilder`]), not a real database connection — they are for prototyping
+/// and tests, and do not interpret SQL or `WHERE` clauses. For real persistence,
+/// configure a database connection and use the typed, SeaORM-backed model API.
 pub trait Model: Sized {
     /// The database table name for this model
     const TABLE: &'static str;

@@ -38,6 +38,14 @@ use serde_json::Value;
 /// # Ok(())
 /// # }
 /// ```
+///
+/// # ⚠️ In-memory stub
+///
+/// This facade is backed by an **in-memory store**, not a real database
+/// connection. The `select` family is self-consistent (an `insert` is visible
+/// to a later `select`) but does not interpret SQL or `WHERE` clauses. It is
+/// intended for prototyping and tests. For real persistence, configure a
+/// database connection and use the typed, SeaORM-backed model API.
 pub struct DB;
 
 impl DB {

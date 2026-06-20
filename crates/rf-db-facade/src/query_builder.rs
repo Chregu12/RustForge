@@ -37,6 +37,14 @@ use serde_json::Value;
 ///         .delete().await.unwrap();
 /// }
 /// ```
+///
+/// # ⚠️ In-memory stub
+///
+/// This builder is backed by an **in-memory store**, not a real database
+/// connection. Terminal methods (`get`, `count`, `insert`, `update`, `delete`,
+/// ...) operate on that store and do not interpret SQL or `WHERE` clauses. It
+/// is meant for prototyping and tests. For real persistence, configure a real
+/// database connection and use the typed, SeaORM-backed model API.
 #[derive(Debug, Clone)]
 pub struct QueryBuilder {
     table: String,
