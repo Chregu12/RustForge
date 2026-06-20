@@ -397,56 +397,55 @@ mod tests {
         assert_eq!(<Post as Model>::TABLE, "posts");
     }
 
+    // This `Model` facade builds on the string `DB::table()` query builder,
+    // which has no live database backend: terminal methods return a clear error
+    // rather than fabricating rows. The builder construction (column/order/limit
+    // accumulation) is still exercised; only the terminal call reports the stub.
+
     #[tokio::test]
-    async fn test_model_where() {
+    async fn test_model_where_builds_then_reports_no_backend() {
         let query = User::r#where("active", true);
         let results: Result<Vec<Value>, String> = query.get().await;
-        assert!(results.is_ok());
+        assert!(results.is_err());
     }
 
     #[tokio::test]
-    async fn test_model_query() {
+    async fn test_model_query_builds_then_reports_no_backend() {
         let query = User::query()
             .r#where("active", true)
             .order_by("name", "asc")
             .limit(10);
 
-        let results = query.get().await;
-        assert!(results.is_ok());
+        assert!(query.get().await.is_err());
     }
 
     #[tokio::test]
-    async fn test_model_all() {
-        let results = User::all().await;
-        assert!(results.is_ok());
+    async fn test_model_all_reports_no_backend() {
+        assert!(User::all().await.is_err());
     }
 
     #[tokio::test]
-    async fn test_model_find() {
-        let result = User::find(1).await;
-        assert!(result.is_ok());
+    async fn test_model_find_reports_no_backend() {
+        assert!(User::find(1).await.is_err());
     }
 
     #[tokio::test]
-    async fn test_model_create() {
+    async fn test_model_create_reports_no_backend() {
         let result = User::create(serde_json::json!({
             "name": "Test User",
             "email": "test@example.com"
-        })).await;
-
-        assert!(result.is_ok());
-        let user = result.unwrap();
-        assert!(user.get("id").is_some());
+        }))
+        .await;
+        assert!(result.is_err());
     }
 
     #[tokio::test]
-    async fn test_model_destroy() {
-        let result = User::destroy(1).await;
-        assert!(result.is_ok());
+    async fn test_model_destroy_reports_no_backend() {
+        assert!(User::destroy(1).await.is_err());
     }
 
     #[tokio::test]
-    async fn test_model_chained_query() {
+    async fn test_model_chained_query_reports_no_backend() {
         let results = User::r#where("role", "admin")
             .r#where("active", true)
             .where_not_null("email")
@@ -455,12 +454,11 @@ mod tests {
             .get()
             .await;
 
-        assert!(results.is_ok());
+        assert!(results.is_err());
     }
 
     #[tokio::test]
-    async fn test_model_count() {
-        let count = User::count().await;
-        assert!(count.is_ok());
+    async fn test_model_count_reports_no_backend() {
+        assert!(User::count().await.is_err());
     }
 }

@@ -10,10 +10,17 @@ pub static GLOBAL_DB: Lazy<RwLock<DBManager>> = Lazy::new(|| {
     RwLock::new(DBManager::new())
 });
 
-/// Database manager that holds connection state
+/// In-memory database manager used to back the [`crate::DB`] facade.
+///
+/// # ⚠️ Not a real database
+///
+/// This stores records in a `Vec<Value>` and does **not** connect to a real
+/// database or interpret SQL. It exists so the `DB` facade is usable in tests
+/// and prototypes; `select` returns everything previously `insert`ed regardless
+/// of the query string. For real persistence use the typed model query API.
 #[derive(Debug)]
 pub struct DBManager {
-    /// Mock database records
+    /// In-memory record store (NOT a real database).
     records: Vec<Value>,
     /// Connection name
     connection: String,

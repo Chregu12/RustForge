@@ -5,7 +5,31 @@
 use serde::Serialize;
 use serde_json::Value;
 
+/// The string `DB::table()` builder is a query *construction* helper that is not
+/// wired to a live database in this build. Rather than fabricate a successful
+/// result (an empty row set, a fake inserted id, ...), its terminal methods
+/// return this clear error. Use the typed model query API for real persistence.
+fn stub_error<T>() -> Result<T, String> {
+    Err(
+        "DB::table() string query builder has no live database backend wired. \
+         Use the typed model query API (e.g. `Entity::find()` / the typed \
+         `QueryBuilder<E>`) for real database access."
+            .to_string(),
+    )
+}
+
+
 /// Query builder for fluent database queries
+///
+/// # ⚠️ No live database backend
+///
+/// This string-based builder constructs queries but is **not wired to a live
+/// database** in this build. Terminal methods (`get`, `first`, `count`,
+/// `insert`, `update`, `delete`, `paginate`, ...) return a clear `Err` instead
+/// of fabricating a result. For real database access use the typed model query
+/// API (the SeaORM-backed `QueryBuilder<E>` / `Entity::find()`), which executes
+/// against a real connection. `to_sql()` and the fluent builder methods remain
+/// useful for inspecting the SQL this builder would produce.
 ///
 /// # Examples
 ///
@@ -549,8 +573,7 @@ impl QueryBuilder {
     /// }
     /// ```
     pub async fn get(self) -> Result<Vec<Value>, String> {
-        // Mock implementation - in production this executes against DB
-        Ok(vec![])
+        stub_error()
     }
 
     /// Get the first result
@@ -1241,8 +1264,7 @@ impl QueryBuilder {
         for record in records {
             let _value = serde_json::to_value(record).map_err(|e| e.to_string())?;
         }
-        // Mock implementation - real impl would use INSERT ... ON CONFLICT
-        Ok(0)
+        stub_error()
     }
 
     /// Laravel-style touch - update timestamps
@@ -1309,9 +1331,9 @@ impl QueryBuilder {
     /// }
     /// ```
     pub async fn insert<D: Serialize>(self, data: D) -> Result<u64, String> {
+        // Validate the payload is serializable, then report the honest stub state.
         let _value = serde_json::to_value(data).map_err(|e| e.to_string())?;
-        // Mock implementation - returns fake ID
-        Ok(1)
+        stub_error()
     }
 
     /// Create a record and return it - Laravel-style!
@@ -1384,11 +1406,10 @@ impl QueryBuilder {
     /// }
     /// ```
     pub async fn insert_many<D: Serialize>(self, data: Vec<D>) -> Result<u64, String> {
-        let len = data.len();
         for item in data {
             let _value = serde_json::to_value(item).map_err(|e| e.to_string())?;
         }
-        Ok(len as u64)
+        stub_error()
     }
 
     /// Update records matching the where clauses
@@ -1417,8 +1438,7 @@ impl QueryBuilder {
     /// ```
     pub async fn update<D: Serialize>(self, data: D) -> Result<u64, String> {
         let _value = serde_json::to_value(data).map_err(|e| e.to_string())?;
-        // Mock implementation
-        Ok(1)
+        stub_error()
     }
 
     /// Delete records matching the where clauses
@@ -1435,13 +1455,12 @@ impl QueryBuilder {
     /// }
     /// ```
     pub async fn delete(self) -> Result<u64, String> {
-        // Mock implementation
-        Ok(1)
+        stub_error()
     }
 
     /// Count the results
     pub async fn count(self) -> Result<usize, String> {
-        Ok(0)
+        stub_error()
     }
 
     /// Check if any records exist
@@ -1603,24 +1622,26 @@ mod tests {
         assert_eq!(builder.limit_val(), Some(10));
     }
 
+    // The string `DB::table()` builder has no live database backend: its
+    // terminal methods now return a clear error instead of fabricating results.
+
     #[tokio::test]
-    async fn test_query_builder_get() {
+    async fn test_query_builder_get_reports_no_backend() {
         let builder = QueryBuilder::new("users");
         let result = builder.get().await;
-        assert!(result.is_ok());
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("no live database backend"));
     }
 
     #[tokio::test]
-    async fn test_query_builder_count() {
+    async fn test_query_builder_count_reports_no_backend() {
         let builder = QueryBuilder::new("users");
-        let count = builder.count().await.unwrap();
-        assert_eq!(count, 0);
+        assert!(builder.count().await.is_err());
     }
 
     #[tokio::test]
-    async fn test_query_builder_exists() {
+    async fn test_query_builder_exists_reports_no_backend() {
         let builder = QueryBuilder::new("users");
-        let exists = builder.exists().await.unwrap();
-        assert!(!exists);
+        assert!(builder.exists().await.is_err());
     }
 }

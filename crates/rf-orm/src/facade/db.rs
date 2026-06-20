@@ -9,6 +9,17 @@ use serde_json::Value;
 ///
 /// This is the main entry point for database operations in your application.
 ///
+/// # ⚠️ In-memory test double
+///
+/// The raw string methods (`select`/`insert`/`update`/`delete`/`statement`) and
+/// the [`DB::table`] builder are backed by an **in-memory store**, not a real
+/// database connection — they are intended for prototyping and tests. The
+/// `select` family is self-consistent (an `insert` is observable by a later
+/// `select`) but does not interpret SQL or `WHERE` clauses, and the
+/// [`QueryBuilder`] terminal methods return an explicit error rather than
+/// fabricating rows. For real persistence use the typed model query API
+/// (`Entity::find()` / the SeaORM-backed `QueryBuilder<E>`).
+///
 /// # Examples
 ///
 /// ```rust,no_run
