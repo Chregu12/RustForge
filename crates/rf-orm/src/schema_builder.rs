@@ -14,11 +14,11 @@
 //! ## Quick Start
 //!
 //! ```rust,no_run
-//! use rf_orm::schema_builder::Schema;
+//! use rf_orm::schema_builder::{Schema, Blueprint};
 //!
-//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+//! # async fn example(schema: &Schema) -> Result<(), Box<dyn std::error::Error>> {
 //! // Create a new table
-//! Schema::create("posts", |table| {
+//! schema.create("posts", |table: &mut Blueprint| {
 //!     table.id();
 //!     table.string("title");
 //!     table.text("body");
@@ -33,13 +33,13 @@
 //! }).await?;
 //!
 //! // Modify existing table
-//! Schema::table("posts", |table| {
+//! schema.table("posts", |table: &mut Blueprint| {
 //!     table.string("subtitle").nullable();
 //!     table.index(&["user_id", "published"]);
 //! }).await?;
 //!
 //! // Drop table
-//! Schema::drop_if_exists("posts").await?;
+//! schema.drop_if_exists("posts").await?;
 //! # Ok(())
 //! # }
 //! ```
@@ -80,9 +80,9 @@
 //! All column modifiers are chainable:
 //!
 //! ```rust,no_run
-//! # use rf_orm::schema_builder::Schema;
-//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-//! Schema::create("users", |table| {
+//! # use rf_orm::schema_builder::{Schema, Blueprint};
+//! # async fn example(schema: &Schema) -> Result<(), Box<dyn std::error::Error>> {
+//! schema.create("users", |table: &mut Blueprint| {
 //!     table.string("email")
 //!         .unique()
 //!         .comment("User's email address");
@@ -104,9 +104,9 @@
 //!
 //! ### Simple Foreign Key
 //! ```rust,no_run
-//! # use rf_orm::schema_builder::Schema;
-//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-//! Schema::create("posts", |table| {
+//! # use rf_orm::schema_builder::{Schema, Blueprint};
+//! # async fn example(schema: &Schema) -> Result<(), Box<dyn std::error::Error>> {
+//! schema.create("posts", |table: &mut Blueprint| {
 //!     // Auto-detects "users" table from "user_id"
 //!     table.foreign_id("user_id").constrained();
 //! }).await?;
@@ -116,9 +116,9 @@
 //!
 //! ### Custom Foreign Key
 //! ```rust,no_run
-//! # use rf_orm::schema_builder::Schema;
-//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-//! Schema::create("posts", |table| {
+//! # use rf_orm::schema_builder::{Schema, Blueprint};
+//! # async fn example(schema: &Schema) -> Result<(), Box<dyn std::error::Error>> {
+//! schema.create("posts", |table: &mut Blueprint| {
 //!     table.foreign("author_id")
 //!         .references("id")
 //!         .on("users")
@@ -133,9 +133,9 @@
 //!
 //! ### Single Column Index
 //! ```rust,no_run
-//! # use rf_orm::schema_builder::Schema;
-//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-//! Schema::create("posts", |table| {
+//! # use rf_orm::schema_builder::{Schema, Blueprint};
+//! # async fn example(schema: &Schema) -> Result<(), Box<dyn std::error::Error>> {
+//! schema.create("posts", |table: &mut Blueprint| {
 //!     table.string("slug");
 //!     table.index("slug");
 //!     table.unique("slug");
@@ -146,9 +146,9 @@
 //!
 //! ### Composite Index
 //! ```rust,no_run
-//! # use rf_orm::schema_builder::Schema;
-//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-//! Schema::create("posts", |table| {
+//! # use rf_orm::schema_builder::{Schema, Blueprint};
+//! # async fn example(schema: &Schema) -> Result<(), Box<dyn std::error::Error>> {
+//! schema.create("posts", |table: &mut Blueprint| {
 //!     table.index(&["user_id", "published"]);
 //!     table.unique(&["user_id", "slug"]);
 //! }).await?;
@@ -198,21 +198,17 @@ static DB_CONNECTION: RwLock<Option<Arc<DatabaseConnection>>> = RwLock::const_ne
 /// # Example
 ///
 /// ```rust,no_run
-/// use rf_orm::schema_builder::Schema;
+/// use rf_orm::schema_builder::{Schema, Blueprint};
+/// use std::sync::Arc;
+/// use sea_orm::DatabaseConnection;
 ///
-/// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+/// # async fn example(db_connection: Arc<DatabaseConnection>) -> Result<(), Box<dyn std::error::Error>> {
 /// // Option 1: Static API (requires set_connection)
-/// Schema::set_connection(db_connection).await;
-/// Schema::create("users", |table| {
-///     table.id();
-///     table.string("email").unique();
-///     table.string("name");
-///     table.timestamps();
-/// }).await?;
+/// Schema::set_connection(db_connection.clone()).await;
 ///
 /// // Option 2: Instance API
 /// let schema = Schema::new(db_connection);
-/// schema.create("users", |table| {
+/// schema.create("users", |table: &mut Blueprint| {
 ///     table.id();
 ///     table.string("email").unique();
 ///     table.string("name");
@@ -233,14 +229,13 @@ impl Schema {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use rf_orm::schema_builder::Schema;
-    /// use rf_orm::DatabaseManager;
+    /// use rf_orm::schema_builder::{Schema, Blueprint};
+    /// use rf_orm::DatabaseConnection;
     ///
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let db = DatabaseManager::connect(Default::default()).await?;
-    /// let schema = Schema::new(db.connection().clone());
+    /// # async fn example(conn: DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
+    /// let schema = Schema::new(conn);
     ///
-    /// schema.create("users", |table| {
+    /// schema.create("users", |table: &mut Blueprint| {
     ///     table.id();
     ///     table.string("email");
     /// }).await?;
@@ -261,11 +256,10 @@ impl Schema {
     ///
     /// ```rust,no_run
     /// use rf_orm::schema_builder::Schema;
-    /// use rf_orm::DatabaseManager;
+    /// use rf_orm::DatabaseConnection;
     ///
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let db = DatabaseManager::connect(Default::default()).await?;
-    /// Schema::set_connection(db.connection().clone()).await;
+    /// # async fn example(conn: DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
+    /// Schema::set_connection(conn).await;
     /// # Ok(())
     /// # }
     /// ```
@@ -300,10 +294,10 @@ impl Schema {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use rf_orm::schema_builder::Schema;
+    /// use rf_orm::schema_builder::{Schema, Blueprint};
     ///
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// Schema::create("posts", |table| {
+    /// # async fn example(schema: &Schema) -> Result<(), Box<dyn std::error::Error>> {
+    /// schema.create("posts", |table: &mut Blueprint| {
     ///     table.id();
     ///     table.string("title");
     ///     table.text("body");
@@ -343,10 +337,10 @@ impl Schema {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use rf_orm::schema_builder::Schema;
+    /// use rf_orm::schema_builder::{Schema, Blueprint};
     ///
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// Schema::table("posts", |table| {
+    /// # async fn example(schema: &Schema) -> Result<(), Box<dyn std::error::Error>> {
+    /// schema.table("posts", |table: &mut Blueprint| {
     ///     table.string("subtitle").nullable();
     ///     table.index("published_at");
     /// }).await?;
@@ -385,8 +379,8 @@ impl Schema {
     /// ```rust,no_run
     /// use rf_orm::schema_builder::Schema;
     ///
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// Schema::drop("old_posts").await?;
+    /// # async fn example(schema: &Schema) -> Result<(), Box<dyn std::error::Error>> {
+    /// schema.drop("old_posts").await?;
     /// # Ok(())
     /// # }
     /// ```
@@ -415,8 +409,8 @@ impl Schema {
     /// ```rust,no_run
     /// use rf_orm::schema_builder::Schema;
     ///
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// Schema::drop_if_exists("posts").await?;
+    /// # async fn example(schema: &Schema) -> Result<(), Box<dyn std::error::Error>> {
+    /// schema.drop_if_exists("posts").await?;
     /// # Ok(())
     /// # }
     /// ```
@@ -443,10 +437,10 @@ impl Schema {
 /// # Example
 ///
 /// ```rust,no_run
-/// use rf_orm::schema_builder::Schema;
+/// use rf_orm::schema_builder::{Schema, Blueprint};
 ///
-/// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-/// Schema::create("users", |table| {
+/// # async fn example(schema: &Schema) -> Result<(), Box<dyn std::error::Error>> {
+/// schema.create("users", |table: &mut Blueprint| {
 ///     // Primary key
 ///     table.id();
 ///
@@ -488,9 +482,9 @@ impl Blueprint {
     /// # Example
     ///
     /// ```rust,no_run
-    /// # use rf_orm::schema_builder::Schema;
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// Schema::create("users", |table| {
+    /// # use rf_orm::schema_builder::{Schema, Blueprint};
+    /// # async fn example(schema: &Schema) -> Result<(), Box<dyn std::error::Error>> {
+    /// schema.create("users", |table: &mut Blueprint| {
     ///     table.id();
     /// }).await?;
     /// # Ok(())
@@ -518,9 +512,9 @@ impl Blueprint {
     /// # Example
     ///
     /// ```rust,no_run
-    /// # use rf_orm::schema_builder::Schema;
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// Schema::create("users", |table| {
+    /// # use rf_orm::schema_builder::{Schema, Blueprint};
+    /// # async fn example(schema: &Schema) -> Result<(), Box<dyn std::error::Error>> {
+    /// schema.create("users", |table: &mut Blueprint| {
     ///     table.string("email").unique();
     ///     table.string("name");
     /// }).await?;
@@ -536,9 +530,9 @@ impl Blueprint {
     /// # Example
     ///
     /// ```rust,no_run
-    /// # use rf_orm::schema_builder::Schema;
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// Schema::create("products", |table| {
+    /// # use rf_orm::schema_builder::{Schema, Blueprint};
+    /// # async fn example(schema: &Schema) -> Result<(), Box<dyn std::error::Error>> {
+    /// schema.create("products", |table: &mut Blueprint| {
     ///     table.string_with_length("sku", 50);
     ///     table.string_with_length("description", 1000);
     /// }).await?;
@@ -554,9 +548,9 @@ impl Blueprint {
     /// # Example
     ///
     /// ```rust,no_run
-    /// # use rf_orm::schema_builder::Schema;
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// Schema::create("posts", |table| {
+    /// # use rf_orm::schema_builder::{Schema, Blueprint};
+    /// # async fn example(schema: &Schema) -> Result<(), Box<dyn std::error::Error>> {
+    /// schema.create("posts", |table: &mut Blueprint| {
     ///     table.text("body");
     ///     table.text("summary").nullable();
     /// }).await?;
@@ -572,9 +566,9 @@ impl Blueprint {
     /// # Example
     ///
     /// ```rust,no_run
-    /// # use rf_orm::schema_builder::Schema;
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// Schema::create("products", |table| {
+    /// # use rf_orm::schema_builder::{Schema, Blueprint};
+    /// # async fn example(schema: &Schema) -> Result<(), Box<dyn std::error::Error>> {
+    /// schema.create("products", |table: &mut Blueprint| {
     ///     table.integer("stock").default("0").unsigned();
     ///     table.integer("price");
     /// }).await?;
@@ -590,9 +584,9 @@ impl Blueprint {
     /// # Example
     ///
     /// ```rust,no_run
-    /// # use rf_orm::schema_builder::Schema;
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// Schema::create("analytics", |table| {
+    /// # use rf_orm::schema_builder::{Schema, Blueprint};
+    /// # async fn example(schema: &Schema) -> Result<(), Box<dyn std::error::Error>> {
+    /// schema.create("analytics", |table: &mut Blueprint| {
     ///     table.big_integer("views").default("0");
     ///     table.big_integer("revenue");
     /// }).await?;
@@ -608,9 +602,9 @@ impl Blueprint {
     /// # Example
     ///
     /// ```rust,no_run
-    /// # use rf_orm::schema_builder::Schema;
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// Schema::create("settings", |table| {
+    /// # use rf_orm::schema_builder::{Schema, Blueprint};
+    /// # async fn example(schema: &Schema) -> Result<(), Box<dyn std::error::Error>> {
+    /// schema.create("settings", |table: &mut Blueprint| {
     ///     table.tiny_integer("status").default("0");
     ///     table.tiny_integer("priority");
     /// }).await?;
@@ -626,9 +620,9 @@ impl Blueprint {
     /// # Example
     ///
     /// ```rust,no_run
-    /// # use rf_orm::schema_builder::Schema;
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// Schema::create("measurements", |table| {
+    /// # use rf_orm::schema_builder::{Schema, Blueprint};
+    /// # async fn example(schema: &Schema) -> Result<(), Box<dyn std::error::Error>> {
+    /// schema.create("measurements", |table: &mut Blueprint| {
     ///     table.float("temperature");
     ///     table.float("humidity");
     /// }).await?;
@@ -644,9 +638,9 @@ impl Blueprint {
     /// # Example
     ///
     /// ```rust,no_run
-    /// # use rf_orm::schema_builder::Schema;
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// Schema::create("coordinates", |table| {
+    /// # use rf_orm::schema_builder::{Schema, Blueprint};
+    /// # async fn example(schema: &Schema) -> Result<(), Box<dyn std::error::Error>> {
+    /// schema.create("coordinates", |table: &mut Blueprint| {
     ///     table.double("latitude");
     ///     table.double("longitude");
     /// }).await?;
@@ -668,9 +662,9 @@ impl Blueprint {
     /// # Example
     ///
     /// ```rust,no_run
-    /// # use rf_orm::schema_builder::Schema;
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// Schema::create("products", |table| {
+    /// # use rf_orm::schema_builder::{Schema, Blueprint};
+    /// # async fn example(schema: &Schema) -> Result<(), Box<dyn std::error::Error>> {
+    /// schema.create("products", |table: &mut Blueprint| {
     ///     table.decimal("price", 10, 2); // e.g., 99999999.99
     ///     table.decimal("weight", 8, 3); // e.g., 99999.999
     /// }).await?;
@@ -686,9 +680,9 @@ impl Blueprint {
     /// # Example
     ///
     /// ```rust,no_run
-    /// # use rf_orm::schema_builder::Schema;
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// Schema::create("posts", |table| {
+    /// # use rf_orm::schema_builder::{Schema, Blueprint};
+    /// # async fn example(schema: &Schema) -> Result<(), Box<dyn std::error::Error>> {
+    /// schema.create("posts", |table: &mut Blueprint| {
     ///     table.boolean("published").default("false");
     ///     table.boolean("featured");
     /// }).await?;
@@ -704,9 +698,9 @@ impl Blueprint {
     /// # Example
     ///
     /// ```rust,no_run
-    /// # use rf_orm::schema_builder::Schema;
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// Schema::create("users", |table| {
+    /// # use rf_orm::schema_builder::{Schema, Blueprint};
+    /// # async fn example(schema: &Schema) -> Result<(), Box<dyn std::error::Error>> {
+    /// schema.create("users", |table: &mut Blueprint| {
     ///     table.json("metadata");
     ///     table.json("settings").nullable();
     /// }).await?;
@@ -722,9 +716,9 @@ impl Blueprint {
     /// # Example
     ///
     /// ```rust,no_run
-    /// # use rf_orm::schema_builder::Schema;
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// Schema::create("documents", |table| {
+    /// # use rf_orm::schema_builder::{Schema, Blueprint};
+    /// # async fn example(schema: &Schema) -> Result<(), Box<dyn std::error::Error>> {
+    /// schema.create("documents", |table: &mut Blueprint| {
     ///     table.jsonb("data");
     ///     table.jsonb("metadata").nullable();
     /// }).await?;
@@ -740,9 +734,9 @@ impl Blueprint {
     /// # Example
     ///
     /// ```rust,no_run
-    /// # use rf_orm::schema_builder::Schema;
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// Schema::create("events", |table| {
+    /// # use rf_orm::schema_builder::{Schema, Blueprint};
+    /// # async fn example(schema: &Schema) -> Result<(), Box<dyn std::error::Error>> {
+    /// schema.create("events", |table: &mut Blueprint| {
     ///     table.date("event_date");
     ///     table.date("deadline").nullable();
     /// }).await?;
@@ -758,9 +752,9 @@ impl Blueprint {
     /// # Example
     ///
     /// ```rust,no_run
-    /// # use rf_orm::schema_builder::Schema;
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// Schema::create("events", |table| {
+    /// # use rf_orm::schema_builder::{Schema, Blueprint};
+    /// # async fn example(schema: &Schema) -> Result<(), Box<dyn std::error::Error>> {
+    /// schema.create("events", |table: &mut Blueprint| {
     ///     table.datetime("starts_at");
     ///     table.datetime("ends_at").nullable();
     /// }).await?;
@@ -776,9 +770,9 @@ impl Blueprint {
     /// # Example
     ///
     /// ```rust,no_run
-    /// # use rf_orm::schema_builder::Schema;
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// Schema::create("logs", |table| {
+    /// # use rf_orm::schema_builder::{Schema, Blueprint};
+    /// # async fn example(schema: &Schema) -> Result<(), Box<dyn std::error::Error>> {
+    /// schema.create("logs", |table: &mut Blueprint| {
     ///     table.timestamp("logged_at");
     ///     table.timestamp("processed_at").nullable();
     /// }).await?;
@@ -794,9 +788,9 @@ impl Blueprint {
     /// # Example
     ///
     /// ```rust,no_run
-    /// # use rf_orm::schema_builder::Schema;
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// Schema::create("posts", |table| {
+    /// # use rf_orm::schema_builder::{Schema, Blueprint};
+    /// # async fn example(schema: &Schema) -> Result<(), Box<dyn std::error::Error>> {
+    /// schema.create("posts", |table: &mut Blueprint| {
     ///     table.id();
     ///     table.string("title");
     ///     table.timestamps();
@@ -814,9 +808,9 @@ impl Blueprint {
     /// # Example
     ///
     /// ```rust,no_run
-    /// # use rf_orm::schema_builder::Schema;
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// Schema::create("users", |table| {
+    /// # use rf_orm::schema_builder::{Schema, Blueprint};
+    /// # async fn example(schema: &Schema) -> Result<(), Box<dyn std::error::Error>> {
+    /// schema.create("users", |table: &mut Blueprint| {
     ///     table.id();
     ///     table.string("email");
     ///     table.timestamps();
@@ -837,9 +831,9 @@ impl Blueprint {
     /// # Example
     ///
     /// ```rust,no_run
-    /// # use rf_orm::schema_builder::Schema;
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// Schema::create("posts", |table| {
+    /// # use rf_orm::schema_builder::{Schema, Blueprint};
+    /// # async fn example(schema: &Schema) -> Result<(), Box<dyn std::error::Error>> {
+    /// schema.create("posts", |table: &mut Blueprint| {
     ///     table.id();
     ///     table.foreign_id("user_id").constrained();
     /// }).await?;
@@ -857,9 +851,9 @@ impl Blueprint {
     /// # Example
     ///
     /// ```rust,no_run
-    /// # use rf_orm::schema_builder::Schema;
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// Schema::create("posts", |table| {
+    /// # use rf_orm::schema_builder::{Schema, Blueprint};
+    /// # async fn example(schema: &Schema) -> Result<(), Box<dyn std::error::Error>> {
+    /// schema.create("posts", |table: &mut Blueprint| {
     ///     table.big_integer("author_id");
     ///     table.foreign("author_id")
     ///         .references("id")
@@ -886,9 +880,9 @@ impl Blueprint {
     /// # Example
     ///
     /// ```rust,no_run
-    /// # use rf_orm::schema_builder::Schema;
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// Schema::create("posts", |table| {
+    /// # use rf_orm::schema_builder::{Schema, Blueprint};
+    /// # async fn example(schema: &Schema) -> Result<(), Box<dyn std::error::Error>> {
+    /// schema.create("posts", |table: &mut Blueprint| {
     ///     table.string("slug");
     ///     table.boolean("published");
     ///
@@ -920,9 +914,9 @@ impl Blueprint {
     /// # Example
     ///
     /// ```rust,no_run
-    /// # use rf_orm::schema_builder::Schema;
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// Schema::create("users", |table| {
+    /// # use rf_orm::schema_builder::{Schema, Blueprint};
+    /// # async fn example(schema: &Schema) -> Result<(), Box<dyn std::error::Error>> {
+    /// schema.create("users", |table: &mut Blueprint| {
     ///     table.string("email");
     ///     table.string("username");
     ///
@@ -1050,9 +1044,9 @@ impl Column {
     /// # Example
     ///
     /// ```rust,no_run
-    /// # use rf_orm::schema_builder::Schema;
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// Schema::create("users", |table| {
+    /// # use rf_orm::schema_builder::{Schema, Blueprint};
+    /// # async fn example(schema: &Schema) -> Result<(), Box<dyn std::error::Error>> {
+    /// schema.create("users", |table: &mut Blueprint| {
     ///     table.string("phone").nullable();
     ///     table.string("bio").nullable();
     /// }).await?;
@@ -1069,9 +1063,9 @@ impl Column {
     /// # Example
     ///
     /// ```rust,no_run
-    /// # use rf_orm::schema_builder::Schema;
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// Schema::create("users", |table| {
+    /// # use rf_orm::schema_builder::{Schema, Blueprint};
+    /// # async fn example(schema: &Schema) -> Result<(), Box<dyn std::error::Error>> {
+    /// schema.create("users", |table: &mut Blueprint| {
     ///     table.boolean("active").default("true");
     ///     table.integer("role").default("1");
     ///     table.string("status").default("'pending'");
@@ -1089,9 +1083,9 @@ impl Column {
     /// # Example
     ///
     /// ```rust,no_run
-    /// # use rf_orm::schema_builder::Schema;
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// Schema::create("users", |table| {
+    /// # use rf_orm::schema_builder::{Schema, Blueprint};
+    /// # async fn example(schema: &Schema) -> Result<(), Box<dyn std::error::Error>> {
+    /// schema.create("users", |table: &mut Blueprint| {
     ///     table.string("email").unique();
     ///     table.string("username").unique();
     /// }).await?;
@@ -1108,9 +1102,9 @@ impl Column {
     /// # Example
     ///
     /// ```rust,no_run
-    /// # use rf_orm::schema_builder::Schema;
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// Schema::create("posts", |table| {
+    /// # use rf_orm::schema_builder::{Schema, Blueprint};
+    /// # async fn example(schema: &Schema) -> Result<(), Box<dyn std::error::Error>> {
+    /// schema.create("posts", |table: &mut Blueprint| {
     ///     table.string("slug").index();
     ///     table.timestamp("published_at").index();
     /// }).await?;
@@ -1127,9 +1121,9 @@ impl Column {
     /// # Example
     ///
     /// ```rust,no_run
-    /// # use rf_orm::schema_builder::Schema;
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// Schema::create("products", |table| {
+    /// # use rf_orm::schema_builder::{Schema, Blueprint};
+    /// # async fn example(schema: &Schema) -> Result<(), Box<dyn std::error::Error>> {
+    /// schema.create("products", |table: &mut Blueprint| {
     ///     table.integer("stock").unsigned();
     ///     table.integer("price").unsigned();
     /// }).await?;
@@ -1146,9 +1140,9 @@ impl Column {
     /// # Example
     ///
     /// ```rust,no_run
-    /// # use rf_orm::schema_builder::Schema;
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// Schema::create("users", |table| {
+    /// # use rf_orm::schema_builder::{Schema, Blueprint};
+    /// # async fn example(schema: &Schema) -> Result<(), Box<dyn std::error::Error>> {
+    /// schema.create("users", |table: &mut Blueprint| {
     ///     table.string("email").comment("User's primary email");
     ///     table.integer("age").comment("Age in years");
     /// }).await?;
@@ -1165,9 +1159,9 @@ impl Column {
     /// # Example
     ///
     /// ```rust,no_run
-    /// # use rf_orm::schema_builder::Schema;
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// Schema::create("posts", |table| {
+    /// # use rf_orm::schema_builder::{Schema, Blueprint};
+    /// # async fn example(schema: &Schema) -> Result<(), Box<dyn std::error::Error>> {
+    /// schema.create("posts", |table: &mut Blueprint| {
     ///     table.foreign_id("user_id")
     ///         .constrained()
     ///         .on_delete("cascade");
@@ -1189,9 +1183,9 @@ impl Column {
     /// # Example
     ///
     /// ```rust,no_run
-    /// # use rf_orm::schema_builder::Schema;
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// Schema::create("posts", |table| {
+    /// # use rf_orm::schema_builder::{Schema, Blueprint};
+    /// # async fn example(schema: &Schema) -> Result<(), Box<dyn std::error::Error>> {
+    /// schema.create("posts", |table: &mut Blueprint| {
     ///     table.foreign_id("user_id")
     ///         .constrained()
     ///         .on_delete("cascade");
@@ -1324,9 +1318,9 @@ impl ForeignKey {
     /// # Example
     ///
     /// ```rust,no_run
-    /// # use rf_orm::schema_builder::Schema;
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// Schema::create("posts", |table| {
+    /// # use rf_orm::schema_builder::{Schema, Blueprint};
+    /// # async fn example(schema: &Schema) -> Result<(), Box<dyn std::error::Error>> {
+    /// schema.create("posts", |table: &mut Blueprint| {
     ///     table.foreign("user_id")
     ///         .references("id")
     ///         .on("users");
@@ -1344,9 +1338,9 @@ impl ForeignKey {
     /// # Example
     ///
     /// ```rust,no_run
-    /// # use rf_orm::schema_builder::Schema;
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// Schema::create("posts", |table| {
+    /// # use rf_orm::schema_builder::{Schema, Blueprint};
+    /// # async fn example(schema: &Schema) -> Result<(), Box<dyn std::error::Error>> {
+    /// schema.create("posts", |table: &mut Blueprint| {
     ///     table.foreign("author_id")
     ///         .references("id")
     ///         .on("users");
@@ -1368,9 +1362,9 @@ impl ForeignKey {
     /// # Example
     ///
     /// ```rust,no_run
-    /// # use rf_orm::schema_builder::Schema;
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// Schema::create("posts", |table| {
+    /// # use rf_orm::schema_builder::{Schema, Blueprint};
+    /// # async fn example(schema: &Schema) -> Result<(), Box<dyn std::error::Error>> {
+    /// schema.create("posts", |table: &mut Blueprint| {
     ///     table.foreign("user_id")
     ///         .references("id")
     ///         .on("users")
@@ -1393,9 +1387,9 @@ impl ForeignKey {
     /// # Example
     ///
     /// ```rust,no_run
-    /// # use rf_orm::schema_builder::Schema;
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// Schema::create("posts", |table| {
+    /// # use rf_orm::schema_builder::{Schema, Blueprint};
+    /// # async fn example(schema: &Schema) -> Result<(), Box<dyn std::error::Error>> {
+    /// schema.create("posts", |table: &mut Blueprint| {
     ///     table.foreign("user_id")
     ///         .references("id")
     ///         .on("users")

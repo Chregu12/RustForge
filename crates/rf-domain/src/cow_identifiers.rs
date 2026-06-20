@@ -19,6 +19,7 @@
 /// let cmd_id = CommandId::borrowed("migrate:run");
 ///
 /// // Single allocation only when dynamic strings are needed
+/// let user_id = 42;
 /// let dynamic = format!("user::{}", user_id);
 /// let service_key = ServiceKey::owned(dynamic);
 ///

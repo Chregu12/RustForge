@@ -18,7 +18,7 @@
 //! // Check for N+1 patterns
 //! let patterns = tracker.detect_n_plus_one();
 //! for pattern in patterns {
-//!     println!("N+1 detected: {}", pattern);
+//!     println!("N+1 detected: {:?}", pattern);
 //! }
 //! ```
 

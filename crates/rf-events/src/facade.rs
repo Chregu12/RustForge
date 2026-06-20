@@ -103,6 +103,13 @@ mod tests {
     use std::sync::atomic::{AtomicUsize, Ordering};
     use std::sync::Arc;
 
+    /// Serializes every test in this module. They all share the process-global
+    /// event manager: the history test races a concurrent `clear_history()` /
+    /// `dispatch()`, and the listener tests race `forget_all()` (which wipes all
+    /// listeners regardless of event name). `into_inner` ignores poisoning so a
+    /// failing test does not cascade into the others.
+    static EVENT_GUARD: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
     #[derive(serde::Serialize)]
     struct TestEvent {
         message: String,
@@ -110,6 +117,7 @@ mod tests {
 
     #[test]
     fn test_event_dispatch() {
+        let _guard = EVENT_GUARD.lock().unwrap_or_else(|e| e.into_inner());
         EventFacade::clear_history();
 
         let event = TestEvent {
@@ -125,6 +133,7 @@ mod tests {
 
     #[test]
     fn test_event_listen() {
+        let _guard = EVENT_GUARD.lock().unwrap_or_else(|e| e.into_inner());
         let event_name = format!("test.listen.{}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos());
 
         let counter = Arc::new(AtomicUsize::new(0));
@@ -140,6 +149,7 @@ mod tests {
 
     #[test]
     fn test_event_forget() {
+        let _guard = EVENT_GUARD.lock().unwrap_or_else(|e| e.into_inner());
         EventFacade::forget_all();
 
         EventFacade::listen("test.forget", |_| {});

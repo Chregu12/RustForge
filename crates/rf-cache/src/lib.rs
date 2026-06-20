@@ -201,6 +201,29 @@ pub trait Cache: Send + Sync {
     async fn decrement(&self, key: &str, amount: i64) -> CacheResult<i64> {
         self.increment(key, -amount).await
     }
+
+    /// Extend an existing entry's expiration to `now + ttl` without re-reading or
+    /// rewriting its value. Returns `true` if the key existed and was touched.
+    ///
+    /// The default implementation is a no-op returning `Ok(false)`; backends that
+    /// support in-place expiry (memory, redis) override it.
+    ///
+    /// ```rust,no_run
+    /// use rf_cache::{Cache, MemoryCache};
+    /// use std::time::Duration;
+    ///
+    /// # async fn example() -> Result<(), rf_cache::CacheError> {
+    /// let cache = MemoryCache::new();
+    /// cache.set("key", &"value", Duration::from_secs(10)).await?;
+    /// let touched = cache.touch("key", Duration::from_secs(60)).await?;
+    /// assert!(touched);
+    /// # Ok(())
+    /// # }
+    /// ```
+    async fn touch(&self, key: &str, ttl: Duration) -> CacheResult<bool> {
+        let _ = (key, ttl);
+        Ok(false)
+    }
 }
 
 /// Cache entry with TTL
@@ -455,6 +478,21 @@ impl Cache for MemoryCache {
         self.set(key, &new_val, ttl).await?;
         Ok(new_val)
     }
+
+    /// Extend an existing, non-expired entry's expiration to `now + ttl`
+    /// without re-reading or rewriting its stored value.
+    async fn touch(&self, key: &str, ttl: Duration) -> CacheResult<bool> {
+        let mut entries = self.entries.write().await;
+        if let Some(entry) = entries.get_mut(key) {
+            if entry.is_expired() {
+                return Ok(false);
+            }
+            entry.expires_at = std::time::Instant::now() + ttl;
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
 }
 
 /// Tagged cache
@@ -524,6 +562,106 @@ pub mod prelude {
 mod tests {
     use super::*;
 
+    // --- Adversarial touch tests (Feature 1 validation) ---
+
+    #[tokio::test]
+    async fn test_touch_missing_key_returns_false() {
+        let cache = MemoryCache::new();
+        assert!(!cache.touch("nope", Duration::from_secs(60)).await.unwrap());
+    }
+
+    #[tokio::test]
+    async fn test_touch_existing_returns_true_and_value_unchanged() {
+        let cache = MemoryCache::new();
+        cache
+            .set("k", &"original", Duration::from_secs(60))
+            .await
+            .unwrap();
+        assert!(cache.touch("k", Duration::from_secs(120)).await.unwrap());
+        // Value must be unchanged and still retrievable.
+        let v: Option<String> = cache.get("k").await.unwrap();
+        assert_eq!(v, Some("original".to_string()));
+    }
+
+    #[tokio::test]
+    async fn test_touch_extends_lifetime_past_original_expiry() {
+        let cache = MemoryCache::new();
+        // Short TTL: would expire in 50ms.
+        cache
+            .set("k", &"v", Duration::from_millis(50))
+            .await
+            .unwrap();
+        // Extend well past the original expiry.
+        assert!(cache.touch("k", Duration::from_secs(10)).await.unwrap());
+        // Sleep past the ORIGINAL expiry; key must survive thanks to the extension.
+        tokio::time::sleep(Duration::from_millis(120)).await;
+        assert!(
+            cache.exists("k").await.unwrap(),
+            "touch should have extended lifetime past the original 50ms expiry"
+        );
+        let v: Option<String> = cache.get("k").await.unwrap();
+        assert_eq!(v, Some("v".to_string()));
+    }
+
+    #[tokio::test]
+    async fn test_touch_can_shorten_lifetime() {
+        // touch sets expiry to now+ttl absolutely (Laravel semantics), so a shorter
+        // ttl than the remaining lifetime moves expiry EARLIER.
+        let cache = MemoryCache::new();
+        cache.set("k", &"v", Duration::from_secs(60)).await.unwrap();
+        assert!(cache.touch("k", Duration::from_millis(30)).await.unwrap());
+        tokio::time::sleep(Duration::from_millis(80)).await;
+        assert!(
+            !cache.exists("k").await.unwrap(),
+            "touch with a short ttl should set an absolute (earlier) expiry"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_touch_expired_key_returns_false_and_does_not_resurrect() {
+        let cache = MemoryCache::new();
+        cache
+            .set("k", &"v", Duration::from_millis(20))
+            .await
+            .unwrap();
+        tokio::time::sleep(Duration::from_millis(50)).await;
+        // Entry is present in the map but expired -> touch must not resurrect it.
+        assert!(!cache.touch("k", Duration::from_secs(60)).await.unwrap());
+        assert!(!cache.exists("k").await.unwrap());
+        let v: Option<String> = cache.get("k").await.unwrap();
+        assert_eq!(v, None);
+    }
+
+    #[tokio::test]
+    async fn test_default_touch_impl_is_noop_false() {
+        // Backends that don't override touch must return Ok(false).
+        struct Dummy;
+        #[async_trait]
+        impl Cache for Dummy {
+            async fn get<T: DeserializeOwned + Send>(&self, _k: &str) -> CacheResult<Option<T>> {
+                Ok(None)
+            }
+            async fn set<T: Serialize + Sync>(
+                &self,
+                _k: &str,
+                _v: &T,
+                _ttl: Duration,
+            ) -> CacheResult<()> {
+                Ok(())
+            }
+            async fn delete(&self, _k: &str) -> CacheResult<()> {
+                Ok(())
+            }
+            async fn exists(&self, _k: &str) -> CacheResult<bool> {
+                Ok(false)
+            }
+            async fn flush(&self) -> CacheResult<()> {
+                Ok(())
+            }
+        }
+        assert!(!Dummy.touch("k", Duration::from_secs(1)).await.unwrap());
+    }
+
     #[tokio::test]
     async fn test_basic_operations() {
         let cache = MemoryCache::new();
@@ -573,6 +711,51 @@ mod tests {
         assert!(cache.exists("key").await.unwrap());
 
         cache.delete("key").await.unwrap();
+        assert!(!cache.exists("key").await.unwrap());
+    }
+
+    #[tokio::test]
+    async fn test_touch_extends_ttl() {
+        let cache = MemoryCache::new();
+
+        // Set a short TTL that would otherwise expire quickly.
+        cache
+            .set("key", &"value", Duration::from_millis(100))
+            .await
+            .unwrap();
+
+        // Touch to extend the expiration well beyond the original TTL.
+        let touched = cache.touch("key", Duration::from_secs(60)).await.unwrap();
+        assert!(touched);
+
+        // Wait past the original TTL; the entry must still be present.
+        tokio::time::sleep(Duration::from_millis(150)).await;
+
+        assert!(cache.exists("key").await.unwrap());
+        let value: Option<String> = cache.get("key").await.unwrap();
+        assert_eq!(value, Some("value".to_string()));
+    }
+
+    #[tokio::test]
+    async fn test_touch_missing_key() {
+        let cache = MemoryCache::new();
+        let touched = cache.touch("missing", Duration::from_secs(60)).await.unwrap();
+        assert!(!touched);
+    }
+
+    #[tokio::test]
+    async fn test_touch_expired_key() {
+        let cache = MemoryCache::new();
+        cache
+            .set("key", &"value", Duration::from_millis(50))
+            .await
+            .unwrap();
+
+        tokio::time::sleep(Duration::from_millis(80)).await;
+
+        // Already expired: touch must report false and not resurrect the entry.
+        let touched = cache.touch("key", Duration::from_secs(60)).await.unwrap();
+        assert!(!touched);
         assert!(!cache.exists("key").await.unwrap());
     }
 

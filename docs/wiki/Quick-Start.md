@@ -279,11 +279,20 @@ forge migrate
 
 Create `src/controllers/auth_controller.rs`:
 
+Handlers are written in the AWAIT-FREE style: put `#[auto_await]` **once** on the
+controller `mod` and the macro auto-inserts `.await` after framework calls
+(`find`, `first`, `create`, `save`, `login`, ...) and rewrites `where(...)` →
+`r#where(...)`. You write the bodies exactly like Laravel — no `.await`. The
+`Auth` facade is a genuinely-sync facade, so its calls are await-free either way.
+
 ```rust
-use rf::prelude::*;
-use rf_validation::Validate;
+use rf::prelude::*;            // User model, Auth, Hash, Response, ...
+use axum::extract::Json;
+use axum::http::StatusCode;
 use serde::{Deserialize, Serialize};
-use crate::models::user;
+use serde_json::json;
+use rf_validation::Validate;
+use crate::models::user::User;
 
 #[derive(Debug, Deserialize, Validate)]
 pub struct RegisterRequest {
@@ -305,106 +314,118 @@ pub struct LoginRequest {
     pub password: String,
 }
 
+#[auto_await]  // <- Once here: bodies below are await-free, Laravel-style.
+mod handlers {
+    use super::*;
+
+    pub async fn register(
+        Json(payload): Json<RegisterRequest>,
+    ) -> Result<ResponseBuilder, (StatusCode, String)> {
+        // Validate input
+        payload
+            .validate()
+            .map_err(|e| (StatusCode::UNPROCESSABLE_ENTITY, e.to_string()))?;
+
+        // Check if user exists (no `.await` — the macro inserts it on `exists`)
+        let taken = User::where("email", &payload.email).exists();
+        if taken {
+            return Err((StatusCode::BAD_REQUEST, "Email already registered".into()));
+        }
+
+        // Hash password (Hash::make is synchronous and returns a String)
+        let password_hash = Hash::make(&payload.password);
+
+        // Create user (no `.await` — the macro inserts it on `create`)
+        let user = User::create(json!({
+            "email": payload.email,
+            "name": payload.name,
+            "password": password_hash,
+        }));
+
+        // Login via the sync Auth facade
+        Auth::login(user.clone()).map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e))?;
+
+        Ok(Response::json(&AuthResponse {
+            message: "Registration successful".to_string(),
+            user,
+        }))
+    }
+
+    pub async fn login(
+        Json(payload): Json<LoginRequest>,
+    ) -> Result<ResponseBuilder, (StatusCode, String)> {
+        // Validate input
+        payload
+            .validate()
+            .map_err(|e| (StatusCode::UNPROCESSABLE_ENTITY, e.to_string()))?;
+
+        // Find user (no `.await` — the macro inserts it on `first_or_fail`)
+        let user = User::where("email", &payload.email)
+            .first_or_fail()
+            .map_err(|_| (StatusCode::UNAUTHORIZED, "Invalid credentials".to_string()))?;
+
+        // Verify password (Hash::check is synchronous and returns a bool)
+        if !Hash::check(&payload.password, &user.password) {
+            return Err((StatusCode::UNAUTHORIZED, "Invalid credentials".into()));
+        }
+
+        // Login via the sync Auth facade
+        Auth::login(user.clone()).map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e))?;
+
+        Ok(Response::json(&AuthResponse {
+            message: "Login successful".to_string(),
+            user,
+        }))
+    }
+
+    pub async fn logout() -> ResponseBuilder {
+        // Logout via the sync Auth facade (returns unit)
+        Auth::logout();
+
+        Response::json(&json!({ "message": "Logged out successfully" }))
+    }
+
+    pub async fn me() -> Result<ResponseBuilder, (StatusCode, String)> {
+        // Get the current user via the sync Auth facade
+        if let Some(user) = Auth::user::<User>() {
+            Ok(Response::json(&user))
+        } else {
+            Err((StatusCode::UNAUTHORIZED, "Not authenticated".into()))
+        }
+    }
+}
+
+pub use handlers::*;
+
 #[derive(Debug, Serialize)]
 pub struct AuthResponse {
     pub message: String,
-    pub user: user::Model,
-}
-
-pub async fn register(
-    Json(payload): Json<RegisterRequest>,
-    db: Database,
-) -> Result<Response, Error> {
-    // Validate input
-    payload.validate()?;
-
-    // Check if user exists
-    let existing = user::Entity::find()
-        .filter(user::Column::Email.eq(&payload.email))
-        .one(&db)
-        .await?;
-
-    if existing.is_some() {
-        return Err(Error::BadRequest("Email already registered".into()));
-    }
-
-    // Hash password
-    let password_hash = Hash::make(&payload.password)?;
-
-    // Create user
-    let user = user::ActiveModel {
-        email: Set(payload.email),
-        name: Set(payload.name),
-        password: Set(password_hash),
-        ..Default::default()
-    };
-
-    let user = user.insert(&db).await?;
-
-    // Login user using Laravel-style Auth facade
-    Auth::login(user.clone()).await?;
-
-    Ok(Response::json(AuthResponse {
-        message: "Registration successful".to_string(),
-        user
-    }))
-}
-
-pub async fn login(
-    Json(payload): Json<LoginRequest>,
-    db: Database,
-) -> Result<Response, Error> {
-    // Validate input
-    payload.validate()?;
-
-    // Find user
-    let user = user::Entity::find()
-        .filter(user::Column::Email.eq(&payload.email))
-        .one(&db)
-        .await?
-        .ok_or_else(|| Error::Unauthorized("Invalid credentials".into()))?;
-
-    // Verify password
-    if !Hash::check(&payload.password, &user.password)? {
-        return Err(Error::Unauthorized("Invalid credentials".into()));
-    }
-
-    // Login using Laravel-style Auth facade
-    Auth::login(user.clone()).await?;
-
-    Ok(Response::json(AuthResponse {
-        message: "Login successful".to_string(),
-        user
-    }))
-}
-
-pub async fn logout() -> Result<Response, Error> {
-    // Logout using Laravel-style Auth facade
-    Auth::logout().await;
-
-    Ok(Response::json(json!({ "message": "Logged out successfully" })))
-}
-
-pub async fn me() -> Result<Response, Error> {
-    // Get current user using Auth facade
-    if let Some(user) = Auth::user::<user::Model>().await {
-        Ok(Response::json(user))
-    } else {
-        Err(Error::Unauthorized("Not authenticated".into()))
-    }
+    pub user: User,
 }
 ```
+
+`Response::json` takes a reference and returns a `ResponseBuilder`, which
+implements `axum::response::IntoResponse`. Import it from the prelude with
+`use rf::web::ResponseBuilder;` (or `use rf_response::ResponseBuilder;`).
 
 ### Post Controller
 
 Create `src/controllers/post_controller.rs`:
 
+There is no `AuthGuard` extractor. Read the authenticated user id inside the
+handler via the sync `Auth` facade. `Auth::id()` returns `Option<u64>`; the
+example casts it to `i32` to match the `user_id` column. As before, `#[auto_await]`
+goes **once** on the `mod`, so model calls (`where`, `find_or_fail`, `create`,
+`save`, `delete`, ...) are written without `.await`.
+
 ```rust
-use rf_http::{Request, Response, Json};
-use rf_auth::AuthGuard;
+use rf::prelude::*;            // Post model, Auth, Response, ...
+use axum::extract::{Json, Path};
+use axum::http::StatusCode;
+use serde::Deserialize;
+use serde_json::json;
 use rf_validation::Validate;
-use serde::{Deserialize, Serialize};
-use crate::models::post;
+use crate::models::post::Post;
 
 #[derive(Debug, Deserialize, Validate)]
 pub struct CreatePostRequest {
@@ -417,147 +438,157 @@ pub struct CreatePostRequest {
     pub published: Option<bool>,
 }
 
-pub async fn index(db: Database) -> Result<Response, Error> {
-    let posts = post::Entity::find()
-        .filter(post::Column::Published.eq(true))
-        .all(&db)
-        .await?;
-
-    Ok(Response::json(posts))
+/// Resolve the authenticated user id (the `auth` middleware must run first).
+fn current_user_id() -> Result<i32, (StatusCode, String)> {
+    Auth::id()
+        .map(|id| id as i32)
+        .ok_or((StatusCode::UNAUTHORIZED, "Not authenticated".to_string()))
 }
 
-pub async fn show(
-    Path(id): Path<i32>,
-    db: Database,
-) -> Result<Response, Error> {
-    let post = post::Entity::find_by_id(id)
-        .one(&db)
-        .await?
-        .ok_or_else(|| Error::NotFound("Post not found".into()))?;
+#[auto_await]  // <- Once here: bodies below are await-free, Laravel-style.
+mod handlers {
+    use super::*;
 
-    Ok(Response::json(post))
-}
-
-pub async fn store(
-    auth: AuthGuard,
-    Json(payload): Json<CreatePostRequest>,
-    db: Database,
-) -> Result<Response, Error> {
-    // Validate input
-    payload.validate()?;
-
-    // Create post
-    let post = post::ActiveModel {
-        user_id: Set(auth.user_id()),
-        title: Set(payload.title),
-        content: Set(payload.content),
-        published: Set(payload.published.unwrap_or(false)),
-        ..Default::default()
-    };
-
-    let post = post.insert(&db).await?;
-
-    Ok(Response::json(post).status(201))
-}
-
-pub async fn update(
-    auth: AuthGuard,
-    Path(id): Path<i32>,
-    Json(payload): Json<CreatePostRequest>,
-    db: Database,
-) -> Result<Response, Error> {
-    // Find post
-    let post = post::Entity::find_by_id(id)
-        .one(&db)
-        .await?
-        .ok_or_else(|| Error::NotFound("Post not found".into()))?;
-
-    // Check ownership
-    if post.user_id != auth.user_id() {
-        return Err(Error::Forbidden("Not your post".into()));
+    pub async fn index() -> Result<ResponseBuilder, (StatusCode, String)> {
+        // No `.await` — the macro inserts it on `get`
+        let posts = Post::where("published", true).get();
+        Ok(Response::json(&posts))
     }
 
-    // Update post
-    let mut post: post::ActiveModel = post.into();
-    post.title = Set(payload.title);
-    post.content = Set(payload.content);
-    post.published = Set(payload.published.unwrap_or(post.published.unwrap()));
+    pub async fn show(
+        Path(id): Path<i32>,
+    ) -> Result<ResponseBuilder, (StatusCode, String)> {
+        // No `.await` — the macro inserts it on `find_or_fail`
+        let post = Post::find_or_fail(id)
+            .map_err(|_| (StatusCode::NOT_FOUND, "Post not found".to_string()))?;
 
-    let post = post.update(&db).await?;
-
-    Ok(Response::json(post))
-}
-
-pub async fn destroy(
-    auth: AuthGuard,
-    Path(id): Path<i32>,
-    db: Database,
-) -> Result<Response, Error> {
-    // Find post
-    let post = post::Entity::find_by_id(id)
-        .one(&db)
-        .await?
-        .ok_or_else(|| Error::NotFound("Post not found".into()))?;
-
-    // Check ownership
-    if post.user_id != auth.user_id() {
-        return Err(Error::Forbidden("Not your post".into()));
+        Ok(Response::json(&post))
     }
 
-    // Delete post
-    post.delete(&db).await?;
+    pub async fn store(
+        Json(payload): Json<CreatePostRequest>,
+    ) -> Result<ResponseBuilder, (StatusCode, String)> {
+        // Validate input
+        payload
+            .validate()
+            .map_err(|e| (StatusCode::UNPROCESSABLE_ENTITY, e.to_string()))?;
 
-    Ok(Response::no_content())
+        let user_id = current_user_id()?;
+
+        // Create post (no `.await` — the macro inserts it on `create`)
+        let post = Post::create(json!({
+            "user_id": user_id,
+            "title": payload.title,
+            "content": payload.content,
+            "published": payload.published.unwrap_or(false),
+        }));
+
+        Ok(Response::json(&post).status(StatusCode::CREATED))
+    }
+
+    pub async fn update(
+        Path(id): Path<i32>,
+        Json(payload): Json<CreatePostRequest>,
+    ) -> Result<ResponseBuilder, (StatusCode, String)> {
+        let user_id = current_user_id()?;
+
+        // Find post (no `.await` — the macro inserts it on `find_or_fail`)
+        let mut post = Post::find_or_fail(id)
+            .map_err(|_| (StatusCode::NOT_FOUND, "Post not found".to_string()))?;
+
+        // Check ownership
+        if post.user_id != user_id {
+            return Err((StatusCode::FORBIDDEN, "Not your post".into()));
+        }
+
+        // Update fields and persist (no `.await` — the macro inserts it on `save`)
+        post.title = payload.title;
+        post.content = payload.content;
+        post.published = payload.published.unwrap_or(post.published);
+        post.save();
+
+        Ok(Response::json(&post))
+    }
+
+    pub async fn destroy(
+        Path(id): Path<i32>,
+    ) -> Result<ResponseBuilder, (StatusCode, String)> {
+        let user_id = current_user_id()?;
+
+        // Find post (no `.await` — the macro inserts it on `find_or_fail`)
+        let post = Post::find_or_fail(id)
+            .map_err(|_| (StatusCode::NOT_FOUND, "Post not found".to_string()))?;
+
+        // Check ownership
+        if post.user_id != user_id {
+            return Err((StatusCode::FORBIDDEN, "Not your post".into()));
+        }
+
+        // Delete post (no `.await` — the macro inserts it on `delete`)
+        post.delete();
+
+        Ok(Response::no_content())
+    }
 }
+
+pub use handlers::*;
 ```
 
 ## Step 7: Set Up Routes
 
-Edit `src/main.rs`:
+Edit `src/main.rs`. RustForge handlers are `axum` handlers, so wire them up with
+an `axum::Router`, share the SeaORM `DatabaseConnection` with `.with_state(...)`,
+and serve with `axum::serve`. The database connection is established with SeaORM's
+`Database::connect` (there is no `rf_orm::Database` type — `rf_orm` re-exports
+SeaORM and adds the `DB` facade / `DatabaseManager` on top).
 
 ```rust
 mod models;
 mod controllers;
 
-use rf::prelude::*;
-use rf_orm::Database;
+use axum::routing::{delete, get, post, put};
+use axum::Router;
+use sea_orm::{Database, DatabaseConnection};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Load environment variables
     dotenvy::dotenv()?;
 
-    // Initialize application
-    let app = Application::new();
+    // Connect to the database (SeaORM connection, shared as axum state)
+    let db: DatabaseConnection = Database::connect(std::env::var("DATABASE_URL")?).await?;
 
-    // Connect to database
-    let db = Database::connect(&std::env::var("DATABASE_URL")?).await?;
+    // Public routes
+    let public = Router::new()
+        .route("/auth/register", post(controllers::auth_controller::register))
+        .route("/auth/login", post(controllers::auth_controller::login))
+        .route("/posts", get(controllers::post_controller::index))
+        .route("/posts/:id", get(controllers::post_controller::show));
 
-    // Public routes using Laravel-style Route facade
-    Route::post("/auth/register", controllers::auth_controller::register);
-    Route::post("/auth/login", controllers::auth_controller::login);
+    // Protected routes (attach your auth middleware layer here, e.g. via
+    // `.layer(...)`, so the `Auth` facade is populated before the handler runs).
+    let protected = Router::new()
+        .route("/auth/logout", post(controllers::auth_controller::logout))
+        .route("/auth/me", get(controllers::auth_controller::me))
+        .route("/posts", post(controllers::post_controller::store))
+        .route("/posts/:id", put(controllers::post_controller::update))
+        .route("/posts/:id", delete(controllers::post_controller::destroy));
 
-    // Post routes (public)
-    Route::get("/posts", controllers::post_controller::index);
-    Route::get("/posts/:id", controllers::post_controller::show);
+    let app = public.merge(protected).with_state(db);
 
-    // Protected routes (require authentication)
-    Route::middleware(&["auth"]).group(|| {
-        Route::post("/auth/logout", controllers::auth_controller::logout);
-        Route::get("/auth/me", controllers::auth_controller::me);
-
-        Route::post("/posts", controllers::post_controller::store);
-        Route::put("/posts/:id", controllers::post_controller::update);
-        Route::delete("/posts/:id", controllers::post_controller::destroy);
-    });
-
-    // Start server
+    // Start the server
+    let listener = tokio::net::TcpListener::bind("0.0.0.0:8000").await?;
     println!("Server running at http://localhost:8000");
-    app.serve(Route::router()).with_database(db).await?;
+    axum::serve(listener, app).await?;
 
     Ok(())
 }
 ```
+
+> The `Route` facade (`rf::Route`) registers routes by string handler name
+> (`Route::get("/", "HomeController@index")`) for Laravel-style route tables; it
+> does not wire up `axum` handler functions. For a runnable server that calls the
+> handlers above, use the `axum::Router` setup shown here.
 
 ## Step 8: Run Your Application
 

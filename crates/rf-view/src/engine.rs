@@ -129,8 +129,8 @@ impl ViewEngine {
     /// use std::collections::HashMap;
     ///
     /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// ViewEngine::register_function("now", |_: &HashMap<String, Value>| {
-    ///     Ok(Value::String(chrono::Utc::now().to_rfc3339()))
+    /// ViewEngine::register_function("greeting", |_: &HashMap<String, Value>| {
+    ///     Ok(Value::String("Hello".to_string()))
     /// })?;
     /// # Ok(())
     /// # }

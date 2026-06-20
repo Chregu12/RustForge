@@ -245,7 +245,7 @@ pub async fn redis_available() -> bool {
     };
 
     redis::cmd("PING")
-        .query_async::<_, String>(&mut conn)
+        .query_async::<String>(&mut conn)
         .await
         .is_ok()
 }

@@ -14,7 +14,7 @@ use tower_http::timeout::TimeoutLayer;
 /// use axum::Router;
 /// use std::time::Duration;
 ///
-/// let app = Router::new()
+/// let app: Router = Router::new()
 ///     .layer(timeout_layer(Duration::from_secs(30)));
 /// ```
 pub fn timeout_layer(duration: Duration) -> TimeoutLayer {
@@ -26,10 +26,10 @@ pub fn timeout_layer(duration: Duration) -> TimeoutLayer {
 /// # Example
 ///
 /// ```rust,no_run
-/// use rf_web::default_timeout_layer;
+/// use rf_web::middleware::default_timeout_layer;
 /// use axum::Router;
 ///
-/// let app = Router::new()
+/// let app: Router = Router::new()
 ///     .layer(default_timeout_layer());
 /// ```
 pub fn default_timeout_layer() -> TimeoutLayer {

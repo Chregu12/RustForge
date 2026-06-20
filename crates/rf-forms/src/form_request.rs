@@ -6,8 +6,8 @@
 //! # Example
 //!
 //! ```
-//! use foundry_forms::form_request::{FormRequest, FormRequestValidator};
-//! use foundry_forms::validation::{ValidationData, ValidationErrors, required, email, min_length};
+//! use rf_forms::form_request::{FormRequest, FormRequestValidator};
+//! use rf_forms::validation::{required, email, min_length};
 //! use std::collections::HashMap;
 //!
 //! struct CreateUserRequest {

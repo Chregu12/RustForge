@@ -14,12 +14,15 @@
 /// ```rust,no_run
 /// use rf_api::queued_commands::{QueuedCommand, CommandQueue};
 ///
+/// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 /// let queued = QueuedCommand::new("import:data")
 ///     .with_args(vec!["file.csv".to_string()])
 ///     .with_delay(std::time::Duration::from_secs(60));
 ///
 /// let queue = CommandQueue::default();
 /// queue.dispatch(queued).await?;
+/// # Ok(())
+/// # }
 /// ```
 use serde::{Deserialize, Serialize};
 use std::time::Duration;

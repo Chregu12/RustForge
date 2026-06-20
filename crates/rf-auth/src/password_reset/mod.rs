@@ -29,7 +29,8 @@
 //!     "user@example.com"
 //! )?;
 //!
-//! // Verify token later
+//! // Generate a token (normally emailed to the user), then verify it later
+//! let token = reset.generate_token(123, "user@example.com")?;
 //! let claims = reset.verify_token(&token)?;
 //! # Ok(())
 //! # }

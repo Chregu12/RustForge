@@ -40,6 +40,13 @@ pub use path::*;
 pub use str::*;
 pub use url::*;
 
+// `arr` and `str` both define `random` and `contains`. Surface the string
+// variants at the crate root (the common Laravel `Str::random` / `Str::contains`
+// helpers); the array variants remain available as `arr::random` / `arr::contains`.
+// The explicit re-exports shadow the globs above and resolve the otherwise
+// ambiguous-glob-reexport warnings.
+pub use str::{contains, random};
+
 // Macros
 /// Dump and die - prints debug output and exits the process
 #[macro_export]

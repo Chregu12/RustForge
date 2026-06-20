@@ -15,6 +15,11 @@
 //! use rf_resources::{Resource, ResourceCollection, Pagination};
 //! use serde::{Serialize, Deserialize};
 //!
+//! # struct User {
+//! #     id: i32,
+//! #     name: String,
+//! #     email: String,
+//! # }
 //! #[derive(Serialize)]
 //! struct UserResource {
 //!     id: i32,

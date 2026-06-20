@@ -67,7 +67,7 @@ impl Input {
     /// # Examples
     ///
     /// ```
-    /// use foundry_advanced_input::{Input, ValidationRule};
+    /// use rf_advanced_input::{Input, ValidationRule};
     ///
     /// let mut input = Input::new();
     /// input.set("email", "user@example.com");

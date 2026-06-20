@@ -65,17 +65,17 @@ rustforge! {
             .take(10)
             .get();  // No .await!
 
-        Response::json(users)
+        Response::json(&users)
     }
 
     async fn users_show(id: i64) -> Response {
         let user = User::findOrFail(id);  // No .await!
-        Response::json(user)
+        Response::json(&user)
     }
 
     async fn users_store(data: Json<Value>) -> Response {
         let user = User::create(data.0);  // No .await!
-        Response::json(user).status(201)
+        Response::json(&user).status(StatusCode::CREATED)
     }
 
     // Use #[sync] to opt-out for synchronous helpers
@@ -191,13 +191,13 @@ async fn show_user(id: i64) -> Response {
     // Get user's profile (hasOne)
     let profile = user.profile();
 
-    Response::json(json!({ "user": user, "posts": posts, "profile": profile }))
+    Response::json(&json!({ "user": user, "posts": posts, "profile": profile }))
 }
 
 async fn show_post(id: i64) -> Response {
     let post = Post::find(id);
     let author = post.user();  // belongsTo
-    Response::json(json!({ "post": post, "author": author }))
+    Response::json(&json!({ "post": post, "author": author }))
 }
 ```
 
@@ -207,18 +207,18 @@ async fn show_post(id: i64) -> Response {
 async fn delete_user(id: i64) -> Response {
     let mut user = User::find(id);
     user.soft_delete();  // Sets deleted_at
-    Response::json(json!({ "message": "User deleted" }))
+    Response::json(&json!({ "message": "User deleted" }))
 }
 
 async fn restore_user(id: i64) -> Response {
     let mut user = User::with_trashed().find(id);
     user.restore();  // Clears deleted_at
-    Response::json(user)
+    Response::json(&user)
 }
 
 async fn get_trashed() -> Response {
     let trashed = User::only_trashed().get();
-    Response::json(trashed)
+    Response::json(&trashed)
 }
 
 async fn force_delete(id: i64) -> Response {
@@ -241,12 +241,12 @@ async fn index() -> Response {
         .orderBy("name", "asc")
         .take(10)
         .get();
-    Response::json(admins)
+    Response::json(&admins)
 }
 
 async fn show(id: i64) -> Response {
     let user = User::findOrFail(id);  // 404 if not found
-    Response::json(user)
+    Response::json(&user)
 }
 
 async fn search(role: &str) -> Response {
@@ -266,7 +266,7 @@ async fn search(role: &str) -> Response {
         .whereMonth("created_at", 11)
         .get();
 
-    Response::json(users)
+    Response::json(&users)
 }
 
 async fn stats() -> Response {
@@ -274,7 +274,7 @@ async fn stats() -> Response {
     let emails = User::where("active", true).pluck("email");
     let exists = User::where("email", "test@example.com").exists();
 
-    Response::json(json!({ "total": total, "emails": emails }))
+    Response::json(&json!({ "total": total, "emails": emails }))
 }
 
 // Conditional queries
@@ -283,7 +283,7 @@ async fn list_users(is_admin: bool) -> Response {
         .when(is_admin, |q| q.where("role", "admin"))
         .latest()
         .get();
-    Response::json(users)
+    Response::json(&users)
 }
 
 // Increment/Decrement
@@ -302,13 +302,13 @@ async fn store(data: Json<Value>) -> Response {
         "name": data["name"],
         "email": data["email"]
     }));
-    Response::json(user).status(201)
+    Response::json(&user).status(StatusCode::CREATED)
 }
 
 async fn update(id: i64, data: Json<Value>) -> Response {
     User::updateById(id, data.0);
     let user = User::find(id);
-    Response::json(user)
+    Response::json(&user)
 }
 
 async fn destroy(id: i64) -> Response {
@@ -322,7 +322,7 @@ async fn find_or_create(email: &str) -> Response {
         json!({"email": email}),
         json!({"name": "New User", "email": email})
     );
-    Response::json(user)
+    Response::json(&user)
 }
 
 // Update or create - upsert single record
@@ -331,7 +331,7 @@ async fn upsert_user(email: &str, name: &str) -> Response {
         json!({"email": email}),
         json!({"name": name})
     );
-    Response::json(user)
+    Response::json(&user)
 }
 
 // Bulk upsert
@@ -341,7 +341,7 @@ async fn bulk_import(users: Vec<Value>) -> Response {
         &["email"],  // Unique columns
         &["name"]    // Columns to update on conflict
     );
-    Response::json(json!({ "message": "Import complete" }))
+    Response::json(&json!({ "message": "Import complete" }))
 }
 ```
 
@@ -377,17 +377,17 @@ mod app {
         let users = User::where("active", true)
             .orderBy("name", "asc")
             .get();
-        Response::json(users)
+        Response::json(&users)
     }
 
     pub async fn show(id: i64) -> Response {
         let user = User::findOrFail(id);
-        Response::json(user)
+        Response::json(&user)
     }
 
     pub async fn store(data: Json<Value>) -> Response {
         let user = User::create(data.0);
-        Response::json(user)
+        Response::json(&user)
     }
 
     pub async fn destroy(id: i64) -> Response {
@@ -526,7 +526,7 @@ pub struct CreateUserRequest {
 #[auto_await]
 pub async fn index() -> Result<Response> {
     let users = User::filter("active", true).get();
-    Ok(Response::json(users))
+    Ok(Response::json(&users))
 }
 
 #[auto_await]
@@ -538,7 +538,7 @@ pub async fn store(Json(payload): Json<CreateUserRequest>) -> Result<Response> {
         "email": payload.email
     }));
 
-    Ok(Response::json(user).status(201))
+    Ok(Response::json(&user).status(StatusCode::CREATED))
 }
 ```
 
@@ -551,23 +551,23 @@ async fn login(data: Json<LoginRequest>) -> Response {
         "email": data.email,
         "password": data.password
     })) {
-        Response::json(json!({ "message": "Login successful" }))
+        Response::json(&json!({ "message": "Login successful" }))
     } else {
-        Response::json(json!({ "error": "Invalid credentials" })).status(401)
+        Response::json(&json!({ "error": "Invalid credentials" })).status(StatusCode::UNAUTHORIZED)
     }
 }
 
 async fn profile() -> Response {
     if let Some(user) = Auth::user::<User>() {
-        Response::json(user)
+        Response::json(&user)
     } else {
-        Response::json(json!({ "error": "Not authenticated" })).status(401)
+        Response::json(&json!({ "error": "Not authenticated" })).status(StatusCode::UNAUTHORIZED)
     }
 }
 
 async fn logout() -> Response {
     Auth::logout();
-    Response::json(json!({ "message": "Logged out" }))
+    Response::json(&json!({ "message": "Logged out" }))
 }
 ```
 
@@ -580,19 +580,23 @@ async fn get_users() -> Response {
     let users = Cache::remember("users:all", 3600, || async {
         User::all()
     });
-    Response::json(users)
+    Response::json(&users)
 }
 
 async fn clear_cache() -> Response {
     Cache::forget("users:all");
-    Response::json(json!({ "message": "Cache cleared" }))
+    Response::json(&json!({ "message": "Cache cleared" }))
 }
 
 async fn cache_stats() -> Response {
     let has_users = Cache::has("users:all");
-    Response::json(json!({ "cached": has_users }))
+    Response::json(&json!({ "cached": has_users }))
 }
 ```
+
+> New in recent versions: `Cache::touch(key, ttl)` extends an existing entry's
+> TTL without rewriting its value (`rf_cache::CacheFacade::touch`, returns
+> `CacheResult<bool>`).
 
 ### Validation
 
@@ -622,33 +626,46 @@ pub async fn store(Json(payload): Json<CreateUserRequest>) -> Result<Response> {
 ### Jobs & Queues
 
 ```rust
+use rf_jobs::{Job, JobContext, JobResult, dispatch};
+use async_trait::async_trait;
 
-#[derive(Debug, Serialize, Deserialize)]
+// Jobs must be Clone + Serialize + Deserialize.
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SendEmailJob {
     pub user_id: i32,
     pub template: String,
 }
 
+#[auto_await]  // <- inserts `.await` on framework calls like `find` and `send`
 #[async_trait]
 impl Job for SendEmailJob {
-    async fn handle(&self, ctx: &JobContext) -> Result<(), Error> {
-        let user = User::find(self.user_id).await?;
+    async fn handle(&self, ctx: JobContext) -> JobResult {
+        // No `.await` — the macro inserts it on `find`
+        let user = User::find(self.user_id);
 
-        Mail::to(&user.email)
-            .template(&self.template)
-            .send()
-            .await?;
+        // Mail facade — `send` is covered by the macro too
+        Mail::send(WelcomeEmail { user, template: self.template.clone() })?;
 
         Ok(())
     }
 }
 
-// Dispatch job
-Queue::push(SendEmailJob {
+// Dispatch job with the synchronous `dispatch` free function
+// (takes a &QueueManager, returns Result<Uuid, QueueError>).
+let id = dispatch(&queue_manager, SendEmailJob {
     user_id: 1,
-    template: "welcome".to_string()
-}).await?;
+    template: "welcome".to_string(),
+})?;
 ```
+
+> New: `JobRouter` (`rf_jobs::JobRouter`) routes job classes to specific
+> queues/connections — `JobRouter::route::<SendEmailJob>("emails")`. Per-job
+> queue selection is also available via `Job::queue()`.
+
+> New crates: `rf-ai` (LLM SDK with an Anthropic provider, agents, embeddings),
+> `rf-vector` (vector search with pgvector helpers), and the `jsonapi` module in
+> `rf-api-resources` (JSON:API documents: `JsonApiDocument`, `ResourceObject`,
+> `Relationship`).
 
 ### CLI Commands
 
@@ -714,17 +731,17 @@ rustforge! {
             .take(10)
             .get();
 
-        Response::json(users)
+        Response::json(&users)
     }
 
     async fn show(id: i64) -> Response {
         let user = User::findOrFail(id);
-        Response::json(user)
+        Response::json(&user)
     }
 
     async fn store(data: Json<Value>) -> Response {
         let user = User::create(data.0);
-        Response::json(user).status(201)
+        Response::json(&user).status(StatusCode::CREATED)
     }
 }
 ```
@@ -782,40 +799,23 @@ $admins = User::where('role', 'admin')
     ->get();
 ```
 
-**RustForge:**
+**RustForge - mit `#[auto_await]`, kein `.await` nötig (`where` wie in Laravel!):**
 ```rust
 use rustforge::*;
 
 Model!(User: name, email, hidden password);
 
-// Mit query! macro - `where` wie in Laravel!
-let users = query!(User::where("active", true).get()).await;
-let user = User::find(1).await;
-let admins = query! {
-    User::where("role", "admin")
+#[auto_await]  // <- once: bodies are await-free, `where` -> `r#where`
+async fn list_users() -> Response {
+    let users = User::where("active", true).get();
+    let user = User::find(1);
+    let admins = User::where("role", "admin")
         .where("active", true)
         .orderBy("name", "asc")
         .limit(10)
-        .get()
-}.await;
-```
+        .get();
 
-**Mit `#[auto_await]` - kein `.await` nötig:**
-```rust
-use rustforge::*;
-
-Model!(User: name, email, hidden password);
-
-#[auto_await]
-async fn get_admins() -> Response {
-    let admins = query! {
-        User::where("role", "admin")
-            .where("active", true)
-            .orderBy("name", "asc")
-            .limit(10)
-            .get()
-    };
-    Response::json(admins)
+    Response::json(&json!({ "users": users, "user": user, "admins": admins }))
 }
 ```
 
@@ -850,7 +850,7 @@ async fn store(data: Json<Value>) -> Response {
         "name": data["name"],
         "email": data["email"]
     }));
-    Response::json(user).status(201)
+    Response::json(&user).status(StatusCode::CREATED)
 }
 
 async fn update(id: i64) -> Response {
@@ -878,7 +878,7 @@ $users = Cache::remember('users', 3600, fn() => User::all());
 #[auto_await]
 async fn cached_users() -> Response {
     let users = Cache::remember("users", 3600, || async { User::all() });
-    Response::json(users)
+    Response::json(&users)
 }
 ```
 
@@ -897,9 +897,10 @@ Auth::logout();
 async fn login(email: &str, password: &str) -> Response {
     if Auth::attempt(json!({ "email": email, "password": password })) {
         let user = Auth::user::<User>();
-        Response::json(user)
+        Response::json(&user)
     } else {
-        Response::error(401, "Invalid credentials")
+        Response::json(&json!({ "error": "Invalid credentials" }))
+            .status(StatusCode::UNAUTHORIZED)
     }
 }
 ```
@@ -964,14 +965,14 @@ async fn create_user(
 }
 ```
 
-**RustForge:**
+**RustForge** (AWAIT-FREE with `#[auto_await]` — the macro awaits `create`):
 ```rust
+#[auto_await]
 pub async fn create_user(
     Json(payload): Json<CreateUserRequest>,
-    db: Database,
 ) -> Result<Response, Error> {
-    let user = User::create(payload).await?;
-    Ok(Response::json(user).status(201))
+    let user = User::create(payload);
+    Ok(Response::json(&user).status(StatusCode::CREATED))
 }
 ```
 
@@ -988,17 +989,16 @@ where
 }
 ```
 
-**RustForge:**
+**RustForge** (axum function-style middleware, registered with `from_fn`):
 ```rust
-pub struct AuthMiddleware;
+use axum::extract::Request;
+use axum::middleware::Next;
+use axum::response::Response;
 
-#[async_trait]
-impl Middleware for AuthMiddleware {
-    async fn handle(&self, req: Request, next: Next) -> Result<Response> {
-        let token = req.headers().get("Authorization");
-        // Verify token
-        next.run(req).await
-    }
+async fn auth_middleware(req: Request, next: Next) -> Response {
+    let _token = req.headers().get("Authorization");
+    // Verify token
+    next.run(req).await
 }
 ```
 
@@ -1112,13 +1112,15 @@ All packages have been renamed from `foundry-*` to `rf-*`:
 ```rust
 // Old (0.x)
 use foundry_orm::prelude::*;
-use foundry_http::{Router, Request};
-use foundry_auth::JwtAuth;
+use foundry_request::Request;
+use foundry_auth::JwtManager;
 
-// New (1.0)
+// New (1.0) - the rename is purely the `foundry_` -> `rf_` crate prefix.
+// `Request` lives in `rf-request`, `Response` in `rf-response`,
+// routing in `rf-routing`/`rf-route-facade` (there is no `rf-http` crate).
 use rf_orm::prelude::*;
-use rf_http::{Router, Request};
-use rf_auth::JwtAuth;
+use rf_request::Request;
+use rf_auth::JwtManager;
 ```
 
 #### Storage API
@@ -1128,10 +1130,10 @@ use rf_auth::JwtAuth;
 let disk = storage_manager.disk(Some("s3"))?;
 disk.put("file.txt", data).await?;
 
-// New (1.0)
-Storage::disk("s3")
-    .put("file.txt", data)
-    .await?;
+// New (1.0) - select the disk, then call the synchronous facade (no .await).
+// `put` takes the contents as a Vec<u8>.
+Storage::disk("s3");
+Storage::put("file.txt", data)?;
 ```
 
 #### Queue API
@@ -1141,8 +1143,8 @@ Storage::disk("s3")
 use foundry_queue::Queue;
 
 // New (1.0)
-use rf_jobs::Job;
-use rf_queue::Queue;
+use rf_jobs::{Job, dispatch};   // Job trait + synchronous dispatch helpers
+use rf_queue::Queue;            // backend trait
 ```
 
 ### Migration Steps for 1.0
@@ -1182,7 +1184,7 @@ rustforge! {
 
     async fn index() -> Response {
         let users = User::where("active", true).get();
-        Response::json(users)
+        Response::json(&users)
     }
 }
 ```
@@ -1319,14 +1321,15 @@ form_request! {
     }
 }
 
-// Use in handler - automatic validation!
+// Use in handler - automatic validation! (await-free with `#[auto_await]`)
+#[auto_await]
 async fn store(Validated(req): Validated<CreateUserRequest>) -> Response {
     let user = User::create(json!({
         "email": req.email,
         "password": bcrypt!(req.password),
         "name": req.name,
-    })).await;
-    Response::json(user).status(201)
+    }));
+    Response::json(&user).status(StatusCode::CREATED)
 }
 ```
 
@@ -1367,12 +1370,14 @@ exception_handler! {
         match error {
             AppError::NotFound { .. } => {
                 if request.wants_json() {
-                    Response::json(json!({ "error": "Not found" })).status(404)
+                    Response::json(&json!({ "error": "Not found" }))
+                        .status(StatusCode::NOT_FOUND)
                 } else {
-                    view!("errors.404").status(404)
+                    view!("errors.404").status(StatusCode::NOT_FOUND)
                 }
             }
-            _ => Response::error(500, "Server Error")
+            _ => Response::json(&json!({ "error": "Server Error" }))
+                .status(StatusCode::INTERNAL_SERVER_ERROR)
         }
     }
 
@@ -1391,7 +1396,7 @@ exception_handler! {
 | `abort_if!` | Abort if condition true | `abort_if!(user.is_banned(), 403, "Banned")` |
 | `abort_unless!` | Abort unless condition true | `abort_unless!(user.can_edit(&post), 403)` |
 | `report!` | Report without throwing | `report!(error)` |
-| `rescue!` | Rescue with fallback | `rescue!(User::find(id).await, User::default())` |
+| `rescue!` | Rescue with fallback | `rescue!(User::find(id), User::default())` (await-free under `#[auto_await]`) |
 
 **Example Usage:**
 
@@ -1407,7 +1412,7 @@ async fn show(id: i64) -> Response {
     // Rescue with fallback
     let profile = rescue!(user.profile(), Profile::default());
 
-    Response::json(json!({
+    Response::json(&json!({
         "user": user,
         "profile": profile
     }))
@@ -1421,8 +1426,10 @@ Write HTML templates with familiar Blade-like syntax:
 ```rust
 use rustforge::*;
 
-let user = User::find(1).await;
-let posts = user.posts().get().await;
+#[auto_await]  // <- model calls below are await-free
+async fn render() -> Response {
+let user = User::find(1);
+let posts = user.posts().get();
 
 let html = blade! {
     <div class="container">
@@ -1464,6 +1471,9 @@ let html = blade! {
         </form>
     </div>
 };
+
+    Response::html(html)
+}
 ```
 
 **Available Blade Directives:**
@@ -1550,19 +1560,12 @@ mailable! {
     }
 }
 
-// Send email
+// Send email (the Mail facade is synchronous - no .await).
 Mail::to("user@example.com")
     .send(WelcomeEmail {
         user,
         activation_url: "https://rustforge.dev/activate/abc123".into(),
-    })
-    .await?;
-
-// Queue for later sending
-Mail::to("user@example.com")
-    .queue(WelcomeEmail { user, activation_url })
-    .delay(Duration::from_secs(60))
-    .await?;
+    })?;
 ```
 
 **Simple Attribute Syntax:**
@@ -1573,8 +1576,8 @@ pub struct WelcomeEmail {
     pub user: User,
 }
 
-// Send
-Mail::to(&user.email).send(WelcomeEmail { user }).await?;
+// Send (synchronous facade - no .await)
+Mail::to(&user.email).send(WelcomeEmail { user })?;
 ```
 
 **Notifications - Multi-channel Messaging:**
@@ -1611,11 +1614,17 @@ notification! {
     }
 }
 
-// Send notification to a user
-user.notify(OrderShipped { order }).await?;
+// `Notification::send` is await-free under `#[auto_await]`. The `notify` method
+// is not part of the auto-await set, so it keeps an explicit `.await`.
+#[auto_await]
+async fn notify_users(user: User, users: Vec<User>, order: Order) -> Result<()> {
+    // Send notification to a user (not in the auto-await set)
+    user.notify(OrderShipped { order: order.clone() }).await?;
 
-// Send to multiple users
-Notification::send(users, OrderShipped { order }).await?;
+    // Send to multiple users (the macro awaits `send`)
+    Notification::send(users, OrderShipped { order })?;
+    Ok(())
+}
 ```
 
 **Markdown Email Content:**

@@ -33,7 +33,7 @@
 //!     title: String,
 //! }
 //!
-//! # async fn example(db: &sea_orm::DatabaseConnection) -> Result<()> {
+//! # async fn example(db: &sea_orm::DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
 //! // Relationships
 //! // let user = User::find(1).await?;
 //! // let posts = user.has_many::<Post, _>(db, "user_id").get().await?;
@@ -70,13 +70,21 @@
 //!
 //! ```rust,no_run
 //! # use rf_eloquent::prelude::*;
-//! # async fn example(user: &User, db: &sea_orm::DatabaseConnection) -> Result<()> {
-//! # struct User { id: i64 }
-//! # struct Post;
-//! // User has many Posts
-//! let posts = user.has_many::<Post, _>(db, "user_id")
-//!     .where_(post::Column::Published, true)
-//!     .order_by(post::Column::CreatedAt, "desc")
+//! # use rf_eloquent::relationships::has_many_builder;
+//! # use sea_orm::Order;
+//! # fn main() {}
+//! # mod post {
+//! #     use sea_orm::entity::prelude::*;
+//! #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+//! #     #[sea_orm(table_name = "posts")]
+//! #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub user_id: i32, pub published: bool }
+//! #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+//! #     impl ActiveModelBehavior for ActiveModel {}
+//! # }
+//! # async fn example(user_id: i32, db: sea_orm::DatabaseConnection) -> Result<(), sea_orm::DbErr> {
+//! // User has many Posts (fluent builder)
+//! let posts = has_many_builder::<post::Entity, _>(db, post::Column::UserId, user_id)
+//!     .order_by(post::Column::Id, Order::Desc)
 //!     .limit(10)
 //!     .get()
 //!     .await?;
@@ -88,13 +96,19 @@
 //!
 //! ```rust,no_run
 //! # use rf_eloquent::prelude::*;
-//! # async fn example(post: &Post, db: &sea_orm::DatabaseConnection) -> Result<()> {
-//! # struct User;
-//! # struct Post { user_id: i64 }
+//! # use rf_eloquent::belongs_to;
+//! # fn main() {}
+//! # mod user {
+//! #     use sea_orm::entity::prelude::*;
+//! #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+//! #     #[sea_orm(table_name = "users")]
+//! #     pub struct Model { #[sea_orm(primary_key)] pub id: i32 }
+//! #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+//! #     impl ActiveModelBehavior for ActiveModel {}
+//! # }
+//! # async fn example(post_user_id: i32, db: &sea_orm::DatabaseConnection) -> Result<(), sea_orm::DbErr> {
 //! // Post belongs to User
-//! let author = post.belongs_to::<User, _>(db, "user_id")
-//!     .first()
-//!     .await?;
+//! let author = belongs_to::<user::Entity, user::Model, _>(db, post_user_id, user::Column::Id).await?;
 //! # Ok(())
 //! # }
 //! ```
@@ -103,16 +117,33 @@
 //!
 //! ```rust,no_run
 //! # use rf_eloquent::prelude::*;
-//! # async fn example(post: &Post, db: &sea_orm::DatabaseConnection) -> Result<()> {
-//! # struct Post { id: i64 }
-//! # struct Tag;
-//! // Post belongs to many Tags (through pivot table)
-//! let tags = post.belongs_to_many::<Tag, _>(
+//! # use rf_eloquent::belongs_to_many;
+//! # fn main() {}
+//! # mod tag {
+//! #     use sea_orm::entity::prelude::*;
+//! #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+//! #     #[sea_orm(table_name = "tags")]
+//! #     pub struct Model { #[sea_orm(primary_key)] pub id: i32 }
+//! #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+//! #     impl ActiveModelBehavior for ActiveModel {}
+//! # }
+//! # mod post_tag {
+//! #     use sea_orm::entity::prelude::*;
+//! #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+//! #     #[sea_orm(table_name = "post_tag")]
+//! #     pub struct Model { #[sea_orm(primary_key)] pub post_id: i32, #[sea_orm(primary_key)] pub tag_id: i32 }
+//! #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+//! #     impl ActiveModelBehavior for ActiveModel {}
+//! # }
+//! # async fn example(post_id: i32, db: &sea_orm::DatabaseConnection) -> Result<(), sea_orm::DbErr> {
+//! // Post belongs to many Tags (through the `post_tag` pivot table)
+//! let tags = belongs_to_many::<tag::Entity, post_tag::Entity, tag::Model, _>(
 //!     db,
-//!     "post_tag",      // pivot table
-//!     "post_id",       // foreign key
-//!     "tag_id"         // related key
-//! ).get().await?;
+//!     post_id,
+//!     post_tag::Column::PostId,   // foreign key
+//!     post_tag::Column::TagId,    // related key
+//!     tag::Column::Id,
+//! ).await?;
 //! # Ok(())
 //! # }
 //! ```
@@ -121,7 +152,7 @@
 //!
 //! ```rust,no_run
 //! # use rf_eloquent::prelude::*;
-//! # async fn example() -> Result<()> {
+//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! # struct User;
 //! // Load single relationship
 //! // let users = User::query().with("posts").get().await?;

@@ -12,7 +12,7 @@ use sea_orm::{ActiveValue, Set};
 ///
 /// ```rust
 /// use rf_orm::SoftDelete;
-/// use sea_orm::{entity::prelude::*, Set};
+/// use sea_orm::{entity::prelude::*, ActiveValue, Set};
 /// use chrono::{DateTime, Utc};
 ///
 /// #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]

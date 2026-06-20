@@ -209,16 +209,32 @@ pub fn controller(attr: TokenStream, item: TokenStream) -> TokenStream {
 /// }
 /// ```
 #[proc_macro_attribute]
-pub fn auto_await(_attr: TokenStream, item: TokenStream) -> TokenStream {
+pub fn auto_await(attr: TokenStream, item: TokenStream) -> TokenStream {
+    // Extra async method names to also resolve, from either form:
+    //   #[auto_await(fetch_report, charge)]   (identifiers — preferred)
+    //   #[auto_await(also("fetch_report"))]   (strings — still accepted)
+    auto_await_core(extra_method_names(attr), item)
+}
+
+/// `#[await_calls(fetch_report, charge)]` — a clearer, string-free alias for
+/// `#[auto_await(...)]` that lists your own async methods as plain identifiers.
+#[proc_macro_attribute]
+pub fn await_calls(attr: TokenStream, item: TokenStream) -> TokenStream {
+    auto_await_core(extra_method_names(attr), item)
+}
+
+/// Shared implementation: resolve framework calls (plus `extra`) on a function,
+/// impl block, or module — transparently for sync and async calls.
+fn auto_await_core(extra: Vec<String>, item: TokenStream) -> TokenStream {
     // First: Transform `where` to `r#where` at token level
     let transformed_tokens = transform_where_tokens(item.clone());
 
     // Try to parse as module first
     if let Ok(mut module) = syn::parse::<syn::ItemMod>(transformed_tokens.clone()) {
-        if let Some((brace, items)) = &mut module.content {
+        if let Some((_brace, items)) = &mut module.content {
             for item in items.iter_mut() {
                 if let syn::Item::Fn(func) = item {
-                    transform_function(func);
+                    transform_function(func, &extra);
                 }
             }
         }
@@ -229,7 +245,7 @@ pub fn auto_await(_attr: TokenStream, item: TokenStream) -> TokenStream {
     if let Ok(mut impl_block) = syn::parse::<syn::ItemImpl>(transformed_tokens.clone()) {
         for item in &mut impl_block.items {
             if let syn::ImplItem::Fn(method) = item {
-                transform_impl_method(method);
+                transform_impl_method(method, &extra);
             }
         }
         return TokenStream::from(quote! { #impl_block });
@@ -238,26 +254,72 @@ pub fn auto_await(_attr: TokenStream, item: TokenStream) -> TokenStream {
     // Otherwise parse as function
     let transformed_tokens = transform_where_tokens(item);
     let mut function = parse_macro_input!(transformed_tokens as ItemFn);
-    transform_function(&mut function);
+    transform_function(&mut function, &extra);
 
     TokenStream::from(quote! {
         #function
     })
 }
 
-/// Transform a function by adding .await to async calls
-fn transform_function(function: &mut ItemFn) {
-    let mut transformer = AwaitTransformer::new();
+/// Extract extra method names from an attribute: bare identifiers (e.g.
+/// `fetch_report, charge`) and/or string literals inside `also("...")`. The
+/// `also` keyword itself is ignored.
+fn extra_method_names(attr: TokenStream) -> Vec<String> {
+    use proc_macro2::{TokenStream as TS2, TokenTree};
+    fn walk(ts: TS2, out: &mut Vec<String>) {
+        for tt in ts {
+            match tt {
+                TokenTree::Literal(lit) => {
+                    let s = lit.to_string();
+                    if s.len() >= 2 && s.starts_with('"') && s.ends_with('"') {
+                        out.push(s[1..s.len() - 1].to_string());
+                    }
+                }
+                TokenTree::Ident(id) => {
+                    let s = id.to_string();
+                    if s != "also" {
+                        out.push(s);
+                    }
+                }
+                TokenTree::Group(g) => walk(g.stream(), out),
+                _ => {}
+            }
+        }
+    }
+    let mut out = Vec::new();
+    walk(attr.into(), &mut out);
+    out
+}
+
+/// Transform a function so framework calls resolve transparently (sync or async).
+fn transform_function(function: &mut ItemFn, extra: &[String]) {
+    let mut transformer = AwaitTransformer::with_extra(extra.to_vec());
     for stmt in &mut function.block.stmts {
         transformer.visit_stmt_mut(stmt);
     }
+    if transformer.wrapped {
+        // The wrapped calls now contain `.await`, so the function must be async.
+        // Make a plain `fn` async automatically (it then returns `impl Future`),
+        // so a developer can write `#[auto_await] fn handler()` without `async`.
+        if function.sig.asyncness.is_none() {
+            function.sig.asyncness = Some(syn::token::Async::default());
+        }
+        let mut stmts = AwaitTransformer::adapter_prelude();
+        stmts.append(&mut function.block.stmts);
+        function.block.stmts = stmts;
+    }
 }
 
-/// Transform an impl method by adding .await to async calls
-fn transform_impl_method(method: &mut syn::ImplItemFn) {
-    let mut transformer = AwaitTransformer::new();
+/// Transform an impl method so framework calls resolve transparently.
+fn transform_impl_method(method: &mut syn::ImplItemFn, extra: &[String]) {
+    let mut transformer = AwaitTransformer::with_extra(extra.to_vec());
     for stmt in &mut method.block.stmts {
         transformer.visit_stmt_mut(stmt);
+    }
+    if transformer.wrapped {
+        let mut stmts = AwaitTransformer::adapter_prelude();
+        stmts.append(&mut method.block.stmts);
+        method.block.stmts = stmts;
     }
 }
 

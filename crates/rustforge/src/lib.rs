@@ -63,7 +63,7 @@
 
 /// Model macro - define models like Laravel's Eloquent
 ///
-/// ```rust
+/// ```text
 /// use rustforge::*;
 ///
 /// #[model]
@@ -74,11 +74,14 @@
 ///     pub password: String,
 /// }
 /// ```
+///
+/// Note: shown as `text` because `#[model]` expands to code requiring
+/// `sea_orm`, which is not a dependency of this crate.
 pub use rf_model_macro::model;
 
 /// Laravel-like class syntax for models
 ///
-/// ```rust
+/// ```text
 /// use rustforge::*;
 ///
 /// laravel! {
@@ -88,11 +91,14 @@ pub use rf_model_macro::model;
 ///     }
 /// }
 /// ```
+///
+/// Note: shown as `text` because `laravel!` expands to code requiring
+/// `chrono`, which is not a dependency of this crate.
 pub use rf_macros::laravel;
 
 /// Ultra-simple model macro - the cleanest syntax!
 ///
-/// ```rust
+/// ```text
 /// use rustforge::*;
 ///
 /// // Minimal - all fields are String by default
@@ -105,6 +111,9 @@ pub use rf_macros::laravel;
 ///     user_id: i64,
 /// });
 /// ```
+///
+/// Note: shown as `text` because `Model!` expands to code requiring
+/// `chrono`, which is not a dependency of this crate.
 #[allow(non_snake_case)]
 pub use rf_macros::Model;
 
@@ -112,10 +121,16 @@ pub use rf_macros::Model;
 ///
 /// In Rust, `where` is a reserved keyword. This macro lets you use it anyway:
 ///
-/// ```rust
+/// ```rust,no_run
 /// use rustforge::*;
 ///
-/// let users = query!(User::where("active", true).get()).await;
+/// struct User;
+/// impl Model for User {
+///     const TABLE: &'static str = "users";
+/// }
+///
+/// # async fn example() -> std::result::Result<(), Box<dyn std::error::Error>> {
+/// let users = query!(User::where("active", true).get()).await?;
 ///
 /// let admins = query! {
 ///     User::where("role", "admin")
@@ -123,22 +138,34 @@ pub use rf_macros::Model;
 ///         .orderBy("name", "asc")
 ///         .limit(10)
 ///         .get()
-/// }.await;
+/// }.await?;
+/// # Ok(())
+/// # }
 /// ```
 pub use rf_macros::query;
 
 /// Auto-await macro - write async code without explicit .await
 ///
-/// ```rust
+/// ```rust,no_run
 /// use rustforge::*;
 ///
+/// struct User;
+/// impl Model for User {
+///     const TABLE: &'static str = "users";
+/// }
+///
 /// #[auto_await]
-/// async fn handler() -> Result<Response, Error> {
+/// async fn handler() -> std::result::Result<(), String> {
 ///     let users = User::filter("active", true).get();  // No .await needed!
-///     Ok(Response::json(users))
+///     println!("{:?}", users);
+///     Ok(())
 /// }
 /// ```
 pub use rf_macros::auto_await;
+
+/// String-free way to cover your own async methods alongside the framework's:
+/// `#[await_calls(fetch_report, charge)]` (a clearer alias for `#[auto_await(..)]`).
+pub use rf_macros::await_calls;
 
 /// Controller macro
 pub use rf_macros::controller;
@@ -393,34 +420,64 @@ pub use rf_macros::storage;
 
 /// Authentication facade
 ///
-/// ```rust
-/// Auth::attempt(json!({"email": "...", "password": "..."}));
-/// let user = Auth::user::<User>();
+/// ```rust,no_run
+/// use rustforge::Auth;
+/// use serde::Deserialize;
+/// use serde_json::json;
+///
+/// #[derive(Deserialize)]
+/// struct User { email: String }
+///
+/// # fn example() -> Result<(), Box<dyn std::error::Error>> {
+/// Auth::attempt(json!({"email": "...", "password": "..."}))?;
+/// let user: Option<User> = Auth::user::<User>();
 /// Auth::logout();
+/// # Ok(())
+/// # }
 /// ```
 pub use rf_auth_facade::Auth;
 
 /// Cache facade
 ///
-/// ```rust
-/// Cache::put("key", "value", 3600);
-/// let value = Cache::get("key");
-/// Cache::forget("key");
+/// ```rust,no_run
+/// use rustforge::Cache;
+///
+/// # fn example() -> Result<(), Box<dyn std::error::Error>> {
+/// Cache::put("key", "value", 3600)?;
+/// let value: Option<String> = Cache::get("key")?;
+/// Cache::forget("key")?;
+/// # Ok(())
+/// # }
 /// ```
 pub use rf_cache_facade::Cache;
 
 /// Database facade
 ///
-/// ```rust
-/// let users = DB::table("users").filter("active", true).get();
+/// ```rust,no_run
+/// use rustforge::DB;
+///
+/// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+/// let users = DB::table("users").filter("active", true).get().await?;
+/// # Ok(())
+/// # }
 /// ```
 pub use rf_db_facade::DB;
 
 /// Model trait for Eloquent-style queries
 ///
-/// ```rust
-/// let users = User::filter("active", true).get();
-/// let user = User::find(1);
+/// ```rust,no_run
+/// use rustforge::Model;
+///
+/// struct User;
+/// impl Model for User {
+///     const TABLE: &'static str = "users";
+/// }
+///
+/// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+/// let users = User::filter("active", true).get().await?;
+/// let user = User::find(1).await?;
+/// # Ok(())
+/// # }
 /// ```
 pub use rf_db_facade::Model;
 
@@ -429,17 +486,25 @@ pub use rf_event_facade::Event;
 
 /// Storage facade
 ///
-/// ```rust
-/// Storage::put("file.txt", contents);
-/// let data = Storage::get("file.txt");
+/// ```rust,no_run
+/// use rustforge::Storage;
+///
+/// # fn example() -> Result<(), Box<dyn std::error::Error>> {
+/// let contents = b"hello".to_vec();
+/// Storage::put("file.txt", contents)?;
+/// let data = Storage::get("file.txt")?;
+/// # Ok(())
+/// # }
 /// ```
 pub use rf_storage_facade::Storage;
 
 /// Route facade
 ///
-/// ```rust
-/// Route::get("/users", handler);
-/// Route::post("/users", create_handler);
+/// ```rust,no_run
+/// use rustforge::Route;
+///
+/// Route::get("/users", "UserController@index");
+/// Route::post("/users", "UserController@store");
 /// ```
 pub use rf_route_facade::Route;
 

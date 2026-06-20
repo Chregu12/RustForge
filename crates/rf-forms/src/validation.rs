@@ -6,7 +6,7 @@
 //! # Example
 //!
 //! ```
-//! use foundry_forms::validation::*;
+//! use rf_forms::validation::*;
 //! use std::collections::HashMap;
 //!
 //! let mut data = HashMap::new();

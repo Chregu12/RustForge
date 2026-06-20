@@ -19,8 +19,8 @@ use std::sync::{Arc, Mutex};
 /// let artisan = Artisan::new(invoker);
 ///
 /// // Simple command execution
-/// let result = artisan.call("migrate").await?;
-/// println!("Output: {}", result.message().unwrap_or_default());
+/// let result = artisan.call("migrate").dispatch().await?;
+/// println!("Output: {}", result.message.unwrap_or_default());
 ///
 /// // With arguments
 /// let result = artisan
@@ -35,7 +35,8 @@ use std::sync::{Arc, Mutex};
 ///     .add("migrate")
 ///     .add_with_args("seed:run", vec!["--class".to_string(), "DatabaseSeeder".to_string()])
 ///     .dispatch()
-///     .await?;
+///     .await
+///     .map_err(|(idx, err, _)| anyhow::anyhow!("command {} failed: {}", idx, err))?;
 /// # Ok(())
 /// # }
 /// ```

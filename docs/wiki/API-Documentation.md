@@ -4,30 +4,37 @@ Comprehensive API documentation for RustForge v1.0.0.
 
 ## Core Modules
 
-### rf-core
+### rf-core & rf-application
 
-The core framework module providing application bootstrapping and lifecycle management.
+`rf-core` provides runtime/context primitives (environment, request context, error
+types). Application bootstrapping lives in `rf-application` via `FoundryApp`.
+
+The console `dispatch` is written AWAIT-FREE under `#[auto_await]` — the macro
+inserts `.await` for you. `build()` is a sync builder call (not part of the
+auto-await set), so it stays as-is.
 
 ```rust
-use rf_core::Application;
+use rf_application::FoundryApp;
 
-// Create application
-let app = Application::new();
+#[auto_await]
+async fn bootstrap() -> Result<(), ApplicationError> {
+    // Build the application from a config value plus the artifact/migration/seed ports.
+    let app = FoundryApp::builder(config, artifacts, migrations, seeds)
+        .with_storage_port(storage)
+        .with_cache_port(cache)
+        .build()?; // Result<FoundryApp, ApplicationError>
 
-// Configure application
-let app = Application::builder()
-    .env_file(".env")
-    .log_level(LogLevel::Info)
-    .build()?;
-
-// Run application
-app.run().await?;
+    // Dispatch a console command through the registry (no `.await` — the macro inserts it).
+    let _result = app.dispatch("migrate", vec![], ResponseFormat::Text, ExecutionOptions::default());
+    Ok(())
+}
 ```
 
 **Key Types:**
-- `Application` - Main application container
-- `Config` - Configuration management
-- `Environment` - Environment variable access
+- `FoundryApp` - Main application container (`rf_application::FoundryApp`); built via `FoundryApp::builder(config, artifacts, migrations, seeds)` with `with_*_port(...)` methods and `.build() -> Result<FoundryApp, ApplicationError>`
+- `Environment` - Environment enum (`rf_core::Environment`: `Development`, `Staging`, `Production`)
+- `Config` - Configuration management (lives in `rf-config`, not `rf-core`)
+- `AppError` - Core error type (`rf_core::AppError`)
 
 ---
 
@@ -67,51 +74,56 @@ impl ActiveModelBehavior for ActiveModel {}
 
 #### Query Builder
 
+Write queries AWAIT-FREE: put `#[auto_await]` once on the enclosing `async fn`
+(or `mod`/`impl`) and the macro inserts `.await` after framework calls (`all`,
+`find`, `first`, `get`, `paginate`, ...) and rewrites `where(...)` →
+`r#where(...)`. You write the bodies exactly like Laravel — no `.await`.
+
 ```rust
-// Find all
-let users = User::find().all(&db).await?;
+#[auto_await]
+async fn examples() {
+    // Find all
+    let users = User::all();
 
-// Find by primary key
-let user = User::find_by_id(1).one(&db).await?;
+    // Find by primary key
+    let user = User::find(1);
 
-// Filtering
-let active_users = User::find()
-    .filter(User::Column::Active.eq(true))
-    .order_by_asc(User::Column::Name)
-    .all(&db)
-    .await?;
+    // Filtering (no `query!`, no `.await` — just like Laravel)
+    let active_users = User::where("active", true)
+        .orderBy("name", "asc")
+        .get();
 
-// Pagination
-let page = User::find()
-    .paginate(&db, 20)
-    .fetch_page(0)
-    .await?;
+    // Pagination (15 per page, page 1)
+    let page = User::query().paginate(15, 1);
 
-// Relationships
-let user_with_posts = User::find_by_id(1)
-    .find_with_related(Post::Entity)
-    .all(&db)
-    .await?;
+    // Relationships
+    let user = User::find(1);
+    let posts = user.posts().get();
+}
 ```
 
 #### Creating & Updating
 
 ```rust
-// Create
-let user = User::ActiveModel {
-    name: Set("John".to_string()),
-    email: Set("john@example.com".to_string()),
-    ..Default::default()
-};
-let user = user.insert(&db).await?;
+#[auto_await]
+async fn examples() {
+    // Create
+    let user = User::create(json!({
+        "name": "John",
+        "email": "john@example.com",
+    }));
 
-// Update
-let mut user: User::ActiveModel = user.into();
-user.name = Set("Jane".to_string());
-let user = user.update(&db).await?;
+    // Update by id
+    User::updateById(user.id, json!({ "name": "Jane" }));
 
-// Delete
-user.delete(&db).await?;
+    // Update an instance and persist
+    let mut user = User::find(user.id);
+    user.name = "Jane".to_string();
+    user.save();
+
+    // Delete
+    user.delete();
+}
 ```
 
 **Key Types:**
@@ -166,7 +178,11 @@ Route::middleware(&["auth", "verified", "admin"]).group(|| {
 #### Request Handling
 
 ```rust
-use rf_http::{Request, Json, Query, Path, Form};
+// `Request` comes from rf-request; the Json/Query/Path/Form extractors are
+// re-exported from axum (RustForge has no `rf-http` crate).
+use rf_request::Request;
+use axum::extract::{Json, Query, Path};
+use axum::Form;
 
 // JSON body
 async fn create_user(Json(payload): Json<CreateUserRequest>) -> Result<Response> {
@@ -197,19 +213,17 @@ async fn handler(req: Request) -> Result<Response> {
 #### Response Building
 
 ```rust
-use rf_http::Response;
+use rf_response::Response;
+use axum::http::StatusCode;
 
-// JSON response
-Response::json(data)
+// JSON response (takes a reference)
+Response::json(&data)
 
-// With status code
-Response::json(data).status(201)
+// With status code (StatusCode, not an int)
+Response::json(&data).status(StatusCode::CREATED)
 
 // Plain text
 Response::text("Hello, World!")
-
-// HTML
-Response::html("<h1>Hello</h1>")
 
 // Redirect
 Response::redirect("/login")
@@ -218,19 +232,19 @@ Response::redirect("/login")
 Response::no_content()
 
 // Custom headers
-Response::json(data)
+Response::json(&data)
     .header("X-Custom", "value")
-    .status(200)
+    .status(StatusCode::OK)
 ```
 
 **Key Types:**
-- `Router` - Route definition
-- `Request` - HTTP request
-- `Response` - HTTP response
-- `Json<T>` - JSON extractor
-- `Query<T>` - Query param extractor
-- `Path<T>` - Path param extractor
-- `Form<T>` - Form data extractor
+- `Route` - Laravel-style route facade (`rf_routing::RouteFacade`, re-exported as `rf::Route`)
+- `Request` - HTTP request (`rf_request::Request`)
+- `Response` - HTTP response (`rf_response::Response`)
+- `Json<T>` - JSON extractor (`axum::extract::Json`)
+- `Query<T>` - Query param extractor (`axum::extract::Query`)
+- `Path<T>` - Path param extractor (`axum::extract::Path`)
+- `Form<T>` - Form data extractor (`axum::Form`)
 
 ---
 
@@ -243,61 +257,61 @@ Authentication and authorization with Laravel-style Auth facade.
 ```rust
 use rf::{Auth, Hash};
 
-// Login user (like Laravel's Auth::login)
-Auth::login(user).await?;
+// Login user (like Laravel's Auth::login) - synchronous, no .await
+Auth::login(user)?;
 
 // Attempt login with credentials (like Laravel's Auth::attempt)
 let credentials = json!({
     "email": "user@example.com",
     "password": "secret"
 });
-if Auth::attempt(credentials).await? {
+if Auth::attempt(credentials)? {
     println!("Login successful!");
 }
 
 // Check if authenticated
-if Auth::check().await {
+if Auth::check() {
     println!("User is logged in");
 }
 
 // Check if guest
-if Auth::guest().await {
+if Auth::guest() {
     println!("User is not logged in");
 }
 
 // Get current user
-if let Some(user) = Auth::user::<User>().await {
+if let Some(user) = Auth::user::<User>() {
     println!("Welcome, {}", user.name);
 }
 
 // Get user ID
-if let Some(id) = Auth::id().await {
+if let Some(id) = Auth::id() {
     println!("User ID: {}", id);
 }
 
 // Login with remember me
-Auth::login_using_id(user_id, true).await?;
+Auth::login_using_id(user_id, true)?;
 
 // Check if via remember
-if Auth::via_remember().await {
+if Auth::via_remember() {
     println!("Logged in via remember token");
 }
 
-// Logout
-Auth::logout().await;
+// Logout (returns unit)
+Auth::logout();
 
 // Use specific guard
-let api_guard = Auth::guard("api").await;
-if api_guard.check().await {
+let api_guard = Auth::guard("api");
+if api_guard.check() {
     println!("Authenticated on API guard");
 }
 
 // Role checks
-if Auth::has_role("admin").await {
+if Auth::has_role("admin") {
     println!("User is admin");
 }
 
-if Auth::has_any_role(&["admin", "moderator"]).await {
+if Auth::has_any_role(&["admin", "moderator"]) {
     println!("User has elevated privileges");
 }
 ```
@@ -305,13 +319,14 @@ if Auth::has_any_role(&["admin", "moderator"]).await {
 #### Password Hashing
 
 ```rust
-use rf_auth::Hash;
+// `Hash` lives in rf-global-helpers and is re-exported as `rf::Hash`.
+use rf::Hash;
 
-// Hash password
-let hash = Hash::make("password123")?;
+// Hash password (returns String, not Result)
+let hash = Hash::make("password123");
 
-// Verify password
-let is_valid = Hash::check("password123", &hash)?;
+// Verify password (returns bool, not Result)
+let is_valid = Hash::check("password123", &hash);
 ```
 
 #### Protect Routes
@@ -340,7 +355,7 @@ Input validation framework.
 #### Validation Rules
 
 ```rust
-use rf_validation::{Validate, ValidationRule};
+use rf::Validate;
 
 #[derive(Debug, Deserialize, Validate)]
 pub struct CreateUserRequest {
@@ -371,31 +386,43 @@ match result {
 #### Custom Validators
 
 ```rust
-use rf_validation::{Validator, ValidationError};
+use rf_validation::{Rule, RuleResult};
+use async_trait::async_trait;
+use serde_json::Value;
+use std::collections::HashMap;
 
 pub struct UniqueEmail;
 
-impl Validator for UniqueEmail {
-    async fn validate(&self, value: &str, _context: &Context) -> Result<(), ValidationError> {
-        let exists = User::find()
-            .filter(User::Column::Email.eq(value))
-            .count(&db)
-            .await? > 0;
+#[auto_await]  // <- inserts `.await` on framework calls like `exists`; `where` -> `r#where`
+#[async_trait]
+impl Rule for UniqueEmail {
+    fn name(&self) -> &str {
+        "unique_email"
+    }
 
-        if exists {
-            return Err(ValidationError::new("email_exists", "Email already registered"));
+    async fn validate(&self, value: &Value, _data: &HashMap<String, Value>) -> RuleResult {
+        let email = value.as_str().unwrap_or_default();
+        // No `.await` — the macro inserts it on `exists`
+        let taken = User::where("email", email).exists();
+
+        if taken {
+            return Err("Email already registered".to_string());
         }
 
         Ok(())
+    }
+
+    fn message(&self) -> String {
+        "Email already registered".to_string()
     }
 }
 ```
 
 **Key Types:**
-- `Validate` - Validation trait
-- `Validator` - Custom validator trait
-- `ValidationError` - Validation error
-- `ValidationResult` - Validation result
+- `Validate` - Validation derive (`rf_validation_derive::Validate`, re-exported as `rf::Validate`)
+- `Rule` - Custom validation rule trait (`rf_validation::Rule`) — named `Rule`, not `Validator`
+- `ValidationErrors` - Validation errors collection (`rf_validation::ValidationErrors`)
+- `RuleResult` - Rule result (`rf_validation::RuleResult` = `Result<(), String>`)
 
 ---
 
@@ -409,59 +436,70 @@ Caching layer with Laravel-style Cache facade.
 use rf::Cache;
 use std::time::Duration;
 
-// Put value in cache
-Cache::put("key", &"value", Duration::from_secs(3600)).await?;
+// Put value in cache (synchronous facade - no .await).
+// TTL accepts Duration or i64/u64 seconds.
+Cache::put("key", "value", Duration::from_secs(3600))?;
+Cache::put("key", "value", 3600)?;
 
-// Get value from cache
-let value: Option<String> = Cache::get("key").await?;
+// Get value from cache (turbofish the deserialized type)
+let value: Option<String> = Cache::get::<String>("key")?;
 
-// Check if key exists
-if Cache::has("key").await? {
+// Check if key exists (returns bool)
+if Cache::has("key")? {
     println!("Key exists");
 }
 
-// Remember (cache with closure) - like Laravel's Cache::remember
-let users = Cache::remember("users:all", Duration::from_secs(3600), || async {
-    Ok(User::find().all(&db).await?)
-}).await?;
+// Remember (cache with closure) - like Laravel's Cache::remember.
+// Inside an `#[auto_await]` scope the closure body is await-free too.
+let users = Cache::remember("users:all", 3600, || async {
+    Ok(User::all())
+})?;
 
 // Remember forever
 let settings = Cache::remember_forever("settings", || async {
     Ok(load_settings().await?)
-}).await?;
+})?;
 
 // Store forever (no expiration)
-Cache::forever("key", &"value").await?;
+Cache::forever("key", "value")?;
 
-// Add only if doesn't exist
-let added = Cache::add("unique_key", &"value", Duration::from_secs(60)).await?;
+// Add only if doesn't exist (returns bool)
+let added = Cache::add("unique_key", "value", 60)?;
 
 // Pull: get and delete
-let value: Option<String> = Cache::pull("temp_key").await?;
+let value: Option<String> = Cache::pull::<String>("temp_key")?;
+
+// Touch: extend an existing entry's TTL without rewriting its value (returns bool)
+let touched = Cache::touch("key", 3600)?;
 
 // Forget (delete single key)
-Cache::forget("key").await?;
+Cache::forget("key")?;
 
 // Flush all cache
-Cache::flush().await?;
+Cache::flush()?;
 
 // Increment/decrement counters
-Cache::increment("counter", 1).await?;
-Cache::decrement("counter", 1).await?;
+Cache::increment("counter", 1)?;
+Cache::decrement("counter", 1)?;
 ```
 
 #### Cache Tags
+
+Write tagged cache usage AWAIT-FREE under `#[auto_await]`: `tags`, `put` and
+`flush` are all framework calls the macro awaits for you.
 
 ```rust
 use rf::Cache;
 use std::time::Duration;
 
-// Create tagged cache
-let tagged = Cache::tags(&["users", "posts"]).await;
-tagged.set("key", &"value", Duration::from_secs(3600)).await?;
+#[auto_await]
+async fn tagged_cache() {
+    // Create tagged cache, then write (no `.await` — the macro inserts it)
+    Cache::tags(&["users", "posts"]).put("key", "value", Duration::from_secs(3600));
 
-// Flush all entries with specific tag
-Cache::tags(&["users"]).await.flush().await?;
+    // Flush all entries with a specific tag
+    Cache::tags(&["users"]).flush();
+}
 ```
 
 **Key Types:**
@@ -477,10 +515,13 @@ Background job processing.
 #### Defining Jobs
 
 ```rust
-use rf_jobs::{Job, JobContext};
+use rf_jobs::{Job, JobContext, JobResult};
 use serde::{Serialize, Deserialize};
+use async_trait::async_trait;
+use std::time::Duration;
 
-#[derive(Debug, Serialize, Deserialize)]
+// Jobs must be Clone in addition to Serialize/Deserialize.
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SendEmailJob {
     pub to: String,
     pub subject: String,
@@ -489,23 +530,28 @@ pub struct SendEmailJob {
 
 #[async_trait]
 impl Job for SendEmailJob {
-    async fn handle(&self, _ctx: &JobContext) -> Result<(), Error> {
-        // Send email
-        Mail::to(&self.to)
-            .subject(&self.subject)
-            .body(&self.body)
-            .send()
-            .await?;
+    async fn handle(&self, ctx: JobContext) -> JobResult {
+        ctx.log(&format!("Sending email to {}", self.to));
+        // Send email via the synchronous Mail facade (no .await).
+        Mail::to(&self.to).send(/* a Mailable */)?;
 
         Ok(())
     }
 
-    fn max_tries(&self) -> u32 {
+    fn queue(&self) -> &str {
+        "emails"
+    }
+
+    fn max_attempts(&self) -> u32 {
         3
     }
 
-    fn timeout(&self) -> u64 {
-        60
+    fn backoff(&self) -> Duration {
+        Duration::from_secs(30)
+    }
+
+    fn timeout(&self) -> Duration {
+        Duration::from_secs(60)
     }
 }
 ```
@@ -513,34 +559,38 @@ impl Job for SendEmailJob {
 #### Dispatching Jobs
 
 ```rust
-use rf_queue::Queue;
+// Dispatch jobs with the synchronous free functions in `rf_jobs`.
+// Each takes a `&QueueManager` and returns `Result<Uuid, QueueError>`.
+use rf_jobs::{dispatch, dispatch_to, dispatch_later};
+use std::time::Duration;
 
-// Dispatch immediately
-Queue::push(SendEmailJob {
+let job = SendEmailJob {
     to: "user@example.com".to_string(),
-    subject: "Hello".to_string(),
-    body: "Welcome!".to_string(),
-}).await?;
+    subject: "Welcome".to_string(),
+    body: "Hello!".to_string(),
+};
 
-// Delay (in seconds)
-Queue::later(60, job).await?;
+// Dispatch to the job's default queue (Job::queue()).
+let id = dispatch(&queue_manager, job.clone())?;
 
-// Specific queue
-Queue::on("emails").push(job).await?;
+// Dispatch to a specific queue.
+let id = dispatch_to(&queue_manager, job.clone(), "emails")?;
 
-// Chain jobs
-Queue::chain(vec![
-    Box::new(job1),
-    Box::new(job2),
-    Box::new(job3),
-]).await?;
+// Delayed dispatch.
+let id = dispatch_later(&queue_manager, job, Duration::from_secs(300))?;
 ```
 
+> Per-call queue selection is done via `Job::queue()`, `dispatch_to(..)`, or
+> central routing with `JobRouter` (see below). Lower-level
+> `rf_queue::QueueFacade::{push, push_later}` is also available when you hold an
+> `Arc<dyn Queue>` directly.
+
 **Key Types:**
-- `Job` - Job trait
-- `Queue` - Queue facade
-- `QueueManager` - Queue manager
-- `JobContext` - Job execution context
+- `Job` - Job trait (`rf_jobs::Job`); key methods: `handle(&self, ctx: JobContext) -> JobResult`, `queue() -> &str`, `max_attempts() -> u32`, `backoff() -> Duration`, `timeout() -> Duration`, `failed`
+- `dispatch` / `dispatch_to` / `dispatch_later` / `dispatch_with_priority` / `dispatch_on` - Synchronous dispatch free functions (`rf_jobs`), each `Result<Uuid, QueueError>`
+- `QueueFacade` - Lower-level dispatch facade over `Arc<dyn Queue>` (`rf_queue::QueueFacade`): `push`, `push_later`
+- `JobContext` - Job execution context (`rf_jobs::JobContext`)
+- `JobRouter` - Routes job classes to queues/connections (`rf_jobs::JobRouter`): `route::<J>(queue)`, `route_to::<J>(queue, connection)`, `resolve(type_name)`
 
 ---
 
@@ -550,51 +600,47 @@ Email sending.
 
 #### Sending Emails
 
+Emails are modelled as `Mailable` types. Each builds a `MailBuilder` describing
+the message; the `Mail` facade then sends it synchronously (no `.await`).
+
 ```rust
-use rf_mail::Mail;
+use rf::Mail;
+use rf_mail::{Mailable, MailBuilder, Address};
 
-// Simple email
-Mail::to("user@example.com")
-    .subject("Welcome!")
-    .body("Welcome to RustForge!")
-    .send()
-    .await?;
+// Define a reusable Mailable.
+pub struct WelcomeEmail {
+    pub to: String,
+    pub name: String,
+}
 
-// With template
-Mail::to("user@example.com")
-    .subject("Order Confirmation")
-    .view("emails.order", json!({
-        "order_id": 12345
-    }))
-    .send()
-    .await?;
+impl Mailable for WelcomeEmail {
+    fn build(&self) -> MailBuilder {
+        MailBuilder::new()
+            .from(Address::new("noreply@example.com"))
+            .to(Address::new(&self.to))
+            .subject("Welcome!")
+            .text(format!("Welcome to RustForge, {}!", self.name))
+    }
+}
 
-// With attachment
-Mail::to("user@example.com")
-    .subject("Invoice")
-    .attach("/path/to/invoice.pdf")
-    .send()
-    .await?;
+// Send via the synchronous facade.
+Mail::send(WelcomeEmail {
+    to: "user@example.com".into(),
+    name: "Jane".into(),
+})?;
 
-// Multiple recipients
-Mail::to("user1@example.com")
-    .cc("user2@example.com")
-    .bcc("admin@example.com")
-    .subject("Newsletter")
-    .send()
-    .await?;
-
-// Queue email
-Mail::to("user@example.com")
-    .subject("Welcome")
-    .queue()
-    .await?;
+// Or address the recipient first, then hand it a Mailable.
+Mail::to("user@example.com").send(WelcomeEmail {
+    to: "user@example.com".into(),
+    name: "Jane".into(),
+})?;
 ```
 
 **Key Types:**
-- `Mail` - Mail facade
-- `Mailable` - Mailable trait
-- `MailDriver` - Mail driver trait
+- `Mail` - Mail facade (`rf_mail::facade::Mail`, re-exported as `rf::Mail`): `Mail::send(mailable)`, `Mail::to(addr) -> Mailer`
+- `Mailable` - Mailable trait (`rf_mail::Mailable`); implement `build(&self) -> MailBuilder`
+- `MailBuilder` - Chainable builder (`.from`, `.to`, `.subject`, `.text`, `.html`, `.attach`, ...) returned from `Mailable::build`
+- `Mailer` - Facade recipient handle (`rf_mail::facade::Mailer`): `Mailer::send(mailable)`
 
 ---
 
@@ -607,33 +653,36 @@ File storage with Laravel-style Storage facade.
 ```rust
 use rf::Storage;
 
-// Put file (uses default disk)
-Storage::put("path/to/file.txt", contents).await?;
+// Put file (contents is a Vec<u8>; synchronous facade - no .await).
+Storage::put("path/to/file.txt", contents)?;
 
-// Get file
-let contents = Storage::get("path/to/file.txt").await?;
+// Get file (returns Result<Vec<u8>, String>)
+let contents = Storage::get("path/to/file.txt")?;
+
+// Get file as a UTF-8 string
+let text = Storage::get_string("path/to/file.txt")?;
 
 // Delete file
-Storage::delete("path/to/file.txt").await?;
+Storage::delete("path/to/file.txt")?;
 
-// Check existence
-if Storage::exists("path/to/file.txt").await? {
+// Check existence (returns bool)
+if Storage::exists("path/to/file.txt") {
     println!("File exists");
 }
 
-// Use specific disk
-Storage::disk("s3").put("uploads/photo.jpg", contents).await?;
-let contents = Storage::disk("s3").get("uploads/photo.jpg").await?;
+// Select the active disk (subsequent operations use it).
+Storage::disk("s3");
+Storage::put("uploads/photo.jpg", contents)?;
+let contents = Storage::get("uploads/photo.jpg")?;
 
 // Copy file
-Storage::copy("old.txt", "new.txt").await?;
+Storage::copy("old.txt", "new.txt")?;
 
 // Move file
-Storage::move_file("old.txt", "new.txt").await?;
+Storage::move_file("old.txt", "new.txt")?;
 
 // File info
-let size = Storage::size("path/to/file.txt").await?;
-let modified = Storage::last_modified("path/to/file.txt").await?;
+let size = Storage::size("path/to/file.txt")?;
 ```
 
 #### Directory Operations
@@ -641,28 +690,19 @@ let modified = Storage::last_modified("path/to/file.txt").await?;
 ```rust
 use rf::Storage;
 
-// List files in directory
-let files = Storage::files("directory/").await?;
+// List all files (returns Vec<String>, no .await)
+let files = Storage::files();
 
-// List all files (recursive)
-let all_files = Storage::all_files("directory/").await?;
+// List files in a specific directory
+let dir_files = Storage::files_in("directory/");
 
 // List directories
-let dirs = Storage::directories("directory/").await?;
-```
-
-#### Temporary URLs
-
-```rust
-// Generate signed URL (1 hour)
-let url = Storage::disk("s3")
-    .temporary_url("private/file.pdf", 3600)
-    .await?;
+let dirs = Storage::directories();
 ```
 
 **Key Types:**
-- `Storage` - Laravel-style storage facade
-- `Disk` - Storage disk interface
+- `Storage` - Laravel-style storage facade (`rf_storage::StorageFacade`, re-exported as `rf::Storage`); all methods are synchronous
+- `disk(name)` - Selects the active disk for subsequent operations
 
 ---
 
@@ -670,49 +710,52 @@ let url = Storage::disk("s3")
 
 ### Available Middleware
 
+Named middleware (`"auth"`, `"verified"`, etc.) is applied via the route facade —
+`Route::middleware(&["auth"])`. Tower-layer style middleware lives in `rf-web`:
+`rf_web::cors_layer(CorsConfig)` and `rf_web::compression_layer()`. CSRF is
+token-based via `rf_web::{CsrfToken, csrf_token, csrf_field}`.
+
 ```rust
-use rf_http::middleware;
+use rf_web::{cors_layer, CorsConfig, compression_layer};
 
-// Authentication
-router.use_middleware(middleware::auth());
+// CORS (Tower layer)
+let cors = cors_layer(CorsConfig::default());
 
-// CORS
-router.use_middleware(middleware::cors());
+// Compression (Tower layer)
+let compress = compression_layer();
 
-// Rate limiting
-router.use_middleware(middleware::rate_limit(60, 60)); // 60 req/min
-
-// Logging
-router.use_middleware(middleware::logger());
-
-// CSRF protection
-router.use_middleware(middleware::csrf());
-
-// Compression
-router.use_middleware(middleware::compress());
+// Named middleware via the Route facade:
+Route::middleware(&["auth"]).group(|| {
+    // protected routes
+});
 ```
 
 ### Custom Middleware
 
+Custom middleware uses axum's function-style pattern (`async fn(Request, Next) -> Response`),
+registered with `axum::middleware::from_fn`. Named middleware can also be registered via
+`rf_routing::middleware_pipeline`.
+
 ```rust
-use rf_http::{Middleware, Request, Response, Next};
+use axum::extract::Request;
+use axum::middleware::Next;
+use axum::response::Response;
 
-pub struct CustomMiddleware;
+// A function-style middleware.
+async fn custom_middleware(req: Request, next: Next) -> Response {
+    // Before request
+    println!("Before: {}", req.uri());
 
-#[async_trait]
-impl Middleware for CustomMiddleware {
-    async fn handle(&self, req: Request, next: Next) -> Result<Response> {
-        // Before request
-        println!("Before: {}", req.uri());
+    let response = next.run(req).await;
 
-        let response = next.run(req).await?;
+    // After request
+    println!("After: {}", response.status());
 
-        // After request
-        println!("After: {}", response.status());
-
-        Ok(response)
-    }
+    response
 }
+
+// Apply it to a router:
+// let app = router.layer(axum::middleware::from_fn(custom_middleware));
 ```
 
 ---
@@ -722,29 +765,34 @@ impl Middleware for CustomMiddleware {
 ### Error Types
 
 ```rust
-use rf_core::Error;
+// The core error type is `AppError` (not `Error`). Variants use struct-style
+// fields, e.g. `NotFound { resource }`, `BadRequest { message }`.
+use rf_core::AppError;
 
-// Application errors
-pub enum Error {
-    NotFound(String),
-    BadRequest(String),
-    Unauthorized(String),
-    Forbidden(String),
-    InternalError(String),
-    ValidationError(ValidationErrors),
-    DatabaseError(DbErr),
+// Real enum (rf-core/src/error/app_error.rs):
+pub enum AppError {
+    Validation(/* validator::ValidationErrors, feature-gated */),
+    NotFound { resource: String },
+    Unauthorized,
+    Forbidden { reason: String },
+    BadRequest { message: String },
+    Conflict { message: String },
+    RateLimitExceeded,
+    Internal(anyhow::Error),
+    ServiceUnavailable { service: String },
+    // Note: there is no `DatabaseError` variant.
 }
 
 // Convert to HTTP response
-impl Into Response> for Error {
+impl IntoResponse for AppError {
     fn into_response(self) -> Response {
         match self {
-            Error::NotFound(msg) => Response::json(json!({
-                "error": msg
-            })).status(404),
-            Error::BadRequest(msg) => Response::json(json!({
-                "error": msg
-            })).status(400),
+            AppError::NotFound { resource } => Response::json(&json!({
+                "error": resource
+            })).status(StatusCode::NOT_FOUND),
+            AppError::BadRequest { message } => Response::json(&json!({
+                "error": message
+            })).status(StatusCode::BAD_REQUEST),
             // ...
         }
     }
@@ -792,11 +840,12 @@ AWS_BUCKET=bucket
 ### Accessing Config
 
 ```rust
-use rf_core::Config;
+// Config lives in rf-config (re-exported as `rf::Config`).
+use rf_config::Config;
 
-let app_name = Config::get("app.name")?;
-let database_url = Config::get("database.url")?;
-let debug = Config::get("app.debug").unwrap_or(false);
+let app_name = Config::get("app.name");                 // Option<String>
+let database_url = Config::get("database.url");          // Option<String>
+let debug = Config::get_or("app.debug", "false");        // String with default
 ```
 
 ---
@@ -806,11 +855,14 @@ let debug = Config::get("app.debug").unwrap_or(false);
 ### HTTP Testing
 
 ```rust
-use rf_testing::TestCase;
+// The HTTP test entrypoint is `HttpTester` (returns `TestResponse`).
+use rf_testing::HttpTester;
+use axum::http::StatusCode;
 
 #[tokio::test]
 async fn test_user_registration() {
-    let test = TestCase::new().await;
+    // HttpTester wraps an axum Router.
+    let test = HttpTester::new(app);
 
     let response = test.post("/auth/register", json!({
         "email": "test@example.com",
@@ -818,27 +870,40 @@ async fn test_user_registration() {
         "password": "password123"
     })).await;
 
-    response.assert_status(201);
-    response.assert_json(json!({
-        "email": "test@example.com"
-    }));
+    // assert_status takes a StatusCode; assert_json is async.
+    response
+        .assert_status(StatusCode::CREATED)
+        .assert_json(json!({
+            "email": "test@example.com"
+        }))
+        .await;
 }
 ```
 
 ### Database Testing
 
+Database assertions are provided as async macros
+(`assert_database_has!`, `assert_database_missing!`, `assert_database_count!`,
+`assert_database_empty!`). Each expands to an async call, so add `.await`.
+
+The model `create` call is written AWAIT-FREE under `#[auto_await]`. The test
+harness calls (`TestDatabase::new`) and the async assertion macros are not part of
+the auto-await set, so they keep their explicit `.await`.
+
 ```rust
-use rf_testing::DatabaseTestCase;
+use rf_testing::{TestDatabase, assert_database_has, assert_database_count};
 
 #[tokio::test]
-async fn test_user_creation() {
-    let test = DatabaseTestCase::new().await;
+#[auto_await]
+async fn test_user_creation() -> Result<(), Box<dyn std::error::Error>> {
+    let _test_db = TestDatabase::new().await?;
+    // No `.await` — the macro inserts it on the model `create`
+    let user = User::factory().create();
 
-    let user = User::factory()
-        .create(&test.db())
-        .await?;
-
+    assert_database_has!("users", { "email" => "test@example.com" }).await?;
+    assert_database_count!("users", 1).await?;
     assert_eq!(user.email, "test@example.com");
+    Ok(())
 }
 ```
 
@@ -988,9 +1053,9 @@ Docker development environment management.
 use rf_sail::{Sail, Service};
 
 let sail = Sail::new()
-    .service(Service::Postgres)
-    .service(Service::Redis)
-    .service(Service::Mailhog);
+    .with_service(Service::Postgres)
+    .with_service(Service::Redis)
+    .with_service(Service::Mailhog);
 
 // Start services
 sail.up().await?;
@@ -1011,6 +1076,11 @@ sail.down().await?;
 ## rf-spark (SaaS Billing)
 
 Stripe-based SaaS billing.
+
+> Note: `rf-spark` exists, but the primary Stripe billing implementation is
+> `rf-cashier` (re-exported as `rf::Cashier`), which provides `Billable`,
+> `Subscription`, `CheckoutSession`, `Invoice`, and `WebhookEvent`. The
+> `Spark` API below is approximate (`Spark` exposes `new()` and `user()`).
 
 ### Basic Usage
 
@@ -1041,6 +1111,42 @@ user.subscription("pro-monthly")
 - `Spark` - Billing manager
 - `Billable` - Billable trait
 - `Subscription` - Subscription model
+
+---
+
+## rf-ai (AI SDK)
+
+LLM integration with provider abstraction and agents.
+
+**Key Types:**
+- `ChatProvider` / `EmbeddingProvider` - provider traits (`rf_ai`)
+- `AnthropicProvider` - Anthropic Claude provider (`rf_ai::provider`)
+- `Agent` - tool-using agent loop
+- `ChatRequest`, `Tool`, `MockChatProvider`
+
+---
+
+## rf-vector (Vector Search)
+
+Vector storage and similarity search.
+
+**Key Types:**
+- `Vector` - vector value type (`rf_vector`)
+- `DistanceMetric` - distance metric enum
+- `InMemoryVectorStore` - in-memory vector store
+- `pgvector` - pgvector/Postgres helper module
+
+---
+
+## rf-api-resources (JSON:API)
+
+API resource transformation, including a JSON:API module.
+
+**Key Types (`rf_api_resources::jsonapi`):**
+- `JsonApiDocument` - top-level JSON:API document
+- `ResourceObject`, `ResourceIdentifier`
+- `Relationship`, `RelationshipData`, `RelationshipMap`
+- `PrimaryData`
 
 ---
 

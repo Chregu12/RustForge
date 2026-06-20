@@ -12,27 +12,25 @@
 //! ## Example
 //!
 //! ```rust,no_run
-//! use rf_orm::query::subquery::*;
+//! use rf_orm::query::subquery::Subquery;
+//! # mod post {
+//! #     use sea_orm::entity::prelude::*;
+//! #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+//! #     #[sea_orm(table_name = "posts")]
+//! #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub user_id: i32, pub published: bool }
+//! #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+//! #     impl ActiveModelBehavior for ActiveModel {}
+//! # }
+//! # fn example(db: sea_orm::DatabaseConnection) {
+//! // Build a subquery selecting user_ids of published posts
+//! let subquery = Subquery::<post::Entity>::new(db)
+//!     .select("user_id")
+//!     .where_eq("published", true);
 //!
-//! // Find users who have published posts
-//! let users = User::query(db.clone())
-//!     .where_in_subquery(
-//!         "id",
-//!         Subquery::new::<post::Entity>(db.clone())
-//!             .select("user_id")
-//!             .where_eq("published", true)
-//!     )
-//!     .get()
-//!     .await?;
-//!
-//! // Find posts that have comments
-//! let posts = Post::query(db.clone())
-//!     .where_exists(
-//!         Subquery::new::<comment::Entity>(db)
-//!             .where_raw("comments.post_id = posts.id")
-//!     )
-//!     .get()
-//!     .await?;
+//! // Render it to SQL for embedding in a larger query
+//! let sql = subquery.build_sql();
+//! assert!(sql.contains("user_id"));
+//! # }
 //! ```
 
 use sea_orm::{DatabaseConnection, EntityTrait};
@@ -46,17 +44,24 @@ use std::marker::PhantomData;
 /// # Example
 ///
 /// ```rust,no_run
+/// use rf_orm::query::subquery::Subquery;
+/// # mod post {
+/// #     use sea_orm::entity::prelude::*;
+/// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+/// #     #[sea_orm(table_name = "posts")]
+/// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub published: bool, pub views: i32 }
+/// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+/// #     impl ActiveModelBehavior for ActiveModel {}
+/// # }
+/// # fn example(db: sea_orm::DatabaseConnection) {
 /// // Get published post IDs
-/// let subquery = Subquery::new::<post::Entity>(db.clone())
+/// let subquery = Subquery::<post::Entity>::new(db)
 ///     .select("id")
 ///     .where_eq("published", true)
 ///     .where_gt("views", 1000);
 ///
-/// // Use in main query
-/// User::query(db)
-///     .where_in_subquery("favorite_post_id", subquery)
-///     .get()
-///     .await?;
+/// let sql = subquery.build_sql();
+/// # }
 /// ```
 pub struct Subquery<E>
 where
@@ -97,7 +102,18 @@ where
     /// # Example
     ///
     /// ```rust,no_run
-    /// let subquery = Subquery::new::<post::Entity>(db.clone());
+    /// use rf_orm::query::subquery::Subquery;
+    /// # mod post {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "posts")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32 }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {}
+    /// # }
+    /// # fn example(db: sea_orm::DatabaseConnection) {
+    /// let subquery = Subquery::<post::Entity>::new(db);
+    /// # }
     /// ```
     pub fn new(db: DatabaseConnection) -> Self {
         Self {
@@ -116,7 +132,18 @@ where
     /// # Example
     ///
     /// ```rust,no_run
-    /// subquery.select("user_id")
+    /// use rf_orm::query::subquery::Subquery;
+    /// # mod post {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "posts")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub user_id: i32 }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {}
+    /// # }
+    /// # fn example(db: sea_orm::DatabaseConnection) {
+    /// let subquery = Subquery::<post::Entity>::new(db).select("user_id");
+    /// # }
     /// ```
     pub fn select(mut self, column: impl Into<String>) -> Self {
         self.select_columns = vec![column.into()];
@@ -128,7 +155,18 @@ where
     /// # Example
     ///
     /// ```rust,no_run
-    /// subquery.select_multiple(vec!["user_id", "post_id"])
+    /// use rf_orm::query::subquery::Subquery;
+    /// # mod post {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "posts")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub user_id: i32, pub post_id: i32 }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {}
+    /// # }
+    /// # fn example(db: sea_orm::DatabaseConnection) {
+    /// let subquery = Subquery::<post::Entity>::new(db).select_multiple(vec!["user_id", "post_id"]);
+    /// # }
     /// ```
     pub fn select_multiple(mut self, columns: Vec<impl Into<String>>) -> Self {
         self.select_columns = columns.into_iter().map(|c| c.into()).collect();
@@ -140,7 +178,18 @@ where
     /// # Example
     ///
     /// ```rust,no_run
-    /// subquery.where_eq("published", true)
+    /// use rf_orm::query::subquery::Subquery;
+    /// # mod post {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "posts")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub published: bool }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {}
+    /// # }
+    /// # fn example(db: sea_orm::DatabaseConnection) {
+    /// let subquery = Subquery::<post::Entity>::new(db).where_eq("published", true);
+    /// # }
     /// ```
     pub fn where_eq(mut self, column: &str, value: impl Into<sea_orm::Value>) -> Self {
         self.where_clauses
@@ -225,7 +274,18 @@ where
     /// # Example
     ///
     /// ```rust,no_run
-    /// subquery.where_raw("DATE(created_at) = CURDATE()")
+    /// use rf_orm::query::subquery::Subquery;
+    /// # mod post {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "posts")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub created_at: String }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {}
+    /// # }
+    /// # fn example(db: sea_orm::DatabaseConnection) {
+    /// let subquery = Subquery::<post::Entity>::new(db).where_raw("DATE(created_at) = CURDATE()");
+    /// # }
     /// ```
     pub fn where_raw(mut self, sql: &str) -> Self {
         self.where_clauses.push(WhereClause::Raw(sql.to_string()));
@@ -369,6 +429,8 @@ where
 /// # Example
 ///
 /// ```rust,no_run
+/// use rf_orm::query::subquery::SubqueryBuilder;
+///
 /// let subquery = SubqueryBuilder::new("posts")
 ///     .select("user_id")
 ///     .where_clause("published = true")

@@ -184,8 +184,17 @@ mod tests {
         message: String,
     }
 
+    /// Serializes every test in this module. They all share the process-global
+    /// `GLOBAL_EVENT` singleton: history tests race a concurrent
+    /// `clear_history()` / `dispatch()`, and listener tests race a concurrent
+    /// `forget_all()` (which wipes *all* listeners regardless of event name).
+    /// Holding this guard for the whole test makes those operations exclusive.
+    /// `into_inner` ignores poisoning so a failing test does not cascade.
+    static EVENT_GUARD: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
     #[test]
     fn test_event_dispatch() {
+        let _guard = EVENT_GUARD.lock().unwrap_or_else(|e| e.into_inner());
         let event_name = format!("test.dispatch.{}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos());
 
         let event = TestEvent {
@@ -201,6 +210,7 @@ mod tests {
 
     #[test]
     fn test_event_listen() {
+        let _guard = EVENT_GUARD.lock().unwrap_or_else(|e| e.into_inner());
         let event_name = format!("test.listen.{}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos());
 
         let counter = Arc::new(AtomicUsize::new(0));
@@ -216,6 +226,7 @@ mod tests {
 
     #[test]
     fn test_event_dispatch_and_listen() {
+        let _guard = EVENT_GUARD.lock().unwrap_or_else(|e| e.into_inner());
         let event_name = format!("test.both.{}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos());
 
         let counter = Arc::new(AtomicUsize::new(0));
@@ -236,6 +247,7 @@ mod tests {
 
     #[test]
     fn test_event_forget() {
+        let _guard = EVENT_GUARD.lock().unwrap_or_else(|e| e.into_inner());
         let event_name = format!("test.forget.{}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos());
 
         Event::listen(&event_name, |_| {});
@@ -247,6 +259,7 @@ mod tests {
 
     #[test]
     fn test_event_forget_all() {
+        let _guard = EVENT_GUARD.lock().unwrap_or_else(|e| e.into_inner());
         let suffix = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
         let event1 = format!("forget_all_test.event1.{}", suffix);
         let event2 = format!("forget_all_test.event2.{}", suffix);
@@ -265,6 +278,7 @@ mod tests {
 
     #[test]
     fn test_event_listener_count() {
+        let _guard = EVENT_GUARD.lock().unwrap_or_else(|e| e.into_inner());
         let event_name = format!("test.count.{}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos());
 
         Event::listen(&event_name, |_| {});
@@ -275,6 +289,7 @@ mod tests {
 
     #[test]
     fn test_event_history() {
+        let _guard = EVENT_GUARD.lock().unwrap_or_else(|e| e.into_inner());
         let old_count = Event::history().len();
 
         let event1 = TestEvent {
@@ -293,6 +308,7 @@ mod tests {
 
     #[test]
     fn test_event_clear_history() {
+        let _guard = EVENT_GUARD.lock().unwrap_or_else(|e| e.into_inner());
         Event::clear_history();
 
         let event = TestEvent {

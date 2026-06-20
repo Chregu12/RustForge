@@ -10,7 +10,6 @@ use crate::query_builder::QueryBuilder;
 /// # Example
 ///
 /// ```rust,no_run
-/// use rf_orm::Model;
 /// use sea_orm::entity::prelude::*;
 ///
 /// #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
@@ -40,11 +39,25 @@ where
     /// # Example
     ///
     /// ```rust,no_run
+    /// # use rf_orm::Model;
+    /// # use sea_orm::DatabaseConnection;
+    /// # mod post {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "posts")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub published: bool }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {}
+    /// # }
+    /// # use post::Entity as Post;
+    /// # async fn example(db: DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
     /// let posts = Post::query(db)
     ///     .where_eq(post::Column::Published, true)
-    ///     .order_by_desc(post::Column::CreatedAt)
+    ///     .order_by_desc(post::Column::Id)
     ///     .get()
     ///     .await?;
+    /// # Ok(())
+    /// # }
     /// ```
     fn query(db: DatabaseConnection) -> QueryBuilder<Self> {
         QueryBuilder::new(db)
@@ -55,7 +68,21 @@ where
     /// # Example
     ///
     /// ```rust,no_run
-    /// let posts = Post::all(db).await?;
+    /// # use rf_orm::Model;
+    /// # use sea_orm::DatabaseConnection;
+    /// # mod post {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "posts")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub title: String }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {}
+    /// # }
+    /// # use post::Entity as Post;
+    /// # async fn example(db: DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
+    /// let posts = Post::all(&db).await?;
+    /// # Ok(())
+    /// # }
     /// ```
     async fn all(db: &DatabaseConnection) -> Result<Vec<Self::Model>, DbErr> {
         Self::find().all(db).await

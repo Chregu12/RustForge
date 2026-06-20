@@ -25,7 +25,8 @@
 //!     }
 //! }
 //!
-//! # tokio_test::block_on(async {
+//! # #[tokio::main]
+//! # async fn main() {
 //! let executor = MyExecutor;
 //! let mut pipeline = Pipeline::new(executor);
 //!
@@ -35,7 +36,7 @@
 //!     .then("cache:clear", vec![]);
 //!
 //! let result = pipeline.execute().await;
-//! # });
+//! # }
 //! ```
 
 mod error;

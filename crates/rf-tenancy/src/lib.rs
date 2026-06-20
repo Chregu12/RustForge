@@ -12,18 +12,23 @@
 //!
 //! ## Quick Start
 //!
-//! ```no_run
+//! ```rust,no_run
 //! use rf_tenancy::*;
-//! use axum::{Router, routing::get};
 //!
-//! async fn handler(tenant: Tenant) -> String {
-//!     format!("Current tenant: {}", tenant.id())
-//! }
+//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+//! // Register tenants in a resolver
+//! let resolver = InMemoryTenantResolver::new();
+//! resolver
+//!     .add_tenant(Tenant::with_domain("1", "Acme", "acme.example.com"))
+//!     .await;
 //!
-//! # async fn example() {
-//! let app = Router::new()
-//!     .route("/", get(handler))
-//!     .layer(TenantLayer::by_domain());
+//! // Resolve the current tenant
+//! let tenant = resolver.resolve_by_domain("acme.example.com").await?;
+//! println!("Current tenant: {}", tenant.id());
+//!
+//! // Build a tenant layer for domain-based identification
+//! let _layer = TenantLayer::by_domain();
+//! # Ok(())
 //! # }
 //! ```
 

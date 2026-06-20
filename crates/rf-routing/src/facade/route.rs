@@ -16,7 +16,7 @@ use crate::HttpMethod;
 /// # Examples
 ///
 /// ```rust,no_run
-/// use rf_routing::Route;
+/// use rf_routing::RouteFacade as Route;
 ///
 /// // Simple GET route
 /// Route::get("/users", "UserController@index");
@@ -40,7 +40,7 @@ impl Route {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// use rf_routing::Route;
+    /// use rf_routing::RouteFacade as Route;
     ///
     /// Route::get("/users", "UserController@index")
     ///     .name("users.index");
@@ -54,7 +54,7 @@ impl Route {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// use rf_routing::Route;
+    /// use rf_routing::RouteFacade as Route;
     ///
     /// Route::post("/users", "UserController@store")
     ///     .name("users.store")
@@ -69,7 +69,7 @@ impl Route {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// use rf_routing::Route;
+    /// use rf_routing::RouteFacade as Route;
     ///
     /// Route::put("/users/:id", "UserController@update")
     ///     .name("users.update");
@@ -83,7 +83,7 @@ impl Route {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// use rf_routing::Route;
+    /// use rf_routing::RouteFacade as Route;
     ///
     /// Route::patch("/users/:id", "UserController@patch")
     ///     .name("users.patch");
@@ -97,7 +97,7 @@ impl Route {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// use rf_routing::Route;
+    /// use rf_routing::RouteFacade as Route;
     ///
     /// Route::delete("/users/:id", "UserController@destroy")
     ///     .name("users.destroy")
@@ -112,7 +112,7 @@ impl Route {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// use rf_routing::Route;
+    /// use rf_routing::RouteFacade as Route;
     ///
     /// Route::options("/users", "OptionsController@handle");
     /// ```
@@ -125,8 +125,8 @@ impl Route {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// use rf_routing::Route;
-    /// use crate::HttpMethod;
+    /// use rf_routing::RouteFacade as Route;
+    /// use rf_routing::HttpMethod;
     ///
     /// Route::match_methods(
     ///     vec![HttpMethod::Get, HttpMethod::Post],
@@ -147,7 +147,7 @@ impl Route {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// use rf_routing::Route;
+    /// use rf_routing::RouteFacade as Route;
     ///
     /// Route::any("/fallback", "FallbackController@handle");
     /// ```
@@ -170,7 +170,7 @@ impl Route {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// use rf_routing::Route;
+    /// use rf_routing::RouteFacade as Route;
     ///
     /// Route::group()
     ///     .prefix("/api")
@@ -198,7 +198,7 @@ impl Route {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// use rf_routing::Route;
+    /// use rf_routing::RouteFacade as Route;
     ///
     /// Route::resource("posts", "PostController");
     /// ```
@@ -248,7 +248,7 @@ impl Route {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// use rf_routing::Route;
+    /// use rf_routing::RouteFacade as Route;
     ///
     /// Route::api_resource("posts", "PostController");
     /// ```
@@ -283,7 +283,7 @@ impl Route {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// use rf_routing::Route;
+    /// use rf_routing::RouteFacade as Route;
     ///
     /// Route::redirect("/old-path", "/new-path");
     /// ```
@@ -297,7 +297,7 @@ impl Route {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// use rf_routing::Route;
+    /// use rf_routing::RouteFacade as Route;
     ///
     /// Route::permanent_redirect("/old-path", "/new-path");
     /// ```
@@ -315,7 +315,7 @@ impl Route {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// use rf_routing::Route;
+    /// use rf_routing::RouteFacade as Route;
     ///
     /// Route::view("/about", "about");
     /// ```
@@ -331,7 +331,7 @@ impl Route {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// use rf_routing::Route;
+    /// use rf_routing::RouteFacade as Route;
     ///
     /// // Instead of: Route::middleware(&["auth"]).group(|| { ... });
     /// // Use this:
@@ -349,7 +349,7 @@ impl Route {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// use rf_routing::Route;
+    /// use rf_routing::RouteFacade as Route;
     ///
     /// Route::protected()
     ///     .add(Route::post("/posts", "PostController@store"))
@@ -364,7 +364,7 @@ impl Route {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// use rf_routing::Route;
+    /// use rf_routing::RouteFacade as Route;
     ///
     /// Route::api()
     ///     .add(Route::get("/users", "UserController@index"))
@@ -426,7 +426,7 @@ impl MiddlewareGroupBuilder {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// use rf_routing::Route;
+    /// use rf_routing::RouteFacade as Route;
     ///
     /// Route::middleware(&["auth"]).add_all(vec![
     ///     Route::post("/posts", "PostController@store"),

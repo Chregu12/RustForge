@@ -29,10 +29,9 @@ use serde_json::Value;
 /// let deleted = DB::delete("DELETE FROM users WHERE id = ?",
 ///     &[id.into()])?;
 ///
-/// // Use query builder
-/// let users = DB::table("users")
-///     .where_clause("active", "=", true.into())
-///     .get()?;
+/// // Use query builder (call .await on terminal methods like .get())
+/// let query = DB::table("users")
+///     .where_clause("active", "=", true.into());
 /// # Ok(())
 /// # }
 /// ```
@@ -135,11 +134,12 @@ impl DB {
     /// ```rust,no_run
     /// use rf_orm::DB;
     ///
-    /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let users = DB::table("users")
     ///     .where_clause("active", "=", true.into())
     ///     .limit(10)
-    ///     .get()?;
+    ///     .get()
+    ///     .await?;
     /// # Ok(())
     /// # }
     /// ```

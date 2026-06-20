@@ -13,7 +13,7 @@
 //!     id: i64,
 //!     title: String,
 //!     metadata: serde_json::Value,
-//!     published_at: chrono::DateTime<Utc>,
+//!     published_at: chrono::DateTime<chrono::Utc>,
 //!     views: i64,
 //! }
 //!

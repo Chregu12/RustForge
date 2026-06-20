@@ -4,6 +4,21 @@ use chrono_tz::Tz;
 use cron::Schedule as CronScheduleInner;
 use std::str::FromStr;
 
+/// Normalize a cron expression to the six-field form the `cron` crate expects.
+///
+/// Standard Unix / Laravel cron expressions use five fields
+/// (`minute hour day-of-month month day-of-week`), but the `cron` crate requires
+/// a leading seconds field. A five-field expression is therefore prefixed with
+/// `0` (run at second zero); expressions that already include seconds (and an
+/// optional year) are passed through unchanged so the crate can validate them.
+fn normalize_expression(expression: &str) -> String {
+    if expression.split_whitespace().count() == 5 {
+        format!("0 {}", expression.trim())
+    } else {
+        expression.to_string()
+    }
+}
+
 /// Cron schedule wrapper
 #[derive(Debug, Clone)]
 pub struct CronSchedule {
@@ -17,7 +32,8 @@ impl CronSchedule {
     }
 
     pub fn with_timezone(expression: &str, timezone: Tz) -> Result<Self, CronError> {
-        let schedule = CronScheduleInner::from_str(expression)
+        let normalized = normalize_expression(expression);
+        let schedule = CronScheduleInner::from_str(&normalized)
             .map_err(|e| CronError::InvalidExpression(e.to_string()))?;
 
         Ok(Self { schedule, timezone })

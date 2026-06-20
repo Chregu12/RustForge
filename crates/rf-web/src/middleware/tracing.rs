@@ -17,7 +17,7 @@ use tracing::Level;
 /// use rf_web::tracing_layer;
 /// use axum::Router;
 ///
-/// let app = Router::new()
+/// let app: Router = Router::new()
 ///     .layer(tracing_layer());
 /// ```
 pub fn tracing_layer() -> TraceLayer<tower_http::classify::SharedClassifier<ServerErrorsAsFailures>>

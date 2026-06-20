@@ -8,32 +8,24 @@
 //! ```rust,no_run
 //! use rf_eloquent::prelude::*;
 //!
-//! # async fn example(db: &DatabaseConnection) -> Result<()> {
-//! // Load users with their posts
-//! let users = User::query()
+//! // `EagerLoadBuilder` wraps any query value and records the relations to load.
+//! // Here we use a placeholder query type to demonstrate the fluent API.
+//! let query = "users";
+//!
+//! // Load a single relationship (and a nested one)
+//! let builder = EagerLoadBuilder::new(query)
 //!     .with("posts")
-//!     .get()
-//!     .await?;
+//!     .with("posts.comments");
 //!
-//! // Nested eager loading
-//! let users = User::query()
-//!     .with("posts.comments")
-//!     .get()
-//!     .await?;
+//! // Load multiple relationships at once
+//! let builder = EagerLoadBuilder::new(query)
+//!     .with_all(&["posts", "profile", "roles"]);
 //!
-//! // Multiple relationships
-//! let users = User::query()
-//!     .with_all(&["posts", "profile", "roles"])
-//!     .get()
-//!     .await?;
+//! // Conditional eager loading (constraint application is implementation-specific)
+//! let builder = EagerLoadBuilder::new(query)
+//!     .with_where("posts");
 //!
-//! // Conditional eager loading
-//! let users = User::query()
-//!     .with_where("posts", |q| q.where_("published", true))
-//!     .get()
-//!     .await?;
-//! # Ok(())
-//! # }
+//! assert_eq!(builder.relations().len(), 1);
 //! ```
 
 use async_trait::async_trait;

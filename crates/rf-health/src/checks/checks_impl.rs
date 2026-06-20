@@ -393,7 +393,7 @@ impl HealthCheck for RedisCheck {
         use redis::AsyncCommands;
 
         match self.pool.get().await {
-            Ok(mut conn) => match redis::cmd("PING").query_async::<_, String>(&mut conn).await {
+            Ok(mut conn) => match redis::cmd("PING").query_async::<String>(&mut conn).await {
                 Ok(_) => CheckResult::healthy(self.name()),
                 Err(e) => CheckResult::unhealthy(self.name(), format!("Redis PING failed: {}", e)),
             },

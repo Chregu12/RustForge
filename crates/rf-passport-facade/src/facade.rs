@@ -20,15 +20,15 @@ use std::sync::Arc;
 /// use rf_passport_facade::Passport;
 /// use chrono::Duration;
 ///
-/// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+/// # fn example() -> Result<(), Box<dyn std::error::Error>> {
 /// // Configure token lifetimes
-/// Passport::tokensExpireIn(Duration::seconds(3600 * 24 * 15)).await;
+/// Passport::tokensExpireIn(Duration::seconds(3600 * 24 * 15));
 ///
 /// // Define scopes
 /// Passport::tokensCan(&[
 ///     ("read:posts", "Read blog posts"),
 ///     ("write:posts", "Create and edit posts"),
-/// ]).await;
+/// ]);
 /// # Ok(())
 /// # }
 /// ```
@@ -230,6 +230,11 @@ impl Passport {
     ///
     /// ```rust,no_run
     /// use rf_passport_facade::Passport;
+    /// # use rf_passport::HasApiTokens;
+    /// # struct MyUser { id: i64 }
+    /// # impl HasApiTokens for MyUser {
+    /// #     fn get_id(&self) -> i64 { self.id }
+    /// # }
     ///
     /// # fn example(user: MyUser) -> Result<(), Box<dyn std::error::Error>> {
     /// let token = Passport::createToken(&user, "api-token", vec!["read:posts".to_string()])?;
@@ -265,6 +270,11 @@ impl Passport {
     ///
     /// ```rust,no_run
     /// use rf_passport_facade::Passport;
+    /// # use rf_passport::HasApiTokens;
+    /// # struct MyUser { id: i64 }
+    /// # impl HasApiTokens for MyUser {
+    /// #     fn get_id(&self) -> i64 { self.id }
+    /// # }
     ///
     /// # fn example(user: MyUser) -> Result<(), Box<dyn std::error::Error>> {
     /// let tokens = Passport::tokens(&user)?;
@@ -322,6 +332,11 @@ impl Passport {
     ///
     /// ```rust,no_run
     /// use rf_passport_facade::Passport;
+    /// # use rf_passport::HasApiTokens;
+    /// # struct MyUser { id: i64 }
+    /// # impl HasApiTokens for MyUser {
+    /// #     fn get_id(&self) -> i64 { self.id }
+    /// # }
     ///
     /// # fn example(user: MyUser) -> Result<(), Box<dyn std::error::Error>> {
     /// let count = Passport::revokeAllTokens(&user)?;

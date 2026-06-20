@@ -13,7 +13,7 @@ use serde_json::Value;
 /// ```rust,no_run
 /// use rf_db_facade::DB;
 ///
-/// # fn example() -> Result<(), Box<dyn std::error::Error>> {
+/// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 /// // Select records
 /// let users = DB::select("SELECT * FROM users", &[])?;
 ///
@@ -32,7 +32,8 @@ use serde_json::Value;
 /// // Use query builder
 /// let users = DB::table("users")
 ///     .where_clause("active", "=", true.into())
-///     .get()?;
+///     .get()
+///     .await?;
 /// # Ok(())
 /// # }
 /// ```
@@ -135,11 +136,12 @@ impl DB {
     /// ```rust,no_run
     /// use rf_db_facade::DB;
     ///
-    /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let users = DB::table("users")
     ///     .where_clause("active", "=", true.into())
     ///     .limit(10)
-    ///     .get()?;
+    ///     .get()
+    ///     .await?;
     /// # Ok(())
     /// # }
     /// ```

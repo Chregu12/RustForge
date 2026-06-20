@@ -69,6 +69,11 @@ pub fn function_impl(input: TokenStream) -> TokenStream {
             }
         }
     }
+    if transformer.wrapped {
+        let mut stmts = AwaitTransformer::adapter_prelude();
+        stmts.append(&mut body.stmts);
+        body.stmts = stmts;
+    }
 
     // Convert args to closure parameters
     let closure_args = args.iter().map(|arg| match arg {

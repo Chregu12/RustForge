@@ -16,14 +16,19 @@
 //!
 //! ```no_run
 //! use rf_api::websocket::{WebSocketManager, WebSocketMessage};
+//! use serde_json::json;
 //!
+//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! let manager = WebSocketManager::new();
 //!
 //! // Broadcast an alle verbundenen Clients
-//! manager.broadcast("global", WebSocketMessage::text("Hello everyone!")).await;
+//! manager.broadcast(WebSocketMessage::text("Hello everyone!"), None).await;
 //!
 //! // An spezifischen Channel senden
+//! let data = json!({ "user": "Alice", "message": "Hi!" });
 //! manager.send_to_channel("chat:room1", WebSocketMessage::json(&data)?).await;
+//! # Ok(())
+//! # }
 //! ```
 
 pub mod channel;

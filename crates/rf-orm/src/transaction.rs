@@ -7,18 +7,14 @@ use std::future::Future;
 ///
 /// ```rust,no_run
 /// use rf_orm::transaction::Transaction;
+/// # use sea_orm::{DatabaseConnection, ConnectionTrait};
 ///
 /// # async fn example(db: DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
-/// // Automatic rollback on error
-/// let result = Transaction::run(&db, |tx| async move {
-///     // Create user
-///     let user = User::create(tx, user_data).await?;
-///
-///     // Create profile
-///     let profile = Profile::create(tx, profile_data).await?;
-///
-///     // If any error occurs, transaction will rollback automatically
-///     Ok((user, profile))
+/// // The closure receives a transaction handle. If it returns `Err`, the
+/// // transaction is rolled back automatically; on `Ok` it is committed.
+/// Transaction::run(&db, |_tx| async move {
+///     // ... run queries against the transaction handle here ...
+///     Ok::<(), sea_orm::DbErr>(())
 /// }).await?;
 /// # Ok(())
 /// # }
@@ -34,11 +30,15 @@ impl Transaction {
     /// # Example
     ///
     /// ```rust,no_run
-    /// Transaction::run(&db, |tx| async move {
-    ///     User::create(tx, user).await?;
-    ///     Post::create(tx, post).await?;
-    ///     Ok(())
+    /// # use rf_orm::transaction::Transaction;
+    /// # use sea_orm::{DatabaseConnection, ConnectionTrait};
+    /// # async fn example(db: DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
+    /// Transaction::run(&db, |_tx| async move {
+    ///     // ... run queries against the transaction handle here ...
+    ///     Ok::<(), sea_orm::DbErr>(())
     /// }).await?;
+    /// # Ok(())
+    /// # }
     /// ```
     pub async fn run<F, T, Fut>(db: &DatabaseConnection, f: F) -> Result<T, DbErr>
     where
@@ -66,15 +66,20 @@ impl Transaction {
     /// # Example
     ///
     /// ```rust,no_run
+    /// # use rf_orm::transaction::Transaction;
+    /// # use sea_orm::{DatabaseConnection, ConnectionTrait, TransactionTrait};
+    /// # async fn example(db: DatabaseConnection) -> Result<(), sea_orm::DbErr> {
     /// let tx = Transaction::begin(&db).await?;
     ///
-    /// match User::create(&tx, user).await {
+    /// match tx.execute_unprepared("INSERT INTO users (name) VALUES ('John')").await {
     ///     Ok(_) => tx.commit().await?,
     ///     Err(e) => {
     ///         tx.rollback().await?;
     ///         return Err(e);
     ///     }
     /// }
+    /// # Ok(())
+    /// # }
     /// ```
     pub async fn begin(db: &DatabaseConnection) -> Result<DatabaseTransaction, DbErr> {
         db.begin().await
@@ -88,10 +93,15 @@ pub trait TransactionExt {
     /// # Example
     ///
     /// ```rust,no_run
-    /// db.transaction(|tx| async move {
-    ///     User::create(tx, user).await?;
-    ///     Ok(())
+    /// # use rf_orm::transaction::TransactionExt;
+    /// # use sea_orm::{DatabaseConnection, ConnectionTrait};
+    /// # async fn example(db: DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
+    /// db.transaction(|_tx| async move {
+    ///     // ... run queries against the transaction handle here ...
+    ///     Ok::<(), sea_orm::DbErr>(())
     /// }).await?;
+    /// # Ok(())
+    /// # }
     /// ```
     async fn transaction<F, T, Fut>(&self, f: F) -> Result<T, DbErr>
     where
@@ -114,19 +124,20 @@ impl TransactionExt for DatabaseConnection {
 /// # Example
 ///
 /// ```rust,no_run
-/// db.transaction(|tx| async move {
-///     User::create(tx, user).await?;
-///
-///     // Nested transaction with savepoint
-///     let savepoint = Savepoint::create(tx, "my_savepoint").await?;
-///
-///     match Post::create(tx, post).await {
-///         Ok(_) => savepoint.release().await?,
-///         Err(_) => savepoint.rollback().await?,
-///     }
-///
-///     Ok(())
+/// # use rf_orm::transaction::TransactionExt;
+/// # use sea_orm::DatabaseConnection;
+/// # async fn example(db: DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
+/// db.transaction(|_tx| async move {
+///     // Create a savepoint, then run nested work:
+///     //   let savepoint = Savepoint::create(tx, "my_savepoint").await?;
+///     //   match do_work(tx).await {
+///     //       Ok(_)  => savepoint.release().await?,
+///     //       Err(_) => savepoint.rollback().await?,
+///     //   }
+///     Ok::<(), sea_orm::DbErr>(())
 /// }).await?;
+/// # Ok(())
+/// # }
 /// ```
 pub struct Savepoint<'a> {
     tx: &'a DatabaseTransaction,

@@ -37,17 +37,18 @@
 //! use axum::{Router, routing::get};
 //! use std::sync::Arc;
 //!
-//! async fn index(engine: axum::extract::State<Arc<ViewEngine>>) -> Result<axum::response::Html<String>, ViewError> {
+//! async fn index(engine: axum::extract::State<Arc<ViewEngine>>) -> Result<axum::response::Html<String>, axum::http::StatusCode> {
 //!     view(&engine, "index", serde_json::json!({
 //!         "title": "Home"
 //!     }))
+//!     .map_err(|_| axum::http::StatusCode::INTERNAL_SERVER_ERROR)
 //! }
 //!
 //! # #[tokio::main]
 //! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! let engine = Arc::new(ViewEngine::new("resources/views")?);
 //!
-//! let app = Router::new()
+//! let app: Router = Router::new()
 //!     .route("/", get(index))
 //!     .with_state(engine);
 //! # Ok(())

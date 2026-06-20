@@ -5,10 +5,12 @@
 //!
 //! # Examples
 //!
-//! ```no_run
-//! use rf_command_executor::CommandExecutor;
+//! ```rust,no_run
+//! use rf_command_executor::{CommandExecutor, CommandRegistry};
+//! use std::sync::Arc;
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+//! let registry = Arc::new(CommandRegistry::new());
 //! let executor = CommandExecutor::new(registry);
 //! let result = executor.execute("migrate:run", vec!["--force".to_string()]).await?;
 //! println!("Exit code: {}", result.exit_code);

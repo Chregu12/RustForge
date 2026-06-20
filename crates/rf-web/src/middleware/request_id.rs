@@ -17,7 +17,7 @@ use rf_core::RequestContext;
 /// ```rust,no_run
 /// use axum::Router;
 ///
-/// let app = Router::new()
+/// let app: Router = Router::new()
 ///     .layer(axum::middleware::from_fn(rf_web::middleware::request_id::request_id_middleware));
 /// ```
 pub async fn request_id_middleware(mut request: Request, next: Next) -> Response {

@@ -26,7 +26,12 @@
 ///
 /// ```rust,no_run
 /// use rf_service_container::fast_container::FastContainer;
+/// use std::sync::Arc;
 ///
+/// # struct Database;
+/// # impl Database {
+/// #     fn new(_url: &str) -> Self { Self }
+/// # }
 /// #[tokio::main]
 /// async fn main() -> anyhow::Result<()> {
 ///     let container = FastContainer::new();

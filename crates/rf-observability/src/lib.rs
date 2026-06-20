@@ -10,7 +10,7 @@
 //! ## Quick Start
 //!
 //! ```rust,no_run
-//! use foundry_observability::{ObservabilityConfig, init_observability};
+//! use rf_observability::{ObservabilityConfig, init_observability};
 //!
 //! #[tokio::main]
 //! async fn main() -> anyhow::Result<()> {

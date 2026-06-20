@@ -34,7 +34,9 @@ if Hash::needs_rehash(&hash) {
 ### 2. CSRF Protection
 
 ```rust
-use rf::{csrf_token, csrf_field, csrf_meta};
+// csrf_token / csrf_field are re-exported at rf::prelude; csrf_meta and
+// verify_csrf_token live in rf::helpers (glob of rf_global_helpers).
+use rf::helpers::{csrf_token, csrf_field, csrf_meta, verify_csrf_token};
 
 // Generate token
 let token = csrf_token();
@@ -141,7 +143,30 @@ laravel! {
 
 The `#[auto_await]` macro does TWO things automatically:
 1. **Transforms `where` to `r#where`** - so you can use `where()` like in Laravel
-2. **Adds `.await` automatically** - no need to write `.await` after async calls
+2. **Resolves calls automatically** - you never write `.await`. The macro wraps
+   each framework call in a tiny "maybe-await" adapter: an **async** call (e.g.
+   `User::find(1)`) is awaited for you, while a **synchronous** facade call (e.g.
+   `Cache::put(..)`, `Auth::login(..)`) is passed through unchanged. You don't
+   have to know — or specify — whether a given call is sync or async; the
+   framework decides per call, so the same await-free code compiles either way.
+
+The macro resolves the framework's facade and model methods (the query builder,
+`Cache`, `Auth`, `Storage`, `Mail`, `Queue`/jobs, events, broadcasting,
+notifications, AI, …). It is intentionally **name-scoped** rather than wrapping
+*every* call: blindly wrapping arbitrary calls would inject `.await` into
+synchronous closures (the `|x| ...` of `.map`/`.filter`) and break inference on
+calls like `.collect()`. For your **own** async methods, extend it per use:
+
+```rust
+// Resolve your custom async methods too — no .await needed on them either.
+#[auto_await(also("my_service_call", "fetch_report"))]
+async fn handler() -> Response {
+    let report = service.fetch_report();   // your async method — awaited for you
+    let users = User::all();               // framework — awaited
+    Cache::put("count", users.len());      // framework facade — sync, passed through
+    // ...
+}
+```
 
 **Recommended file structure - `#[auto_await]` once at top:**
 
@@ -310,7 +335,10 @@ let users = User::query()
 ### 6. Global Helper Functions
 
 ```rust
-use rf::{redirect, back, event, __};
+// `redirect` is re-exported at the rf:: top level; `back`, `event`, and `__`
+// live in rf::helpers (glob of rf_global_helpers).
+use rf::redirect;
+use rf::helpers::{back, event, __};
 
 // Redirect
 redirect("/dashboard");
@@ -735,11 +763,14 @@ Route::post("/users", |req| async { ... });
 ```
 
 #### Hash verification fails
-Ensure you're using the same algorithm:
+Pick the algorithm when hashing with `Hash::make_with`; `Hash::check` auto-detects the
+algorithm from the stored hash, so there is no `check_with`:
 ```rust
-// Both must use BCrypt or both must use Argon2
+// Choose the algorithm at hash time
 let hash = Hash::make_with("pass", HashAlgorithm::Bcrypt);
-Hash::check_with("pass", &hash, HashAlgorithm::Bcrypt);
+
+// check() works regardless of algorithm (it reads it from the hash format)
+Hash::check("pass", &hash);
 ```
 
 ---

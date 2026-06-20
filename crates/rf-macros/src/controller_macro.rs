@@ -47,6 +47,11 @@ fn process_controller_method(method: &mut ImplItemFn) {
             }
         }
     }
+    if transformer.wrapped {
+        let mut stmts = AwaitTransformer::adapter_prelude();
+        stmts.append(&mut method.block.stmts);
+        method.block.stmts = stmts;
+    }
 }
 
 #[cfg(test)]

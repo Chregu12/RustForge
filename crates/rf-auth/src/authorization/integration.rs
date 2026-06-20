@@ -15,18 +15,15 @@ use std::marker::PhantomData;
 /// # Example
 ///
 /// ```rust
-/// use axum::{Json, extract::Path};
 /// use rf_auth::authorization::integration::RequireGate;
-/// use serde_json::json;
 ///
 /// #[derive(Clone)]
 /// struct User { role: String }
 ///
-/// async fn admin_handler(
-///     RequireGate(user, "admin"): RequireGate<User>,
-/// ) -> Json<serde_json::Value> {
-///     Json(json!({ "message": "Admin only" }))
-/// }
+/// let user = User { role: "admin".to_string() };
+/// let require = RequireGate::new(user, "admin");
+/// assert_eq!(require.gate, "admin");
+/// assert_eq!(require.user.role, "admin");
 /// ```
 pub struct RequireGate<U> {
     pub user: U,
@@ -54,23 +51,11 @@ impl<U> RequireGate<U> {
 /// # Example
 ///
 /// ```rust
-/// use axum::{Json, extract::Path};
 /// use rf_auth::authorization::integration::Authorize;
-/// use serde_json::json;
 ///
-/// #[derive(Clone)]
-/// struct User { id: i64 }
-///
-/// #[derive(Clone)]
-/// struct Post { id: i64, user_id: i64 }
-///
-/// async fn update_post(
-///     user: User,
-///     Authorize(Path(post_id)): Authorize<Path<i64>>,
-/// ) -> Json<serde_json::Value> {
-///     // User is authorized to update the post
-///     Json(json!({ "message": "Updated" }))
-/// }
+/// // Wrap a value that has been authorized for the current request.
+/// let authorized = Authorize::new(42i64);
+/// assert_eq!(authorized.into_inner(), 42);
 /// ```
 pub struct Authorize<T> {
     pub inner: T,
@@ -138,18 +123,12 @@ impl<R> Can<R> {
 /// # Example
 ///
 /// ```rust
-/// use axum::Json;
 /// use rf_auth::authorization::integration::CanCreate;
-/// use serde_json::json;
 ///
 /// struct Post;
 ///
-/// async fn create_post_handler(
-///     CanCreate::<Post>::default(): CanCreate<Post>,
-/// ) -> Json<serde_json::Value> {
-///     // User is authorized to create posts
-///     Json(json!({ "message": "Created" }))
-/// }
+/// // Marks a request that requires permission to create `Post` instances.
+/// let _can_create: CanCreate<Post> = CanCreate::default();
 /// ```
 pub struct CanCreate<R> {
     _phantom: PhantomData<R>,

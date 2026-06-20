@@ -6,6 +6,12 @@
 //! ## Example
 //!
 //! ```rust,no_run
+//! use rf_eloquent::polymorphic::morphed_by_many::MorphedByMany;
+//!
+//! struct Tag { id: i64 }
+//! struct Post;
+//! struct Video;
+//!
 //! // Tag can have many Posts (inverse of MorphToMany)
 //! impl Tag {
 //!     pub fn posts(&self) -> MorphedByMany<Post> {
@@ -17,10 +23,10 @@
 //!     }
 //! }
 //!
-//! // Usage
-//! let tag = Tag::find(1).await?;
-//! let posts = tag.posts().get(&db).await?;
-//! let videos = tag.videos().get(&db).await?;
+//! let tag = Tag { id: 1 };
+//! let rel = tag.posts();
+//! assert_eq!(rel.morph_type(), "Post");
+//! assert_eq!(rel.morph_type_column(), "taggable_type");
 //! ```
 
 use super::polymorphic::PolymorphicResult;
@@ -115,8 +121,22 @@ where
     /// # Example
     ///
     /// ```rust,no_run
-    /// let tag = Tag::find(1).await?;
-    /// let posts = tag.posts().get(&db, post::Entity, "tag_id").await?;
+    /// # use rf_eloquent::polymorphic::morphed_by_many::MorphedByMany;
+    /// # use sea_orm::DatabaseConnection;
+    /// # fn main() {}
+    /// # mod post {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "posts")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub title: String }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {}
+    /// # }
+    /// # async fn example(db: &DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
+    /// let rel = MorphedByMany::<post::Model>::new(1, "Post", "taggable", "taggables");
+    /// let posts = rel.get(db, post::Entity, "tag_id").await?;
+    /// # Ok(())
+    /// # }
     /// ```
     pub async fn get<E>(
         &self,
@@ -170,8 +190,13 @@ impl<T> MorphedByMany<T> {
     /// # Example
     ///
     /// ```rust,no_run
-    /// let tag = Tag::find(1).await?;
-    /// tag.posts().attach(&db, vec![1, 2, 3], "tag_id").await?;
+    /// # use rf_eloquent::polymorphic::morphed_by_many::MorphedByMany;
+    /// # use sea_orm::DatabaseConnection;
+    /// # async fn example(db: &DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
+    /// let rel = MorphedByMany::<()>::new(1, "Post", "taggable", "taggables");
+    /// rel.attach(db, vec![1, 2, 3], "tag_id").await?;
+    /// # Ok(())
+    /// # }
     /// ```
     pub async fn attach(
         &self,
@@ -193,8 +218,13 @@ impl<T> MorphedByMany<T> {
     /// # Example
     ///
     /// ```rust,no_run
-    /// let tag = Tag::find(1).await?;
-    /// tag.posts().detach(&db, vec![1, 2], "tag_id").await?;
+    /// # use rf_eloquent::polymorphic::morphed_by_many::MorphedByMany;
+    /// # use sea_orm::DatabaseConnection;
+    /// # async fn example(db: &DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
+    /// let rel = MorphedByMany::<()>::new(1, "Post", "taggable", "taggables");
+    /// rel.detach(db, vec![1, 2], "tag_id").await?;
+    /// # Ok(())
+    /// # }
     /// ```
     pub async fn detach(
         &self,
@@ -216,8 +246,13 @@ impl<T> MorphedByMany<T> {
     /// # Example
     ///
     /// ```rust,no_run
-    /// let tag = Tag::find(1).await?;
-    /// tag.posts().sync(&db, vec![1, 2, 3], "tag_id").await?;
+    /// # use rf_eloquent::polymorphic::morphed_by_many::MorphedByMany;
+    /// # use sea_orm::DatabaseConnection;
+    /// # async fn example(db: &DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
+    /// let rel = MorphedByMany::<()>::new(1, "Post", "taggable", "taggables");
+    /// rel.sync(db, vec![1, 2, 3], "tag_id").await?;
+    /// # Ok(())
+    /// # }
     /// ```
     pub async fn sync(
         &self,

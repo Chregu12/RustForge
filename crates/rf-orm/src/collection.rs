@@ -13,16 +13,17 @@
 //! ```rust,no_run
 //! use rf_orm::collection::*;
 //!
-//! let users = User::query(&db)
-//!     .get()
-//!     .await?
-//!     .into_collection();
+//! #[derive(Clone, PartialEq, Eq, Hash)]
+//! struct User { email: String, active: bool }
+//!
+//! let users = Collection::new(vec![
+//!     User { email: "a@example.com".into(), active: true },
+//!     User { email: "b@example.com".into(), active: false },
+//! ]);
 //!
 //! let emails = users
 //!     .filter(|u| u.active)
-//!     .pluck(|u| &u.email)
-//!     .unique()
-//!     .to_vec();
+//!     .pluck(|u| u.email.clone());
 //! ```
 
 use serde::{Deserialize, Serialize};
@@ -42,7 +43,7 @@ use std::hash::Hash;
 ///
 /// let doubled = numbers
 ///     .map(|n| n * 2)
-///     .filter(|n| n > 5)
+///     .filter(|n| *n > 5)
 ///     .to_vec();
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -75,6 +76,7 @@ impl<T> Collection<T> {
     /// # Example
     ///
     /// ```rust,no_run
+    /// # use rf_orm::collection::Collection;
     /// let numbers = Collection::new(vec![1, 2, 3]);
     /// let doubled = numbers.map(|n| n * 2);
     /// ```
@@ -92,8 +94,9 @@ impl<T> Collection<T> {
     /// # Example
     ///
     /// ```rust,no_run
+    /// # use rf_orm::collection::Collection;
     /// let numbers = Collection::new(vec![1, 2, 3, 4, 5]);
-    /// let evens = numbers.filter(|n| n % 2 == 0);
+    /// let evens = numbers.filter(|n| *n % 2 == 0);
     /// ```
     pub fn filter<F>(self, mut predicate: F) -> Self
     where
@@ -113,8 +116,9 @@ impl<T> Collection<T> {
     /// # Example
     ///
     /// ```rust,no_run
+    /// # use rf_orm::collection::Collection;
     /// let numbers = Collection::new(vec![1, 2, 3, 4, 5]);
-    /// let odds = numbers.reject(|n| n % 2 == 0);
+    /// let odds = numbers.reject(|n| *n % 2 == 0);
     /// ```
     pub fn reject<F>(self, mut predicate: F) -> Self
     where
@@ -134,6 +138,7 @@ impl<T> Collection<T> {
     /// # Example
     ///
     /// ```rust,no_run
+    /// # use rf_orm::collection::Collection;
     /// let collection = Collection::new(vec![1, 2, 3]);
     /// let result = collection.transform(|coll| {
     ///     coll.map(|n| n * 2)
@@ -151,6 +156,7 @@ impl<T> Collection<T> {
     /// # Example
     ///
     /// ```rust,no_run
+    /// # use rf_orm::collection::Collection;
     /// let collection = Collection::new(vec![1, 2, 3])
     ///     .tap(|coll| println!("Count: {}", coll.count()))
     ///     .map(|n| n * 2);
@@ -170,11 +176,13 @@ impl<T> Collection<T> {
     /// # Example
     ///
     /// ```rust,no_run
+    /// # use rf_orm::collection::Collection;
+    /// # struct User { id: i32, name: String }
     /// let users = Collection::new(vec![
     ///     User { id: 1, name: "John".to_string() },
     ///     User { id: 2, name: "Jane".to_string() },
     /// ]);
-    /// let names = users.pluck(|u| &u.name);
+    /// let names = users.pluck(|u| u.name.clone());
     /// ```
     pub fn pluck<U, F>(&self, f: F) -> Vec<U>
     where
@@ -188,6 +196,7 @@ impl<T> Collection<T> {
     /// # Example
     ///
     /// ```rust,no_run
+    /// # use rf_orm::collection::Collection;
     /// let numbers = Collection::new(vec![1, 2, 3]);
     /// assert_eq!(numbers.first(), Some(&1));
     /// ```
@@ -208,6 +217,7 @@ impl<T> Collection<T> {
     /// # Example
     ///
     /// ```rust,no_run
+    /// # use rf_orm::collection::Collection;
     /// let numbers = Collection::new(vec![1, 2, 3]);
     /// assert_eq!(numbers.last(), Some(&3));
     /// ```
@@ -230,6 +240,7 @@ impl<T> Collection<T> {
     /// # Example
     ///
     /// ```rust,no_run
+    /// # use rf_orm::collection::Collection;
     /// let numbers = Collection::new(vec![1, 2, 3, 4, 5]);
     /// let chunks = numbers.chunk(2);
     /// // Returns: [[1, 2], [3, 4], [5]]
@@ -249,6 +260,7 @@ impl<T> Collection<T> {
     /// # Example
     ///
     /// ```rust,no_run
+    /// # use rf_orm::collection::Collection;
     /// let numbers = Collection::new(vec![1, 2, 3, 4, 5]);
     /// let first_three = numbers.take(3);
     /// ```
@@ -263,6 +275,7 @@ impl<T> Collection<T> {
     /// # Example
     ///
     /// ```rust,no_run
+    /// # use rf_orm::collection::Collection;
     /// let numbers = Collection::new(vec![1, 2, 3, 4, 5]);
     /// let after_two = numbers.skip(2);
     /// ```
@@ -291,11 +304,13 @@ impl<T> Collection<T> {
     /// # Example
     ///
     /// ```rust,no_run
+    /// # use rf_orm::collection::Collection;
+    /// # struct User { role: String, name: String }
     /// let users = Collection::new(vec![
     ///     User { role: "admin".to_string(), name: "John".to_string() },
     ///     User { role: "user".to_string(), name: "Jane".to_string() },
     /// ]);
-    /// let by_role = users.group_by(|u| &u.role);
+    /// let by_role = users.group_by(|u| u.role.clone());
     /// ```
     pub fn group_by<K, F>(self, f: F) -> HashMap<K, Collection<T>>
     where
@@ -318,6 +333,8 @@ impl<T> Collection<T> {
     /// # Example
     ///
     /// ```rust,no_run
+    /// # use rf_orm::collection::Collection;
+    /// # struct User { id: i32, name: String }
     /// let users = Collection::new(vec![
     ///     User { id: 1, name: "John".to_string() },
     ///     User { id: 1, name: "John Doe".to_string() },
@@ -359,6 +376,7 @@ impl<T> Collection<T> {
     /// # Example
     ///
     /// ```rust,no_run
+    /// # use rf_orm::collection::Collection;
     /// let numbers = Collection::new(vec![3, 1, 4, 1, 5]);
     /// let sorted = numbers.sort_by(|a, b| a.cmp(b));
     /// ```
@@ -392,6 +410,7 @@ impl<T> Collection<T> {
     /// # Example
     ///
     /// ```rust,no_run
+    /// # use rf_orm::collection::Collection;
     /// let numbers = Collection::new(vec![1, 2, 3]);
     /// assert_eq!(numbers.count(), 3);
     /// ```
@@ -427,6 +446,7 @@ impl<T> Collection<T> {
     /// # Example
     ///
     /// ```rust,no_run
+    /// # use rf_orm::collection::Collection;
     /// Collection::new(vec![1, 2, 3])
     ///     .each(|n| println!("{}", n));
     /// ```
@@ -447,6 +467,7 @@ impl<T> Collection<T> {
     /// # Example
     ///
     /// ```rust,no_run
+    /// # use rf_orm::collection::Collection;
     /// let collection = Collection::new(vec![1, 2, 3]);
     /// let vec = collection.to_vec();
     /// ```

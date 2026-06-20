@@ -20,7 +20,7 @@
 //! let scheduler = TaskScheduler::new();
 //!
 //! // Schedule a simple job
-//! scheduler.schedule_fn("cleanup", "0 2 * * *", |ctx| async {
+//! scheduler.schedule_fn("cleanup", "0 2 * * *", |ctx| async move {
 //!     println!("Running cleanup at {:?}", ctx.started_at);
 //!     Ok(())
 //! }).await;

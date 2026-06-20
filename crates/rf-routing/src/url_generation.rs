@@ -240,7 +240,9 @@ mod tests {
 
         assert!(url.starts_with("https://example.com/api/users/123"));
         assert!(url.contains("include=posts"));
-        assert!(url.contains("fields=name,email"));
+        // The query builder percent-encodes everything outside the RFC 3986
+        // unreserved set, so the comma in the value is escaped as %2C.
+        assert!(url.contains("fields=name%2Cemail"));
         assert!(url.ends_with("#profile"));
     }
 

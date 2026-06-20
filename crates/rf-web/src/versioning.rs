@@ -16,7 +16,7 @@
 //! async fn users_v1() -> &'static str { "Users API v1" }
 //! async fn users_v2() -> &'static str { "Users API v2" }
 //!
-//! let app = Router::new()
+//! let app: Router = Router::new()
 //!     .nest("/v1", Router::new().route("/users", get(users_v1)))
 //!     .nest("/v2", Router::new().route("/users", get(users_v2)));
 //! ```
@@ -31,7 +31,7 @@
 //!     format!("API version: {}", version.as_str())
 //! }
 //!
-//! let app = axum::Router::new()
+//! let app: axum::Router = axum::Router::new()
 //!     .route("/users", get(handler));
 //! ```
 

@@ -18,7 +18,7 @@
 /// # Example
 ///
 /// ```rust,no_run
-/// use foundry_infra::database::pool::{DatabasePool, PoolConfig};
+/// use rf_infra::database::pool::{DatabasePool, PoolConfig};
 ///
 /// #[tokio::main]
 /// async fn main() -> anyhow::Result<()> {
@@ -118,7 +118,7 @@ impl DatabasePool {
     /// # Example
     ///
     /// ```rust,no_run
-    /// # use foundry_infra::database::pool::DatabasePool;
+    /// # use rf_infra::database::pool::DatabasePool;
     /// # #[tokio::main]
     /// # async fn main() -> anyhow::Result<()> {
     /// let pool = DatabasePool::new("postgresql://localhost/mydb").await?;
@@ -160,7 +160,7 @@ impl DatabasePool {
     /// # Example
     ///
     /// ```rust,no_run
-    /// # use foundry_infra::database::pool::DatabasePool;
+    /// # use rf_infra::database::pool::DatabasePool;
     /// # #[tokio::main]
     /// # async fn main() -> anyhow::Result<()> {
     /// # let pool = DatabasePool::new("postgresql://localhost/mydb").await?;

@@ -9,7 +9,7 @@
 /// # Example
 ///
 /// ```rust,no_run
-/// use rf_api::command_isolation::{CommandIsolation, LockStrategy};
+/// use rf_api::isolatable::{CommandIsolation, LockStrategy};
 ///
 /// let isolation = CommandIsolation::new("migrate")
 ///     .with_timeout(std::time::Duration::from_secs(300));

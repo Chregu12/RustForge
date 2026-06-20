@@ -22,9 +22,10 @@
 //!
 //! ```rust,no_run
 //! use rf_orm::sharding::*;
+//! use sea_orm::DatabaseConnection;
 //! use std::sync::Arc;
 //!
-//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+//! # async fn example(db1: DatabaseConnection, db2: DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
 //! // Create sharding strategy
 //! let strategy = HashStrategy::new(vec![
 //!     "shard1".to_string(),

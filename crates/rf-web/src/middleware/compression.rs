@@ -12,7 +12,7 @@ use tower_http::compression::CompressionLayer;
 /// use rf_web::compression_layer;
 /// use axum::Router;
 ///
-/// let app = Router::new()
+/// let app: Router = Router::new()
 ///     .layer(compression_layer());
 /// ```
 pub fn compression_layer() -> CompressionLayer {

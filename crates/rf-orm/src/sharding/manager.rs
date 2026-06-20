@@ -64,9 +64,11 @@ pub trait ShardStrategy: Send + Sync {
 ///
 /// ```rust,no_run
 /// use rf_orm::sharding::*;
+/// use sea_orm::DatabaseConnection;
 /// use std::sync::Arc;
 ///
-/// # async fn example() -> ShardResult<()> {
+/// # use rf_orm::ShardResult;
+/// # async fn example(db1: DatabaseConnection, db2: DatabaseConnection) -> ShardResult<()> {
 /// let strategy = HashStrategy::new(vec!["shard1".into(), "shard2".into()]);
 /// let mut manager = ShardManager::new(Arc::new(strategy));
 ///
@@ -107,6 +109,7 @@ impl ShardManager {
     ///
     /// ```rust,no_run
     /// # use rf_orm::sharding::*;
+    /// # use sea_orm::DatabaseConnection;
     /// # use std::sync::Arc;
     /// # async fn example(manager: &mut ShardManager, db: DatabaseConnection) {
     /// manager.add_shard("shard_us_east".to_string(), Arc::new(db));
@@ -139,6 +142,7 @@ impl ShardManager {
     ///
     /// ```rust,no_run
     /// # use rf_orm::sharding::*;
+    /// # use rf_orm::ShardResult;
     /// # async fn example(manager: &ShardManager) -> ShardResult<()> {
     /// let user_id = "12345";
     /// let db = manager.connection_for(user_id).await?;
@@ -219,17 +223,22 @@ impl ShardManager {
     ///
     /// ```rust,no_run
     /// # use rf_orm::sharding::*;
-    /// # use sea_orm::*;
+    /// # use sea_orm::{ConnectionTrait, Statement};
+    /// # use rf_orm::ShardResult;
     /// # async fn example(manager: &ShardManager) -> ShardResult<()> {
-    /// let counts: Vec<i64> = manager.execute_on_all(|db| {
+    /// let results: Vec<u64> = manager.execute_on_all(|db| {
     ///     Box::pin(async move {
-    ///         // Count users on this shard
-    ///         let count = User::find().count(db).await?;
-    ///         Ok(count as i64)
+    ///         // Run a query on this shard
+    ///         let stmt = Statement::from_string(
+    ///             db.get_database_backend(),
+    ///             "SELECT 1".to_string(),
+    ///         );
+    ///         db.execute(stmt).await?;
+    ///         Ok(1u64)
     ///     })
     /// }).await?;
     ///
-    /// let total: i64 = counts.iter().sum();
+    /// let total: u64 = results.iter().sum();
     /// # Ok(())
     /// # }
     /// ```
@@ -306,11 +315,17 @@ impl ShardManager {
     ///
     /// ```rust,no_run
     /// # use rf_orm::sharding::*;
-    /// # use sea_orm::*;
+    /// # use sea_orm::{ConnectionTrait, Statement};
+    /// # use rf_orm::ShardResult;
     /// # async fn example(manager: &ShardManager) -> ShardResult<()> {
-    /// let user = manager.execute_with_key("user_123", |db| {
+    /// let count = manager.execute_with_key("user_123", |db| {
     ///     Box::pin(async move {
-    ///         User::find_by_id(123).one(db).await
+    ///         let stmt = Statement::from_string(
+    ///             db.get_database_backend(),
+    ///             "SELECT 1".to_string(),
+    ///         );
+    ///         db.execute(stmt).await?;
+    ///         Ok::<_, sea_orm::DbErr>(1u64)
     ///     })
     /// }).await?;
     /// # Ok(())

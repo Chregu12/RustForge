@@ -38,8 +38,8 @@
 //! let manager = MailManager::memory();
 //!
 //! use rf_mail::Mailer;
-//! use rf_mail::mail::{Mail, MailBody};
-//! use rf_mail::address::Address;
+//! use rf_mail::{Mail, MailBody};
+//! use rf_mail::Address;
 //! let mail = Mail {
 //!     from: Address::new("noreply@example.com"),
 //!     to: vec![Address::new("user@example.com")],

@@ -13,13 +13,29 @@ use std::sync::Arc;
 /// # Example
 ///
 /// ```rust,no_run
-/// use rf_orm::QueryBuilder;
-///
-/// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-/// let posts = Post::query()
-///     .where_eq("published", true)
-///     .where_gt("views", 100)
-///     .order_by("created_at", "desc")
+/// use rf_orm::prelude::*;
+/// #
+/// # mod post {
+/// #     use sea_orm::entity::prelude::*;
+/// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+/// #     #[sea_orm(table_name = "posts")]
+/// #     pub struct Model {
+/// #         #[sea_orm(primary_key)] pub id: i32,
+/// #         pub published: bool,
+/// #         pub views: i32,
+/// #         pub created_at: String,
+/// #     }
+/// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
+/// #     pub enum Relation {}
+/// #     impl ActiveModelBehavior for ActiveModel {}
+/// # }
+/// # use post::Entity as Post;
+/// #
+/// # async fn example(db: DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
+/// let posts = Post::query(db)
+///     .where_eq(post::Column::Published, true)
+///     .where_gt(post::Column::Views, 100)
+///     .order_by(post::Column::CreatedAt, "desc")
 ///     .limit(10)
 ///     .get()
 ///     .await?;
@@ -62,7 +78,20 @@ where
     /// # Example
     ///
     /// ```rust,no_run
-    /// Post::query().where_eq("published", true)
+    /// # use rf_orm::prelude::*;
+    /// # mod post {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "posts")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub published: bool }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {}
+    /// # }
+    /// # use post::Entity as Post;
+    /// # async fn example(db: DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
+    /// let posts = Post::query(db).where_eq(post::Column::Published, true).get().await?;
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn where_eq<C, V>(mut self, column: C, value: V) -> Self
     where
@@ -184,7 +213,20 @@ where
     /// # Example
     ///
     /// ```rust,no_run
-    /// Post::query().order_by("created_at", "desc")
+    /// # use rf_orm::prelude::*;
+    /// # mod post {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "posts")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub created_at: String }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {}
+    /// # }
+    /// # use post::Entity as Post;
+    /// # async fn example(db: DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
+    /// let posts = Post::query(db).order_by(post::Column::CreatedAt, "desc").get().await?;
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn order_by<C>(mut self, column: C, direction: &str) -> Self
     where
@@ -243,7 +285,20 @@ where
     /// # Example
     ///
     /// ```rust,no_run
-    /// let post = Post::query().where_eq("id", 1).first().await?;
+    /// # use rf_orm::prelude::*;
+    /// # mod post {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "posts")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32 }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {}
+    /// # }
+    /// # use post::Entity as Post;
+    /// # async fn example(db: DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
+    /// let post = Post::query(db).where_eq(post::Column::Id, 1).first().await?;
+    /// # Ok(())
+    /// # }
     /// ```
     pub async fn first(self) -> Result<Option<E::Model>, sea_orm::DbErr> {
         self.select.one(self.db.as_ref()).await
@@ -254,7 +309,20 @@ where
     /// # Example
     ///
     /// ```rust,no_run
-    /// let posts = Post::query().where_eq("published", true).get().await?;
+    /// # use rf_orm::prelude::*;
+    /// # mod post {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "posts")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub published: bool }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {}
+    /// # }
+    /// # use post::Entity as Post;
+    /// # async fn example(db: DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
+    /// let posts = Post::query(db).where_eq(post::Column::Published, true).get().await?;
+    /// # Ok(())
+    /// # }
     /// ```
     pub async fn get(self) -> Result<Vec<E::Model>, sea_orm::DbErr> {
         self.select.all(self.db.as_ref()).await
@@ -281,11 +349,33 @@ where
     /// # Example
     ///
     /// ```rust,no_run
+    /// # use rf_orm::prelude::*;
+    /// # mod post {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "posts")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub user_id: i32 }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {}
+    /// # }
+    /// # mod user {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "users")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub active: bool }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {}
+    /// # }
+    /// # use post::Entity as Post;
+    /// # use user::Entity as User;
+    /// # async fn example(db: DatabaseConnection, db2: DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
     /// // Get posts where user_id is in the subquery result
-    /// Post::query(db.clone())
-    ///     .where_in_subquery("user_id", User::query(db).where_eq("active", true))
+    /// let posts = Post::query(db)
+    ///     .where_in_subquery(post::Column::UserId, User::query(db2).where_eq(user::Column::Active, true))
     ///     .get()
     ///     .await?;
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn where_in_subquery<C, E2>(mut self, column: C, subquery: QueryBuilder<E2>) -> Self
     where
@@ -317,13 +407,35 @@ where
     /// # Example
     ///
     /// ```rust,no_run
+    /// # use rf_orm::prelude::*;
+    /// # mod post {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "posts")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32 }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {}
+    /// # }
+    /// # mod comment {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "comments")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub post_id: i32 }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {}
+    /// # }
+    /// # use post::Entity as Post;
+    /// # use comment::Entity as Comment;
+    /// # async fn example(db: DatabaseConnection, db2: DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
     /// // Get posts that have comments
-    /// Post::query(db.clone())
+    /// let posts = Post::query(db)
     ///     .where_exists(
-    ///         Comment::query(db).where_column("comments.post_id", "posts.id")
+    ///         Comment::query(db2).where_raw("comments.post_id = posts.id")
     ///     )
     ///     .get()
     ///     .await?;
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn where_exists<E2>(mut self, subquery: QueryBuilder<E2>) -> Self
     where
@@ -353,9 +465,22 @@ where
     /// # Example
     ///
     /// ```rust,no_run
-    /// let published = Post::query(db.clone()).where_eq("published", true);
-    /// let featured = Post::query(db.clone()).where_eq("featured", true);
+    /// # use rf_orm::prelude::*;
+    /// # mod post {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "posts")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub published: bool, pub featured: bool }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {}
+    /// # }
+    /// # use post::Entity as Post;
+    /// # async fn example(db: DatabaseConnection, db2: DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
+    /// let published = Post::query(db).where_eq(post::Column::Published, true);
+    /// let featured = Post::query(db2).where_eq(post::Column::Featured, true);
     /// let results = published.union(featured).get().await?;
+    /// # Ok(())
+    /// # }
     /// ```
     ///
     /// Note: Union operations require raw SQL in current SeaORM version.
@@ -385,11 +510,24 @@ where
     /// # Example
     ///
     /// ```rust,no_run
-    /// Post::query(db)
+    /// # use rf_orm::prelude::*;
+    /// # mod post {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "posts")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub created_at: String }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {}
+    /// # }
+    /// # use post::Entity as Post;
+    /// # async fn example(db: DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
+    /// let rows = Post::query(db)
     ///     .select_raw("COUNT(*) as total, DATE(created_at) as date")
-    ///     .group_by("date")
+    ///     .group_by_raw("DATE(created_at)")
     ///     .get()
     ///     .await?;
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn select_raw(mut self, raw_sql: &str) -> Self {
         // Use expr_as for raw SELECT with custom expression
@@ -405,10 +543,23 @@ where
     /// # Example
     ///
     /// ```rust,no_run
-    /// Post::query(db)
+    /// # use rf_orm::prelude::*;
+    /// # mod post {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "posts")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub created_at: String }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {}
+    /// # }
+    /// # use post::Entity as Post;
+    /// # async fn example(db: DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
+    /// let posts = Post::query(db)
     ///     .where_raw("DATE(created_at) = CURDATE()")
     ///     .get()
     ///     .await?;
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn where_raw(mut self, raw_sql: &str) -> Self {
         self.select = self.select.filter(Expr::cust(raw_sql));
@@ -420,11 +571,24 @@ where
     /// # Example
     ///
     /// ```rust,no_run
-    /// Post::query(db)
-    ///     .where_eq("status", "published")
+    /// # use rf_orm::prelude::*;
+    /// # mod post {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "posts")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub status: String }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {}
+    /// # }
+    /// # use post::Entity as Post;
+    /// # async fn example(db: DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
+    /// let posts = Post::query(db)
+    ///     .where_eq(post::Column::Status, "published")
     ///     .or_where_raw("featured = 1 AND views > 1000")
     ///     .get()
     ///     .await?;
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn or_where_raw(mut self, raw_sql: &str) -> Self {
         let condition = Condition::any().add(Expr::cust(raw_sql));
@@ -437,14 +601,27 @@ where
     /// # Example
     ///
     /// ```rust,no_run
-    /// use sea_orm::Value;
-    /// Post::query(db)
+    /// # use rf_orm::prelude::*;
+    /// # use sea_orm::Value;
+    /// # mod product {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "products")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub price: i32, pub category: String }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {}
+    /// # }
+    /// # use product::Entity as Product;
+    /// # async fn example(db: DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
+    /// let products = Product::query(db)
     ///     .where_raw_with_bindings("price > ? AND category = ?", vec![
     ///         Value::from(100),
     ///         Value::from("electronics")
     ///     ])
     ///     .get()
     ///     .await?;
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn where_raw_with_bindings(mut self, raw_sql: &str, bindings: Vec<Value>) -> Self {
         // Create custom expression with bindings
@@ -461,10 +638,23 @@ where
     /// # Example
     ///
     /// ```rust,no_run
-    /// Post::query(db)
+    /// # use rf_orm::prelude::*;
+    /// # mod post {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "posts")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub status: String }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {}
+    /// # }
+    /// # use post::Entity as Post;
+    /// # async fn example(db: DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
+    /// let posts = Post::query(db)
     ///     .order_by_raw("FIELD(status, 'published', 'draft', 'archived')")
     ///     .get()
     ///     .await?;
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn order_by_raw(mut self, raw_sql: &str) -> Self {
         // Use custom expression for ORDER BY
@@ -488,11 +678,24 @@ where
     /// # Example
     ///
     /// ```rust,no_run
-    /// Post::query(db)
+    /// # use rf_orm::prelude::*;
+    /// # mod post {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "posts")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub created_at: String }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {}
+    /// # }
+    /// # use post::Entity as Post;
+    /// # async fn example(db: DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
+    /// let rows = Post::query(db)
     ///     .select_raw("YEAR(created_at) as year, COUNT(*) as count")
     ///     .group_by_raw("YEAR(created_at), MONTH(created_at)")
     ///     .get()
     ///     .await?;
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn group_by_raw(mut self, raw_sql: &str) -> Self {
         // Use custom expression for GROUP BY
@@ -507,11 +710,24 @@ where
     /// # Example
     ///
     /// ```rust,no_run
-    /// Post::query(db)
+    /// # use rf_orm::prelude::*;
+    /// # mod post {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "posts")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub user_id: i32 }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {}
+    /// # }
+    /// # use post::Entity as Post;
+    /// # async fn example(db: DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
+    /// let rows = Post::query(db)
     ///     .join_raw("INNER JOIN users ON posts.user_id = users.id")
     ///     .select_raw("posts.*, users.name as author_name")
     ///     .get()
     ///     .await?;
+    /// # Ok(())
+    /// # }
     /// ```
     ///
     /// Note: This is a limited implementation. For complex joins, consider using
@@ -542,8 +758,21 @@ where
     /// # Example
     ///
     /// ```rust,no_run
+    /// # use rf_orm::prelude::*;
+    /// # mod post {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "posts")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub published: bool }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {}
+    /// # }
+    /// # use post::Entity as Post;
+    /// # async fn example(db: DatabaseConnection, db2: DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
     /// let total = Post::query(db).count().await?;
-    /// let published = Post::query(db).where_eq("published", true).count().await?;
+    /// let published = Post::query(db2).where_eq(post::Column::Published, true).count().await?;
+    /// # Ok(())
+    /// # }
     /// ```
     pub async fn count(self) -> Result<u64, DbErr> {
         // Simple implementation: get all results and count them
@@ -557,7 +786,20 @@ where
     /// # Example
     ///
     /// ```rust,no_run
+    /// # use rf_orm::prelude::*;
+    /// # mod post {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "posts")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub views: i32 }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {}
+    /// # }
+    /// # use post::Entity as Post;
+    /// # async fn example(db: DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
     /// let total_views = Post::query(db).sum("views").await?;
+    /// # Ok(())
+    /// # }
     /// ```
     ///
     /// Note: This is a simplified implementation. For production use,
@@ -576,7 +818,20 @@ where
     /// # Example
     ///
     /// ```rust,no_run
+    /// # use rf_orm::prelude::*;
+    /// # mod post {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "posts")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub rating: f64 }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {}
+    /// # }
+    /// # use post::Entity as Post;
+    /// # async fn example(db: DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
     /// let avg_rating = Post::query(db).avg("rating").await?;
+    /// # Ok(())
+    /// # }
     /// ```
     pub async fn avg(self, _column_name: &str) -> Result<Option<f64>, DbErr> {
         // Placeholder - similar to sum()
@@ -588,7 +843,20 @@ where
     /// # Example
     ///
     /// ```rust,no_run
+    /// # use rf_orm::prelude::*;
+    /// # mod product {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "products")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub price: f64 }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {}
+    /// # }
+    /// # use product::Entity as Product;
+    /// # async fn example(db: DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
     /// let min_price = Product::query(db).min("price").await?;
+    /// # Ok(())
+    /// # }
     /// ```
     pub async fn min(self, _column_name: &str) -> Result<Option<f64>, DbErr> {
         // Placeholder - similar to sum()
@@ -600,7 +868,20 @@ where
     /// # Example
     ///
     /// ```rust,no_run
+    /// # use rf_orm::prelude::*;
+    /// # mod product {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "products")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub price: f64 }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {}
+    /// # }
+    /// # use product::Entity as Product;
+    /// # async fn example(db: DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
     /// let max_price = Product::query(db).max("price").await?;
+    /// # Ok(())
+    /// # }
     /// ```
     pub async fn max(self, _column_name: &str) -> Result<Option<f64>, DbErr> {
         // Placeholder - similar to sum()
@@ -614,6 +895,18 @@ where
     /// # Example
     ///
     /// ```rust,no_run
+    /// # use rf_orm::prelude::*;
+    /// # mod post {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "posts")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32 }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {}
+    /// # }
+    /// # use post::Entity as Post;
+    /// # async fn process_post(_post: post::Model) -> Result<(), DbErr> { Ok(()) }
+    /// # async fn example(db: DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
     /// Post::query(db)
     ///     .chunk(100, |posts| async {
     ///         for post in posts {
@@ -622,6 +915,8 @@ where
     ///         Ok(())
     ///     })
     ///     .await?;
+    /// # Ok(())
+    /// # }
     /// ```
     pub async fn chunk<F, Fut>(self, chunk_size: u64, mut callback: F) -> Result<(), DbErr>
     where
@@ -655,14 +950,28 @@ where
     /// # Example
     ///
     /// ```rust,no_run
+    /// # use rf_orm::prelude::*;
+    /// # mod post {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "posts")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32 }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {}
+    /// # }
+    /// # use post::Entity as Post;
+    /// # async fn update_post(_post: post::Model) -> Result<(), DbErr> { Ok(()) }
+    /// # async fn example(db: DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
     /// Post::query(db)
     ///     .chunk_by_id(100, |posts| async {
     ///         for post in posts {
     ///             update_post(post).await?;
     ///         }
     ///         Ok(())
-    ///     }, "id")
+    ///     }, post::Column::Id)
     ///     .await?;
+    /// # Ok(())
+    /// # }
     /// ```
     pub async fn chunk_by_id<F, Fut, C>(
         self,
@@ -713,12 +1022,27 @@ where
     /// # Example
     ///
     /// ```rust,no_run
+    /// # use rf_orm::prelude::*;
+    /// # mod post {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "posts")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32 }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {}
+    /// # }
+    /// # use post::Entity as Post;
+    /// # async fn process_post(_post: post::Model) -> Result<(), DbErr> { Ok(()) }
+    /// # async fn example(db: DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
     /// Post::query(db)
     ///     .lazy(100)
     ///     .for_each(|post| async {
     ///         process_post(post).await?;
+    ///         Ok(())
     ///     })
     ///     .await?;
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn lazy(self, chunk_size: u64) -> LazyIterator<E> {
         LazyIterator {
@@ -738,10 +1062,24 @@ where
     /// # Example
     ///
     /// ```rust,no_run
+    /// # use rf_orm::prelude::*;
+    /// # mod post {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "posts")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32 }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {}
+    /// # }
+    /// # use post::Entity as Post;
+    /// # async fn example(db: DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
     /// let post = Post::query(db)
     ///     .lock_for_update()
-    ///     .find(1)
+    ///     .where_eq(post::Column::Id, 1)
+    ///     .first()
     ///     .await?;
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn lock_for_update(mut self) -> Self {
         self.select = self.select.lock(LockType::Update);
@@ -753,10 +1091,24 @@ where
     /// # Example
     ///
     /// ```rust,no_run
+    /// # use rf_orm::prelude::*;
+    /// # mod post {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "posts")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32 }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {}
+    /// # }
+    /// # use post::Entity as Post;
+    /// # async fn example(db: DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
     /// let post = Post::query(db)
     ///     .shared_lock()
-    ///     .find(1)
+    ///     .where_eq(post::Column::Id, 1)
+    ///     .first()
     ///     .await?;
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn shared_lock(mut self) -> Self {
         self.select = self.select.lock(LockType::Share);
@@ -768,12 +1120,25 @@ where
     /// # Example
     ///
     /// ```rust,no_run
+    /// # use rf_orm::prelude::*;
+    /// # mod post {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "posts")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32 }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {}
+    /// # }
+    /// # use post::Entity as Post;
+    /// # async fn example(db: DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
     /// let posts = Post::query(db)
     ///     .lock_for_update()
     ///     .skip_locked()
     ///     .limit(10)
     ///     .get()
     ///     .await?;
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn skip_locked(mut self) -> Self {
         self.select = self
@@ -787,11 +1152,25 @@ where
     /// # Example
     ///
     /// ```rust,no_run
+    /// # use rf_orm::prelude::*;
+    /// # mod post {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "posts")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32 }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {}
+    /// # }
+    /// # use post::Entity as Post;
+    /// # async fn example(db: DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
     /// let post = Post::query(db)
     ///     .lock_for_update()
     ///     .no_wait()
-    ///     .find(1)
+    ///     .where_eq(post::Column::Id, 1)
+    ///     .first()
     ///     .await?;
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn no_wait(mut self) -> Self {
         self.select = self
@@ -807,10 +1186,23 @@ where
     /// # Example
     ///
     /// ```rust,no_run
-    /// Post::query(db)
-    ///     .where_between("views", 100, 1000)
+    /// # use rf_orm::prelude::*;
+    /// # mod post {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "posts")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub views: i32 }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {}
+    /// # }
+    /// # use post::Entity as Post;
+    /// # async fn example(db: DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
+    /// let posts = Post::query(db)
+    ///     .where_between(post::Column::Views, 100, 1000)
     ///     .get()
     ///     .await?;
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn where_between<C, V>(mut self, column: C, min: V, max: V) -> Self
     where
@@ -826,10 +1218,23 @@ where
     /// # Example
     ///
     /// ```rust,no_run
-    /// Post::query(db)
-    ///     .where_not_between("views", 0, 10)
+    /// # use rf_orm::prelude::*;
+    /// # mod post {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "posts")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub views: i32 }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {}
+    /// # }
+    /// # use post::Entity as Post;
+    /// # async fn example(db: DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
+    /// let posts = Post::query(db)
+    ///     .where_not_between(post::Column::Views, 0, 10)
     ///     .get()
     ///     .await?;
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn where_not_between<C, V>(mut self, column: C, min: V, max: V) -> Self
     where
@@ -845,10 +1250,23 @@ where
     /// # Example
     ///
     /// ```rust,no_run
-    /// Post::query(db)
+    /// # use rf_orm::prelude::*;
+    /// # mod post {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "posts")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub created_at: String }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {}
+    /// # }
+    /// # use post::Entity as Post;
+    /// # async fn example(db: DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
+    /// let posts = Post::query(db)
     ///     .where_date("created_at", "2024-01-01")
     ///     .get()
     ///     .await?;
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn where_date(self, column: &str, date: &str) -> Self {
         self.where_raw(&format!("DATE({}) = '{}'", column, date))
@@ -859,10 +1277,23 @@ where
     /// # Example
     ///
     /// ```rust,no_run
-    /// Post::query(db)
+    /// # use rf_orm::prelude::*;
+    /// # mod post {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "posts")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub created_at: String }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {}
+    /// # }
+    /// # use post::Entity as Post;
+    /// # async fn example(db: DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
+    /// let posts = Post::query(db)
     ///     .where_month("created_at", 12)
     ///     .get()
     ///     .await?;
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn where_month(self, column: &str, month: u8) -> Self {
         self.where_raw(&format!("MONTH({}) = {}", column, month))
@@ -873,10 +1304,23 @@ where
     /// # Example
     ///
     /// ```rust,no_run
-    /// Post::query(db)
+    /// # use rf_orm::prelude::*;
+    /// # mod post {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "posts")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub created_at: String }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {}
+    /// # }
+    /// # use post::Entity as Post;
+    /// # async fn example(db: DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
+    /// let posts = Post::query(db)
     ///     .where_day("created_at", 25)
     ///     .get()
     ///     .await?;
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn where_day(self, column: &str, day: u8) -> Self {
         self.where_raw(&format!("DAY({}) = {}", column, day))
@@ -887,10 +1331,23 @@ where
     /// # Example
     ///
     /// ```rust,no_run
-    /// Post::query(db)
+    /// # use rf_orm::prelude::*;
+    /// # mod post {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "posts")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub created_at: String }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {}
+    /// # }
+    /// # use post::Entity as Post;
+    /// # async fn example(db: DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
+    /// let posts = Post::query(db)
     ///     .where_year("created_at", 2024)
     ///     .get()
     ///     .await?;
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn where_year(self, column: &str, year: i32) -> Self {
         self.where_raw(&format!("YEAR({}) = {}", column, year))
@@ -901,10 +1358,23 @@ where
     /// # Example
     ///
     /// ```rust,no_run
-    /// Post::query(db)
+    /// # use rf_orm::prelude::*;
+    /// # mod post {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "posts")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub created_at: String }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {}
+    /// # }
+    /// # use post::Entity as Post;
+    /// # async fn example(db: DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
+    /// let posts = Post::query(db)
     ///     .where_time("created_at", "14:30:00")
     ///     .get()
     ///     .await?;
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn where_time(self, column: &str, time: &str) -> Self {
         self.where_raw(&format!("TIME({}) = '{}'", column, time))
@@ -915,10 +1385,23 @@ where
     /// # Example
     ///
     /// ```rust,no_run
-    /// Post::query(db)
+    /// # use rf_orm::prelude::*;
+    /// # mod post {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "posts")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub created_at: String, pub updated_at: String }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {}
+    /// # }
+    /// # use post::Entity as Post;
+    /// # async fn example(db: DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
+    /// let posts = Post::query(db)
     ///     .where_column("updated_at", ">", "created_at")
     ///     .get()
     ///     .await?;
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn where_column(self, col1: &str, op: &str, col2: &str) -> Self {
         self.where_raw(&format!("{} {} {}", col1, op, col2))
@@ -929,12 +1412,25 @@ where
     /// # Example
     ///
     /// ```rust,no_run
-    /// Post::query(db)
+    /// # use rf_orm::prelude::*;
+    /// # mod post {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "posts")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub user_id: i32 }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {}
+    /// # }
+    /// # use post::Entity as Post;
+    /// # async fn example(db: DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
+    /// let rows = Post::query(db)
     ///     .select_raw("COUNT(*) as count")
-    ///     .group_by("user_id")
+    ///     .group_by(post::Column::UserId)
     ///     .having_raw("count > 5")
     ///     .get()
     ///     .await?;
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn having_raw(mut self, raw_sql: &str) -> Self {
         // Use custom expression for HAVING clause
@@ -947,13 +1443,26 @@ where
     /// # Example
     ///
     /// ```rust,no_run
-    /// Post::query(db)
+    /// # use rf_orm::prelude::*;
+    /// # mod post {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "posts")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub category: String }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {}
+    /// # }
+    /// # use post::Entity as Post;
+    /// # async fn example(db: DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
+    /// let rows = Post::query(db)
     ///     .select_raw("category, COUNT(*) as count")
-    ///     .group_by("category")
+    ///     .group_by(post::Column::Category)
     ///     .having_raw("count > 10")
     ///     .or_having_raw("category = 'featured'")
     ///     .get()
     ///     .await?;
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn or_having_raw(mut self, raw_sql: &str) -> Self {
         // Use OR condition for HAVING
@@ -967,11 +1476,24 @@ where
     /// # Example
     ///
     /// ```rust,no_run
-    /// Post::query(db)
-    ///     .latest("created_at")
+    /// # use rf_orm::prelude::*;
+    /// # mod post {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "posts")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub created_at: String }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {}
+    /// # }
+    /// # use post::Entity as Post;
+    /// # async fn example(db: DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
+    /// let posts = Post::query(db)
+    ///     .latest(post::Column::CreatedAt)
     ///     .limit(10)
     ///     .get()
     ///     .await?;
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn latest<C>(self, column: C) -> Self
     where
@@ -985,11 +1507,24 @@ where
     /// # Example
     ///
     /// ```rust,no_run
-    /// Post::query(db)
-    ///     .oldest("created_at")
+    /// # use rf_orm::prelude::*;
+    /// # mod post {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "posts")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub created_at: String }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {}
+    /// # }
+    /// # use post::Entity as Post;
+    /// # async fn example(db: DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
+    /// let posts = Post::query(db)
+    ///     .oldest(post::Column::CreatedAt)
     ///     .limit(10)
     ///     .get()
     ///     .await?;
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn oldest<C>(self, column: C) -> Self
     where
@@ -1005,12 +1540,25 @@ where
     /// # Example
     ///
     /// ```rust,no_run
+    /// # use rf_orm::prelude::*;
+    /// # mod post {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "posts")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub published: bool }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {}
+    /// # }
+    /// # use post::Entity as Post;
+    /// # async fn example(db: DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
     /// let published_only = true;
     ///
     /// let posts = Post::query(db)
-    ///     .when(published_only, |q| q.where_eq("published", true))
+    ///     .when(published_only, |q| q.where_eq(post::Column::Published, true))
     ///     .get()
     ///     .await?;
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn when<F>(self, condition: bool, callback: F) -> Self
     where
@@ -1030,16 +1578,29 @@ where
     /// # Example
     ///
     /// ```rust,no_run
+    /// # use rf_orm::prelude::*;
+    /// # mod post {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "posts")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub published: bool, pub created_at: String }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {}
+    /// # }
+    /// # use post::Entity as Post;
+    /// # async fn example(db: DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
     /// let filter_published = Some(true);
     ///
     /// let posts = Post::query(db)
     ///     .when_else(
     ///         filter_published.is_some(),
-    ///         |q| q.where_eq("published", filter_published.unwrap()),
-    ///         |q| q.order_by_desc("created_at")
+    ///         |q| q.where_eq(post::Column::Published, filter_published.unwrap()),
+    ///         |q| q.order_by_desc(post::Column::CreatedAt)
     ///     )
     ///     .get()
     ///     .await?;
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn when_else<F, G>(self, condition: bool, if_callback: F, else_callback: G) -> Self
     where
@@ -1058,11 +1619,24 @@ where
     /// # Example
     ///
     /// ```rust,no_run
-    /// Post::query(db)
-    ///     .where_eq("published", true)
-    ///     .tap(|q| println!("Query so far: {:?}", q))
+    /// # use rf_orm::prelude::*;
+    /// # mod post {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "posts")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub published: bool }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {}
+    /// # }
+    /// # use post::Entity as Post;
+    /// # async fn example(db: DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
+    /// let posts = Post::query(db)
+    ///     .where_eq(post::Column::Published, true)
+    ///     .tap(|_q| println!("inspecting query"))
     ///     .get()
     ///     .await?;
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn tap<F>(self, callback: F) -> Self
     where
@@ -1077,10 +1651,23 @@ where
     /// # Example
     ///
     /// ```rust,no_run
+    /// # use rf_orm::prelude::*;
+    /// # mod post {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "posts")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32 }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {}
+    /// # }
+    /// # use post::Entity as Post;
+    /// # async fn example(db: DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
     /// let post = Post::query(db)
     ///     .lock()
     ///     .first()
     ///     .await?;
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn lock(self) -> Self {
         self.lock_for_update()
@@ -1091,11 +1678,24 @@ where
     /// # Example
     ///
     /// ```rust,no_run
+    /// # use rf_orm::prelude::*;
+    /// # mod post {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "posts")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub user_id: i32 }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {}
+    /// # }
+    /// # use post::Entity as Post;
+    /// # async fn example(db: DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
     /// let user_ids = Post::query(db)
-    ///     .select_columns(vec!["user_id"])
+    ///     .select_columns(vec![post::Column::UserId])
     ///     .distinct()
     ///     .get()
     ///     .await?;
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn distinct(mut self) -> Self {
         self.select = self.select.distinct();
@@ -1107,12 +1707,25 @@ where
     /// # Example
     ///
     /// ```rust,no_run
-    /// Post::query(db)
+    /// # use rf_orm::prelude::*;
+    /// # mod post {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "posts")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub user_id: i32 }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {}
+    /// # }
+    /// # use post::Entity as Post;
+    /// # async fn example(db: DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
+    /// let rows = Post::query(db)
     ///     .select_raw("COUNT(*) as count")
-    ///     .group_by("user_id")
-    ///     .having("count", ">", 5)
+    ///     .group_by(post::Column::UserId)
+    ///     .having_op("count", ">", 5)
     ///     .get()
     ///     .await?;
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn having_op(self, column: &str, op: &str, value: i64) -> Self {
         self.having_raw(&format!("{} {} {}", column, op, value))
@@ -1123,9 +1736,22 @@ where
     /// # Example
     ///
     /// ```rust,no_run
+    /// # use rf_orm::prelude::*;
+    /// # mod post {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "posts")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32 }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {}
+    /// # }
+    /// # use post::Entity as Post;
+    /// # async fn example(db: DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
     /// let post = Post::query(db)
-    ///     .find(1)
+    ///     .find::<post::Column, _>(1)
     ///     .await?;
+    /// # Ok(())
+    /// # }
     /// ```
     pub async fn find<C, V>(self, _id: V) -> Result<Option<E::Model>, sea_orm::DbErr>
     where
@@ -1143,9 +1769,22 @@ where
     /// # Example
     ///
     /// ```rust,no_run
+    /// # use rf_orm::prelude::*;
+    /// # mod post {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "posts")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32 }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {}
+    /// # }
+    /// # use post::Entity as Post;
+    /// # async fn example(db: DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
     /// let post = Post::query(db)
-    ///     .find_or_fail(1)
+    ///     .find_or_fail::<post::Column, _>(1)
     ///     .await?;
+    /// # Ok(())
+    /// # }
     /// ```
     pub async fn find_or_fail<C, V>(self, id: V) -> Result<E::Model, sea_orm::DbErr>
     where
@@ -1162,10 +1801,23 @@ where
     /// # Example
     ///
     /// ```rust,no_run
+    /// # use rf_orm::prelude::*;
+    /// # mod post {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "posts")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub slug: String }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {}
+    /// # }
+    /// # use post::Entity as Post;
+    /// # async fn example(db: DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
     /// let post = Post::query(db)
-    ///     .where_eq("slug", "hello-world")
+    ///     .where_eq(post::Column::Slug, "hello-world")
     ///     .first_or_fail()
     ///     .await?;
+    /// # Ok(())
+    /// # }
     /// ```
     pub async fn first_or_fail(self) -> Result<E::Model, sea_orm::DbErr> {
         self.first()
@@ -1178,9 +1830,22 @@ where
     /// # Example
     ///
     /// ```rust,no_run
+    /// # use rf_orm::prelude::*;
+    /// # mod post {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "posts")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32 }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {}
+    /// # }
+    /// # use post::Entity as Post;
+    /// # async fn example(db: DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
     /// let page = Post::query(db)
     ///     .paginate(1, 15)
     ///     .await?;
+    /// # Ok(())
+    /// # }
     /// ```
     pub async fn paginate(
         mut self,
@@ -1219,9 +1884,22 @@ where
     /// # Example
     ///
     /// ```rust,no_run
+    /// # use rf_orm::prelude::*;
+    /// # mod post {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "posts")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32 }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {}
+    /// # }
+    /// # use post::Entity as Post;
+    /// # async fn example(db: DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
     /// let results = Post::query(db)
     ///     .simple_paginate(1, 15)
     ///     .await?;
+    /// # Ok(())
+    /// # }
     /// ```
     pub async fn simple_paginate(
         mut self,
@@ -1238,10 +1916,23 @@ where
     /// # Example
     ///
     /// ```rust,no_run
+    /// # use rf_orm::prelude::*;
+    /// # mod post {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "posts")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub published: bool }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {}
+    /// # }
+    /// # use post::Entity as Post;
+    /// # async fn example(db: DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
     /// let has_published = Post::query(db)
-    ///     .where_eq("published", true)
+    ///     .where_eq(post::Column::Published, true)
     ///     .exists()
     ///     .await?;
+    /// # Ok(())
+    /// # }
     /// ```
     pub async fn exists(self) -> Result<bool, sea_orm::DbErr> {
         let count = self.count().await?;
@@ -1253,10 +1944,23 @@ where
     /// # Example
     ///
     /// ```rust,no_run
+    /// # use rf_orm::prelude::*;
+    /// # mod post {
+    /// #     use sea_orm::entity::prelude::*;
+    /// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+    /// #     #[sea_orm(table_name = "posts")]
+    /// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub published: bool }
+    /// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+    /// #     impl ActiveModelBehavior for ActiveModel {}
+    /// # }
+    /// # use post::Entity as Post;
+    /// # async fn example(db: DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
     /// let no_drafts = Post::query(db)
-    ///     .where_eq("published", false)
+    ///     .where_eq(post::Column::Published, false)
     ///     .doesnt_exist()
     ///     .await?;
+    /// # Ok(())
+    /// # }
     /// ```
     pub async fn doesnt_exist(self) -> Result<bool, sea_orm::DbErr> {
         let exists = self.exists().await?;

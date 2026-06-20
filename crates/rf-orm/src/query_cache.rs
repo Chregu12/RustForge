@@ -16,26 +16,29 @@
 //! ## Example Usage
 //!
 //! ```rust,no_run
-//! use rf_orm::prelude::*;
+//! use rf_orm::query_cache::{QueryCache, QueryFingerprint};
 //! use std::time::Duration;
 //!
-//! # async fn example(db: &DatabaseConnection) -> Result<()> {
-//! // Cache SELECT queries automatically
-//! let users = User::find()
-//!     .filter(user::Column::Active.eq(true))
-//!     .cache(Duration::from_secs(300))  // 5 min cache
-//!     .all(db)
+//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+//! // Create an in-memory query cache with default configuration
+//! let cache = QueryCache::default_cache();
+//!
+//! // Build a fingerprint for the query (used as the cache key)
+//! let fingerprint = QueryFingerprint::new(
+//!     "SELECT * FROM users WHERE active = ?",
+//!     vec!["true".to_string()],
+//! );
+//!
+//! // Cache-aside: return cached result or execute and store it
+//! let active_count: i64 = cache
+//!     .remember(&fingerprint, Some(Duration::from_secs(300)), || async {
+//!         // Run the actual query here and return the result
+//!         Ok(42)
+//!     })
 //!     .await?;
 //!
-//! // Cache with custom key
-//! let user = User::find()
-//!     .filter(user::Column::Email.eq("user@example.com"))
-//!     .cache_with_key("user:by_email:user@example.com", Duration::from_secs(600))
-//!     .one(db)
-//!     .await?;
-//!
-//! // Invalidate cache when updating
-//! user.update(db).await?;  // Automatically invalidates related caches
+//! // Invalidate cache entries when data changes
+//! cache.invalidate("users:*").await?;
 //! # Ok(())
 //! # }
 //! ```

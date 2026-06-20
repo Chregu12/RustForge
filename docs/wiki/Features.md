@@ -1,6 +1,6 @@
 # Features
 
-RustForge provides 100% Laravel 12 feature parity, bringing the elegant Laravel developer experience to Rust. This page provides a comprehensive overview of all features.
+RustForge targets Laravel feature parity, bringing the elegant Laravel developer experience to Rust, and includes recent Laravel 13 additions (`Cache::touch`, queue routing by job class, JSON:API resources, a provider-agnostic AI SDK, and vector/semantic search). This page provides a comprehensive overview of all features.
 
 ## Table of Contents
 
@@ -30,6 +30,9 @@ RustForge provides 100% Laravel 12 feature parity, bringing the elegant Laravel 
 - [SSH Deployment (Envoy)](#ssh-deployment-envoy)
 - [Docker Environment (Sail)](#docker-environment-sail)
 - [SaaS Billing (Spark)](#saas-billing-spark)
+- [AI SDK (rf-ai)](#ai-sdk-rf-ai)
+- [Vector & Semantic Search (rf-vector)](#vector--semantic-search-rf-vector)
+- [JSON:API Resources](#jsonapi-resources)
 - [Simplified Imports (rf)](#simplified-imports-rf)
 
 ---
@@ -51,51 +54,61 @@ RustForge includes a powerful Laravel-style DB facade and query builder.
 
 ### Example
 
+With `#[auto_await]` on the surrounding `fn`/`impl`/`mod`, the query-builder terminals
+(`get`, `find`, `create`, `update`, `delete`, `paginate`, `begin_transaction`, `commit`)
+are awaited for you, so DB code reads exactly like Laravel — no `.await`:
+
 ```rust
 use rf::DB;
 
-// Query
-let users = DB::table("users")
-    .r#where("active", true)
-    .order_by("name", "asc")
-    .limit(10)
-    .get().await?;
+#[auto_await]
+async fn examples() -> Result<()> {
+    // Query
+    let users = DB::table("users")
+        .r#where("active", true)
+        .order_by("name", "asc")
+        .limit(10)
+        .get()?;
 
-// Find by ID
-let user = DB::table("users").find(1).await?;
+    // Find by ID
+    let user = DB::table("users").find(1)?;
 
-// Create (returns the record)
-let user = DB::table("users").create(json!({
-    "name": "John",
-    "email": "john@example.com"
-})).await?;
+    // Create (returns the record)
+    let user = DB::table("users").create(json!({
+        "name": "John",
+        "email": "john@example.com"
+    }))?;
 
-// Update
-DB::table("users")
-    .r#where("id", 1)
-    .update(json!({"active": true})).await?;
+    // Update
+    DB::table("users")
+        .r#where("id", 1)
+        .update(json!({"active": true}))?;
 
-// Delete
-DB::table("users")
-    .r#where("id", 1)
-    .delete().await?;
+    // Delete
+    DB::table("users")
+        .r#where("id", 1)
+        .delete()?;
 
-// Advanced queries
-let users = DB::table("users")
-    .r#where("active", true)
-    .where_op("age", ">=", 18)
-    .where_in("role", vec!["admin", "mod"])
-    .where_like("name", "John%")
-    .order_by_desc("created_at")
-    .paginate(15, 1).await?;
+    // Advanced queries
+    let users = DB::table("users")
+        .r#where("active", true)
+        .where_op("age", ">=", 18)
+        .where_in("role", vec!["admin", "mod"])
+        .where_like("name", "John%")
+        .order_by_desc("created_at")
+        .paginate(15, 1)?;
 
-// Raw queries
-let users = DB::select("SELECT * FROM users WHERE active = ?", &[true.into()]).await?;
+    // Raw queries — `DB::select` is a raw passthrough (not in the auto-await
+    // set), so it keeps its `.await`.
+    let users = DB::select("SELECT * FROM users WHERE active = ?", &[true.into()]).await?;
 
-// Transactions
-DB::begin_transaction().await?;
-// ... operations
-DB::commit().await?;
+    // Transactions — `begin_transaction` and `commit` are in the auto-await set.
+    DB::begin_transaction()?;
+    // ... operations
+    DB::commit()?;
+
+    Ok(())
+}
 ```
 
 ### Supported Databases
@@ -127,49 +140,61 @@ Complete authentication system with multiple strategies.
 
 ### Example
 
+With `#[auto_await]`, the `Auth` and model calls (`create`, `login`, `attempt`, `check`,
+`user`, `id`, `logout`) are awaited for you — Laravel-style, await-free:
+
 ```rust
 use rf::{Auth, Hash};
 
-// Register user
-let password_hash = Hash::make("password123")?;
-let user = User::create(email, name, password_hash).await?;
+#[auto_await]
+async fn auth_examples() -> Result<()> {
+    // Register user. `Hash::make` returns a String directly (no Result, no `?`).
+    let password_hash = Hash::make("password123");
+    let user = User::create(json!({
+        "email": "user@example.com",
+        "name": "John",
+        "password": password_hash,
+    }))?;
 
-// Login with Laravel-style Auth facade
-Auth::login(user).await?;
+    // Login with Laravel-style Auth facade.
+    Auth::login(user)?;
 
-// Or attempt login with credentials (like Laravel's Auth::attempt)
-let credentials = json!({
-    "email": "user@example.com",
-    "password": "secret"
+    // Or attempt login with credentials (like Laravel's Auth::attempt).
+    let credentials = json!({
+        "email": "user@example.com",
+        "password": "secret"
+    });
+    if Auth::attempt(credentials)? {
+        println!("Login successful!");
+    }
+
+    // Check authentication.
+    if Auth::check() {
+        println!("User is authenticated");
+    }
+
+    // Get current user.
+    if let Some(user) = Auth::user::<User>() {
+        println!("Welcome, {}", user.name);
+    }
+
+    // Get user ID.
+    if let Some(id) = Auth::id() {
+        println!("User ID: {}", id);
+    }
+
+    // Logout.
+    Auth::logout();
+
+    Ok(())
+}
+
+// Protect routes with middleware (named middleware via the Route facade)
+Route::middleware(&["auth"]).group(|| {
+    Route::get("/profile", "get_profile");
 });
-if Auth::attempt(credentials).await? {
-    println!("Login successful!");
-}
 
-// Check authentication
-if Auth::check().await {
-    println!("User is authenticated");
-}
-
-// Get current user
-if let Some(user) = Auth::user::<User>().await {
-    println!("Welcome, {}", user.name);
-}
-
-// Get user ID
-if let Some(id) = Auth::id().await {
-    println!("User ID: {}", id);
-}
-
-// Logout
-Auth::logout().await;
-
-// Protect routes with middleware
-router.group(middleware::auth(), |router| {
-    router.get("/profile", get_profile);
-});
-
-// Check authorization
+// Check authorization (sync helper, not in the auto-await set)
 if !user.can("edit-post", &post) {
     return Err(Error::Forbidden);
 }
@@ -268,7 +293,7 @@ Powerful validation framework with custom rules.
 ### Example
 
 ```rust
-use rf_validation::{Validate, ValidationRule};
+use rf_validation::Validate;
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize, Validate)]
@@ -357,14 +382,15 @@ form_request! {
     }
 }
 
-// Use in handler - automatic validation!
+// Use in handler - automatic validation! `#[auto_await]` awaits `create` for you.
+#[auto_await]
 async fn store(Validated(req): Validated<CreateUserRequest>) -> Response {
     let user = User::create(json!({
         "email": req.email,
         "password": bcrypt!(req.password),
         "name": req.name,
-    })).await;
-    Response::json(user).status(201)
+    }));
+    Response::json(&user).status(StatusCode::CREATED)
 }
 ```
 
@@ -434,12 +460,13 @@ exception_handler! {
         match error {
             AppError::NotFound { .. } => {
                 if request.wants_json() {
-                    Response::json(json!({ "error": "Not found" })).status(404)
+                    Response::json(&json!({ "error": "Not found" }))
+                        .status(StatusCode::NOT_FOUND)
                 } else {
-                    view!("errors.404").status(404)
+                    view!("errors.404").status(StatusCode::NOT_FOUND)
                 }
             }
-            _ => Response::error(500, "Server Error")
+            _ => Response::text("Server Error").status(StatusCode::INTERNAL_SERVER_ERROR)
         }
     }
 
@@ -453,17 +480,22 @@ exception_handler! {
 ### Helper Macros
 
 ```rust
-// Abort if condition is true
-abort_if!(user.is_banned(), 403, "Account banned");
+#[auto_await]
+async fn handler() -> Result<()> {
+    // Abort if condition is true
+    abort_if!(user.is_banned(), 403, "Account banned");
 
-// Abort unless condition is true
-abort_unless!(user.can_edit(&post), 403, "Not authorized");
+    // Abort unless condition is true
+    abort_unless!(user.can_edit(&post), 403, "Not authorized");
 
-// Rescue with fallback value
-let user = rescue!(User::find(id).await, User::default());
+    // Rescue with fallback value (`find` is awaited for you — no `.await`)
+    let user = rescue!(User::find(id), User::default());
 
-// Report without throwing
-report!(error);
+    // Report without throwing
+    report!(error);
+
+    Ok(())
+}
 ```
 
 ---
@@ -564,57 +596,70 @@ High-performance caching layer with multiple drivers.
 - **Remember**: Cache query results
 - **Cache Aside**: Automatic cache population
 - **TTL Support**: Time-to-live for cache items
+- **Touch (Laravel 13)**: Reset an entry's TTL without rewriting its value via `Cache::touch(key, ttl)`
 
 ### Example
+
+With `#[auto_await]` on the surrounding `fn`/`impl`/`mod`, every `Cache` operation in the
+auto-await set (`put`, `get`, `has`, `remember`, `forever`, `remember_forever`, `pull`,
+`add`, `increment`, `decrement`, `tags`, `forget`, `flush`) reads await-free, Laravel-style:
 
 ```rust
 use rf::Cache;
 use std::time::Duration;
 
-// Simple caching with Laravel-style facade
-Cache::put("key", &"value", Duration::from_secs(3600)).await?;
-let value: Option<String> = Cache::get("key").await?;
+#[auto_await]
+async fn cache_examples() -> Result<()> {
+    // Simple caching with Laravel-style facade.
+    Cache::put("key", "value", Duration::from_secs(3600))?;
+    let value: Option<String> = Cache::get("key")?;
 
-// Check if key exists
-if Cache::has("key").await? {
-    println!("Key exists");
+    // Check if key exists.
+    if Cache::has("key")? {
+        println!("Key exists");
+    }
+
+    // Cache with closure (like Laravel's Cache::remember). `remember` and the
+    // `all` inside the closure are both in the auto-await set.
+    let users = Cache::remember("users:all", Duration::from_secs(3600), || async {
+        Ok(User::all()?)
+    })?;
+
+    // Store forever.
+    Cache::forever("config", "value")?;
+
+    // Remember forever. `load_settings()` is your own async fn — not in the
+    // auto-await set — so it keeps its `.await`.
+    let settings = Cache::remember_forever("settings", || async {
+        Ok(load_settings().await?)
+    })?;
+
+    // Pull: get and delete.
+    let value: Option<String> = Cache::pull("temp_key")?;
+
+    // Add only if doesn't exist.
+    let added = Cache::add("unique_key", "value", Duration::from_secs(60))?;
+
+    // Increment/decrement.
+    Cache::increment("counter", 1)?;
+    Cache::decrement("counter", 1)?;
+
+    // Cache tags. `tags` and `flush` are in the auto-await set; `TaggedCache::set`
+    // is NOT, so it keeps its explicit `.await`.
+    let tagged = Cache::tags(&["users", "posts"]);
+    tagged.set("key", &"value", Duration::from_secs(3600)).await?;
+
+    // Flush tagged cache.
+    Cache::tags(&["users"]).flush()?;
+
+    // Remove single key.
+    Cache::forget("key")?;
+
+    // Flush all cache.
+    Cache::flush()?;
+
+    Ok(())
 }
-
-// Cache with closure (like Laravel's Cache::remember)
-let users = Cache::remember("users:all", Duration::from_secs(3600), || async {
-    Ok(User::find().all(&db).await?)
-}).await?;
-
-// Store forever
-Cache::forever("config", &"value").await?;
-
-// Remember forever
-let settings = Cache::remember_forever("settings", || async {
-    Ok(load_settings().await?)
-}).await?;
-
-// Pull: get and delete
-let value: Option<String> = Cache::pull("temp_key").await?;
-
-// Add only if doesn't exist
-let added = Cache::add("unique_key", &"value", Duration::from_secs(60)).await?;
-
-// Increment/decrement
-Cache::increment("counter", 1).await?;
-Cache::decrement("counter", 1).await?;
-
-// Cache tags
-let tagged = Cache::tags(&["users", "posts"]).await;
-tagged.set("key", &"value", Duration::from_secs(3600)).await?;
-
-// Flush tagged cache
-Cache::tags(&["users"]).await.flush().await?;
-
-// Remove single key
-Cache::forget("key").await?;
-
-// Flush all cache
-Cache::flush().await?;
 ```
 
 ### Supported Cache Drivers
@@ -643,49 +688,51 @@ Background job processing with multiple queue drivers.
 - **Failed Job Handling**: Dedicated failed jobs table
 - **Queue Workers**: Multiple concurrent workers
 - **Job Monitoring**: Track job progress
+- **Queue Routing by Class (Laravel 13)**: Route a job type to a specific queue via `JobRouter::route::<MyJob>("queue-name")` (in `rf-jobs`); a registered route takes precedence over a job's default queue
 
 ### Example
 
 ```rust
-use rf_queue::{Queue, Job};
+use rf_jobs::{dispatch, dispatch_later, Job, JobContext, JobResult, QueueManager};
 use serde::{Serialize, Deserialize};
+use std::time::Duration;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SendEmailJob {
     pub to: String,
     pub subject: String,
     pub body: String,
 }
 
-#[async_trait]
 impl Job for SendEmailJob {
-    async fn handle(&self) -> Result<(), Error> {
-        // Send email
-        Mail::to(&self.to)
-            .subject(&self.subject)
-            .body(&self.body)
-            .send()
-            .await?;
+    async fn handle(&self, _ctx: JobContext) -> JobResult {
+        // Send email (build a Mailable, then send it)
+        // Mail::to(&self.to).send(my_mailable)?;
         Ok(())
     }
+
+    // Optional overrides:
+    fn queue(&self) -> &str { "emails" }
+    fn max_attempts(&self) -> u32 { 5 }
+    fn backoff(&self) -> Duration { Duration::from_secs(30) }
 }
 
-// Dispatch job
-Queue::push(SendEmailJob {
+// Build the queue manager once (e.g. during bootstrap)
+let queue_manager = QueueManager::new("redis://localhost:6379").await?;
+
+// Dispatch job (synchronous API - takes a &QueueManager)
+dispatch(&queue_manager, SendEmailJob {
     to: "user@example.com".to_string(),
     subject: "Welcome!".to_string(),
     body: "Welcome to RustForge!".to_string(),
-}).await?;
+})?;
 
 // Delayed job
-Queue::later(60, SendEmailJob { /* ... */ }).await?;
-
-// Job chain
-Queue::chain(vec![
-    Box::new(ProcessOrder { /* ... */ }),
-    Box::new(SendConfirmation { /* ... */ }),
-    Box::new(UpdateInventory { /* ... */ }),
-]).await?;
+dispatch_later(&queue_manager, SendEmailJob {
+    to: "user@example.com".to_string(),
+    subject: "Welcome!".to_string(),
+    body: "Welcome to RustForge!".to_string(),
+}, Duration::from_secs(60))?;
 ```
 
 ### Running Workers
@@ -729,38 +776,38 @@ pub struct UserRegistered {
     pub email: String,
 }
 
-// Register listeners (typically in bootstrap)
-Event::listen("user.registered", |event: UserRegistered| async move {
-    // Send welcome email
-    Mail::to(&event.email)
-        .subject("Welcome!")
-        .send()
-        .await?;
-    Ok(())
-}).await;
+// The `Event` facade is fully synchronous — like `Cache`/`Auth`, you never
+// write `.await` on it (and `#[auto_await]` resolves the `dispatch`/`send`
+// calls transparently).
+#[auto_await]
+async fn register_events() {
+    Event::listen("user.registered", |event: UserRegistered| {
+        // Send a welcome email (a Mailable). `send` resolves under #[auto_await].
+        Mail::to(&event.email).send(WelcomeEmail::new(&event.email))?;
+        Ok(())
+    });
 
-Event::listen("user.registered", |event: UserRegistered| async move {
-    // Log the registration
-    Log::info(&format!("New user registered: {}", event.email)).await;
-    Ok(())
-}).await;
+    Event::listen("user.registered", |event: UserRegistered| {
+        // Log the registration — `Log::info` is synchronous.
+        Log::info(&format!("New user registered: {}", event.email));
+        Ok(())
+    });
 
-// Dispatch event (like Laravel's Event::dispatch)
-Event::dispatch("user.registered", UserRegistered {
-    user_id: 1,
-    email: "user@example.com".to_string(),
-}).await?;
+    // Dispatch an event.
+    Event::dispatch("user.registered", UserRegistered {
+        user_id: 1,
+        email: "user@example.com".to_string(),
+    })?;
 
-// Check if event has listeners
-if Event::has_listeners("user.registered").await {
-    println!("Event has listeners");
+    // Check if an event has listeners.
+    if Event::has_listeners("user.registered") {
+        println!("Event has listeners");
+    }
+
+    // Dispatch several events.
+    Event::dispatch("user.created", json!({ "id": 1 }))?;
+    Event::dispatch("notification.send", json!({ "type": "welcome" }))?;
 }
-
-// Dispatch multiple events
-Event::dispatch_many(vec![
-    ("user.created", json!({"id": 1})),
-    ("notification.send", json!({"type": "welcome"})),
-]).await?;
 ```
 
 ---
@@ -813,16 +860,12 @@ mailable! {
     }
 }
 
-// Send email
+// Send a Mailable to a recipient. No `.await` needed under `#[auto_await]`.
 Mail::to("user@example.com")
-    .send(WelcomeEmail { user, activation_url })
-    .await?;
+    .send(WelcomeEmail { user, activation_url })?;
 
-// Queue for later
-Mail::to("user@example.com")
-    .queue(WelcomeEmail { user, activation_url })
-    .delay(Duration::from_secs(60))
-    .await?;
+// To send in the background, dispatch a job that sends the mail (see Queue & Jobs).
+dispatch(&queue, SendWelcomeEmailJob { email: "user@example.com".to_string() })?;
 ```
 
 ### Simple Attribute Syntax
@@ -860,7 +903,7 @@ notification! {
     }
 }
 
-// Send notification
+// Send notification (`notify` is not in the auto-await set, so it keeps `.await`)
 user.notify(OrderShipped { order }).await?;
 ```
 
@@ -868,37 +911,38 @@ user.notify(OrderShipped { order }).await?;
 
 ```rust
 use rf::Mail;
+use rf_mail::{Mailable, MailBuilder};
 
-// Simple email
-Mail::to("user@example.com")
-    .subject("Welcome!")
-    .body("Welcome to RustForge!")
-    .send()
-    .await?;
+// A Mailable describes the message by building a MailBuilder.
+struct WelcomeEmail;
 
-// With template
-Mail::to("user@example.com")
-    .subject("Order Confirmation")
-    .view("emails.order_confirmation", json!({
-        "order_number": "12345",
-        "total": 99.99
-    }))
-    .send()
-    .await?;
+impl Mailable for WelcomeEmail {
+    fn build(&self) -> MailBuilder {
+        MailBuilder::new()
+            .subject("Welcome!")
+            .text("Welcome to RustForge!")
+    }
+}
 
-// With attachment
-Mail::to("user@example.com")
-    .subject("Invoice")
-    .attach("/path/to/invoice.pdf")
-    .send()
-    .await?;
+// Send to a recipient (Mail::to is synchronous; send returns MailResult<()>)
+Mail::to("user@example.com").send(WelcomeEmail)?;
 
-// Queue email
-Mail::to("user@example.com")
-    .subject("Newsletter")
-    .body("...")
-    .queue()
-    .await?;
+// Or send without specifying a recipient on the facade (the Mailable can
+// carry its own `to`/`from` via the builder)
+Mail::send(WelcomeEmail)?;
+
+// Build with an HTML body or attachments using the same builder:
+struct InvoiceEmail { path: String }
+
+impl Mailable for InvoiceEmail {
+    fn build(&self) -> MailBuilder {
+        MailBuilder::new()
+            .subject("Invoice")
+            .html("<p>Your invoice is attached.</p>")
+            .attach(&self.path)
+            .expect("attachment exists")
+    }
+}
 ```
 
 ### Markdown Emails
@@ -948,43 +992,37 @@ Unified file storage interface for local and cloud storage.
 ```rust
 use rf::Storage;
 
-// Store file with Laravel-style facade
-Storage::put("uploads/photo.jpg", file_contents).await?;
+// Store file with Laravel-style facade (synchronous - no .await).
+// `put` takes the file contents as a Vec<u8>.
+Storage::put("uploads/photo.jpg", file_contents)?;
 
-// Get file
-let contents = Storage::get("uploads/photo.jpg").await?;
+// Get file (returns Vec<u8>; use get_string for text)
+let contents = Storage::get("uploads/photo.jpg")?;
 
 // Delete file
-Storage::delete("uploads/photo.jpg").await?;
+Storage::delete("uploads/photo.jpg")?;
 
-// Check if file exists
-if Storage::exists("uploads/photo.jpg").await? {
+// Check if file exists (returns bool - no ?)
+if Storage::exists("uploads/photo.jpg") {
     println!("File exists");
 }
 
-// Use specific disk
-Storage::disk("s3").put("uploads/photo.jpg", file_contents).await?;
-let contents = Storage::disk("s3").get("uploads/photo.jpg").await?;
+// Select the active disk for subsequent operations
+Storage::disk("s3");
 
-// Generate temporary URL (1 hour)
-let url = Storage::disk("s3")
-    .temporary_url("uploads/photo.jpg", 3600)
-    .await?;
-
-// List files in directory
-let files = Storage::files("uploads/").await?;
-let all_files = Storage::all_files("uploads/").await?; // recursive
+// List files (returns Vec<String> - no ?)
+let files = Storage::files();
+let files_in_uploads = Storage::files_in("uploads/");
 
 // List directories
-let dirs = Storage::directories("uploads/").await?;
+let dirs = Storage::directories();
 
 // Copy and move
-Storage::copy("old/path.jpg", "new/path.jpg").await?;
-Storage::move_file("old/path.jpg", "new/path.jpg").await?;
+Storage::copy("old/path.jpg", "new/path.jpg")?;
+Storage::move_file("old/path.jpg", "new/path.jpg")?;
 
-// Get file info
-let size = Storage::size("uploads/photo.jpg").await?;
-let modified = Storage::last_modified("uploads/photo.jpg").await?;
+// Get file size
+let size = Storage::size("uploads/photo.jpg")?;
 ```
 
 ### Supported Storage Drivers
@@ -1012,28 +1050,34 @@ Real-time event broadcasting via WebSockets.
 ### Example
 
 ```rust
-use rf_broadcast::{Broadcast, Channel};
+use rf_broadcast::{broadcast, subscribe, Channel, SimpleEvent};
 
-// Broadcast to channel
-Broadcast::channel("chat.1")
-    .send(json!({
-        "message": "Hello, World!",
-        "user": "John"
-    }))
-    .await?;
+#[auto_await]
+async fn broadcasting_examples() -> Result<()> {
+    // Broadcast to a channel — `send` is in the auto-await set.
+    Channel::public("chat.1")
+        .send(json!({
+            "message": "Hello, World!",
+            "user": "John"
+        }))?;
 
-// Private channel
-Broadcast::private("user.1")
-    .send(json!({
-        "notification": "New message"
-    }))
-    .await?;
+    // Private channel.
+    Channel::private("user.1")
+        .send(json!({
+            "notification": "New message"
+        }))?;
 
-// Presence channel
-Broadcast::presence("chat.1")
-    .join(user_id)
-    .await?;
+    // Presence channel — `join` is not in the auto-await set, so it keeps `.await`.
+    Channel::presence("chat.1")
+        .join(user_id)
+        .await?;
+
+    Ok(())
+}
 ```
+
+> **Note:** See the [Real-time Chat example](Examples#real-time-chat) for the concrete
+> `rf_broadcast` API (`broadcast`/`subscribe` helpers, `Channel`, `SimpleEvent`).
 
 ---
 
@@ -1052,21 +1096,28 @@ Protect your API from abuse with rate limiting.
 ### Example
 
 ```rust
-use rf_http::middleware;
+use rf_ratelimit::{MemoryRateLimiter, RateLimitConfig, RateLimiter};
+use rf::Route;
 
-// Global rate limit (60 requests per minute)
-router.use_middleware(middleware::rate_limit(60, 60));
+#[auto_await]
+async fn rate_limit_example() -> Result<()> {
+    // Configure an in-memory rate limiter (e.g. 60 requests per minute)
+    let config = RateLimitConfig::per_minute(60);
+    let limiter = MemoryRateLimiter::new(config);
 
-// Per-route rate limit
-router.get("/api/data", middleware::rate_limit(10, 60).apply(handler));
+    // Check a limit for a key — `check` is in the auto-await set.
+    let result = limiter.check("user:1")?;
+    if !result.allowed {
+        // Reject the request with a 429
+    }
 
-// Custom rate limiter
-let limiter = RateLimiter::for_user()
-    .max_attempts(100)
-    .decay_minutes(1)
-    .by(|req| req.user_id());
+    Ok(())
+}
 
-router.use_middleware(limiter);
+// Apply rate limiting to routes via named middleware on the Route facade
+Route::middleware(&["throttle"]).group(|| {
+    Route::get("/api/data", "get_data");
+});
 ```
 
 ---
@@ -1088,19 +1139,24 @@ Multi-language support with translation files.
 ```rust
 use rf_i18n::Trans;
 
-// Simple translation
-let message = Trans::get("welcome.message").await?;
+#[auto_await]
+async fn i18n_examples() -> Result<()> {
+    // Simple translation — `get` is in the auto-await set.
+    let message = Trans::get("welcome.message")?;
 
-// With parameters
-let message = Trans::get("welcome.user", json!({
-    "name": "John"
-})).await?;
+    // With parameters.
+    let message = Trans::get("welcome.user", json!({
+        "name": "John"
+    }))?;
 
-// Pluralization
-let message = Trans::choice("messages.count", 5).await?;
+    // Pluralization (`choice` is not in the auto-await set, so it keeps `.await`).
+    let message = Trans::choice("messages.count", 5).await?;
 
-// Change locale
-Trans::set_locale("de").await?;
+    // Change locale (`set_locale` is not in the auto-await set).
+    Trans::set_locale("de").await?;
+
+    Ok(())
+}
 ```
 
 ---
@@ -1122,29 +1178,29 @@ GraphQL API support with schema generation.
 ```rust
 use rf_graphql::{Schema, Object, Context};
 
+// `#[auto_await]` on the resolver impl: `all`, `find`, and `create` are awaited for you.
 #[Object]
+#[auto_await]
 impl Query {
-    async fn users(&self, ctx: &Context<'_>) -> Result<Vec<User>> {
-        let db = ctx.data::<Database>()?;
-        Ok(User::find().all(db).await?)
+    async fn users(&self, _ctx: &Context<'_>) -> Result<Vec<User>> {
+        Ok(User::all()?)
     }
 
-    async fn user(&self, ctx: &Context<'_>, id: i32) -> Result<Option<User>> {
-        let db = ctx.data::<Database>()?;
-        Ok(User::find_by_id(id).one(db).await?)
+    async fn user(&self, _ctx: &Context<'_>, id: i32) -> Result<Option<User>> {
+        Ok(User::find(id)?)
     }
 }
 
 #[Object]
+#[auto_await]
 impl Mutation {
     async fn create_user(
         &self,
-        ctx: &Context<'_>,
+        _ctx: &Context<'_>,
         name: String,
         email: String,
     ) -> Result<User> {
-        let db = ctx.data::<Database>()?;
-        let user = User::create(name, email).insert(db).await?;
+        let user = User::create(json!({ "name": name, "email": email }))?;
         Ok(user)
     }
 }
@@ -1206,22 +1262,25 @@ pub struct Post {
     // Model fields
 }
 
-// Custom audit log
-AuditLog::create()
-    .user(user_id)
-    .event("payment.processed")
-    .metadata(json!({
-        "amount": 99.99,
-        "currency": "USD"
-    }))
-    .save()
-    .await?;
+#[auto_await]
+async fn audit_examples() -> Result<()> {
+    // Custom audit log — `save` is in the auto-await set.
+    AuditLog::create()
+        .user(user_id)
+        .event("payment.processed")
+        .metadata(json!({
+            "amount": 99.99,
+            "currency": "USD"
+        }))
+        .save()?;
 
-// Query logs
-let logs = AuditLog::for_user(user_id)
-    .event_type("payment.processed")
-    .get()
-    .await?;
+    // Query logs — `get` is in the auto-await set.
+    let logs = AuditLog::for_user(user_id)
+        .event_type("payment.processed")
+        .get()?;
+
+    Ok(())
+}
 ```
 
 ---
@@ -1356,34 +1415,35 @@ Comprehensive testing utilities.
 ### Example
 
 ```rust
-use rf_testing::{TestCase, DatabaseTestCase};
+use rf_testing::{HttpTester, TestDatabase};
+use axum::http::StatusCode;
+use serde_json::json;
 
 #[tokio::test]
 async fn test_user_registration() {
-    let mut test = TestCase::new().await;
+    // Spin up a test database (async)
+    let _db = TestDatabase::new().await.unwrap();
 
-    let response = test.post("/auth/register", json!({
-        "email": "test@example.com",
-        "name": "Test User",
-        "password": "password123"
-    }))
-    .await;
+    // `app` is your axum Router
+    let tester = HttpTester::new(app);
 
-    response.assert_status(201);
-    response.assert_json_contains(json!({
-        "user": {
-            "email": "test@example.com"
-        }
-    }));
+    let response = tester
+        .post("/auth/register", json!({
+            "email": "test@example.com",
+            "name": "Test User",
+            "password": "password123"
+        }))
+        .await;
 
-    // Verify in database
-    let user = User::find()
-        .filter(User::Column::Email.eq("test@example.com"))
-        .one(&test.db())
-        .await?
-        .unwrap();
-
-    assert_eq!(user.name, "Test User");
+    // assert_status takes a StatusCode (chainable)
+    response
+        .assert_status(StatusCode::CREATED)
+        .assert_json(json!({
+            "user": {
+                "email": "test@example.com"
+            }
+        }))
+        .await;
 }
 ```
 
@@ -1617,44 +1677,119 @@ Stripe-based SaaS billing system, inspired by Laravel Spark/Cashier.
 ```rust
 use rf_spark::{Spark, Billable};
 
-// Initialize Spark
-let spark = Spark::new()
-    .stripe_key("sk_test_...")
-    .stripe_secret("sk_secret_...");
+#[auto_await]
+async fn billing_examples() -> Result<()> {
+    // Initialize Spark
+    let spark = Spark::new()
+        .stripe_key("sk_test_...")
+        .stripe_secret("sk_secret_...");
 
-// Subscribe user to plan
-let subscription = spark
-    .subscribe(&user, "pro-monthly")
-    .trial_days(14)
-    .create()
-    .await?;
+    // Subscribe user to plan — the `create` terminal is in the auto-await set;
+    // `subscribe`/`trial_days` are builder steps.
+    let subscription = spark
+        .subscribe(&user, "pro-monthly")
+        .trial_days(14)
+        .create()?;
 
-// Check subscription status
-if user.subscribed("pro-monthly") {
-    // User has active subscription
+    // Check subscription status (sync helper)
+    if user.subscribed("pro-monthly") {
+        // User has active subscription
+    }
+
+    // Cancel subscription (`cancel` is not in the auto-await set)
+    user.subscription("pro-monthly")
+        .cancel()
+        .await?;
+
+    // Update payment method (`update_payment_method` is not in the auto-await set)
+    user.update_payment_method("pm_...")
+        .await?;
+
+    // Get invoices (`invoices` is not in the auto-await set)
+    let invoices = user.invoices().await?;
+
+    // Webhook handler
+    let handler = spark.webhook_handler()
+        .on("invoice.paid", |event| {
+            println!("Invoice paid: {:?}", event);
+        })
+        .on("customer.subscription.deleted", |event| {
+            println!("Subscription cancelled: {:?}", event);
+        });
+
+    Ok(())
 }
-
-// Cancel subscription
-user.subscription("pro-monthly")
-    .cancel()
-    .await?;
-
-// Update payment method
-user.update_payment_method("pm_...")
-    .await?;
-
-// Get invoices
-let invoices = user.invoices().await?;
-
-// Webhook handler
-let handler = spark.webhook_handler()
-    .on("invoice.paid", |event| {
-        println!("Invoice paid: {:?}", event);
-    })
-    .on("customer.subscription.deleted", |event| {
-        println!("Subscription cancelled: {:?}", event);
-    });
 ```
+
+---
+
+## AI SDK (rf-ai)
+
+A provider-agnostic AI toolkit (`rf-ai`) for text generation, embeddings, and tool-calling agents, with an Anthropic provider built in. Application code targets the `ChatProvider` / `EmbeddingProvider` traits, so a live `AnthropicProvider` can be swapped for a `MockChatProvider` in tests.
+
+### Features
+
+- **Provider-Agnostic Traits**: `ChatProvider` and `EmbeddingProvider`
+- **Anthropic Provider**: Speaks the Anthropic Messages API directly over `reqwest` (no official Rust SDK required); default model `claude-opus-4-8`
+- **Tool-Calling Agents**: An `Agent` loop runs tools over any `ChatProvider`, with a configurable max-turns guard
+- **Mock Providers**: Deterministic `MockChatProvider` / `MockEmbeddingProvider` for offline tests
+
+### Example
+
+```rust
+use rf_ai::prelude::*;
+
+let provider = AnthropicProvider::new(std::env::var("ANTHROPIC_API_KEY").unwrap());
+
+let request = ChatRequest::default_model()
+    .max_tokens(256)
+    .system("You are a terse assistant.")
+    .message(Message::user("Name the capital of France."));
+
+let response = provider.chat(&request).await?;
+println!("{}", response.text());
+```
+
+---
+
+## Vector & Semantic Search (rf-vector)
+
+Vector and semantic search primitives (`rf-vector`): dense embedding vectors, similarity/distance metrics, an in-memory brute-force store, and pure SQL helpers for the Postgres `pgvector` extension.
+
+### Features
+
+- **`Vector`**: Dense `f32` embeddings with `dot`, `cosine_similarity`, `euclidean_distance`, `magnitude`, `normalized`, and checked `try_*` variants
+- **`DistanceMetric`**: `Cosine`, `Euclidean`, `DotProduct`, with a unified "higher score = more similar" scoring helper
+- **`InMemoryVectorStore`**: Brute-force k-nearest-neighbour search with JSON metadata
+- **`pgvector` helpers**: String builders (`to_literal`, `operator`, `order_by_nearest`, `nearest_neighbor_sql`) for use with rf-orm raw query fragments (no database dependency required)
+
+### Example
+
+```rust
+use rf_vector::*;
+use serde_json::json;
+
+let mut store = InMemoryVectorStore::new();
+store.add("doc:cat", Vector::new(vec![1.0, 0.0, 0.0]), json!({"title": "cats"}));
+store.add("doc:dog", Vector::new(vec![0.0, 1.0, 0.0]), json!({"title": "dogs"}));
+
+let query = Vector::new(vec![0.9, 0.1, 0.0]);
+let hits = store.search(&query, 1, DistanceMetric::Cosine);
+assert_eq!(hits[0].id, "doc:cat");
+```
+
+---
+
+## JSON:API Resources
+
+The `rf-api-resources` crate includes a `jsonapi` module for building JSON:API-compliant responses (a Laravel 13 addition).
+
+### Features
+
+- **`JsonApiResource`**: Render a model as a JSON:API resource object
+- **`JsonApiDocument`**: Top-level document with primary data, relationships, and links
+- **Relationships**: Model relationships as JSON:API `Relationship` objects
+- **Collections**: `document_from_collection` to build a document from a resource collection
 
 ---
 

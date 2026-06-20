@@ -23,10 +23,11 @@ use axum::{
 /// # Example
 ///
 /// ```no_run
-/// use axum::{Router, routing::get, Extension};
+/// use axum::{Router, routing::get};
 /// use rf_auth::remember_me::{RememberMe, RememberMeMiddleware};
 /// use std::sync::Arc;
 ///
+/// # #[derive(Clone)]
 /// # struct User { id: i64 }
 /// # async fn load_user(id: i64) -> Option<User> { None }
 /// # async fn handler() -> &'static str { "hello" }
@@ -34,12 +35,12 @@ use axum::{
 /// # async fn example() {
 /// let remember = Arc::new(RememberMe::with_default_ttl("secret-key".to_string()));
 ///
-/// let app = Router::new()
+/// // `middleware` builds the per-request handler for the given user type.
+/// let mw = RememberMeMiddleware::middleware::<User, _, _>(load_user).await;
+///
+/// let app: Router = Router::new()
 ///     .route("/", get(handler))
-///     .layer(axum::middleware::from_fn_with_state(
-///         remember.clone(),
-///         RememberMeMiddleware::middleware::<User, _>(load_user)
-///     ));
+///     .layer(axum::middleware::from_fn_with_state(remember.clone(), mw));
 /// # }
 /// ```
 pub struct RememberMeMiddleware;

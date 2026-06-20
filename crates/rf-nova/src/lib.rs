@@ -24,7 +24,6 @@
 //! let nova = Nova::new()
 //!     .with_path("/admin")
 //!     .with_name("My Admin Panel")
-//!     .register_resource::<UserResource>()
 //!     .register_dashboard(MainDashboard::new());
 //!
 //! // Add to your Axum app
@@ -159,6 +158,11 @@ pub mod prelude {
         action::*, authorization::*, card::*, dashboard::*, filter::*, lens::*, metric::*, nova::*,
         resource::{crud::*, field::*, resource::*},
     };
+
+    // `ExportFormat` is defined in both `action` and `resource::crud`. Prefer the
+    // `action` variant here to match the crate-root re-export above; the explicit
+    // re-export shadows the globs and resolves the ambiguous-glob-reexport warning.
+    pub use super::action::ExportFormat;
 
     // Re-export derive macros
     pub use rf_nova_macros::{

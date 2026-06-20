@@ -21,20 +21,21 @@
 //! ```rust,no_run
 //! use rf_eloquent::prelude::*;
 //! use async_trait::async_trait;
+//! # async fn send_welcome_email(_email: &str) -> EventResult { Ok(()) }
 //!
 //! #[derive(Clone, Debug)]
 //! struct User {
 //!     id: i64,
 //!     name: String,
 //!     email: String,
-//!     created_at: chrono::DateTime<Utc>,
+//!     created_at: chrono::DateTime<chrono::Utc>,
 //! }
 //!
 //! #[async_trait]
 //! impl ModelEvents for User {
 //!     async fn creating(&mut self) -> EventResult {
 //!         // Set created_at timestamp
-//!         self.created_at = Utc::now();
+//!         self.created_at = chrono::Utc::now();
 //!         Ok(())
 //!     }
 //!
