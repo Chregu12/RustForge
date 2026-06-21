@@ -33,7 +33,7 @@ impl AuthInstallCommand {
         println!("🔐 Installing Authentication Scaffolding");
         println!("─────────────────────────────────────────");
         println!("Stack: {}", self.stack);
-        println!("");
+        println!();
 
         // Install database migrations
         println!("✓ Created users table migration");
@@ -81,9 +81,9 @@ impl AuthInstallCommand {
             println!("  - templates/auth/profile.html");
         }
 
-        println!("");
+        println!();
         println!("Authentication scaffolding installed successfully!");
-        println!("");
+        println!();
         println!("Next steps:");
         println!("  1. Run 'forge migrate' to create database tables");
         println!("  2. Configure email settings in .env");
@@ -121,7 +121,7 @@ impl AuthClearSessionsCommand {
             }
         }
 
-        println!("");
+        println!();
         println!("Sessions cleared successfully!");
 
         Ok(())
@@ -150,7 +150,7 @@ impl AuthClearResetsCommand {
             println!("✓ Cleared 87 tokens");
         }
 
-        println!("");
+        println!();
         println!("Password reset tokens cleared successfully!");
 
         Ok(())
@@ -175,7 +175,7 @@ impl AuthTest2FACommand {
         println!("🔐 Testing Two-Factor Authentication");
         println!("─────────────────────────────────────────");
         println!("User: {}", self.user);
-        println!("");
+        println!();
 
         if let Some(code) = &self.code {
             println!("Verifying TOTP code: {}", code);
@@ -184,7 +184,7 @@ impl AuthTest2FACommand {
             println!("✓ 2FA is enabled");
             println!("✓ Secret: [REDACTED]");
             println!("✓ Recovery codes: 10 available");
-            println!("");
+            println!();
             println!("Use --code to verify a TOTP code");
         }
 
@@ -214,14 +214,14 @@ impl AuthRecoveryCodesCommand {
         println!("─────────────────────────────────────────");
         println!("User: {}", self.user);
         println!("Count: {}", self.count);
-        println!("");
+        println!();
 
         for i in 1..=self.count {
             let code = format!("{:04}-{:04}", 1000 + i * 111, 5000 + i * 123);
             println!("  {}. {}", i, code);
         }
 
-        println!("");
+        println!();
         println!("✓ Recovery codes generated successfully");
         println!("⚠️  Previous recovery codes have been invalidated");
         println!("⚠️  Store these codes securely - they won't be shown again!");
@@ -258,7 +258,7 @@ impl AuthUsersCommand {
 
         if !filters.is_empty() {
             println!("Filters: {}", filters.join(", "));
-            println!("");
+            println!();
         }
 
         println!("  ID: 1");
@@ -266,13 +266,13 @@ impl AuthUsersCommand {
         println!("  Email: john@example.com");
         println!("  Verified: Yes");
         println!("  2FA: Yes");
-        println!("");
+        println!();
         println!("  ID: 2");
         println!("  Name: Jane Smith");
         println!("  Email: jane@example.com");
         println!("  Verified: Yes");
         println!("  2FA: No");
-        println!("");
+        println!();
         println!("Total users: 2");
 
         Ok(())
@@ -296,7 +296,7 @@ impl AuthSendVerificationCommand {
         println!("🔐 Sending Email Verification");
         println!("─────────────────────────────────────────");
         println!("User: {}", self.user);
-        println!("");
+        println!();
         println!("✓ Verification email sent successfully");
         println!("  Check your email for the verification link");
 

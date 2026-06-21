@@ -106,14 +106,12 @@ mod tests {
 
     #[test]
     fn test_error_variants() {
-        let errors = vec![
-            SearchError::IndexError("idx".to_string()),
+        let errors = [SearchError::IndexError("idx".to_string()),
             SearchError::SearchError("search".to_string()),
             SearchError::ConnectionError("conn".to_string()),
             SearchError::DocumentNotFound("doc1".to_string()),
             SearchError::ConfigError("cfg".to_string()),
-            SearchError::SerializationError("ser".to_string()),
-        ];
+            SearchError::SerializationError("ser".to_string())];
 
         assert_eq!(errors.len(), 6);
     }

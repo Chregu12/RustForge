@@ -201,7 +201,7 @@ mod tests {
     #[test]
     fn test_init_logging() {
         // Can only init once, so test with error handling
-        let result = init_logging("info", false);
+        let _result = init_logging("info", false);
         // May fail if already initialized, which is ok
     }
 }

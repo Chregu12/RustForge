@@ -144,7 +144,7 @@ impl<'a> RequestBuilder<'a> {
             request = request.header(key, value);
         }
 
-        let body = self.body.unwrap_or_else(Bytes::new);
+        let body = self.body.unwrap_or_default();
         let request = request
             .body(Body::from(body))
             .map_err(|e| TestError::Other(format!("Failed to build request: {}", e)))?;

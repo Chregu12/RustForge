@@ -32,7 +32,7 @@ pub async fn execute(name: String, skip_wizard: bool) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    
 
     #[test]
     fn test_module_exists() {

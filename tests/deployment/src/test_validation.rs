@@ -3,7 +3,7 @@
 #[cfg(test)]
 mod tests {
     use rf_validation::{
-        FieldError, ValidationErrors, Rule, RuleResult, ValidatedData, Validator,
+        FieldError, ValidationErrors, Rule, ValidatedData, Validator,
         RulesBuilder, MessagesBuilder,
     };
     use rf_validation::rules::string::*;

@@ -117,20 +117,20 @@ edition = "2021"
         if let Some(db) = &self.config.database {
             content.push_str("# Database Configuration\n");
             content.push_str(&format!("DATABASE_URL={}\n", db.connection_url()));
-            content.push_str("\n");
+            content.push('\n');
         }
 
         if self.config.has_auth() {
             content.push_str("# Authentication\n");
             content.push_str("JWT_SECRET=your-secret-key-change-in-production\n");
             content.push_str("JWT_EXPIRATION=86400\n");
-            content.push_str("\n");
+            content.push('\n');
         }
 
         if self.config.has_redis() {
             content.push_str("# Redis Configuration\n");
             content.push_str("REDIS_URL=redis://localhost:6379\n");
-            content.push_str("\n");
+            content.push('\n');
         }
 
         fs::write(path.join(".env"), content.clone())?;

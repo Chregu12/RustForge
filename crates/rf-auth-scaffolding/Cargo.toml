@@ -46,7 +46,10 @@ qrcode = { version = "0.14", optional = true }
 [features]
 default = ["email", "two-factor"]
 email = ["lettre"]
-two-factor = ["totp-rs", "qrcode"]
+# `totp-rs/otpauth` is required for the 7-arg `TOTP::new` (issuer + account
+# name) used in two_factor.rs; without it the crate only built via feature
+# unification with other crates and failed to compile standalone.
+two-factor = ["totp-rs", "totp-rs/otpauth", "qrcode"]
 
 [dev-dependencies]
 tokio-test = "0.4"

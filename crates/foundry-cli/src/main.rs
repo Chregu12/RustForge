@@ -269,7 +269,7 @@ fn run_new(args: Vec<String>) -> Result<()> {
     let mut skip_wizard = false;
     let mut iter = args.into_iter();
 
-    while let Some(arg) = iter.next() {
+    for arg in iter {
         match arg.as_str() {
             "--skip-wizard" => {
                 skip_wizard = true;

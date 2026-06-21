@@ -108,7 +108,7 @@ mod tests {{
     }
 
     fn generate_model_policy(&self, policy_name: &str) -> String {
-        let model_name = self.model.as_ref().map(|m| m.clone()).unwrap_or_else(|| {
+        let model_name = self.model.clone().unwrap_or_else(|| {
             policy_name
                 .strip_suffix("Policy")
                 .unwrap_or(policy_name)

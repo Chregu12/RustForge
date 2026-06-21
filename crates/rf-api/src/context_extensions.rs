@@ -73,9 +73,9 @@ impl CommandContextExt for CommandContext {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use rf_plugins::{CommandContext, ExecutionOptions, ResponseFormat};
-    use std::sync::Arc;
+    
+    
+    
 
     // Mock implementations for testing would go here
     #[test]

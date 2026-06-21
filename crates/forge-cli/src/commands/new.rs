@@ -488,7 +488,7 @@ mod tests {
 rf-core = { path = \"../crates/rf-core\" }\n\
 rf-web = { path = \"../crates/rf-web\" }\n\
 rf-orm = { path = \"../crates/rf-orm\" }\n";
-        let out = rewrite_path_deps_to_git(&input);
+        let out = rewrite_path_deps_to_git(input);
         assert!(
             !out.contains("path = \"../crates"),
             "no `../crates` path dep should remain:\n{out}"

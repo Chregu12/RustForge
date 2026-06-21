@@ -190,7 +190,7 @@ mod tests {
     #[test]
     fn test_layer_creation() {
         let config = InertiaConfig::new();
-        let layer = InertiaMiddlewareLayer::new(config);
+        let _layer = InertiaMiddlewareLayer::new(config);
 
         // Just verify it can be created
         assert!(true);

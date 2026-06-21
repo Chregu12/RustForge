@@ -120,8 +120,8 @@ impl<'a> ContextExt for Context<'a> {
 
 #[cfg(test)]
 mod tests {
-    use super::{build_schema, GraphQLSchema, SchemaBuilder};
-    use async_graphql::{EmptyMutation, EmptySubscription, Object, SimpleObject, ID};
+    use super::{build_schema, SchemaBuilder};
+    use async_graphql::{Object, SimpleObject, ID};
 
     #[derive(SimpleObject, Clone)]
     struct User {

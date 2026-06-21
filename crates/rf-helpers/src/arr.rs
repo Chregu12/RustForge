@@ -120,7 +120,7 @@ pub fn contains<T: PartialEq>(items: &[T], value: &T) -> bool {
 }
 
 /// Check if any element matches the predicate
-pub fn any<T, F>(items: &[T], mut predicate: F) -> bool
+pub fn any<T, F>(items: &[T], predicate: F) -> bool
 where
     F: FnMut(&T) -> bool,
 {
@@ -128,7 +128,7 @@ where
 }
 
 /// Check if all elements match the predicate
-pub fn all<T, F>(items: &[T], mut predicate: F) -> bool
+pub fn all<T, F>(items: &[T], predicate: F) -> bool
 where
     F: FnMut(&T) -> bool,
 {

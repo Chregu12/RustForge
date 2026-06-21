@@ -19,8 +19,8 @@ impl PassportInstallCommand {
         println!("─────────────────────────────────────────");
 
         // Generate encryption keys
-        let private_key = Uuid::new_v4().to_string();
-        let public_key = Uuid::new_v4().to_string();
+        let _private_key = Uuid::new_v4().to_string();
+        let _public_key = Uuid::new_v4().to_string();
 
         println!("✓ Generated encryption keys");
         println!("✓ Created oauth_clients table");
@@ -28,9 +28,9 @@ impl PassportInstallCommand {
         println!("✓ Created oauth_refresh_tokens table");
         println!("✓ Created oauth_auth_codes table");
         println!("✓ Created oauth_personal_access_clients table");
-        println!("");
+        println!();
         println!("Passport installed successfully!");
-        println!("");
+        println!();
         println!("Next steps:");
         println!("  1. Run 'forge passport:client' to create OAuth clients");
         println!("  2. Configure your application to use the OAuth2 server");
@@ -87,13 +87,13 @@ impl PassportClientCommand {
         };
 
         println!("✓ Client created successfully");
-        println!("");
+        println!();
         println!("Client ID: {}", client_id);
         if let Some(secret) = client_secret {
             println!("Client Secret: {}", secret);
         }
         println!("Client Type: {}", client_type);
-        println!("");
+        println!();
         println!("Store these credentials securely!");
 
         Ok(())
@@ -118,13 +118,13 @@ impl PassportKeysCommand {
             println!("⚠️  Force regeneration enabled - existing keys will be replaced");
         }
 
-        let private_key = Uuid::new_v4().to_string();
-        let public_key = Uuid::new_v4().to_string();
+        let _private_key = Uuid::new_v4().to_string();
+        let _public_key = Uuid::new_v4().to_string();
 
         println!("✓ Generated new encryption keys");
         println!("✓ Saved keys to storage/oauth-private.key");
         println!("✓ Saved keys to storage/oauth-public.key");
-        println!("");
+        println!();
         println!("Encryption keys generated successfully!");
 
         Ok(())
@@ -158,12 +158,12 @@ impl PassportTokenCommand {
         let scopes = self.scopes.clone().unwrap_or_else(|| "*".to_string());
 
         println!("✓ Token created successfully");
-        println!("");
+        println!();
         println!("Token: {}", token);
         println!("Name: {}", token_name);
         println!("Scopes: {}", scopes);
         println!("User: {}", self.user);
-        println!("");
+        println!();
         println!("⚠️  Store this token securely - it won't be shown again!");
 
         Ok(())
@@ -183,12 +183,12 @@ impl PassportClientsCommand {
         println!("  Name: Web Application");
         println!("  Type: Authorization Code");
         println!("  Revoked: No");
-        println!("");
+        println!();
         println!("  ID: 87654321-4321-4321-4321-210987654321");
         println!("  Name: Mobile App");
         println!("  Type: Public (PKCE)");
         println!("  Revoked: No");
-        println!("");
+        println!();
         println!("Total clients: 2");
 
         Ok(())
@@ -208,7 +208,7 @@ impl PassportRevokeCommand {
         println!("🔐 Revoking OAuth2 Client");
         println!("─────────────────────────────────────────");
         println!("Client ID: {}", self.client_id);
-        println!("");
+        println!();
         println!("✓ Client revoked successfully");
         println!("  All access tokens for this client have been invalidated");
 

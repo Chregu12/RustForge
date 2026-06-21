@@ -109,7 +109,7 @@ impl<T> Collection<T> {
     }
 
     /// Check if any item satisfies the predicate.
-    pub fn any<F>(&self, mut f: F) -> bool
+    pub fn any<F>(&self, f: F) -> bool
     where
         F: FnMut(&T) -> bool,
     {
@@ -117,7 +117,7 @@ impl<T> Collection<T> {
     }
 
     /// Check if all items satisfy the predicate.
-    pub fn all_match<F>(&self, mut f: F) -> bool
+    pub fn all_match<F>(&self, f: F) -> bool
     where
         F: FnMut(&T) -> bool,
     {
@@ -133,7 +133,7 @@ impl<T> Collection<T> {
     }
 
     /// Pluck values by key.
-    pub fn pluck<U, F>(self, mut f: F) -> Collection<U>
+    pub fn pluck<U, F>(self, f: F) -> Collection<U>
     where
         F: FnMut(&T) -> U,
     {

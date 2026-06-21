@@ -304,7 +304,7 @@ mod tests {
 
     #[test]
     fn test_seed_progress_creation() {
-        let progress = SeedProgress::new("UserSeeder", 1000);
+        let _progress = SeedProgress::new("UserSeeder", 1000);
         // Just verify it doesn't panic
         assert!(true);
     }

@@ -499,7 +499,7 @@ impl EmailVerificationRepository for PostgresEmailVerificationRepository {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    
 
     // Tests would require database setup
     // Placeholder for integration tests

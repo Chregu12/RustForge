@@ -86,7 +86,7 @@ where
     }
 
     /// Reduce the collection to a single value.
-    pub fn reduce<F>(self, mut f: F) -> Option<T>
+    pub fn reduce<F>(self, f: F) -> Option<T>
     where
         F: FnMut(T, T) -> T,
     {

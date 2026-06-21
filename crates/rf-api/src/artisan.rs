@@ -251,7 +251,7 @@ impl CommandChain {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    
 
     #[test]
     #[ignore = "requires a running FoundryApp; use integration tests instead"]

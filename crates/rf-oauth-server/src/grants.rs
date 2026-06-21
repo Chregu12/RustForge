@@ -372,7 +372,7 @@ mod tests {
         let mut hasher = Sha256::new();
         hasher.update(verifier.as_bytes());
         let hash = hasher.finalize();
-        let challenge = URL_SAFE_NO_PAD.encode(&hash);
+        let challenge = URL_SAFE_NO_PAD.encode(hash);
 
         assert!(grant
             .verify_pkce(&challenge, verifier, Some("S256"))
