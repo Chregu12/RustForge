@@ -145,6 +145,10 @@
 //!
 //! See migration files for schema details.
 
+// This crate deliberately mirrors Laravel Passport's camelCase fluent API
+// (`tokensExpireIn`, `tokensCan`, ...); non-snake-case names are intentional.
+#![allow(non_snake_case)]
+
 pub mod auth_code;
 pub mod client;
 pub mod config;

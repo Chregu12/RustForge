@@ -166,6 +166,10 @@
 //! # }
 //! ```
 
+// Mirrors Laravel Passport's camelCase facade API (`Passport::tokensCan()`,
+// `Passport::tokensExpireIn()`, ...); non-snake-case names are intentional.
+#![allow(non_snake_case)]
+
 pub mod config;
 pub mod facade;
 pub mod manager;

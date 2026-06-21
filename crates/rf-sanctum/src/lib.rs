@@ -114,6 +114,10 @@
 //! store.store(token)?;
 //! ```
 
+// Mirrors Laravel Sanctum's camelCase fluent API (`tokensCan`,
+// `actingAs`, ...); non-snake-case names are intentional.
+#![allow(non_snake_case)]
+
 pub mod abilities;
 pub mod auth;
 pub mod config;

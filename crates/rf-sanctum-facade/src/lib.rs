@@ -141,6 +141,10 @@
 //! # }
 //! ```
 
+// Mirrors Laravel Sanctum's camelCase facade API (`Sanctum::tokenCan()`,
+// `Sanctum::currentAccessToken()`, ...); non-snake-case names are intentional.
+#![allow(non_snake_case)]
+
 pub mod facade;
 pub mod manager;
 
