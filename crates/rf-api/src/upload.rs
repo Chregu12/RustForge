@@ -21,7 +21,8 @@ pub async fn upload_file(
     State(state): State<AppState>,
     mut multipart: Multipart,
 ) -> HttpResult<JsonResponse<UploadResponse>> {
-    while let Some(field) = multipart
+    // Only the first multipart field is treated as the uploaded file.
+    if let Some(field) = multipart
         .next_field()
         .await
         .map_err(|err| HttpError::from(parse_error("MULTIPART_ERROR", err)))?
