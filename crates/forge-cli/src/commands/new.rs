@@ -366,42 +366,6 @@ fn generate_main_rs(name: &str) -> String {
     format!("mod db;\n\nuse anyhow::Result;\nuse axum::{{Router, routing::get}};\nuse std::net::SocketAddr;\n\n#[tokio::main]\nasync fn main() -> Result<()> {{\n    // Initialize tracing\n    tracing_subscriber::fmt::init();\n\n    // Load environment variables\n    dotenv::dotenv().ok();\n\n    // Initialize database\n    let pool = db::get_pool().await?;\n    db::run_migrations(&pool).await?;\n\n    // Create router\n    let app = Router::new()\n        .route(\"/\", get(|| async {{ \"Welcome to {}!\" }}));\n\n    // Start server\n    let addr = SocketAddr::from(([0, 0, 0, 0], 8000));\n    println!(\"🚀 Server listening on http://{{}}\", addr);\n\n    let listener = tokio::net::TcpListener::bind(&addr).await?;\n    axum::serve(listener, app).await?;\n\n    Ok(())\n}}\n", name)
 }
 
-fn generate_lib_rs() -> String {
-    r#"pub mod db;
-
-// Re-export commonly used types
-pub use anyhow::Result;
-"#
-    .to_string()
-}
-
-fn generate_db_rs() -> String {
-    r#"use anyhow::Result;
-use sqlx::sqlite::SqlitePool;
-use std::env;
-
-pub async fn get_pool() -> Result<SqlitePool> {
-    let database_url = env::var("DATABASE_URL")
-        .expect("DATABASE_URL must be set in .env");
-
-    let pool = SqlitePool::connect(&database_url).await?;
-    Ok(pool)
-}
-
-pub async fn run_migrations(pool: &SqlitePool) -> Result<()> {
-    println!("✓ Running migrations...");
-
-    // Add your migrations here
-    // Example:
-    // sqlx::query("CREATE TABLE IF NOT EXISTS users (...)").execute(pool).await?;
-
-    println!("✓ Migrations completed");
-    Ok(())
-}
-"#
-    .to_string()
-}
-
 fn generate_readme(name: &str) -> String {
     format!(
         r#"# {}

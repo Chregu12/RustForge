@@ -39,6 +39,7 @@ impl SignedUrl {
     }
 
     /// Get the full signed URL with query parameters.
+    #[allow(clippy::inherent_to_string)] // intentional inherent helper for building the signed URL
     pub fn to_string(&self) -> String {
         let separator = if self.url.contains('?') { '&' } else { '?' };
         let mut url = format!("{}{}signature={}", self.url, separator, self.signature);

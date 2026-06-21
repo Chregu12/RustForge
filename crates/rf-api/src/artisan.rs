@@ -191,6 +191,8 @@ impl CommandChain {
     }
 
     /// Add a command to the chain
+    // Builder-style method; intentional name, not std::ops::Add semantics.
+    #[allow(clippy::should_implement_trait)]
     pub fn add(mut self, command: impl Into<String>) -> Self {
         self.commands.push((command.into(), Vec::new()));
         self

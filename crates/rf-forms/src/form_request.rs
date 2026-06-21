@@ -37,6 +37,11 @@
 //! }
 //! ```
 
+// The `async` feature is referenced by the optional async FormRequest API below
+// but is not declared in Cargo.toml (async-trait is not a declared dependency yet);
+// suppress until the async support is wired up.
+#![allow(unexpected_cfgs)]
+
 use crate::validation::{ValidationData, ValidationErrors, ValidationRuleTrait, Validator};
 use std::collections::HashMap;
 

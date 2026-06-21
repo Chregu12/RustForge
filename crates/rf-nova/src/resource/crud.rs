@@ -4,7 +4,7 @@
 
 use super::resource::{PaginatedResponse, PaginationMeta, ResourceError, ResourceQuery, ResourceResult};
 use sea_orm::{
-    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait,
+    DatabaseConnection, EntityTrait,
     PaginatorTrait, QueryFilter,
 };
 use serde::Serialize;

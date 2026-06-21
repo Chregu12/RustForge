@@ -44,7 +44,6 @@ use sea_orm::{DatabaseConnection, DbErr, EntityTrait, ModelTrait, Related};
 /// # Ok(())
 /// # }
 /// ```
-
 /// Helper trait for loading relationships
 #[async_trait]
 pub trait RelationshipHelpers: ModelTrait + Sized {

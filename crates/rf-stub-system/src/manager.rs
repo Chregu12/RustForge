@@ -12,6 +12,8 @@ use crate::variables::StubVariables;
 /// Manager for loading and rendering stubs
 pub struct StubManager {
     custom_stubs_dir: PathBuf,
+    // reserved: template engine retained for future stub rendering
+    #[allow(dead_code)]
     tera: Tera,
     custom_stubs: HashMap<String, Stub>,
 }

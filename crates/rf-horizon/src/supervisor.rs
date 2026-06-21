@@ -103,7 +103,7 @@ impl Supervisor {
 
     /// Set nice value
     pub fn nice(mut self, nice: i32) -> Self {
-        self.nice = nice.max(-20).min(19);
+        self.nice = nice.clamp(-20, 19);
         self
     }
 

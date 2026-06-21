@@ -140,6 +140,7 @@ impl DatabaseCreateCommand {
         }
     }
 
+    #[allow(clippy::too_many_arguments)] // connection params passed individually by design
     async fn setup_mysql(
         &self,
         _ctx: &CommandContext,

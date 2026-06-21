@@ -227,6 +227,7 @@ impl MiddlewareGroup {
     }
 
     /// Add middleware to the group.
+    #[allow(clippy::should_implement_trait)] // intentional builder method, not std::ops::Add
     pub fn add(mut self, middleware: impl Into<String>) -> Self {
         self.middleware.push(middleware.into());
         self

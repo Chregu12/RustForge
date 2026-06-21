@@ -338,7 +338,6 @@ impl Default for TestGenerator {
 }
 
 /// Utility functions
-
 fn to_snake_case(s: &str) -> String {
     let mut result = String::new();
     let mut prev_upper = false;

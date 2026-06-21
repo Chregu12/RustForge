@@ -11,6 +11,8 @@ use rand::{distributions::Alphanumeric, Rng};
 /// State record with expiration
 #[derive(Debug, Clone)]
 struct StateRecord {
+    // Recorded for diagnostics; expiry checks use `expires_at`.
+    #[allow(dead_code)]
     created_at: u128,
     expires_at: u128,
 }

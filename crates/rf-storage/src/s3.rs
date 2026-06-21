@@ -87,14 +87,6 @@ impl S3Storage {
 
         Ok(presigned_request.uri().to_string())
     }
-
-    /// Get S3 client configuration
-    fn client_config(&self) -> String {
-        format!(
-            "Bucket: {}, Region: {}, Endpoint: {:?}",
-            self.config.bucket, self.config.region, self.config.endpoint
-        )
-    }
 }
 
 #[async_trait]

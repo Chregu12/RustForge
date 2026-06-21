@@ -23,6 +23,8 @@ pub trait AuthorizationPolicy<T> {
 
 /// Helper for authorization checks.
 pub struct AuthorizationChecker<U> {
+    // Stored for the (currently simplified) permission/role checks; WIP.
+    #[allow(dead_code)]
     user: U,
 }
 

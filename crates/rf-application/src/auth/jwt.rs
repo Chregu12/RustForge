@@ -182,6 +182,7 @@ impl JwtService {
     }
 
     /// Create a new JWT service with default configuration
+    #[allow(clippy::should_implement_trait)] // intentional inherent constructor name
     pub fn default() -> Self {
         Self::new(JwtConfig::default())
     }

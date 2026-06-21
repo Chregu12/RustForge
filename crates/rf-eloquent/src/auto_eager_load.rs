@@ -132,6 +132,7 @@ impl QueryTracker {
     }
 
     /// Create with default threshold (5 queries)
+    #[allow(clippy::should_implement_trait)] // intentional inherent constructor, not Default
     pub fn default() -> Self {
         Self::new(5)
     }

@@ -138,6 +138,11 @@ impl RedisSubscriber {
         let client =
             redis::Client::open(self.redis_url.clone()).map_err(BroadcastError::Redis)?;
 
+        // TODO: migrate off the deprecated `get_async_connection`. The replacement
+        // `get_multiplexed_async_connection` returns a `MultiplexedConnection`, which
+        // lacks `into_pubsub()`, so this needs a pub/sub-specific rework rather than a
+        // drop-in swap.
+        #[allow(deprecated)]
         let conn = client
             .get_async_connection()
             .await

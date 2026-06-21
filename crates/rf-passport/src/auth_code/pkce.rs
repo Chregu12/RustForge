@@ -15,6 +15,8 @@ pub enum CodeChallengeMethod {
 
 impl CodeChallengeMethod {
     /// Parse from string
+    // Intentional inherent `from_str` (fallible, custom error type); keep the name.
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> PassportResult<Self> {
         match s {
             "plain" => Ok(Self::Plain),
@@ -27,6 +29,8 @@ impl CodeChallengeMethod {
     }
 
     /// Convert to string
+    // Intentional inherent `to_string` for this small enum; keep as-is.
+    #[allow(clippy::inherent_to_string)]
     pub fn to_string(&self) -> String {
         match self {
             Self::Plain => "plain".to_string(),

@@ -177,6 +177,8 @@ impl AwaitTransformer {
     }
 
     /// Add a custom async function name to the list
+    // Public WIP helper, not currently called.
+    #[allow(dead_code)]
     pub fn add_async_function(&mut self, name: String) {
         self.async_functions.push(name);
     }
@@ -188,6 +190,8 @@ impl AwaitTransformer {
     }
 
     /// Transform an expression by adding .await where necessary
+    // Used only from tests in non-test builds.
+    #[cfg_attr(not(test), allow(dead_code))]
     pub fn transform_expr(&mut self, expr: &mut Expr) {
         self.visit_expr_mut(expr);
     }

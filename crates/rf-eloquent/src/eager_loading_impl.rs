@@ -164,7 +164,7 @@ impl<'a> ConcreteEagerLoader<'a> {
         <PE as EntityTrait>::Column: ColumnTrait,
         PE::Model: sea_orm::ModelTrait,
     {
-        use sea_orm::{QueryFilter, QuerySelect};
+        use sea_orm::QueryFilter;
         use std::collections::HashMap;
 
         if parent_ids.is_empty() {

@@ -190,7 +190,7 @@ pub enum OrderDirection {
     Desc,
 }
 
-/// Example lens implementations
+// Example lens implementations
 
 /// Most recent lens - shows recently created items
 pub struct MostRecentLens {

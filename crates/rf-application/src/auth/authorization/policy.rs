@@ -13,6 +13,7 @@ use super::{AuthorizationError, AuthorizationResult};
 
 /// Policy callback function type
 pub type PolicyCallback = Arc<dyn Fn(&dyn Any, &dyn Any) -> bool + Send + Sync>;
+pub type BeforeCallback = Arc<dyn Fn(&dyn Any, &str, &dyn Any) -> Option<bool> + Send + Sync>;
 
 /// Resource policy trait
 ///
@@ -68,8 +69,7 @@ pub trait ResourcePolicy<U, R>: Send + Sync {
 pub struct PolicyRegistry {
     // Map: (TypeId of Resource) -> Map: (Action name) -> Callback
     policies: RwLock<HashMap<TypeId, HashMap<String, PolicyCallback>>>,
-    before_callbacks:
-        RwLock<Vec<Arc<dyn Fn(&dyn Any, &str, &dyn Any) -> Option<bool> + Send + Sync>>>,
+    before_callbacks: RwLock<Vec<BeforeCallback>>,
 }
 
 impl PolicyRegistry {

@@ -239,7 +239,7 @@ pub async fn redis_available() -> bool {
         Err(_) => return false,
     };
 
-    let mut conn = match client.get_async_connection().await {
+    let mut conn = match client.get_multiplexed_async_connection().await {
         Ok(c) => c,
         Err(_) => return false,
     };

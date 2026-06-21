@@ -62,6 +62,7 @@ pub struct Package {
 
 impl Package {
     /// Create a new package with the given name
+    #[allow(clippy::new_ret_no_self)] // intentional: returns a builder
     pub fn new(name: impl Into<String>) -> PackageBuilder {
         PackageBuilder::new(name)
     }

@@ -119,6 +119,7 @@ impl Tinker {
     }
 
     /// Create with default configuration
+    #[allow(clippy::should_implement_trait)] // intentional inherent constructor with config
     pub fn default() -> Self {
         Self::new(TinkerConfig::default())
     }

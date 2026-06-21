@@ -1,6 +1,6 @@
 //! OAuth2 Middleware for scope verification
 
-use crate::{scopes::ScopeChecker, token::AccessToken, OAuth2Error};
+use crate::{token::AccessToken, OAuth2Error};
 use axum::{
     extract::Request,
     middleware::Next,

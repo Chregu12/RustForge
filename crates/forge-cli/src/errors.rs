@@ -189,7 +189,6 @@ impl fmt::Display for CliError {
 impl std::error::Error for CliError {}
 
 /// Helper functions for common errors
-
 pub fn file_not_found(path: &str) -> CliError {
     CliError::new(ErrorCode::FileNotFound, format!("File not found: {}", path))
         .with_suggestion(format!("Make sure the file exists at: {}", path))

@@ -63,6 +63,7 @@ impl<T> Collection<T> {
     }
 
     /// Create a collection from an iterator
+    #[allow(clippy::should_implement_trait)] // intentional inherent constructor, not FromIterator
     pub fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
         Self {
             items: iter.into_iter().collect(),

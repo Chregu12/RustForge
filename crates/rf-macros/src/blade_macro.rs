@@ -468,6 +468,8 @@ pub fn html_impl(input: TokenStream) -> TokenStream {
 ///     .type_("success")
 ///     .render();
 /// ```
+// WIP: component macro entry point, not yet wired into a `#[proc_macro]` export.
+#[allow(dead_code)]
 pub fn component_impl(input: TokenStream) -> TokenStream {
     // Simplified component implementation
     let input2: TokenStream2 = input.into();
@@ -481,6 +483,8 @@ pub fn component_impl(input: TokenStream) -> TokenStream {
 }
 
 /// Slot macro for component slots
+// WIP: slot macro entry point, not yet wired into a `#[proc_macro]` export.
+#[allow(dead_code)]
 pub fn slot_impl(input: TokenStream) -> TokenStream {
     let input2: TokenStream2 = input.into();
 

@@ -33,6 +33,8 @@ pub trait EventListener<E>: Send + Sync {
 }
 
 /// Wrapper for function-based listeners
+// public API: not yet constructed internally
+#[allow(dead_code)]
 pub struct FunctionListener<E, F>
 where
     F: Fn(&E) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + Send>> + Send + Sync,
@@ -43,6 +45,7 @@ where
     _phantom: std::marker::PhantomData<E>,
 }
 
+#[allow(dead_code)] // public API: constructor/builders not yet used internally
 impl<E, F> FunctionListener<E, F>
 where
     F: Fn(&E) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + Send>> + Send + Sync,

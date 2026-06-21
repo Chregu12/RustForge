@@ -178,6 +178,7 @@ impl Browser {
     }
 
     /// Get client reference
+    #[allow(dead_code)] // reserved internal helper for client access
     async fn with_client<F, T>(&self, f: F) -> DuskResult<T>
     where
         F: FnOnce(&Client) -> futures::future::BoxFuture<'_, DuskResult<T>>,

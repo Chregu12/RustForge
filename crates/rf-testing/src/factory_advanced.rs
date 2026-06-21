@@ -73,8 +73,11 @@ impl Default for Sequence {
 ///
 /// Allows defining named states that modify the factory definition
 pub struct FactoryState<F: Factory> {
+    // reserved: retained base factory for future state-derived builds
+    #[allow(dead_code)]
     base_factory: F,
     state_name: String,
+    #[allow(clippy::type_complexity)]
     state_modifiers: Arc<Mutex<HashMap<String, Box<dyn Fn(&mut F::Model) + Send + Sync>>>>,
 }
 
@@ -126,6 +129,7 @@ pub struct EnhancedFactory<F: Factory> {
 
 impl<F: Factory + Default> EnhancedFactory<F> {
     /// Create a new enhanced factory
+    #[allow(clippy::new_without_default)] // Default would require F: Default in impl header
     pub fn new() -> Self {
         Self {
             inner: F::default(),

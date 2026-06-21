@@ -217,7 +217,7 @@ fn process_tables(markdown: &str) -> Result<String, MailError> {
     Ok(result.to_string())
 }
 
-/// Helper functions for creating components programmatically
+// Helper functions for creating components programmatically
 
 /// Create a button component
 pub fn button(text: &str, url: &str) -> String {

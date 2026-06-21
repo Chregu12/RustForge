@@ -250,10 +250,13 @@ impl TenantResolver for InMemoryTenantResolver {
 /// Tenant layer for Axum
 #[derive(Clone)]
 pub struct TenantLayer {
+    // reserved: consumed by TenantLayer::identify (manual extractor entry point)
+    #[allow(dead_code)]
     identifier_type: TenantIdentifierType,
 }
 
 #[derive(Clone)]
+#[allow(dead_code)] // reserved: variants read by TenantLayer::identify
 enum TenantIdentifierType {
     Domain(DomainIdentifier),
     Header(HeaderIdentifier),
@@ -279,6 +282,8 @@ impl TenantLayer {
         }
     }
 
+    // reserved: manual extractor entry point (see note below); Axum extractor was removed
+    #[allow(dead_code)]
     async fn identify(&self, parts: &Parts) -> TenantResult<Tenant> {
         match &self.identifier_type {
             TenantIdentifierType::Domain(id) => id.identify(parts).await,

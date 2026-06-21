@@ -39,7 +39,7 @@ fn process_controller_method(method: &mut ImplItemFn) {
     // Apply auto-await transformation to the body
     let mut transformer = AwaitTransformer::new();
     for stmt in &mut method.block.stmts {
-        if let syn::Stmt::Expr(expr, _) | syn::Stmt::Expr(expr @ syn::Expr::Return(_), _) = stmt {
+        if let syn::Stmt::Expr(expr, _) = stmt {
             transformer.visit_expr_mut(expr);
         } else if let syn::Stmt::Local(local) = stmt {
             if let Some(init) = &mut local.init {

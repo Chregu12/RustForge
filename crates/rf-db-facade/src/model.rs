@@ -27,6 +27,11 @@
 //! }
 //! ```
 
+// The `Model` trait is a deliberate Laravel-style public API using `async fn` in
+// traits. We don't require `Send` auto-trait bounds on the returned futures, so
+// suppress the `async_fn_in_trait` lint rather than desugar to `impl Future`.
+#![allow(async_fn_in_trait)]
+
 use crate::query_builder::QueryBuilder;
 use serde_json::Value;
 

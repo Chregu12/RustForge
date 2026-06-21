@@ -17,6 +17,8 @@ use std::sync::{Arc, Mutex};
 pub struct SocialiteManager {
     config: SocialiteConfig,
     state_manager: StateManager,
+    // reserved: driver cache populated for future reuse across requests
+    #[allow(dead_code)]
     drivers: Arc<Mutex<HashMap<String, Driver>>>,
 }
 
@@ -128,6 +130,7 @@ impl Default for SocialiteManager {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::config::ProviderConfig;
 
     #[test]
     fn test_manager_creation() {

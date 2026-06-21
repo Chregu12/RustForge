@@ -214,6 +214,7 @@ impl DatabaseSeeder {
     }
 
     /// Add a seeder
+    #[allow(clippy::should_implement_trait)] // intentional builder method, not std Add
     pub fn add<S: Seeder + 'static>(mut self, seeder: S) -> Self {
         self.seeders.push(Arc::new(seeder));
         self

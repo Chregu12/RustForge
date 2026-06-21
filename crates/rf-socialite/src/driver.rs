@@ -51,6 +51,7 @@ pub struct Driver {
 
 impl Driver {
     /// Create a new driver for the given provider
+    #[allow(clippy::new_ret_no_self)] // intentional: returns a builder
     pub fn new(provider: Provider) -> DriverBuilder {
         DriverBuilder::new(provider)
     }

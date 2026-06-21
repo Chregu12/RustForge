@@ -53,6 +53,8 @@ struct ExceptionHandlerDef {
     dont_flash: Vec<LitStr>,
     render_fn: Option<ItemFn>,
     report_fn: Option<ItemFn>,
+    // Parsed from macro input but not yet consumed in codegen (WIP).
+    #[allow(dead_code)]
     register_fn: Option<ItemFn>,
 }
 
@@ -421,6 +423,8 @@ pub fn abort_unless_impl(input: TokenStream) -> TokenStream {
 ///     }
 /// }
 /// ```
+// WIP: try/catch macro entry point, not yet wired into a `#[proc_macro]` export.
+#[allow(dead_code)]
 pub fn try_catch_impl(input: TokenStream) -> TokenStream {
     // For now, just pass through - full implementation would require more complex parsing
     let input2: TokenStream2 = input.into();

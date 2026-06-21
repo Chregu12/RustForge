@@ -254,6 +254,7 @@ impl Provider for DatabaseUserProvider {
 
 /// Database-backed session store using SeaORM
 pub struct DatabaseSessionStore {
+    #[allow(dead_code)] // reserved: retained for future DB-backed session queries
     db: Arc<DatabaseConnection>,
     ttl: Duration,
 }

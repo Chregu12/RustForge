@@ -49,6 +49,8 @@ impl MemoryCheck {
     }
 
     /// Default thresholds (80% warning, 95% critical)
+    // Intentional inherent constructor; not the std `Default` trait impl.
+    #[allow(clippy::should_implement_trait)]
     pub fn default() -> Self {
         Self::new(0.8, 0.95)
     }
@@ -126,6 +128,8 @@ impl DiskCheck {
     }
 
     /// Default check for root (80% warning, 95% critical)
+    // Intentional inherent constructor; not the std `Default` trait impl.
+    #[allow(clippy::should_implement_trait)]
     pub fn default() -> Self {
         Self::new("/", 0.8, 0.95)
     }

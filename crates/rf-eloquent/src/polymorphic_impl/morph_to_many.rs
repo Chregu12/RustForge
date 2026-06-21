@@ -44,9 +44,7 @@
 //! ```
 
 use super::polymorphic::{PolymorphicError, PolymorphicResult};
-use sea_orm::{
-    sea_query::Iden as SeaIden, DatabaseConnection, EntityTrait, FromQueryResult,
-};
+use sea_orm::{DatabaseConnection, EntityTrait, FromQueryResult};
 use std::marker::PhantomData;
 
 /// MorphToMany relationship - many-to-many polymorphic

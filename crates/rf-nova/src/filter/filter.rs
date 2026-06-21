@@ -72,7 +72,7 @@ pub enum FilterCondition {
     Custom { sql: String, bindings: Vec<Value> },
 }
 
-/// Standard filter implementations
+// Standard filter implementations
 
 /// Select filter - filter by specific values
 pub struct SelectFilter {
@@ -245,7 +245,7 @@ impl Filter for DateRangeFilter {
     }
 }
 
-/// Preset filters that can be applied quickly
+// Preset filters that can be applied quickly
 
 /// Active/Inactive filter
 pub struct ActiveFilter;

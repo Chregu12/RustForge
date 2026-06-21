@@ -30,7 +30,7 @@
 
 use async_trait::async_trait;
 use dashmap::DashMap;
-use sea_orm::{DatabaseConnection, DbErr, EntityTrait, ModelTrait};
+use sea_orm::{DatabaseConnection, DbErr, ModelTrait};
 use serde::{Deserialize, Serialize};
 use std::any::Any;
 use std::sync::Arc;
@@ -211,7 +211,10 @@ impl<T> EagerLoadBuilder<T> {
 
 /// Eager loader that manages loading related models
 pub struct EagerLoader {
+    // reserved for future query execution / caching; part of constructed state
+    #[allow(dead_code)]
     db: DatabaseConnection,
+    #[allow(dead_code)]
     loaded: Arc<DashMap<String, Vec<u8>>>, // Cache for loaded relations
 }
 
@@ -227,7 +230,7 @@ impl EagerLoader {
     /// Load relationships for a collection of models
     pub async fn load<M>(
         &self,
-        models: &mut Vec<M>,
+        models: &mut [M],
         relations: &[EagerLoadRelation],
     ) -> EagerLoadResult<()>
     where
@@ -243,7 +246,7 @@ impl EagerLoader {
     /// This is a generic implementation that requires models to implement EagerLoadable trait
     async fn load_relation<M>(
         &self,
-        models: &mut Vec<M>,
+        models: &mut [M],
         relation: &EagerLoadRelation,
     ) -> EagerLoadResult<()>
     where
@@ -291,6 +294,7 @@ impl EagerLoader {
 
     /// Extract primary key values from models
     /// This is a helper method for concrete implementations
+    #[allow(dead_code)] // reserved helper for concrete RelationshipLoader impls
     fn extract_primary_keys<M>(&self, models: &[M]) -> Vec<M::PrimaryKey>
     where
         M: ModelTrait + EagerLoadable,

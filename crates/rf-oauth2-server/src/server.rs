@@ -23,6 +23,8 @@ pub struct OAuth2Server {
 
 #[derive(Clone)]
 struct AuthorizationCode {
+    // Mirrors the HashMap key; retained for completeness of the record.
+    #[allow(dead_code)]
     code: String,
     client_id: String,
     redirect_uri: String,

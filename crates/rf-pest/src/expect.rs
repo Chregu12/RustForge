@@ -36,6 +36,7 @@ where
     /// ```rust,ignore
     /// expect(&value).not().to_equal(&other);
     /// ```
+    #[allow(clippy::should_implement_trait)] // intentional fluent assertion negation, not std Not
     pub fn not(self) -> Self {
         Self {
             value: self.value,

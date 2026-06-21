@@ -52,7 +52,7 @@ use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use sea_orm::{
     ActiveModelBehavior, ActiveModelTrait, ActiveValue, ColumnTrait, DatabaseConnection, DbErr,
-    EntityTrait, ModelTrait, QueryFilter, QueryTrait, Set,
+    EntityTrait, QueryFilter, Set,
 };
 
 /// Trait for models that support soft deletion

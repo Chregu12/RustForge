@@ -107,11 +107,11 @@ impl Default for MemoryBroadcaster {
 impl Broadcaster for MemoryBroadcaster {
     async fn broadcast(&self, channel: &Channel, event: &dyn Event) -> Result<(), BroadcastError> {
         // Get connections subscribed to this channel
-        let connections = {
+        let connections: Vec<_> = {
             let subs = self.subscriptions.lock().unwrap();
             subs.get(channel)
                 .map(|s| s.iter().cloned().collect())
-                .unwrap_or_else(Vec::new)
+                .unwrap_or_default()
         };
 
         let message = BroadcastMessage {
@@ -145,7 +145,7 @@ impl Broadcaster for MemoryBroadcaster {
         {
             let mut subs = self.subscriptions.lock().unwrap();
             subs.entry(channel.clone())
-                .or_insert_with(HashSet::new)
+                .or_default()
                 .insert(connection_id.clone());
         }
 
@@ -160,7 +160,7 @@ impl Broadcaster for MemoryBroadcaster {
             if let Some(ref uid) = user_id {
                 let mut pres = self.presence.lock().unwrap();
                 pres.entry(channel.clone())
-                    .or_insert_with(HashMap::new)
+                    .or_default()
                     .insert(uid.clone(), PresenceInfo::new(uid.clone()));
             }
         }

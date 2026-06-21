@@ -1,7 +1,7 @@
 //! Policy registry for managing and looking up policies by type
 
 use super::error::{AuthorizationError, AuthorizationResult};
-use super::policies::{Policy, PolicyCheck};
+use super::policies::Policy;
 use once_cell::sync::Lazy;
 use std::any::TypeId;
 use std::collections::HashMap;

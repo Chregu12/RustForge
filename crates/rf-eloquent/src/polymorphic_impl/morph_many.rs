@@ -38,7 +38,7 @@
 use super::polymorphic::{PolymorphicError, PolymorphicResult};
 use sea_orm::{
     ColumnTrait, Condition, DatabaseConnection, EntityTrait, FromQueryResult,
-    PaginatorTrait, QueryFilter, QueryOrder, QuerySelect,
+    QueryFilter,
 };
 use std::marker::PhantomData;
 

@@ -56,11 +56,8 @@ impl Channel {
 
     /// Format event name (add namespace if configured)
     fn format_event_name(&self, event: &str) -> String {
-        if event.starts_with("pusher:") || event.starts_with('.') {
-            event.to_string()
-        } else {
-            event.to_string()
-        }
+        // Namespacing is currently a pass-through for all event names
+        event.to_string()
     }
 
     /// Start processing events
@@ -87,6 +84,8 @@ impl Channel {
 pub struct PrivateChannel {
     pub name: String,
     pub auth: String,
+    // reserved: receiver retained for future start_listening support
+    #[allow(dead_code)]
     event_rx: broadcast::Receiver<Event>,
     handlers: Arc<DashMap<String, Vec<EventHandler>>>,
 }
@@ -136,6 +135,8 @@ pub struct PresenceChannel {
     pub name: String,
     pub auth: String,
     pub channel_data: String,
+    // reserved: receiver retained for future start_listening support
+    #[allow(dead_code)]
     event_rx: broadcast::Receiver<Event>,
     handlers: Arc<DashMap<String, Vec<EventHandler>>>,
     members: Arc<DashMap<String, PresenceMember>>,

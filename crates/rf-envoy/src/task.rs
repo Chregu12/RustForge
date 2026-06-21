@@ -109,6 +109,7 @@ impl TaskBuilder {
 
 /// A higher-level task abstraction
 pub struct Task {
+    #[allow(dead_code)] // reserved: task name retained for future display/lookup
     name: String,
     description: Option<String>,
     commands: Vec<String>,

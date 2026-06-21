@@ -13,6 +13,7 @@ use std::time::{Duration, SystemTime};
 /// State storage entry
 #[derive(Debug, Clone)]
 struct StateEntry {
+    #[allow(dead_code)] // reserved: stored state value for future validation
     value: String,
     created_at: SystemTime,
     expires_in: Duration,

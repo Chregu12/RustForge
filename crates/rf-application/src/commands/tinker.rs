@@ -2,7 +2,6 @@ use async_trait::async_trait;
 use rustyline::DefaultEditor;
 use sea_orm::{ConnectionTrait, Database, DatabaseConnection};
 use serde_json::{json, Value};
-use std::collections::HashMap;
 
 use rf_domain::{CommandDescriptor, CommandKind};
 use rf_plugins::{
@@ -124,7 +123,6 @@ impl TinkerCommand {
         let mut session = TinkerSession {
             db,
             db_type,
-            table_cache: HashMap::new(),
         };
 
         loop {
@@ -249,7 +247,6 @@ impl TinkerCommand {
 struct TinkerSession {
     db: DatabaseConnection,
     db_type: String,
-    table_cache: HashMap<String, Vec<String>>,
 }
 
 impl TinkerSession {

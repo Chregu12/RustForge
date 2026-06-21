@@ -13,6 +13,7 @@ pub enum TestResult {
 
 /// Test output formatter
 pub struct TestOutput {
+    #[allow(dead_code)] // reserved: indentation level for future nested output
     indent: usize,
 }
 

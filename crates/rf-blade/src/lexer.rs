@@ -121,6 +121,7 @@ pub enum DirectiveType {
 
 impl DirectiveType {
     /// Parse directive type from string
+    #[allow(clippy::should_implement_trait)] // intentional infallible inherent parser
     pub fn from_str(s: &str) -> Self {
         match s {
             "if" => Self::If,

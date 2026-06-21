@@ -71,6 +71,9 @@ impl Default for AuthGuard {
 }
 
 impl Guard for AuthGuard {
+    // Explicit `impl Future + Send` matches the async-graphql `Guard` trait and
+    // guarantees the `Send` bound; do not desugar to `async fn`.
+    #[allow(clippy::manual_async_fn)]
     fn check(&self, ctx: &Context<'_>) -> impl std::future::Future<Output = Result<()>> + Send {
         async move {
             get_auth_user(ctx)?;
@@ -166,6 +169,9 @@ impl<F> Guard for OwnershipGuard<F>
 where
     F: Fn(&Context<'_>, i64) -> bool + Send + Sync + 'static,
 {
+    // Explicit `impl Future + Send` matches the async-graphql `Guard` trait and
+    // guarantees the `Send` bound; do not desugar to `async fn`.
+    #[allow(clippy::manual_async_fn)]
     fn check(&self, ctx: &Context<'_>) -> impl std::future::Future<Output = Result<()>> + Send {
         async move {
             let user = get_auth_user(ctx)?;

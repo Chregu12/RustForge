@@ -71,7 +71,7 @@ impl ProgressBar {
             100
         };
 
-        let bar = match self.style {
+        let progress_bar = match self.style {
             ProgressStyle::Bar => self.render_bar(),
             ProgressStyle::Dots => self.render_dots(),
             ProgressStyle::Line => self.render_line(),
@@ -85,7 +85,7 @@ impl ProgressBar {
 
         print!(
             "\r{} {:>3}% ({}/{}){}",
-            bar, percentage, self.current, self.total, msg
+            progress_bar, percentage, self.current, self.total, msg
         );
 
         io::stdout().flush().unwrap_or(());

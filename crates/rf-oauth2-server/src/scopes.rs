@@ -104,6 +104,8 @@ impl ScopeSet {
         self.scopes.iter().all(|s| other.contains(s))
     }
 
+    // Intentional inherent `to_string` for the public scope-set API; keep as-is.
+    #[allow(clippy::inherent_to_string)]
     pub fn to_string(&self) -> String {
         let scopes: Vec<_> = self.scopes.iter().cloned().collect();
         Scope::join_scopes(&scopes)

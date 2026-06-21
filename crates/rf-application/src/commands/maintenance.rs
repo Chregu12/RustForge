@@ -1,3 +1,6 @@
+// reserved: legacy maintenance commands superseded by rf_maintenance::{AppDownCommand, AppUpCommand}
+#![allow(dead_code)]
+
 use async_trait::async_trait;
 use rf_domain::{CommandDescriptor, CommandKind};
 use rf_plugins::{CommandContext, CommandError, CommandResult, FoundryCommand};

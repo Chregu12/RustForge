@@ -47,6 +47,7 @@ where
 
 /// Composer entry with pattern matching
 struct ComposerEntry {
+    #[allow(dead_code)] // reserved: original pattern kept for diagnostics
     pattern: String,
     glob_set: GlobSet,
     composer: Arc<dyn ViewComposer>,

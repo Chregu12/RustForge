@@ -111,10 +111,13 @@ impl FoundryCommand for ExportCsvCommand {
 }
 
 /// make:export <Name>
+// reserved: generator command not yet registered
+#[allow(dead_code)]
 pub struct MakeExportCommand {
     descriptor: CommandDescriptor,
 }
 
+#[allow(dead_code)] // reserved: see MakeExportCommand
 impl MakeExportCommand {
     pub fn new() -> Self {
         Self {

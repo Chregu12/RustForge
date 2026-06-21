@@ -10,6 +10,8 @@ pub trait CommandExecutor: Send + Sync + Clone {
 }
 
 /// A simple executor for testing
+// Public test/demo helper; not constructed within the crate itself.
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct DummyExecutor;
 

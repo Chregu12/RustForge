@@ -58,6 +58,8 @@ struct FormField {
 }
 
 /// A parsed validation rule
+// Some variants model Laravel rules the parser does not yet construct (WIP).
+#[allow(dead_code)]
 #[derive(Clone)]
 enum ValidationRule {
     Required,

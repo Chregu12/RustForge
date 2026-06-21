@@ -138,6 +138,8 @@ impl FieldInfo {
     }
 
     /// Extract the inner type from Option<T>
+    // Public helper not yet consumed by codegen.
+    #[allow(dead_code)]
     pub fn inner_type(&self) -> Option<&Type> {
         if !self.is_optional {
             return None;
@@ -166,6 +168,8 @@ impl FieldInfo {
     }
 
     /// Check if field is nullable (has `nullable` attribute)
+    // Public helper not yet consumed by codegen.
+    #[allow(dead_code)]
     pub fn is_nullable(&self) -> bool {
         self.rules
             .iter()

@@ -366,6 +366,7 @@ async fn retry_failed_job_handler(
 }
 
 /// Delete a specific failed job
+#[allow(dead_code)] // WIP route handler, see TODO below
 async fn delete_failed_job_handler(
     State(_state): State<Arc<AppState>>,
     Path(_id): Path<Uuid>,

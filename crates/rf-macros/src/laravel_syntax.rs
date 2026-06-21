@@ -70,6 +70,8 @@ struct LaravelClass {
     table: Option<String>,
     fillable: Vec<TypedField>,
     hidden: Vec<TypedField>,
+    // Parsed from macro input but not yet consumed in codegen (WIP).
+    #[allow(dead_code)]
     guarded: Vec<Ident>,
     timestamps: bool,
 }

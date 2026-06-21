@@ -405,6 +405,7 @@ impl MiddlewareGroupBuilder {
     /// Add a route to this middleware group.
     ///
     /// The middleware will be automatically applied to the route.
+    #[allow(clippy::should_implement_trait)] // intentional builder method, not std::ops::Add
     pub fn add(mut self, mut route: FacadeRouteBuilder) -> Self {
         // Apply prefix if set
         if let Some(ref prefix) = self.prefix {

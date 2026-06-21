@@ -177,6 +177,7 @@ fn base64_encode(bytes: &[u8]) -> String {
         &base64::engine::general_purpose::STANDARD,
     );
     encoder.write_all(bytes).unwrap();
+    #[allow(clippy::drop_non_drop)] // releases the &mut buf borrow before returning buf
     drop(encoder);
     buf
 }

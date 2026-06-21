@@ -265,6 +265,7 @@ impl ResourceCollection {
     }
 
     /// Add a resource to the collection.
+    #[allow(clippy::should_implement_trait)] // intentional builder method, not std::ops::Add
     pub fn add(mut self, resource: ResourceRouter) -> Self {
         self.resources.push(resource);
         self

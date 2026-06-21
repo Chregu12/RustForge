@@ -42,6 +42,8 @@ pub struct Encryptor {
 
 impl Encryptor {
     /// Create a new encryptor builder
+    // `new` intentionally returns a builder, not Self
+    #[allow(clippy::new_ret_no_self)]
     pub fn new() -> EncryptorBuilder {
         EncryptorBuilder::default()
     }
@@ -156,8 +158,8 @@ impl EncryptorBuilder {
         let key_str = key.as_ref();
 
         // Accept "base64:<data>" prefix or plain base64 string; never treat raw input as key bytes
-        let decoded = if key_str.starts_with("base64:") {
-            base64::decode(&key_str[7..]).ok()
+        let decoded = if let Some(stripped) = key_str.strip_prefix("base64:") {
+            base64::decode(stripped).ok()
         } else {
             base64::decode(key_str).ok()
         };

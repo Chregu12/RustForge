@@ -103,6 +103,7 @@ pub trait TransactionExt {
     /// # Ok(())
     /// # }
     /// ```
+    #[allow(async_fn_in_trait)] // intentional: trait used internally, no Send bound needed
     async fn transaction<F, T, Fut>(&self, f: F) -> Result<T, DbErr>
     where
         F: FnOnce(&DatabaseTransaction) -> Fut,
@@ -201,6 +202,7 @@ impl IsolationLevel {
 /// Extension for setting transaction isolation level
 pub trait IsolationLevelExt {
     /// Set the isolation level for the next transaction
+    #[allow(async_fn_in_trait)] // intentional: trait used internally, no Send bound needed
     async fn set_isolation_level(&self, level: IsolationLevel) -> Result<(), DbErr>;
 }
 

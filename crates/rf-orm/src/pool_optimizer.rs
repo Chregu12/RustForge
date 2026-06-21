@@ -135,7 +135,7 @@ impl PoolConfig {
             WorkloadType::Web => {
                 // Web apps need many connections for concurrent requests
                 config.min_connections = (expected_concurrency / 10).max(5);
-                config.max_connections = (expected_concurrency * 2).max(20).min(100);
+                config.max_connections = (expected_concurrency * 2).clamp(20, 100);
                 config.idle_timeout = Some(Duration::from_secs(300));
                 config.max_lifetime = Some(Duration::from_secs(1800));
                 config.acquire_timeout = Duration::from_secs(5);
@@ -143,7 +143,7 @@ impl PoolConfig {
             WorkloadType::Jobs => {
                 // Background jobs need fewer but longer-lasting connections
                 config.min_connections = 2;
-                config.max_connections = (expected_concurrency / 2).max(5).min(20);
+                config.max_connections = (expected_concurrency / 2).clamp(5, 20);
                 config.idle_timeout = Some(Duration::from_secs(600));
                 config.max_lifetime = Some(Duration::from_secs(3600));
                 config.acquire_timeout = Duration::from_secs(30);
@@ -151,7 +151,7 @@ impl PoolConfig {
             WorkloadType::Api => {
                 // API services need balanced configuration
                 config.min_connections = (expected_concurrency / 5).max(10);
-                config.max_connections = expected_concurrency.max(50).min(200);
+                config.max_connections = expected_concurrency.clamp(50, 200);
                 config.idle_timeout = Some(Duration::from_secs(180));
                 config.max_lifetime = Some(Duration::from_secs(1800));
                 config.acquire_timeout = Duration::from_secs(10);
@@ -159,14 +159,14 @@ impl PoolConfig {
             WorkloadType::Analytics => {
                 // Analytics workloads need fewer connections with longer lifetimes
                 config.min_connections = 2;
-                config.max_connections = (expected_concurrency / 5).max(10).min(50);
+                config.max_connections = (expected_concurrency / 5).clamp(10, 50);
                 config.idle_timeout = Some(Duration::from_secs(900));
                 config.max_lifetime = Some(Duration::from_secs(7200));
                 config.acquire_timeout = Duration::from_secs(60);
             }
             WorkloadType::Mixed => {
                 // Mixed workload uses default configuration
-                config.max_connections = expected_concurrency.max(50).min(100);
+                config.max_connections = expected_concurrency.clamp(50, 100);
             }
         }
 

@@ -29,6 +29,8 @@ pub struct Form {
 }
 
 impl Form {
+    // Intentional builder API: `Form::new` returns a `FormBuilder`, not `Self`.
+    #[allow(clippy::new_ret_no_self)]
     pub fn new(name: impl Into<String>) -> FormBuilder {
         FormBuilder::new(name)
     }

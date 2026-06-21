@@ -50,7 +50,7 @@
 //! ```
 
 use dashmap::DashMap;
-use sea_orm::{ColumnTrait, DatabaseConnection, DbErr};
+use sea_orm::{DatabaseConnection, DbErr};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -166,6 +166,8 @@ impl EagerLoadMetrics {
 
 /// Optimized eager loader with advanced performance features
 pub struct OptimizedEagerLoader<'a> {
+    // reserved for future query execution; part of constructed state
+    #[allow(dead_code)]
     db: &'a DatabaseConnection,
     config: OptimizationConfig,
     relations: Vec<String>,
@@ -265,6 +267,8 @@ impl<'a> OptimizedEagerLoader<'a> {
     }
 
     /// Load a single relation with optimizations
+    #[allow(dead_code)] // reserved WIP optimization scaffolding
+    #[allow(clippy::extra_unused_type_parameters)]
     async fn load_relation_optimized<M, R>(
         &self,
         models: &mut [M],
@@ -326,6 +330,7 @@ impl<'a> OptimizedEagerLoader<'a> {
     }
 
     /// Load relation in batches for large datasets
+    #[allow(dead_code)] // reserved WIP optimization scaffolding
     async fn load_relation_batched<M, K>(
         &self,
         _models: &mut [M],
@@ -359,6 +364,7 @@ impl<'a> OptimizedEagerLoader<'a> {
     }
 
     /// Load multiple independent relations in parallel
+    #[allow(dead_code)] // reserved WIP optimization scaffolding
     async fn load_relations_parallel<M>(
         &self,
         models: &mut [M],

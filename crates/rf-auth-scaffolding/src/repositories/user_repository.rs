@@ -137,7 +137,7 @@ impl UserRepository for PostgresUserRepository {
 
     async fn create(&self, user: User) -> RepositoryResult<User> {
         // Check if email already exists
-        if let Some(_) = self.find_by_email(&user.email).await? {
+        if self.find_by_email(&user.email).await?.is_some() {
             return Err(RepositoryError::AlreadyExists);
         }
 
@@ -303,7 +303,7 @@ impl UserRepository for InMemoryUserRepository {
 
     async fn create(&self, user: User) -> RepositoryResult<User> {
         // Check if email already exists
-        if let Some(_) = self.find_by_email(&user.email).await? {
+        if self.find_by_email(&user.email).await?.is_some() {
             return Err(RepositoryError::AlreadyExists);
         }
 

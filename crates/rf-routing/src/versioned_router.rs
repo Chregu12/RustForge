@@ -108,7 +108,10 @@ impl VersionedRouterBuilder {
 
 #[derive(Clone)]
 struct VersionedRouterState {
+    // reserved: state retained for per-version routing dispatch (see versioned_handler)
+    #[allow(dead_code)]
     versions: HashMap<u32, Router>,
+    #[allow(dead_code)]
     config: VersionConfig,
 }
 

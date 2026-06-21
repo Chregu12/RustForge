@@ -314,7 +314,7 @@ macro_rules! action {
     };
 }
 
-/// Standard actions that come with Nova
+// Standard actions that come with Nova
 
 /// Export action - exports selected resources
 pub struct ExportAction {

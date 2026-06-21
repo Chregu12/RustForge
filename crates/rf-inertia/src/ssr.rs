@@ -111,6 +111,8 @@ pub struct SsrRendered {
 /// returning the standard client-side Inertia bootstrap HTML so the application
 /// continues to work without SSR.
 pub struct SsrClient {
+    // read only when the `ssr` feature is enabled
+    #[allow(dead_code)]
     config: SsrConfig,
     #[cfg(feature = "ssr")]
     http: reqwest::Client,

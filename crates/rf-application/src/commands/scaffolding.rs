@@ -25,6 +25,8 @@ pub struct MakeMiddlewareCommand {
     descriptor: CommandDescriptor,
 }
 
+// reserved: superseded by tier3::factory::MakeSeederCommand; kept for legacy API
+#[allow(dead_code)]
 pub struct MakeSeederCommand {
     descriptor: CommandDescriptor,
 }
@@ -37,6 +39,8 @@ pub struct MakeJobCommand {
     descriptor: CommandDescriptor,
 }
 
+// reserved: superseded by tier3::factory::MakeFactoryCommand; kept for legacy API
+#[allow(dead_code)]
 pub struct MakeFactoryCommand {
     descriptor: CommandDescriptor,
 }
@@ -238,6 +242,7 @@ impl Default for MakeMiddlewareCommand {
     }
 }
 
+#[allow(dead_code)] // reserved: legacy MakeSeederCommand impl
 impl MakeSeederCommand {
     pub fn new() -> Self {
         Self {
@@ -350,6 +355,7 @@ impl Default for MakeJobCommand {
     }
 }
 
+#[allow(dead_code)] // reserved: legacy MakeFactoryCommand impl
 impl MakeFactoryCommand {
     pub fn new() -> Self {
         Self {
@@ -1267,6 +1273,7 @@ fn migration_down_sql(table: &str) -> String {
     format!("DROP TABLE IF EXISTS {table};\n")
 }
 
+#[allow(dead_code)] // reserved: used by legacy MakeSeederCommand
 fn seeder_template(table: &str) -> String {
     format!("-- Seeder für Tabelle: {table}\n-- INSERT INTO {table} (column) VALUES (\'value\');\n")
 }
@@ -1302,6 +1309,7 @@ fn command_template(name: &str) -> String {
     )
 }
 
+#[allow(dead_code)] // reserved: used by legacy MakeFactoryCommand
 fn factory_template(name: &str) -> String {
     format!(
         "use serde::{{Deserialize, Serialize}};\nuse std::sync::atomic::{{AtomicU64, Ordering}};\n\n/// Factory für Test-Daten-Generierung von `{name}`\n///\n/// Diese Factory erstellt Test-Instanzen mit realistischen, aber deterministischen Daten.\n/// Nutze `build()` für einzelne Instanzen oder `build_many(n)` für mehrere.\n#[derive(Debug, Clone)]\npub struct {name}Factory {{\n    sequence: &'static AtomicU64,\n}}\n\n#[derive(Debug, Clone, Serialize, Deserialize)]\npub struct {name} {{\n    pub id: i64,\n    pub name: String,\n    pub description: String,\n    pub created_at: String,\n}}\n\nimpl Default for {name}Factory {{\n    fn default() -> Self {{\n        Self::new()\n    }}\n}}\n\nimpl {name}Factory {{\n    /// Erstellt eine neue Factory-Instanz\n    pub fn new() -> Self {{\n        static SEQUENCE: AtomicU64 = AtomicU64::new(1);\n        Self {{\n            sequence: &SEQUENCE,\n        }}\n    }}\n\n    /// Generiert eine einzelne Test-Instanz\n    pub fn build(&self) -> {name} {{\n        let seq = self.sequence.fetch_add(1, Ordering::SeqCst);\n        {name} {{\n            id: seq as i64,\n            name: self.fake_name(seq),\n            description: self.fake_description(seq),\n            created_at: self.fake_timestamp(seq),\n        }}\n    }}\n\n    /// Generiert mehrere Test-Instanzen\n    pub fn build_many(&self, count: usize) -> Vec<{name}> {{\n        (0..count).map(|_| self.build()).collect()\n    }}\n\n    // Faker-ähnliche Helper-Methoden\n\n    fn fake_name(&self, seq: u64) -> String {{\n        let prefixes = [\"Test\", \"Demo\", \"Sample\", \"Example\", \"Mock\"];\n        let suffixes = [\"Item\", \"Entity\", \"Object\", \"Record\", \"Entry\"];\n        let prefix = prefixes[(seq as usize) % prefixes.len()];\n        let suffix = suffixes[(seq as usize / prefixes.len()) % suffixes.len()];\n        format!(\"{{}} {{}} #{{}}\", prefix, suffix, seq)\n    }}\n\n    fn fake_description(&self, seq: u64) -> String {{\n        let templates = [\n            \"A comprehensive description for testing purposes\",\n            \"Sample data entry for integration tests\",\n            \"Mock object with realistic attributes\",\n            \"Generated test fixture for validation\",\n            \"Automated test data with unique identifier\",\n        ];\n        let template = templates[(seq as usize) % templates.len()];\n        format!(\"{{}}.  ID: {{}}\", template, seq)\n    }}\n\n    fn fake_timestamp(&self, seq: u64) -> String {{\n        // Generiert deterministische Timestamps basierend auf Sequenz\n        let base_year = 2024;\n        let month = ((seq % 12) + 1).max(1).min(12);\n        let day = ((seq % 28) + 1).max(1).min(28);\n        let hour = (seq % 24).max(0).min(23);\n        let minute = ((seq * 17) % 60).max(0).min(59);\n        let second = ((seq * 37) % 60).max(0).min(59);\n        format!(\n            \"{{:04}}-{{:02}}-{{:02}}T{{:02}}:{{:02}}:{{:02}}Z\",\n            base_year, month, day, hour, minute, second\n        )\n    }}\n}}\n\n#[cfg(test)]\nmod tests {{\n    use super::*;\n\n    #[test]\n    fn factory_builds_unique_instances() {{\n        let factory = {name}Factory::new();\n        let item1 = factory.build();\n        let item2 = factory.build();\n\n        assert_ne!(item1.id, item2.id, \"IDs should be unique\");\n        assert_ne!(item1.name, item2.name, \"Names should be unique\");\n    }}\n\n    #[test]\n    fn factory_builds_multiple_instances() {{\n        let factory = {name}Factory::new();\n        let items = factory.build_many(5);\n\n        assert_eq!(items.len(), 5);\n        // Überprüfe dass alle IDs unique sind\n        let ids: std::collections::HashSet<_> = items.iter().map(|i| i.id).collect();\n        assert_eq!(ids.len(), 5);\n    }}\n\n    #[test]\n    fn factory_generates_realistic_data() {{\n        let factory = {name}Factory::new();\n        let item = factory.build();\n\n        assert!(!item.name.is_empty());\n        assert!(!item.description.is_empty());\n        assert!(item.created_at.contains('T')); // ISO8601 format\n    }}\n}}\n"
@@ -1424,6 +1432,7 @@ fn register_job_modules(ctx: &CommandContext, slug: &str) -> Result<(), CommandE
     Ok(())
 }
 
+#[allow(dead_code)] // reserved: used by legacy MakeFactoryCommand
 fn register_factory_modules(ctx: &CommandContext, slug: &str) -> Result<(), CommandError> {
     let factory_root = PathBuf::from(config_path(ctx, "FOUNDRY_FACTORIES", "app/factories"));
     ensure_module_listing(factory_root.join("mod.rs"), &format!("{slug}_factory"))?;
@@ -1980,6 +1989,7 @@ fn register_auth_modules(ctx: &CommandContext) -> Result<(), CommandError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::commands::TinkerCommand;
     use crate::stubs::{
         InMemoryCacheStore, InMemoryEventBus, InMemoryQueue, InMemoryStorage,
         SimpleValidationService,

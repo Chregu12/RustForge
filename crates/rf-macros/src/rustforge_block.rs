@@ -148,6 +148,8 @@ pub fn rustforge_block_impl(input: TokenStream) -> TokenStream {
 ///     }
 /// }
 /// ```
+// WIP: app block macro entry point, not yet wired into a `#[proc_macro]` export.
+#[allow(dead_code)]
 pub fn app_impl(input: TokenStream) -> TokenStream {
     // For now, just parse as token stream and generate route calls
     let input2: TokenStream2 = input.into();

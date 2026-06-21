@@ -50,6 +50,7 @@ use std::sync::Arc;
 #[derive(Debug, Clone)]
 pub struct MorphTo<T> {
     /// ID of the model that owns this relationship
+    #[allow(dead_code)] // reserved: read by future morph resolution logic
     owner_id: i64,
     /// Name of the morph relation (e.g., "commentable")
     relation_name: String,

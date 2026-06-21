@@ -16,7 +16,7 @@ impl Pagination {
     pub fn new(page: u64, per_page: u64) -> Self {
         Self {
             page: page.max(1),
-            per_page: per_page.max(1).min(100), // Max 100 items per page
+            per_page: per_page.clamp(1, 100), // Max 100 items per page
         }
     }
 
@@ -179,7 +179,7 @@ impl CursorPagination {
     pub fn new(cursor: Option<String>, limit: u64) -> Self {
         Self {
             cursor,
-            limit: limit.max(1).min(100),
+            limit: limit.clamp(1, 100),
         }
     }
 }

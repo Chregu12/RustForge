@@ -109,6 +109,7 @@ pub trait HasRole {
 
 /// Permission checker service
 pub struct PermissionService {
+    #[allow(dead_code)] // reserved: retained for future DB-backed permission lookups
     db: Arc<DatabaseConnection>,
 }
 

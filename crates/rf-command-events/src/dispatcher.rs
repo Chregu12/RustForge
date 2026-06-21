@@ -8,8 +8,6 @@ use crate::error::{EventError, Result};
 use crate::listener::{EventListener, ListenerPriority};
 use crate::Event;
 
-type ListenerBox<E> = Box<dyn EventListener<E>>;
-
 /// Central event dispatcher for managing and dispatching events
 pub struct EventDispatcher {
     listeners: Arc<RwLock<HashMap<TypeId, Vec<ListenerEntry>>>>,

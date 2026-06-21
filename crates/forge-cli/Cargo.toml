@@ -15,6 +15,10 @@ categories = ["command-line-utilities", "development-tools"]
 name = "forge"
 path = "src/main.rs"
 
+[features]
+# Enables queued-mail scaffolding hints in `forge make:mail`. Off by default.
+queue = []
+
 [dependencies]
 # CLI
 clap = { version = "4.5", features = ["derive", "color", "suggestions"] }

@@ -393,7 +393,10 @@ pub fn notification_impl(input: TokenStream) -> TokenStream {
         via_fn: Option<ItemFn>,
         to_mail_fn: Option<ItemFn>,
         to_database_fn: Option<ItemFn>,
+        // Parsed from macro input but not yet consumed in codegen (WIP).
+        #[allow(dead_code)]
         to_slack_fn: Option<ItemFn>,
+        #[allow(dead_code)]
         to_broadcast_fn: Option<ItemFn>,
     }
 

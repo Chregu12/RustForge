@@ -66,6 +66,10 @@
 //! }
 //! ```
 
+// The builder-style structs here are populated field-by-field after
+// `Default::default()` for readability; this is intentional.
+#![allow(clippy::field_reassign_with_default)]
+
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;
