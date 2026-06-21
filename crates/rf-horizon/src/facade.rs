@@ -356,8 +356,15 @@ impl HorizonFacade {
 mod tests {
     use super::*;
 
+    /// Serializes every test in this module: they all `reset()`/`init()` the
+    /// process-global `HORIZON_INSTANCE`, so running them in parallel races
+    /// (one test's `reset()` wipes another's supervisors mid-assertion).
+    /// `into_inner` ignores poisoning so one failure doesn't cascade.
+    static HORIZON_TEST_GUARD: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
     #[test]
     fn test_horizon_facade_init() {
+        let _guard = HORIZON_TEST_GUARD.lock().unwrap_or_else(|e| e.into_inner());
         // Reset to clear any previous test state
         HorizonFacade::reset();
 
@@ -372,6 +379,7 @@ mod tests {
 
     #[test]
     fn test_horizon_facade_pause_continue() {
+        let _guard = HORIZON_TEST_GUARD.lock().unwrap_or_else(|e| e.into_inner());
         HorizonFacade::reset();
         HorizonFacade::init();
 
@@ -384,6 +392,7 @@ mod tests {
 
     #[test]
     fn test_horizon_facade_add_supervisor() {
+        let _guard = HORIZON_TEST_GUARD.lock().unwrap_or_else(|e| e.into_inner());
         HorizonFacade::reset();
         HorizonFacade::init();
 
@@ -396,6 +405,7 @@ mod tests {
 
     #[test]
     fn test_horizon_facade_supervisors() {
+        let _guard = HORIZON_TEST_GUARD.lock().unwrap_or_else(|e| e.into_inner());
         HorizonFacade::reset();
         HorizonFacade::init();
 
@@ -409,6 +419,7 @@ mod tests {
 
     #[test]
     fn test_horizon_facade_worker_registry() {
+        let _guard = HORIZON_TEST_GUARD.lock().unwrap_or_else(|e| e.into_inner());
         HorizonFacade::reset();
         HorizonFacade::init();
 
@@ -420,6 +431,7 @@ mod tests {
 
     #[test]
     fn test_horizon_facade_recent_jobs_stats() {
+        let _guard = HORIZON_TEST_GUARD.lock().unwrap_or_else(|e| e.into_inner());
         HorizonFacade::reset();
         HorizonFacade::init();
 
@@ -430,6 +442,7 @@ mod tests {
 
     #[test]
     fn test_horizon_facade_clear_metrics() {
+        let _guard = HORIZON_TEST_GUARD.lock().unwrap_or_else(|e| e.into_inner());
         HorizonFacade::reset();
         HorizonFacade::init();
 
