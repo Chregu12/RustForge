@@ -147,33 +147,37 @@ pub async fn command(name: &str) -> Result<()> {
 // Helper functions for content generation
 
 fn generate_model_content(model_name: &str, table_name: &str) -> Result<String> {
-    let template = r#"use serde::{Deserialize, Serialize};
-use sqlx::FromRow;
-use chrono::{DateTime, Utc};
+    // RustForge's ORM (rf-orm) is built on SeaORM. The canonical, compiling
+    // model is a SeaORM entity module: a `Model` struct deriving
+    // `DeriveEntityModel`, a `Relation` enum and an `ActiveModelBehavior` impl.
+    // Each model lives in its own module (this file), so the generated `Entity`,
+    // `ActiveModel`, `Column` and `Relation` names never collide across models.
+    // The module is re-exported as `{{model_name}}` (the entity alias) from
+    // `src/models/mod.rs` for Laravel-style `{{model_name}}::find(..)` usage.
+    //
+    // Note: rf-orm also ships a `#[model]` attribute, but in this SeaORM version
+    // `DeriveEntityModel` requires the struct be literally named `Model`, so the
+    // explicit entity below is the form that actually builds.
+    let template = r#"use sea_orm::entity::prelude::*;
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
-pub struct {{model_name}} {
+#[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel, Serialize, Deserialize)]
+#[sea_orm(table_name = "{{table_name}}")]
+pub struct Model {
+    #[sea_orm(primary_key)]
     pub id: i32,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
-    // Add your fields here
+    // Add your columns here, e.g.:
+    // pub title: String,
+    // pub body: String,
+    pub name: String,
+    pub created_at: DateTimeUtc,
+    pub updated_at: DateTimeUtc,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Create{{model_name}} {
-    // Add your fields here
-}
+#[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
+pub enum Relation {}
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Update{{model_name}} {
-    // Add your fields here
-}
-
-impl {{model_name}} {
-    pub fn table_name() -> &'static str {
-        "{{table_name}}"
-    }
-}
+impl ActiveModelBehavior for ActiveModel {}
 "#;
 
     let mut handlebars = Handlebars::new();
@@ -188,14 +192,20 @@ impl {{model_name}} {
 }
 
 fn generate_api_controller_content(controller_name: &str) -> Result<String> {
+    // API controller in the canonical RustForge/Axum style: each method is an
+    // Axum handler returning `impl IntoResponse` (matching the starter's
+    // app/Http/Controllers). Extractors (Path, Query, Json) are pulled in as
+    // needed.
     let template = r#"use axum::{
     extract::{Path, Query},
     http::StatusCode,
+    response::IntoResponse,
     Json,
 };
-use serde::{Deserialize, Serialize};
-use anyhow::Result;
+use serde::Deserialize;
+use serde_json::json;
 
+/// Query string parameters for the index listing.
 #[derive(Debug, Deserialize)]
 pub struct ListQuery {
     pub limit: Option<i32>,
@@ -206,36 +216,39 @@ pub struct {{controller_name}};
 
 impl {{controller_name}} {
     /// GET /api/resource
-    pub async fn index(Query(query): Query<ListQuery>) -> Result<Json<Vec<String>>, StatusCode> {
-        // TODO: Implement list logic
-        Ok(Json(vec![]))
+    pub async fn index(Query(query): Query<ListQuery>) -> impl IntoResponse {
+        // Example: let items = Model::query().limit(query.limit).get().await?;
+        let _ = query;
+        Json(json!({ "data": [] }))
     }
 
     /// GET /api/resource/:id
-    pub async fn show(Path(id): Path<i32>) -> Result<Json<String>, StatusCode> {
-        // TODO: Implement show logic
-        Ok(Json(format!("Resource {}", id)))
+    pub async fn show(Path(id): Path<i32>) -> impl IntoResponse {
+        // Example: let item = Model::find(id).await?;
+        Json(json!({ "id": id }))
     }
 
     /// POST /api/resource
-    pub async fn create(Json(payload): Json<serde_json::Value>) -> Result<Json<serde_json::Value>, StatusCode> {
-        // TODO: Implement create logic
-        Ok(Json(payload))
+    pub async fn store(Json(payload): Json<serde_json::Value>) -> impl IntoResponse {
+        // Example: let item = Model::create(payload).await?;
+        (StatusCode::CREATED, Json(payload))
     }
 
     /// PUT /api/resource/:id
     pub async fn update(
         Path(id): Path<i32>,
         Json(payload): Json<serde_json::Value>,
-    ) -> Result<Json<serde_json::Value>, StatusCode> {
-        // TODO: Implement update logic
-        Ok(Json(payload))
+    ) -> impl IntoResponse {
+        // Example: Model::update_by_id(id, payload).await?;
+        let _ = id;
+        Json(payload)
     }
 
     /// DELETE /api/resource/:id
-    pub async fn delete(Path(id): Path<i32>) -> Result<StatusCode, StatusCode> {
-        // TODO: Implement delete logic
-        Ok(StatusCode::NO_CONTENT)
+    pub async fn destroy(Path(id): Path<i32>) -> impl IntoResponse {
+        // Example: Model::destroy(id).await?;
+        let _ = id;
+        StatusCode::NO_CONTENT
     }
 }
 "#;
@@ -251,20 +264,22 @@ impl {{controller_name}} {
 }
 
 fn generate_web_controller_content(controller_name: &str) -> Result<String> {
+    // Web controller: Axum handlers returning HTML responses.
     let template = r#"use axum::{
     extract::Path,
-    response::Html,
+    response::{Html, IntoResponse},
 };
-use anyhow::Result;
 
 pub struct {{controller_name}};
 
 impl {{controller_name}} {
-    pub async fn index() -> Html<String> {
+    /// GET /resource
+    pub async fn index() -> impl IntoResponse {
         Html("<h1>Index</h1>".to_string())
     }
 
-    pub async fn show(Path(id): Path<i32>) -> Html<String> {
+    /// GET /resource/:id
+    pub async fn show(Path(id): Path<i32>) -> impl IntoResponse {
         Html(format!("<h1>Show {}</h1>", id))
     }
 }
@@ -281,21 +296,89 @@ impl {{controller_name}} {
 }
 
 fn generate_migration_content(name: &str) -> Result<String> {
+    // Canonical RustForge migration: implements `rf_orm::Migration`, using the
+    // schema `Blueprint` builder (Laravel-style) inside `up`/`down`.
     let is_create = name.starts_with("create_") && name.ends_with("_table");
 
-    let template = if is_create {
+    let struct_name = name.to_pascal_case();
+
+    let body = if is_create {
         let table_name = name
             .strip_prefix("create_")
             .unwrap()
             .strip_suffix("_table")
-            .unwrap();
+            .unwrap()
+            .to_string();
+        format!(
+            r#"use async_trait::async_trait;
+use rf_orm::{{Blueprint, Migration, MigrationError, MigrationResult, SchemaContext}};
 
-        format!("use anyhow::Result;\nuse sqlx::SqlitePool;\n\npub async fn up(pool: &SqlitePool) -> Result<()> {{\n    sqlx::query(\n        r#\"\n        CREATE TABLE IF NOT EXISTS {} (\n            id INTEGER PRIMARY KEY AUTOINCREMENT,\n            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,\n            updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP\n        )\n        \"#,\n    )\n    .execute(pool)\n    .await?;\n\n    Ok(())\n}}\n\npub async fn down(pool: &SqlitePool) -> Result<()> {{\n    sqlx::query(\"DROP TABLE IF EXISTS {}\")\n        .execute(pool)\n        .await?;\n\n    Ok(())\n}}\n", table_name, table_name)
+pub struct {struct_name};
+
+#[async_trait]
+impl Migration for {struct_name} {{
+    fn name(&self) -> &str {{
+        "{name}"
+    }}
+
+    async fn up(&self, schema: &SchemaContext) -> MigrationResult<()> {{
+        schema
+            .create("{table_name}", |table: &mut Blueprint| {{
+                table.id();
+                // Add your columns here, e.g.:
+                // table.string("title");
+                // table.text("body").nullable();
+                table.timestamps();
+            }})
+            .await
+            .map_err(|e| MigrationError::SchemaError(e.to_string()))?;
+        Ok(())
+    }}
+
+    async fn down(&self, schema: &SchemaContext) -> MigrationResult<()> {{
+        schema
+            .drop_if_exists("{table_name}")
+            .await
+            .map_err(|e| MigrationError::SchemaError(e.to_string()))?;
+        Ok(())
+    }}
+}}
+"#
+        )
     } else {
-        "use anyhow::Result;\nuse sqlx::SqlitePool;\n\npub async fn up(pool: &SqlitePool) -> Result<()> {\n    // TODO: Write migration up logic\n    Ok(())\n}\n\npub async fn down(pool: &SqlitePool) -> Result<()> {\n    // TODO: Write migration down logic\n    Ok(())\n}\n".to_string()
+        format!(
+            r#"use async_trait::async_trait;
+use rf_orm::{{Migration, MigrationResult, SchemaContext}};
+
+pub struct {struct_name};
+
+#[async_trait]
+impl Migration for {struct_name} {{
+    fn name(&self) -> &str {{
+        "{name}"
+    }}
+
+    async fn up(&self, schema: &SchemaContext) -> MigrationResult<()> {{
+        // Modify an existing table:
+        // use rf_orm::Blueprint;
+        // schema.table("table_name", |table: &mut Blueprint| {{
+        //     table.string("new_column").nullable();
+        // }}).await?;
+        let _ = schema;
+        Ok(())
+    }}
+
+    async fn down(&self, schema: &SchemaContext) -> MigrationResult<()> {{
+        // Reverse the change made in `up`.
+        let _ = schema;
+        Ok(())
+    }}
+}}
+"#
+        )
     };
 
-    Ok(template)
+    Ok(body)
 }
 
 fn generate_command_content(command_name: &str) -> Result<String> {
@@ -340,8 +423,14 @@ fn update_models_mod(file_name: &str, model_name: &str) -> Result<()> {
         content.push_str(&mod_line);
     }
 
-    // Add pub use
-    let use_line = format!("pub use {}::{{{{{}}}}};\n", file_name, model_name);
+    // Re-export the SeaORM entity's record type as `{model_name}` (so app code
+    // and policies refer to `crate::models::{model_name}`), and the queryable
+    // `Entity` as `{model_name}Entity` for `{model_name}Entity::find(..)`.
+    let use_line = format!(
+        "pub use {file}::{{Entity as {model}Entity, Model as {model}}};\n",
+        file = file_name,
+        model = model_name
+    );
     if !content.contains(&use_line) {
         content.push_str(&use_line);
     }
@@ -486,11 +575,27 @@ pub async fn seed(class: Option<&str>, force: bool) -> Result<()> {
 }
 
 fn generate_factory_content(factory_name: &str, model_name: &str) -> Result<String> {
-    let template = r#"use rf_testing::{Factory, FactoryDefinition, FactoryError, Fake};
-use async_trait::async_trait;
-use crate::models::{{model_name}};
+    // Canonical RustForge factory: implements `rf_testing::FactoryDefinition`
+    // and uses the `rf_testing::impl_factory!` macro to wire up the `Factory`
+    // trait (giving you `new()`, `create()`, `create_many()`, `state()`, ...).
+    //
+    // Factories live under `tests/`, where the `rf-testing` dev-dependency is
+    // available. The `{{model_name}}` struct here mirrors your model's fields;
+    // replace it with `use crate::models::{{model_name}};` once your model is a
+    // plain constructible struct, and fill `definition()` with `Fake::*` data.
+    let template = r#"// `Factory` and `FactoryError` are referenced by the `impl_factory!` macro
+// expansion, so they must be in scope here.
+use rf_testing::{Factory, FactoryDefinition, FactoryError, Fake};
 
-/// Factory for generating {{model_name}} test data
+/// Plain test-data shape for {{model_name}}. Mirror your model's fields here.
+#[derive(Clone, Debug)]
+pub struct {{model_name}} {
+    pub id: i32,
+    pub name: String,
+    pub email: String,
+}
+
+/// Factory for generating {{model_name}} test data.
 pub struct {{factory_name}} {
     model: {{model_name}},
 }
@@ -498,7 +603,7 @@ pub struct {{factory_name}} {
 impl Default for {{factory_name}} {
     fn default() -> Self {
         Self {
-            model: Self::definition(),
+            model: <{{factory_name}} as FactoryDefinition>::definition(),
         }
     }
 }
@@ -508,27 +613,15 @@ impl FactoryDefinition for {{factory_name}} {
 
     fn definition() -> Self::Model {
         {{model_name}} {
-            // TODO: Add fields with fake data
-            // Example:
-            // id: 0,
-            // name: Fake::name(),
-            // email: Fake::email(),
-            // created_at: Fake::datetime(),
+            id: 0,
+            name: Fake::name(),
+            email: Fake::email(),
         }
     }
 }
 
-// Implement the Factory trait using the macro
+// Wire up the `Factory` trait (new/create/create_many/state/build).
 rf_testing::impl_factory!({{factory_name}}, {{model_name}});
-
-// Optional: Add custom state methods
-impl {{factory_name}} {
-    // Example custom state method:
-    // pub fn admin(mut self) -> Self {
-    //     self.model.role = "admin".to_string();
-    //     self
-    // }
-}
 
 #[cfg(test)]
 mod tests {
@@ -537,7 +630,7 @@ mod tests {
     #[tokio::test]
     async fn test_factory_create() {
         let instance = {{factory_name}}::new().create().await.unwrap();
-        // Add assertions
+        assert!(!instance.name.is_empty());
     }
 
     #[tokio::test]
@@ -560,11 +653,11 @@ mod tests {
 }
 
 fn generate_seeder_content(seeder_name: &str) -> Result<String> {
-    let template = r#"use rf_testing::{Seeder, SeederError};
-use async_trait::async_trait;
-// use crate::factories::*;
+    // Canonical RustForge seeder: implements `rf_seeder::Seeder` (Laravel-style).
+    let template = r#"use async_trait::async_trait;
+use rf_seeder::{Seeder, SeederError};
 
-/// Seeder for populating {{seeder_name}} data
+/// Seeder for populating {{seeder_name}} data.
 pub struct {{seeder_name}};
 
 #[async_trait]
@@ -576,22 +669,14 @@ impl Seeder for {{seeder_name}} {
     async fn run(&self) -> Result<(), SeederError> {
         println!("Seeding {{seeder_name}}...");
 
-        // TODO: Implement seeder logic
-        // Example:
-        // let users = UserFactory::create_many(50).await?;
+        // TODO: Implement seeder logic, e.g. insert records via your models.
 
         Ok(())
     }
 
-    // Optional: Add dependencies
-    // fn dependencies(&self) -> Vec<&str> {
+    // Seeders that must run before this one:
+    // fn depends_on(&self) -> Vec<&str> {
     //     vec!["UserSeeder"]
-    // }
-
-    // Optional: Add conditional execution
-    // async fn should_run(&self) -> bool {
-    //     // Only run if some condition is met
-    //     true
     // }
 }
 "#;
@@ -1000,67 +1085,59 @@ pub async fn middleware(name: &str) -> Result<()> {
 // Content generators for new make commands
 
 fn generate_request_content(request_name: &str) -> Result<String> {
-    let template = r#"use rf_validation::{Validator, ValidationRule};
-use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+    // Canonical RustForge form request: implements `rf_validation::FormRequest`.
+    // The framework's `Validated<T>` Axum extractor calls `authorize()`,
+    // `rules()` and `validate()` for you, returning a 422 with field errors on
+    // failure. Rules are boxed `Rule` trait objects from `rf_validation::rules`.
+    let template = r#"use async_trait::async_trait;
+use rf_validation::{
+    rules::{EmailRule, RequiredRule},
+    FormRequest, FormRequestResult, RulesBuilder, ValidationRules,
+};
+use serde::Deserialize;
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize)]
 pub struct {{request_name}} {
-    // Add your fields here
+    // Add your fields here, e.g.:
+    pub email: String,
 }
 
-impl {{request_name}} {
-    /// Validate the request data
-    pub fn validate(&self) -> Result<(), Vec<String>> {
-        let mut validator = Validator::new();
-        let rules = self.rules();
+#[async_trait]
+impl FormRequest for {{request_name}} {
+    type Validated = Self;
 
-        // TODO: Add validation logic
-        // Example:
-        // validator.validate("field_name", &self.field, &rules.get("field_name").unwrap())?;
-
-        if validator.has_errors() {
-            return Err(validator.errors());
-        }
-
-        Ok(())
-    }
-
-    /// Authorization logic
-    pub fn authorize(&self) -> bool {
-        // TODO: Implement authorization logic
-        // Return true if the user is authorized to make this request
+    /// Determine if the user is authorized to make this request.
+    fn authorize(&self) -> bool {
         true
     }
 
-    /// Validation rules
-    fn rules(&self) -> HashMap<String, Vec<ValidationRule>> {
-        let mut rules = HashMap::new();
+    /// Validation rules to apply to the request data.
+    fn rules(&self) -> ValidationRules {
+        RulesBuilder::new()
+            .add(
+                "email",
+                vec![Box::new(RequiredRule), Box::new(EmailRule)],
+            )
+            .build()
+    }
 
-        // TODO: Add validation rules
-        // Example:
-        // rules.insert("email".to_string(), vec![
-        //     ValidationRule::Required,
-        //     ValidationRule::Email,
-        // ]);
-
-        rules
+    /// Run validation and return the validated data.
+    async fn validate(self) -> FormRequestResult<Self::Validated> {
+        // The `rules()` above are enforced by the `Validated<T>` extractor.
+        // Add any extra cross-field checks here before returning.
+        Ok(self)
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_validation() {
-        let request = {{request_name}} {
-            // Add test data
-        };
-
-        assert!(request.validate().is_ok());
-    }
-}
+// Usage in a handler:
+//
+//     use rf_validation::Validated;
+//
+//     async fn store(
+//         Validated(request): Validated<{{request_name}}>,
+//     ) -> impl axum::response::IntoResponse {
+//         axum::Json(request.email)
+//     }
 "#;
 
     let mut handlebars = Handlebars::new();
@@ -1074,50 +1151,49 @@ mod tests {
 }
 
 fn generate_policy_content(policy_name: &str, model_name: &str) -> Result<String> {
+    // Canonical RustForge authorization policy: implements the
+    // `rf_authorization::Policy<U, M>` trait, where `U` is your user type and
+    // `M` is the model being authorized. The policy is generic over the user
+    // type so it works with whatever user/identity type your app uses; register
+    // it with `Gate::register::<{{model_name}}, _, YourUser>({{policy_name}})`.
     let template = r#"use crate::models::{{model_name}};
+use rf_authorization::Policy;
 
 pub struct {{policy_name}};
 
-impl {{policy_name}} {
-    /// Determine if the user can view any models
-    pub fn view_any(user_id: i32) -> bool {
-        // TODO: Implement logic
+impl<U> Policy<U, {{model_name}}> for {{policy_name}} {
+    /// Determine if the user can view any models.
+    fn view_any(&self, _user: Option<&U>) -> bool {
         true
     }
 
-    /// Determine if the user can view the model
-    pub fn view(user_id: i32, model: &{{model_name}}) -> bool {
-        // TODO: Implement logic
+    /// Determine if the user can view the model.
+    fn view(&self, _user: Option<&U>, _model: &{{model_name}}) -> bool {
         true
     }
 
-    /// Determine if the user can create models
-    pub fn create(user_id: i32) -> bool {
-        // TODO: Implement logic
+    /// Determine if the user can create models.
+    fn create(&self, _user: &U) -> bool {
         true
     }
 
-    /// Determine if the user can update the model
-    pub fn update(user_id: i32, model: &{{model_name}}) -> bool {
-        // TODO: Implement logic
+    /// Determine if the user can update the model.
+    fn update(&self, _user: &U, _model: &{{model_name}}) -> bool {
         true
     }
 
-    /// Determine if the user can delete the model
-    pub fn delete(user_id: i32, model: &{{model_name}}) -> bool {
-        // TODO: Implement logic
+    /// Determine if the user can delete the model.
+    fn delete(&self, _user: &U, _model: &{{model_name}}) -> bool {
         true
     }
 
-    /// Determine if the user can restore the model
-    pub fn restore(user_id: i32, model: &{{model_name}}) -> bool {
-        // TODO: Implement logic
+    /// Determine if the user can restore the model.
+    fn restore(&self, _user: &U, _model: &{{model_name}}) -> bool {
         true
     }
 
-    /// Determine if the user can permanently delete the model
-    pub fn force_delete(user_id: i32, model: &{{model_name}}) -> bool {
-        // TODO: Implement logic
+    /// Determine if the user can permanently delete the model.
+    fn force_delete(&self, _user: &U, _model: &{{model_name}}) -> bool {
         false
     }
 }
@@ -1135,19 +1211,20 @@ impl {{policy_name}} {
 }
 
 fn generate_event_content(event_name: &str) -> Result<String> {
-    let template = r#"use serde::{Deserialize, Serialize};
-use chrono::{DateTime, Utc};
+    // Canonical RustForge event: implements `rf_events::Event` so it can be
+    // dispatched and listened for via the framework's event dispatcher.
+    let template = r#"use rf_events::Event;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct {{event_name}} {
-    pub timestamp: DateTime<Utc>,
-    // Add your event data fields here
+    // Add your event payload fields here, e.g.:
+    // pub user_id: i32,
 }
 
 impl {{event_name}} {
     pub fn new() -> Self {
         Self {
-            timestamp: Utc::now(),
             // Initialize fields
         }
     }
@@ -1158,6 +1235,8 @@ impl Default for {{event_name}} {
         Self::new()
     }
 }
+
+impl Event for {{event_name}} {}
 "#;
 
     let mut handlebars = Handlebars::new();
@@ -1171,22 +1250,31 @@ impl Default for {{event_name}} {
 }
 
 fn generate_listener_content(listener_name: &str, event_name: Option<&str>) -> Result<String> {
-    let event = event_name.unwrap_or("Event");
+    // Canonical RustForge listener: implements `rf_events::EventListenerFor<E>`
+    // for the event it handles. When generated with `--event <Name>` it imports
+    // that event from `crate::events`; otherwise it ships a local placeholder
+    // event so the file compiles on its own.
+    let (event_decl, event_ty) = match event_name {
+        Some(ev) => (
+            format!("use crate::events::{ev};\n"),
+            ev.to_string(),
+        ),
+        None => (
+            // Local placeholder event implementing `rf_events::Event`.
+            "use rf_events::Event;\n\n// Placeholder event. Replace with `use crate::events::YourEvent;`.\n#[derive(Debug, Clone)]\npub struct PlaceholderEvent;\nimpl Event for PlaceholderEvent {}\n".to_string(),
+            "PlaceholderEvent".to_string(),
+        ),
+    };
 
     let template = r#"use async_trait::async_trait;
-use anyhow::Result;
-
+use rf_events::{EventListenerFor, EventResult};
+{{event_decl}}
 pub struct {{listener_name}};
 
 #[async_trait]
-pub trait EventListener {
-    async fn handle(&self, event: &{{event_name}}) -> Result<()>;
-}
-
-#[async_trait]
-impl EventListener for {{listener_name}} {
-    async fn handle(&self, event: &{{event_name}}) -> Result<()> {
-        // TODO: Implement event handling logic
+impl EventListenerFor<{{event_ty}}> for {{listener_name}} {
+    async fn handle(&self, event: &{{event_ty}}) -> EventResult<()> {
+        // TODO: Implement event handling logic.
         println!("Handling event: {:?}", event);
         Ok(())
     }
@@ -1198,7 +1286,8 @@ impl EventListener for {{listener_name}} {
 
     let data = json!({
         "listener_name": listener_name,
-        "event_name": event,
+        "event_decl": event_decl,
+        "event_ty": event_ty,
     });
 
     Ok(handlebars.render("listener", &data)?)
@@ -1207,13 +1296,18 @@ impl EventListener for {{listener_name}} {
 fn generate_job_content(job_name: &str, queue_name: Option<&str>) -> Result<String> {
     let queue = queue_name.unwrap_or("default");
 
+    // Canonical RustForge job: implements `rf_queue::Job`. Jobs must be
+    // serializable (so they can be persisted onto a queue) and provide a stable
+    // `job_type` identifier. Dispatch with `rf_queue::dispatch(&job, &queue)`.
     let template = r#"use async_trait::async_trait;
-use anyhow::Result;
+use rf_queue::{Job, QueueError};
 use serde::{Deserialize, Serialize};
+use std::time::Duration;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct {{job_name}} {
-    // Add job data fields here
+    // Add job payload fields here, e.g.:
+    // pub user_id: i32,
 }
 
 impl {{job_name}} {
@@ -1222,37 +1316,36 @@ impl {{job_name}} {
             // Initialize fields
         }
     }
-
-    pub fn queue_name(&self) -> &str {
-        "{{queue_name}}"
-    }
-
-    pub fn max_tries(&self) -> u32 {
-        3
-    }
-
-    pub fn timeout(&self) -> u64 {
-        60 // seconds
-    }
-}
-
-#[async_trait]
-pub trait Job {
-    async fn handle(&self) -> Result<()>;
-}
-
-#[async_trait]
-impl Job for {{job_name}} {
-    async fn handle(&self) -> Result<()> {
-        // TODO: Implement job logic
-        println!("Processing job: {{job_name}}");
-        Ok(())
-    }
 }
 
 impl Default for {{job_name}} {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[async_trait]
+impl Job for {{job_name}} {
+    async fn handle(&self) -> Result<(), QueueError> {
+        // TODO: Implement job logic.
+        println!("Processing job: {{job_name}}");
+        Ok(())
+    }
+
+    fn job_type(&self) -> &'static str {
+        "{{job_name}}"
+    }
+
+    fn max_retries(&self) -> u32 {
+        3
+    }
+
+    fn timeout(&self) -> Duration {
+        Duration::from_secs(60)
+    }
+
+    fn queue(&self) -> &str {
+        "{{queue_name}}"
     }
 }
 "#;
@@ -1269,38 +1362,28 @@ impl Default for {{job_name}} {
 }
 
 fn generate_mail_content(mail_name: &str) -> Result<String> {
-    let template = r#"use rf_mail::{Mailable, MailMessage};
-use anyhow::Result;
+    // Canonical RustForge mailable: implements `rf_mail::Mailable`, whose
+    // `build` returns a `MailBuilder`. Send it with `mail.send(&mailer).await?`.
+    let template = r#"use rf_mail::{Address, Mailable, MailBuilder};
 
 pub struct {{mail_name}} {
-    // Add mail data fields here
+    // Add mail data fields here, e.g.:
+    pub to: String,
 }
 
 impl {{mail_name}} {
-    pub fn new() -> Self {
-        Self {
-            // Initialize fields
-        }
+    pub fn new(to: impl Into<String>) -> Self {
+        Self { to: to.into() }
     }
 }
 
 impl Mailable for {{mail_name}} {
-    fn build(&self) -> Result<MailMessage> {
-        let mut message = MailMessage::new()
+    fn build(&self) -> MailBuilder {
+        MailBuilder::new()
+            .from(Address::new("noreply@example.com"))
+            .to(Address::new(self.to.as_str()))
             .subject("{{mail_name}}")
-            .to("user@example.com")
-            .from("noreply@example.com");
-
-        // TODO: Customize email content
-        message = message.body("Email body here");
-
-        Ok(message)
-    }
-}
-
-impl Default for {{mail_name}} {
-    fn default() -> Self {
-        Self::new()
+            .text("Email body here")
     }
 }
 "#;
@@ -1316,41 +1399,36 @@ impl Default for {{mail_name}} {
 }
 
 fn generate_notification_content(notification_name: &str) -> Result<String> {
-    let template = r#"use serde::{Deserialize, Serialize};
+    // Canonical RustForge notification: implements `rf_notifications::Notification`.
+    // Choose delivery channels in `via()`; override `to_mail`/`to_database`/etc.
+    // to render each channel's payload (they default to `None`).
+    let template = r#"use async_trait::async_trait;
+use rf_notifications::{Channel, Notification};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct {{notification_name}} {
     pub title: String,
     pub message: String,
-    // Add notification data fields here
 }
 
 impl {{notification_name}} {
-    pub fn new(title: String, message: String) -> Self {
+    pub fn new(title: impl Into<String>, message: impl Into<String>) -> Self {
         Self {
-            title,
-            message,
-            // Initialize fields
+            title: title.into(),
+            message: message.into(),
         }
     }
+}
 
-    /// Get notification channels (email, database, sms, etc.)
-    pub fn via(&self) -> Vec<&str> {
-        vec!["database", "mail"]
+#[async_trait]
+impl Notification for {{notification_name}} {
+    /// Channels this notification is delivered over.
+    fn via(&self) -> Vec<Channel> {
+        vec![Channel::Database, Channel::Mail]
     }
 
-    /// Convert to email message
-    pub fn to_mail(&self) -> String {
-        format!("{}\n\n{}", self.title, self.message)
-    }
-
-    /// Convert to database representation
-    pub fn to_database(&self) -> serde_json::Value {
-        serde_json::json!({
-            "title": self.title,
-            "message": self.message,
-        })
-    }
+    // Override `to_mail`, `to_database`, `to_sms` or `to_slack` to render the
+    // payload for each channel (each returns `None` by default).
 }
 "#;
 
@@ -1365,27 +1443,26 @@ impl {{notification_name}} {
 }
 
 fn generate_resource_content(resource_name: &str) -> Result<String> {
-    let template = r#"use serde::{Deserialize, Serialize};
+    // API resource: a serializable transformer that shapes a model into its
+    // JSON representation. RustForge has no required trait here, so this is a
+    // minimal idiomatic serde struct (matching how Axum handlers return JSON).
+    let template = r#"use serde::Serialize;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize)]
 pub struct {{resource_name}} {
     pub id: i32,
-    // Add resource fields here
+    // Add the fields you want to expose here.
 }
 
 impl {{resource_name}} {
     pub fn new(id: i32) -> Self {
-        Self {
-            id,
-            // Initialize fields
-        }
+        Self { id }
     }
 
-    /// Transform the resource into an array
-    pub fn to_array(&self) -> serde_json::Value {
+    /// Transform the resource into a JSON value.
+    pub fn to_json(&self) -> serde_json::Value {
         serde_json::json!({
             "id": self.id,
-            // Add transformed fields
         })
     }
 }
@@ -1405,10 +1482,12 @@ fn generate_resource_collection_content(
     collection_name: &str,
     resource_name: &str,
 ) -> Result<String> {
-    let template = r#"use serde::{Deserialize, Serialize};
-use super::{{resource_name}};
+    let resource_module = resource_name.to_snake_case();
 
-#[derive(Debug, Serialize, Deserialize)]
+    let template = r#"use super::{{resource_module}}::{{resource_name}};
+use serde::Serialize;
+
+#[derive(Debug, Serialize)]
 pub struct {{collection_name}} {
     pub data: Vec<{{resource_name}}>,
 }
@@ -1418,10 +1497,10 @@ impl {{collection_name}} {
         Self { data }
     }
 
-    /// Transform the collection into an array
-    pub fn to_array(&self) -> serde_json::Value {
+    /// Transform the collection into a JSON value.
+    pub fn to_json(&self) -> serde_json::Value {
         serde_json::json!({
-            "data": self.data.iter().map(|item| item.to_array()).collect::<Vec<_>>(),
+            "data": self.data.iter().map(|item| item.to_json()).collect::<Vec<_>>(),
         })
     }
 }
@@ -1433,6 +1512,7 @@ impl {{collection_name}} {
     let data = json!({
         "collection_name": collection_name,
         "resource_name": resource_name,
+        "resource_module": resource_module,
     });
 
     Ok(handlebars.render("collection", &data)?)
@@ -1474,8 +1554,9 @@ async fn test_{{test_name_lower}}() -> Result<()> {
 }
 
 fn generate_middleware_content(middleware_name: &str) -> Result<String> {
+    // Canonical Axum middleware (RustForge builds on Axum): a `from_fn`-style
+    // handler. Apply with `axum::middleware::from_fn({{middleware_name}}::handle)`.
     let template = r#"use axum::{
-    body::Body,
     extract::Request,
     http::StatusCode,
     middleware::Next,
@@ -1486,12 +1567,11 @@ pub struct {{middleware_name}};
 
 impl {{middleware_name}} {
     pub async fn handle(request: Request, next: Next) -> Result<Response, StatusCode> {
-        // TODO: Implement middleware logic (before request)
+        // Pre-processing (before the request is handled) goes here.
 
-        // Process the request
         let response = next.run(request).await;
 
-        // TODO: Implement middleware logic (after request)
+        // Post-processing (after the response is produced) goes here.
 
         Ok(response)
     }
