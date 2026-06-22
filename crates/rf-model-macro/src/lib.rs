@@ -1,5 +1,5 @@
 use proc_macro::TokenStream;
-use quote::quote;
+use quote::{format_ident, quote};
 use syn::{parse_macro_input, DeriveInput, Data, Fields};
 use inflector::Inflector;
 
@@ -131,7 +131,7 @@ pub fn model(_attr: TokenStream, item: TokenStream) -> TokenStream {
 
     let created_at_field = if !has_created_at {
         quote! {
-            pub created_at: chrono::DateTime<chrono::Utc>,
+            pub created_at: sea_orm::prelude::DateTimeUtc,
         }
     } else {
         quote! {}
@@ -139,31 +139,52 @@ pub fn model(_attr: TokenStream, item: TokenStream) -> TokenStream {
 
     let updated_at_field = if !has_updated_at {
         quote! {
-            pub updated_at: chrono::DateTime<chrono::Utc>,
+            pub updated_at: sea_orm::prelude::DateTimeUtc,
         }
     } else {
         quote! {}
     };
 
-    // Generate the expanded model
+    // SeaORM's `DeriveEntityModel` requires the entity struct to be literally
+    // named `Model`, and each entity needs its own `Relation` enum / `Column` /
+    // `Entity` items. We therefore expand `#[model] struct User { .. }` into a
+    // dedicated module (named after the struct, snake_case) that holds the real
+    // SeaORM entity, and re-export `Model as User` / `Entity as UserEntity` so
+    // the Laravel-style name keeps working. Per-model modules also keep the
+    // generated `Relation` enums from colliding when several models coexist.
+    let module_name = format_ident!("{}", name.to_string().to_snake_case());
+    let entity_alias = format_ident!("{}Entity", name);
+
     let expanded = quote! {
-        #[derive(Clone, Debug, PartialEq, Eq, sea_orm::DeriveEntityModel, serde::Serialize, serde::Deserialize)]
-        #[sea_orm(table_name = #table_name)]
-        #vis struct #name #generics {
-            #id_field
-            #(#processed_fields,)*
-            #created_at_field
-            #updated_at_field
+        #vis mod #module_name {
+            use super::*;
+            // Brings `DeriveEntityModel`, `EnumIter`, `DerivePrimaryKey`,
+            // `PrimaryKeyTrait`, `ActiveModelBehavior`, ... into scope for the
+            // code that `DeriveEntityModel` generates.
+            use sea_orm::entity::prelude::*;
+
+            #[derive(Clone, Debug, PartialEq, Eq, sea_orm::DeriveEntityModel, serde::Serialize, serde::Deserialize)]
+            #[sea_orm(table_name = #table_name)]
+            pub struct Model #generics {
+                #id_field
+                #(#processed_fields,)*
+                #created_at_field
+                #updated_at_field
+            }
+
+            #[derive(Copy, Clone, Debug, sea_orm::EnumIter, sea_orm::DeriveRelation)]
+            pub enum Relation {}
+
+            impl sea_orm::ActiveModelBehavior for ActiveModel {}
         }
 
-        #[derive(Copy, Clone, Debug, sea_orm::EnumIter, sea_orm::DeriveRelation)]
-        pub enum Relation {}
+        // Laravel-style aliases: `User` is the record type, `UserEntity` the
+        // queryable entity.
+        #vis use self::#module_name::{Model as #name, Entity as #entity_alias};
 
-        impl sea_orm::ActiveModelBehavior for ActiveModel {}
-
-        // Implement rf_db_facade::Model trait for Laravel-style static methods
-        // This enables User::where(), User::find(), User::create(), etc.
-        impl rf_db_facade::Model for #name {
+        // Implement rf_db_facade::Model for the static query methods
+        // (`User::where()`, `User::find()`, `User::create()`, ...).
+        impl rf_db_facade::Model for self::#module_name::Model {
             const TABLE: &'static str = #table_name;
         }
     };

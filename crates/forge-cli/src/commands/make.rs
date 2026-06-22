@@ -146,38 +146,27 @@ pub async fn command(name: &str) -> Result<()> {
 
 // Helper functions for content generation
 
-fn generate_model_content(model_name: &str, table_name: &str) -> Result<String> {
-    // RustForge's ORM (rf-orm) is built on SeaORM. The canonical, compiling
-    // model is a SeaORM entity module: a `Model` struct deriving
-    // `DeriveEntityModel`, a `Relation` enum and an `ActiveModelBehavior` impl.
-    // Each model lives in its own module (this file), so the generated `Entity`,
-    // `ActiveModel`, `Column` and `Relation` names never collide across models.
-    // The module is re-exported as `{{model_name}}` (the entity alias) from
-    // `src/models/mod.rs` for Laravel-style `{{model_name}}::find(..)` usage.
-    //
-    // Note: rf-orm also ships a `#[model]` attribute, but in this SeaORM version
-    // `DeriveEntityModel` requires the struct be literally named `Model`, so the
-    // explicit entity below is the form that actually builds.
-    let template = r#"use sea_orm::entity::prelude::*;
-use serde::{Deserialize, Serialize};
+fn generate_model_content(model_name: &str, _table_name: &str) -> Result<String> {
+    // Canonical RustForge model: the Laravel-style `#[model]` attribute. It
+    // expands to a SeaORM entity module (built on rf-orm) and adds the standard
+    // `id`, `created_at`, `updated_at` columns automatically. Mark sensitive
+    // columns with `#[hidden]` to skip them during serialization. The macro
+    // re-exports the record type as `{{model_name}}` and the queryable entity as
+    // `{{model_name}}Entity`.
+    let template = r#"use rf_orm::model;
 
-#[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel, Serialize, Deserialize)]
-#[sea_orm(table_name = "{{table_name}}")]
-pub struct Model {
-    #[sea_orm(primary_key)]
-    pub id: i32,
+/// The {{model_name}} model.
+///
+/// `id`, `created_at` and `updated_at` are added automatically.
+#[model]
+pub struct {{model_name}} {
     // Add your columns here, e.g.:
     // pub title: String,
     // pub body: String,
     pub name: String,
-    pub created_at: DateTimeUtc,
-    pub updated_at: DateTimeUtc,
+    // #[hidden]
+    // pub secret: String,
 }
-
-#[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
-pub enum Relation {}
-
-impl ActiveModelBehavior for ActiveModel {}
 "#;
 
     let mut handlebars = Handlebars::new();
@@ -185,7 +174,6 @@ impl ActiveModelBehavior for ActiveModel {}
 
     let data = json!({
         "model_name": model_name,
-        "table_name": table_name,
     });
 
     Ok(handlebars.render("model", &data)?)
@@ -423,11 +411,12 @@ fn update_models_mod(file_name: &str, model_name: &str) -> Result<()> {
         content.push_str(&mod_line);
     }
 
-    // Re-export the SeaORM entity's record type as `{model_name}` (so app code
-    // and policies refer to `crate::models::{model_name}`), and the queryable
-    // `Entity` as `{model_name}Entity` for `{model_name}Entity::find(..)`.
+    // The `#[model]` macro already re-exports the record type as `{model_name}`
+    // and the queryable entity as `{model_name}Entity` within the model file;
+    // surface both from `crate::models` for `{model_name}Entity::find(..)` and
+    // Laravel-style `{model_name}` usage in app code/policies.
     let use_line = format!(
-        "pub use {file}::{{Entity as {model}Entity, Model as {model}}};\n",
+        "pub use {file}::{{{model}, {model}Entity}};\n",
         file = file_name,
         model = model_name
     );

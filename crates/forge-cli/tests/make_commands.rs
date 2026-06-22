@@ -47,17 +47,15 @@ fn make_model_creates_file_and_registers_module() {
     let p = forge_project();
     run_make(p.path(), &["model", "Post"]);
 
-    // Canonical RustForge models are SeaORM entity modules: the record type is
-    // named `Model` (SeaORM's `DeriveEntityModel` requires that), and the module
-    // is re-exported as `Post` from src/models/mod.rs for Laravel-style usage.
+    // Canonical RustForge models use the Laravel-style `#[model]` attribute.
     let model = read(p.path(), "src/models/post.rs");
-    assert_contains(&model, "struct Model", "model file");
-    assert_contains(&model, "DeriveEntityModel", "model uses SeaORM entity");
+    assert_contains(&model, "#[model]", "model uses the #[model] attribute");
+    assert_contains(&model, "pub struct Post", "model struct");
 
-    // The model module is registered and aliased in src/models/mod.rs.
+    // The model module is registered and surfaced in src/models/mod.rs.
     let mod_rs = read(p.path(), "src/models/mod.rs");
     assert_contains(&mod_rs, "pub mod post", "models/mod.rs");
-    assert_contains(&mod_rs, "Model as Post", "models/mod.rs re-export");
+    assert_contains(&mod_rs, "Post", "models/mod.rs re-export");
 }
 
 #[test]
