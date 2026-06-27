@@ -21,6 +21,48 @@ fn html_escape(input: &str) -> String {
     escaped
 }
 
+#[cfg(test)]
+mod html_escape_tests {
+    use super::html_escape;
+
+    #[test]
+    fn escapes_all_five_html_metacharacters() {
+        assert_eq!(html_escape("&"), "&amp;");
+        assert_eq!(html_escape("<"), "&lt;");
+        assert_eq!(html_escape(">"), "&gt;");
+        assert_eq!(html_escape("\""), "&quot;");
+        assert_eq!(html_escape("'"), "&#x27;");
+    }
+
+    #[test]
+    fn neutralizes_a_script_injection_payload() {
+        // The classic stored-XSS vector must not survive escaping.
+        let escaped = html_escape("<script>alert('xss')</script>");
+        assert_eq!(
+            escaped,
+            "&lt;script&gt;alert(&#x27;xss&#x27;)&lt;/script&gt;"
+        );
+        assert!(!escaped.contains('<'));
+        assert!(!escaped.contains('>'));
+    }
+
+    #[test]
+    fn escapes_attribute_breaking_quotes() {
+        // A value injected into `value="..."` cannot break out of the attribute.
+        let escaped = html_escape(r#"" onmouseover="steal()"#);
+        assert!(!escaped.contains('"'));
+        assert!(escaped.contains("&quot;"));
+    }
+
+    #[test]
+    fn leaves_ordinary_text_untouched_and_expands_ampersand() {
+        assert_eq!(html_escape("Hello, world 123"), "Hello, world 123");
+        assert_eq!(html_escape("Tom & Jerry"), "Tom &amp; Jerry");
+        assert_eq!(html_escape("a < b && c > d"), "a &lt; b &amp;&amp; c &gt; d");
+        assert_eq!(html_escape(""), "");
+    }
+}
+
 /// Form renderer
 pub struct FormRenderer {
     theme: Theme,
