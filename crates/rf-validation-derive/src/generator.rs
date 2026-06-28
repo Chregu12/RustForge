@@ -114,10 +114,14 @@ fn generate_rule_validation(field: &FieldInfo, rule: &ValidationRule) -> TokenSt
         .unwrap_or_else(|| rule.error_message(&field_name_str));
 
     // Determine the value expression based on whether field is optional
+    // Parenthesize the reference so that a trailing method call (e.g. `.is_empty()`,
+    // `.len()`) applies to the borrowed field rather than its result. Without the
+    // parentheses, `.` binds tighter than `&`, so `&self.#field.is_empty()` would
+    // parse as `&(self.#field.is_empty())` and yield a type mismatch.
     let value_expr = if field.is_optional {
         quote! { value }
     } else {
-        quote! { &self.#field_name }
+        quote! { (&self.#field_name) }
     };
 
     match rule {
