@@ -45,8 +45,8 @@
 
 use super::polymorphic::{PolymorphicError, PolymorphicResult};
 use sea_orm::{
-    sea_query::{Alias, Iden as SeaIden},
-    ConnectionTrait, DatabaseConnection, EntityTrait, FromQueryResult, Statement,
+    sea_query::{Alias, Asterisk, Expr, Func, JoinType, Query},
+    ConnectionTrait, DatabaseConnection, EntityTrait, FromQueryResult,
 };
 use std::marker::PhantomData;
 
@@ -166,35 +166,35 @@ where
         E: EntityTrait,
         T: FromQueryResult,
     {
-        // For now, we'll use a simpler approach with raw SQL
-        // This will be optimized with proper SeaORM joins in production
+        // SELECT related.* FROM related
+        // INNER JOIN pivot ON related.id = pivot.{related_pivot_key}
+        // WHERE pivot.{name}_type = parent_type AND pivot.{name}_id = parent_id
+        let table = Alias::new(entity.table_name());
+        let pivot = Alias::new(self.pivot_table.as_str());
+        let related_key = Alias::new(related_pivot_key);
+        let type_col = Alias::new(self.morph_type_column());
+        let id_col = Alias::new(self.morph_id_column());
 
-        // Build the query manually
-        let table_name = entity.table_name();
-        let morph_type_col = self.morph_type_column();
-        let morph_id_col = self.morph_id_column();
+        let mut select = Query::select();
+        select
+            .expr(Expr::col((table.clone(), Asterisk)))
+            .from(table.clone())
+            .join(
+                JoinType::InnerJoin,
+                pivot.clone(),
+                Expr::col((table.clone(), Alias::new("id")))
+                    .equals((pivot.clone(), related_key)),
+            )
+            .and_where(Expr::col((pivot.clone(), type_col)).eq(self.parent_type.clone()))
+            .and_where(Expr::col((pivot.clone(), id_col)).eq(self.parent_id));
 
-        let sql = format!(
-            r#"
-            SELECT {}.* FROM {}
-            INNER JOIN {} ON {}.id = {}.{}
-            WHERE {}.{} = ? AND {}.{} = ?
-            "#,
-            table_name,
-            table_name,
-            self.pivot_table,
-            table_name,
-            self.pivot_table,
-            related_pivot_key,
-            self.pivot_table,
-            morph_type_col,
-            self.pivot_table,
-            morph_id_col,
-        );
+        let statement = db.get_database_backend().build(&select);
+        let results = T::find_by_statement(statement)
+            .all(db)
+            .await
+            .map_err(PolymorphicError::DatabaseError)?;
 
-        // This is a placeholder - actual implementation would use SeaORM's query builder
-        // For the MVP, we return empty vec
-        Ok(Vec::new())
+        Ok(results)
     }
 
     /// Count related models
@@ -207,8 +207,38 @@ where
     where
         E: EntityTrait,
     {
-        // Placeholder implementation
-        Ok(0)
+        let table = Alias::new(entity.table_name());
+        let pivot = Alias::new(self.pivot_table.as_str());
+        let related_key = Alias::new(related_pivot_key);
+        let type_col = Alias::new(self.morph_type_column());
+        let id_col = Alias::new(self.morph_id_column());
+
+        let mut select = Query::select();
+        select
+            .expr(Func::count(Expr::col(Asterisk)))
+            .from(table.clone())
+            .join(
+                JoinType::InnerJoin,
+                pivot.clone(),
+                Expr::col((table.clone(), Alias::new("id")))
+                    .equals((pivot.clone(), related_key)),
+            )
+            .and_where(Expr::col((pivot.clone(), type_col)).eq(self.parent_type.clone()))
+            .and_where(Expr::col((pivot.clone(), id_col)).eq(self.parent_id));
+
+        let statement = db.get_database_backend().build(&select);
+        let count = match db
+            .query_one(statement)
+            .await
+            .map_err(PolymorphicError::DatabaseError)?
+        {
+            Some(row) => row
+                .try_get_by_index::<i64>(0)
+                .map_err(PolymorphicError::DatabaseError)?,
+            None => 0,
+        };
+
+        Ok(count as u64)
     }
 
     /// Check if any related models exist

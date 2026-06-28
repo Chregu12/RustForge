@@ -29,8 +29,11 @@
 //! assert_eq!(rel.morph_type_column(), "taggable_type");
 //! ```
 
-use super::polymorphic::PolymorphicResult;
-use sea_orm::{sea_query::Alias, DatabaseConnection, EntityTrait, FromQueryResult};
+use super::polymorphic::{PolymorphicError, PolymorphicResult};
+use sea_orm::{
+    sea_query::{Alias, Asterisk, Expr, Func, JoinType, Query},
+    ConnectionTrait, DatabaseConnection, EntityTrait, FromQueryResult,
+};
 use std::marker::PhantomData;
 
 /// MorphedByMany relationship - inverse of MorphToMany
@@ -140,30 +143,85 @@ where
     /// ```
     pub async fn get<E>(
         &self,
-        _db: &DatabaseConnection,
-        _entity: E,
-        _related_pivot_key: &str,
+        db: &DatabaseConnection,
+        entity: E,
+        related_pivot_key: &str,
     ) -> PolymorphicResult<Vec<T>>
     where
         E: EntityTrait,
         T: FromQueryResult,
     {
-        // TODO: Implement MorphedByMany::get()
-        Ok(Vec::new())
+        // SELECT parent.* FROM parent
+        // INNER JOIN pivot ON parent.id = pivot.{name}_id
+        // WHERE pivot.{name}_type = morph_type AND pivot.{related_pivot_key} = related_id
+        let table = Alias::new(entity.table_name());
+        let pivot = Alias::new(self.pivot_table.as_str());
+        let related_key = Alias::new(related_pivot_key);
+        let type_col = Alias::new(self.morph_type_column());
+        let id_col = Alias::new(self.morph_id_column());
+
+        let mut select = Query::select();
+        select
+            .expr(Expr::col((table.clone(), Asterisk)))
+            .from(table.clone())
+            .join(
+                JoinType::InnerJoin,
+                pivot.clone(),
+                Expr::col((table.clone(), Alias::new("id"))).equals((pivot.clone(), id_col)),
+            )
+            .and_where(Expr::col((pivot.clone(), type_col)).eq(self.morph_type.clone()))
+            .and_where(Expr::col((pivot.clone(), related_key)).eq(self.related_id));
+
+        let statement = db.get_database_backend().build(&select);
+        let results = T::find_by_statement(statement)
+            .all(db)
+            .await
+            .map_err(PolymorphicError::DatabaseError)?;
+
+        Ok(results)
     }
 
     /// Count parent models
     pub async fn count<E>(
         &self,
-        _db: &DatabaseConnection,
-        _entity: E,
-        _related_pivot_key: &str,
+        db: &DatabaseConnection,
+        entity: E,
+        related_pivot_key: &str,
     ) -> PolymorphicResult<u64>
     where
         E: EntityTrait,
     {
-        // TODO: Implement MorphedByMany::count()
-        Ok(0)
+        let table = Alias::new(entity.table_name());
+        let pivot = Alias::new(self.pivot_table.as_str());
+        let related_key = Alias::new(related_pivot_key);
+        let type_col = Alias::new(self.morph_type_column());
+        let id_col = Alias::new(self.morph_id_column());
+
+        let mut select = Query::select();
+        select
+            .expr(Func::count(Expr::col(Asterisk)))
+            .from(table.clone())
+            .join(
+                JoinType::InnerJoin,
+                pivot.clone(),
+                Expr::col((table.clone(), Alias::new("id"))).equals((pivot.clone(), id_col)),
+            )
+            .and_where(Expr::col((pivot.clone(), type_col)).eq(self.morph_type.clone()))
+            .and_where(Expr::col((pivot.clone(), related_key)).eq(self.related_id));
+
+        let statement = db.get_database_backend().build(&select);
+        let count = match db
+            .query_one(statement)
+            .await
+            .map_err(PolymorphicError::DatabaseError)?
+        {
+            Some(row) => row
+                .try_get_by_index::<i64>(0)
+                .map_err(PolymorphicError::DatabaseError)?,
+            None => 0,
+        };
+
+        Ok(count as u64)
     }
 
     /// Check if any parent models exist
@@ -205,7 +263,6 @@ impl<T> MorphedByMany<T> {
         _related_pivot_key: &str,
     ) -> PolymorphicResult<()> {
         // TODO: Implement MorphedByMany::attach()
-        use super::polymorphic::PolymorphicError;
         Err(PolymorphicError::NotImplemented(
             "MorphedByMany::attach not yet implemented".to_string(),
         ))
@@ -233,7 +290,6 @@ impl<T> MorphedByMany<T> {
         _related_pivot_key: &str,
     ) -> PolymorphicResult<()> {
         // TODO: Implement MorphedByMany::detach()
-        use super::polymorphic::PolymorphicError;
         Err(PolymorphicError::NotImplemented(
             "MorphedByMany::detach not yet implemented".to_string(),
         ))
@@ -261,7 +317,6 @@ impl<T> MorphedByMany<T> {
         _related_pivot_key: &str,
     ) -> PolymorphicResult<()> {
         // TODO: Implement MorphedByMany::sync()
-        use super::polymorphic::PolymorphicError;
         Err(PolymorphicError::NotImplemented(
             "MorphedByMany::sync not yet implemented".to_string(),
         ))
