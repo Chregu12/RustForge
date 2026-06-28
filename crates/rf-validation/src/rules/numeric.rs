@@ -8,6 +8,26 @@ use async_trait::async_trait;
 use serde_json::Value;
 use std::collections::HashMap;
 
+/// Computes the comparable "size" of a value for the `min`/`max` rules,
+/// following Laravel's size semantics:
+///   - numbers   -> their numeric value
+///   - strings   -> their character length
+///   - arrays    -> their element count
+///
+/// Returns the size together with a short noun ("characters"/"items") used to
+/// build a readable error message; numeric values return an empty noun.
+fn comparable_size(value: &Value) -> Result<(f64, &'static str), String> {
+    if let Some(n) = value.as_f64() {
+        Ok((n, ""))
+    } else if let Some(s) = value.as_str() {
+        Ok((s.chars().count() as f64, "characters"))
+    } else if let Some(arr) = value.as_array() {
+        Ok((arr.len() as f64, "items"))
+    } else {
+        Err("Value must be a number, string, or array".to_string())
+    }
+}
+
 // ============================================================================
 // Type Rules
 // ============================================================================
@@ -132,25 +152,14 @@ impl Rule for MinRule {
             return Ok(());
         }
 
-        let num = if let Some(n) = value.as_f64() {
-            n
-        } else if let Some(n) = value.as_i64() {
-            n as f64
-        } else if let Some(n) = value.as_u64() {
-            n as f64
-        } else if let Some(s) = value.as_str() {
-            s.parse::<f64>()
-                .map_err(|_| "Value must be a number".to_string())?
-        } else {
-            return Err("Value must be a number".to_string());
-        };
+        let (size, kind) = comparable_size(value)?;
 
-        if num >= self.min {
+        if size >= self.min {
             Ok(())
         } else {
             Err(format!(
-                "This field must be at least {} (currently {})",
-                self.min, num
+                "This field must be at least {} {} (currently {})",
+                self.min, kind, size
             ))
         }
     }
@@ -190,25 +199,14 @@ impl Rule for MaxRule {
             return Ok(());
         }
 
-        let num = if let Some(n) = value.as_f64() {
-            n
-        } else if let Some(n) = value.as_i64() {
-            n as f64
-        } else if let Some(n) = value.as_u64() {
-            n as f64
-        } else if let Some(s) = value.as_str() {
-            s.parse::<f64>()
-                .map_err(|_| "Value must be a number".to_string())?
-        } else {
-            return Err("Value must be a number".to_string());
-        };
+        let (size, kind) = comparable_size(value)?;
 
-        if num <= self.max {
+        if size <= self.max {
             Ok(())
         } else {
             Err(format!(
-                "This field must not exceed {} (currently {})",
-                self.max, num
+                "This field must not exceed {} {} (currently {})",
+                self.max, kind, size
             ))
         }
     }
@@ -528,12 +526,25 @@ mod tests {
 
     #[tokio::test]
     async fn test_min_rule() {
+        // Laravel size semantics: numbers compare by value, strings by character
+        // length, arrays by element count.
         let rule = MinRule::new(18);
 
+        // Numeric value
         assert!(rule.validate(&json!(20), &HashMap::new()).await.is_ok());
         assert!(rule.validate(&json!(18), &HashMap::new()).await.is_ok());
         assert!(rule.validate(&json!(15), &HashMap::new()).await.is_err());
-        assert!(rule.validate(&json!("25"), &HashMap::new()).await.is_ok());
+
+        // String -> character length (NOT numeric coercion). "25" has length 2.
+        assert!(rule.validate(&json!("25"), &HashMap::new()).await.is_err());
+
+        let rule3 = MinRule::new(3);
+        assert!(rule3.validate(&json!("Alice"), &HashMap::new()).await.is_ok());
+        assert!(rule3.validate(&json!("Al"), &HashMap::new()).await.is_err());
+
+        // Array -> element count.
+        assert!(rule3.validate(&json!([1, 2, 3]), &HashMap::new()).await.is_ok());
+        assert!(rule3.validate(&json!([1, 2]), &HashMap::new()).await.is_err());
     }
 
     #[tokio::test]
@@ -543,6 +554,15 @@ mod tests {
         assert!(rule.validate(&json!(50), &HashMap::new()).await.is_ok());
         assert!(rule.validate(&json!(100), &HashMap::new()).await.is_ok());
         assert!(rule.validate(&json!(150), &HashMap::new()).await.is_err());
+
+        // String -> character length.
+        let rule5 = MaxRule::new(5);
+        assert!(rule5.validate(&json!("Alice"), &HashMap::new()).await.is_ok());
+        assert!(rule5.validate(&json!("Alexander"), &HashMap::new()).await.is_err());
+
+        // Array -> element count.
+        assert!(rule5.validate(&json!([1, 2, 3]), &HashMap::new()).await.is_ok());
+        assert!(rule5.validate(&json!([1, 2, 3, 4, 5, 6]), &HashMap::new()).await.is_err());
     }
 
     #[tokio::test]
