@@ -7,6 +7,9 @@
 /framework-test
 /starter-template
 
+# Lokaler Test-Spielplatz (nicht auf GitHub)
+/sandbox
+
 # IDE
 .idea
 .vscode
