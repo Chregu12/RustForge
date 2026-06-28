@@ -124,6 +124,20 @@ pub mod prelude {
     pub use rf_macros::{routes, migration, request, send_mail, dispatch, job};  // Laravel helper macros
     pub use rf_validation_derive::Validate;
 
+    // Support for the `Model!`/`create!`/`find!`/`update!`/`delete!` macros above.
+    // Those macros expand to code that names `rf_db_facade::Model`/`QueryBuilder`,
+    // `serde_json::json!` and `chrono::` by crate name, and whose CRUD calls
+    // (`User::create(..)`) need the `Model` trait in scope. Re-exporting the
+    // internal facade crate (plus the `Model` trait) and the `serde_json`/`chrono`
+    // crates here makes those paths resolvable through the prelude glob alone, so an
+    // `rf`-only consumer no longer has to add the internal `rf-db-facade`/`serde_json`
+    // crates by hand. (`serde` itself must still be a direct dependency: the
+    // `#[derive(serde::Serialize)]` the macro emits expands to code that links the
+    // `serde` crate, which a re-export cannot provide.) The macro `Model` and the
+    // trait `Model` live in different namespaces, so both names coexist.
+    pub use rf_db_facade::{self, Model, QueryBuilder};
+    pub use {chrono, serde_json};
+
     // Core Types
     pub use rf_response::Response;
     pub use rf_errors::{RustForgeError, Result};

@@ -36,6 +36,15 @@ rf-response = { path = "../rf-response" }
 rf-orm = { path = "../rf-orm" }
 rf-eloquent = { path = "../rf-eloquent" }
 rf-model-macro = { path = "../rf-model-macro" }
+# Backing store + trait for the Model!/create!/find!/update!/delete! macros.
+# The `rf_macros` model macros expand to code referencing `rf_db_facade::Model`,
+# `serde_json::`, `serde::` and `chrono::` by crate name, so the `rf` facade must
+# bring those names into scope (see `prelude`) for an `rf`-only consumer to use
+# the macros it advertises.
+rf-db-facade = { path = "../rf-db-facade" }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+chrono = { version = "0.4", features = ["serde", "clock"] }
 
 # Auth & Security
 rf-auth = { path = "../rf-auth" }

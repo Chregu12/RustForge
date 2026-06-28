@@ -7242,6 +7242,7 @@ dependencies = [
 name = "rf"
 version = "1.0.0"
 dependencies = [
+ "chrono",
  "rf-api-resources",
  "rf-auth",
  "rf-authorization",
@@ -7252,6 +7253,7 @@ dependencies = [
  "rf-collections",
  "rf-config",
  "rf-core",
+ "rf-db-facade",
  "rf-eloquent",
  "rf-errors",
  "rf-events",
@@ -7285,6 +7287,8 @@ dependencies = [
  "rf-validation-derive",
  "rf-view",
  "rf-web",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
