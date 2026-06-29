@@ -216,6 +216,46 @@ mod in_memory {
         }
     }
 
+    /// Levenshtein edit distance between two strings.
+    fn levenshtein(a: &str, b: &str) -> usize {
+        let a: Vec<char> = a.chars().collect();
+        let b: Vec<char> = b.chars().collect();
+        if a.is_empty() {
+            return b.len();
+        }
+        if b.is_empty() {
+            return a.len();
+        }
+
+        // Single-row dynamic programming table.
+        let mut prev: Vec<usize> = (0..=b.len()).collect();
+        let mut curr: Vec<usize> = vec![0; b.len() + 1];
+
+        for (i, ca) in a.iter().enumerate() {
+            curr[0] = i + 1;
+            for (j, cb) in b.iter().enumerate() {
+                let cost = if ca == cb { 0 } else { 1 };
+                curr[j + 1] = (prev[j + 1] + 1) // deletion
+                    .min(curr[j] + 1) // insertion
+                    .min(prev[j] + cost); // substitution
+            }
+            std::mem::swap(&mut prev, &mut curr);
+        }
+
+        prev[b.len()]
+    }
+
+    /// Normalized similarity in `[0.0, 1.0]` derived from edit distance.
+    ///
+    /// `1.0` means identical; `0.0` means completely dissimilar.
+    fn similarity(a: &str, b: &str) -> f32 {
+        let max_len = a.chars().count().max(b.chars().count());
+        if max_len == 0 {
+            return 1.0;
+        }
+        1.0 - (levenshtein(a, b) as f32 / max_len as f32)
+    }
+
     /// Tokenizer for splitting text into terms
     struct Tokenizer {
         stemmer: Stemmer,
@@ -258,6 +298,11 @@ mod in_memory {
 
         fn get_documents(&self, term: &str) -> Option<&HashSet<String>> {
             self.index.get(term)
+        }
+
+        /// Iterate over all (term, documents) pairs (used for fuzzy matching).
+        fn iter(&self) -> impl Iterator<Item = (&String, &HashSet<String>)> {
+            self.index.iter()
         }
 
         fn remove_document(&mut self, doc_id: &str) {
@@ -317,9 +362,27 @@ mod in_memory {
             let mut doc_scores: HashMap<String, f32> = HashMap::new();
 
             for token in &tokens {
-                if let Some(docs) = self.index.get_documents(token) {
-                    for doc_id in docs {
-                        *doc_scores.entry(doc_id.clone()).or_insert(0.0) += 1.0;
+                match query.fuzzy {
+                    // Fuzzy matching enabled: score every indexed term whose
+                    // similarity to the query token meets the threshold. Exact
+                    // matches naturally score 1.0; close typos score by similarity.
+                    Some(threshold) => {
+                        for (term, docs) in self.index.iter() {
+                            let sim = similarity(token, term);
+                            if sim >= threshold {
+                                for doc_id in docs {
+                                    *doc_scores.entry(doc_id.clone()).or_insert(0.0) += sim;
+                                }
+                            }
+                        }
+                    }
+                    // Exact matching (default).
+                    None => {
+                        if let Some(docs) = self.index.get_documents(token) {
+                            for doc_id in docs {
+                                *doc_scores.entry(doc_id.clone()).or_insert(0.0) += 1.0;
+                            }
+                        }
                     }
                 }
             }
@@ -406,5 +469,24 @@ mod tests {
 
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].id, "1");
+    }
+
+    #[test]
+    fn test_fuzzy_matches_typo() {
+        let mut engine = SearchEngine::new();
+        engine
+            .index(Document::new("1").field("title", "Rust Programming"))
+            .unwrap();
+
+        // Exact search for a typo misses.
+        let exact = engine.search(&Query::new("programmng")).unwrap();
+        assert!(exact.is_empty(), "exact search for a typo should miss");
+
+        // Fuzzy search recovers the typo'd term.
+        let fuzzy = engine
+            .search(&Query::new("programmng").fuzzy(0.7).limit(10))
+            .unwrap();
+        assert_eq!(fuzzy.len(), 1, "fuzzy search should match the typo'd term");
+        assert_eq!(fuzzy[0].id, "1");
     }
 }
