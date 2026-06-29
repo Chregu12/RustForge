@@ -2,6 +2,7 @@
 
 use async_trait::async_trait;
 use serde::de::DeserializeOwned;
+use serde::Serialize;
 use std::collections::HashMap;
 
 /// Error type for form request validation.
@@ -21,8 +22,14 @@ pub enum FormRequestError {
 pub type FormRequestResult<T> = Result<T, FormRequestError>;
 
 /// Trait for form request validation.
+///
+/// Implementors must be both [`DeserializeOwned`] (so they can be built from an
+/// incoming request body) and [`Serialize`] (so the default [`validate`] impl can
+/// read each field's value back out by name when running the rules engine).
+///
+/// [`validate`]: FormRequest::validate
 #[async_trait]
-pub trait FormRequest: DeserializeOwned + Sized + Send + Sync {
+pub trait FormRequest: DeserializeOwned + Serialize + Sized + Send + Sync {
     /// Authorize the request.
     async fn authorize(&self) -> FormRequestResult<()> {
         Ok(())
@@ -33,14 +40,29 @@ pub trait FormRequest: DeserializeOwned + Sized + Send + Sync {
         HashMap::new()
     }
 
-    /// Validate the request.
+    /// Validate the request against the rules returned by [`rules`].
+    ///
+    /// Each rule is checked against the *value* of its field. The field's value is
+    /// obtained by serializing `self` and looking the field up by name, so the rules
+    /// engine works for any [`Serialize`] request type without per-field wiring.
+    ///
+    /// [`rules`]: FormRequest::rules
     async fn validate(&self) -> FormRequestResult<()> {
         let rules = self.rules();
+        if rules.is_empty() {
+            return Ok(());
+        }
+
+        let data = serde_json::to_value(self).map_err(|e| {
+            FormRequestError::ValidationFailed(format!("could not read request data: {}", e))
+        })?;
+
         let mut errors = Vec::new();
 
         for (field, field_rules) in rules.iter() {
+            let value = field_value(&data, field);
             for rule in field_rules {
-                if let Err(e) = rule.validate(field) {
+                if let Err(e) = rule.validate(&value) {
                     errors.push(format!("{}: {}", field, e));
                 }
             }
@@ -67,6 +89,19 @@ pub trait FormRequest: DeserializeOwned + Sized + Send + Sync {
     }
 }
 
+/// Extract a field's value from serialized request data as a string.
+///
+/// A missing field or an explicit `null` is treated as an empty string so that
+/// rules such as [`ValidationRule::Required`] fail as expected. Strings are taken
+/// verbatim; other scalar types (numbers, booleans) use their JSON representation.
+fn field_value(data: &serde_json::Value, field: &str) -> String {
+    match data.get(field) {
+        Some(serde_json::Value::String(s)) => s.clone(),
+        Some(serde_json::Value::Null) | None => String::new(),
+        Some(other) => other.to_string(),
+    }
+}
+
 /// Validation rule.
 #[derive(Debug, Clone)]
 pub enum ValidationRule {
@@ -80,10 +115,59 @@ pub enum ValidationRule {
 }
 
 impl ValidationRule {
-    /// Validate a field.
-    pub fn validate(&self, _field: &str) -> Result<(), String> {
-        // Simplified validation - in real implementation, this would check the actual value
-        Ok(())
+    /// Validate a field's `value` against this rule.
+    ///
+    /// Returns `Ok(())` when the value satisfies the rule, or `Err(message)` with a
+    /// human-readable reason when it does not.
+    pub fn validate(&self, value: &str) -> Result<(), String> {
+        match self {
+            ValidationRule::Required => {
+                if value.trim().is_empty() {
+                    Err("This field is required".to_string())
+                } else {
+                    Ok(())
+                }
+            }
+            ValidationRule::MinLength(min) => {
+                if value.chars().count() < *min {
+                    Err(format!("Must be at least {} characters", min))
+                } else {
+                    Ok(())
+                }
+            }
+            ValidationRule::MaxLength(max) => {
+                if value.chars().count() > *max {
+                    Err(format!("Must be at most {} characters", max))
+                } else {
+                    Ok(())
+                }
+            }
+            ValidationRule::Email => {
+                if value.contains('@') && value.contains('.') {
+                    Ok(())
+                } else {
+                    Err("Invalid email format".to_string())
+                }
+            }
+            ValidationRule::Url => {
+                if value.starts_with("http://") || value.starts_with("https://") {
+                    Ok(())
+                } else {
+                    Err("Invalid URL format".to_string())
+                }
+            }
+            ValidationRule::Numeric => {
+                if value.parse::<f64>().is_ok() {
+                    Ok(())
+                } else {
+                    Err("Value must be numeric".to_string())
+                }
+            }
+            // `Custom` carries a caller-supplied message and has no built-in
+            // predicate, so it cannot be auto-evaluated here; treat it as passing
+            // and leave enforcement to the implementor's own `validate` override.
+            ValidationRule::Custom(_) => Ok(()),
+        }
     }
 }
 
@@ -151,9 +235,9 @@ impl Default for ValidationRulesBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde::Deserialize;
+    use serde::{Deserialize, Serialize};
 
-    #[derive(Debug, Deserialize)]
+    #[derive(Debug, Deserialize, Serialize)]
     struct TestRequest {
         title: String,
         email: String,
@@ -197,6 +281,26 @@ mod tests {
         };
 
         assert!(request.validate().await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_form_request_rejects_invalid_input() {
+        let request = TestRequest {
+            title: "".to_string(),         // violates required + min_length(3)
+            email: "not-an-email".to_string(), // violates email
+        };
+
+        let err = request
+            .validate()
+            .await
+            .expect_err("invalid input must be rejected by the rules engine");
+        match err {
+            FormRequestError::ValidationFailed(msg) => {
+                assert!(msg.contains("title"), "expected title errors, got: {msg}");
+                assert!(msg.contains("email"), "expected email error, got: {msg}");
+            }
+            other => panic!("expected ValidationFailed, got {:?}", other),
+        }
     }
 
     #[tokio::test]

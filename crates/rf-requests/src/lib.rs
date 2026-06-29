@@ -15,10 +15,10 @@
 //! ```rust
 //! use rf_requests::{FormRequest, ValidationRulesBuilder, FormRequestResult};
 //! use async_trait::async_trait;
-//! use serde::Deserialize;
+//! use serde::{Deserialize, Serialize};
 //! use std::collections::HashMap;
 //!
-//! #[derive(Debug, Deserialize)]
+//! #[derive(Debug, Deserialize, Serialize)]
 //! struct CreatePostRequest {
 //!     title: String,
 //!     content: String,
@@ -60,10 +60,10 @@ pub use validation::{
 mod tests {
     use super::*;
     use async_trait::async_trait;
-    use serde::Deserialize;
+    use serde::{Deserialize, Serialize};
     use std::collections::HashMap;
 
-    #[derive(Debug, Deserialize)]
+    #[derive(Debug, Deserialize, Serialize)]
     struct TestRequest {
         title: String,
         email: String,
