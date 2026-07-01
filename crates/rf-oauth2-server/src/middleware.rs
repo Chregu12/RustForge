@@ -1,6 +1,6 @@
 //! OAuth2 Middleware for scope verification
 
-use crate::{scopes::ScopeChecker, token::AccessToken, OAuth2Error};
+use crate::{scopes::ScopeChecker, server::OAuth2Server, token::AccessToken, OAuth2Error};
 use axum::{
     body::Body,
     extract::Request,
@@ -10,6 +10,7 @@ use axum::{
 };
 use std::future::Future;
 use std::pin::Pin;
+use std::sync::Arc;
 
 /// Middleware to require specific OAuth2 scopes
 ///
@@ -78,28 +79,57 @@ pub fn require_any_scope(
     }
 }
 
-/// Extract and verify OAuth2 bearer token from Authorization header
-pub async fn extract_bearer_token(mut req: Request, next: Next) -> Result<Response, OAuth2Error> {
-    // Extract bearer token from Authorization header
-    let auth_header = req
-        .headers()
-        .get("Authorization")
-        .and_then(|h| h.to_str().ok())
-        .ok_or_else(|| OAuth2Error::Unauthorized("Missing Authorization header".to_string()))?;
+/// Middleware factory that authenticates requests via their OAuth2 bearer token.
+///
+/// The returned middleware reads the `Authorization: Bearer <token>` header,
+/// validates the token against `server` (rejecting unknown or expired tokens with
+/// `401`), and on success inserts the resolved [`AccessToken`] into the request
+/// extensions so downstream layers such as [`require_scopes`] can read it.
+///
+/// # Example
+///
+/// ```rust,ignore
+/// use std::sync::Arc;
+/// use rf_oauth2_server::{OAuth2Server, middleware::extract_bearer_token};
+///
+/// let server = Arc::new(OAuth2Server::new(config));
+/// let app = Router::new()
+///     .route("/me", get(me))
+///     .layer(axum::middleware::from_fn(extract_bearer_token(server)));
+/// ```
+pub fn extract_bearer_token(
+    server: Arc<OAuth2Server>,
+) -> impl Fn(Request, Next) -> Pin<Box<dyn Future<Output = Result<Response, OAuth2Error>> + Send>> + Clone
+{
+    move |mut req: Request, next: Next| {
+        let server = server.clone();
+        Box::pin(async move {
+            // Extract the bearer token from the Authorization header.
+            let auth_header = req
+                .headers()
+                .get("Authorization")
+                .and_then(|h| h.to_str().ok())
+                .ok_or_else(|| {
+                    OAuth2Error::Unauthorized("Missing Authorization header".to_string())
+                })?;
 
-    let token = auth_header
-        .strip_prefix("Bearer ")
-        .ok_or_else(|| OAuth2Error::Unauthorized("Invalid Authorization format".to_string()))?;
+            let token = auth_header
+                .strip_prefix("Bearer ")
+                .ok_or_else(|| {
+                    OAuth2Error::Unauthorized("Invalid Authorization format".to_string())
+                })?
+                .to_string();
 
-    // TODO: Validate token against database/cache
-    // For now, just pass it through
-    // In production, you would:
-    // 1. Look up token in database
-    // 2. Check expiration
-    // 3. Load scopes
-    // 4. Insert AccessToken into extensions
+            // Validate against the server's token store: unknown or expired tokens
+            // are rejected here (mapped to 401) instead of silently passing through.
+            let access_token = server.validate_token(&token).await?;
 
-    Ok(next.run(req).await)
+            // Expose the authenticated token to downstream handlers/middleware.
+            req.extensions_mut().insert(access_token);
+
+            Ok(next.run(req).await)
+        })
+    }
 }
 
 /// Macro for creating scope middleware more conveniently
