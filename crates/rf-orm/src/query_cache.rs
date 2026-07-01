@@ -44,7 +44,7 @@
 //! ```
 
 use async_trait::async_trait;
-use sea_orm::{ConnectionTrait, DatabaseConnection, DbErr, EntityTrait, QuerySelect, Statement};
+use sea_orm::{ConnectionTrait, DatabaseConnection, DbErr, QueryTrait, Statement};
 use serde::{Deserialize, Serialize};
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
@@ -433,16 +433,18 @@ pub trait CacheableQuery: Sized {
 pub struct QueryExtractor;
 
 impl QueryExtractor {
-    /// Extract SQL statement from a query builder
-    pub fn extract_statement<E>(_select: &impl QuerySelect, db: &DatabaseConnection) -> Statement
+    /// Extract the real SQL statement (and bound parameters) from a query builder.
+    ///
+    /// Builds the query for the connection's database backend via SeaORM's
+    /// [`QueryTrait::build`], so the returned [`Statement`] reflects the actual
+    /// table, filters, ordering and bindings — which is what query-cache
+    /// fingerprinting needs to key distinct queries apart.
+    pub fn extract_statement<Q>(select: &Q, db: &DatabaseConnection) -> Statement
     where
-        E: EntityTrait,
+        Q: QueryTrait,
+        Q::QueryStatement: sea_orm::sea_query::QueryStatementBuilder,
     {
-        // This is a simplified version - real implementation would need
-        // to properly extract the SQL and parameters from the query builder
-
-        // For now, return a placeholder
-        Statement::from_string(db.get_database_backend(), "SELECT * FROM table".to_string())
+        select.build(db.get_database_backend())
     }
 }
 
