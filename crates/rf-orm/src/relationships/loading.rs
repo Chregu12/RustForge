@@ -60,7 +60,10 @@
 //! ```
 
 use async_trait::async_trait;
-use sea_orm::{DatabaseConnection, DbErr, EntityTrait, ModelTrait, Related};
+use sea_orm::{
+    DatabaseConnection, DbErr, EntityTrait, Iterable, LoaderTrait, ModelTrait, PrimaryKeyToColumn,
+    Related, Value,
+};
 use std::collections::HashMap;
 
 /// Result type for loading operations
@@ -388,7 +391,7 @@ impl RelationshipData {
 /// # }
 /// ```
 pub async fn load_relation<E, R>(
-    _db: &DatabaseConnection,
+    db: &DatabaseConnection,
     models: &mut [E::Model],
     _relation: &str,
 ) -> LoadResult<HashMap<i64, Vec<R::Model>>>
@@ -396,21 +399,50 @@ where
     E: EntityTrait,
     R: EntityTrait,
     E: Related<R>,
-    E::Model: ModelTrait,
+    E::Model: ModelTrait + Sync,
+    R::Model: Send + Sync,
 {
     if models.is_empty() {
         return Ok(HashMap::new());
     }
 
-    // In a real implementation, you would:
-    // 1. Extract all parent IDs from the models
-    // 2. Query the related table with WHERE IN (parent_ids)
-    // 3. Group the results by parent ID
-    // 4. Return the grouped results
+    // Batch-load the related rows for every parent in a single query (no N+1),
+    // using SeaORM's LoaderTrait which resolves the relation from `E: Related<R>`.
+    // The result is aligned by index with `models`.
+    let slice: &[E::Model] = models;
+    let related: Vec<Vec<R::Model>> = slice.load_many(R::default(), db).await?;
 
-    // For now, we return an empty map as a placeholder
-    // This would require dynamic ID extraction which needs more SeaORM introspection
-    Ok(HashMap::new())
+    // Group the related rows by their parent's primary-key value.
+    let mut grouped: HashMap<i64, Vec<R::Model>> = HashMap::new();
+    for (model, children) in models.iter().zip(related.into_iter()) {
+        if let Some(id) = primary_key_i64::<E>(model) {
+            grouped.entry(id).or_default().extend(children);
+        }
+    }
+
+    Ok(grouped)
+}
+
+/// Extract a model's (single-column) primary key as an `i64`, if it is an
+/// integer key. Returns `None` for non-integer primary keys, which the `i64`-keyed
+/// grouping used by [`load_relation`] cannot represent.
+fn primary_key_i64<E>(model: &E::Model) -> Option<i64>
+where
+    E: EntityTrait,
+    E::Model: ModelTrait,
+{
+    let pk_column = <E::PrimaryKey as Iterable>::iter().next()?.into_column();
+    match model.get(pk_column) {
+        Value::TinyInt(Some(v)) => Some(v as i64),
+        Value::SmallInt(Some(v)) => Some(v as i64),
+        Value::Int(Some(v)) => Some(v as i64),
+        Value::BigInt(Some(v)) => Some(v),
+        Value::TinyUnsigned(Some(v)) => Some(v as i64),
+        Value::SmallUnsigned(Some(v)) => Some(v as i64),
+        Value::Unsigned(Some(v)) => Some(v as i64),
+        Value::BigUnsigned(Some(v)) => Some(v as i64),
+        _ => None,
+    }
 }
 
 /// Load multiple relationships for a collection of models
@@ -554,6 +586,7 @@ where
     async fn load<R>(&mut self, db: &DatabaseConnection, relation: &str) -> LoadResult<&mut Self>
     where
         R: EntityTrait,
+        R::Model: Send + Sync,
         E: Related<R>;
 
     /// Load multiple relationships for all models in the collection
@@ -589,11 +622,12 @@ where
 impl<E> CollectionExt<E> for Vec<E::Model>
 where
     E: EntityTrait,
-    E::Model: ModelTrait + Send,
+    E::Model: ModelTrait + Send + Sync,
 {
     async fn load<R>(&mut self, db: &DatabaseConnection, relation: &str) -> LoadResult<&mut Self>
     where
         R: EntityTrait,
+        R::Model: Send + Sync,
         E: Related<R>,
     {
         load_relation::<E, R>(db, self, relation).await?;
