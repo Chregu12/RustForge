@@ -211,6 +211,14 @@ impl Auth {
         manager.attempt(credentials)
     }
 
+    /// Register the [`UserProvider`](crate::UserProvider) that [`attempt`](Self::attempt)
+    /// uses to look up and verify credentials. Until one is set, `attempt` fails
+    /// closed and authenticates no one.
+    pub fn set_provider(provider: std::sync::Arc<dyn crate::UserProvider>) {
+        let mut manager = GLOBAL_AUTH.write().unwrap();
+        manager.set_provider(provider);
+    }
+
     /// Check if the user was authenticated via remember me
     ///
     /// # Examples

@@ -1,9 +1,10 @@
 //! Global authentication manager
 
+use crate::password::PasswordHasher;
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::sync::RwLock;
+use std::sync::{Arc, RwLock};
 
 /// Global authentication manager instance
 /// Uses std::sync::RwLock for synchronous access (no .await needed)
@@ -11,8 +12,25 @@ pub static GLOBAL_AUTH: Lazy<RwLock<AuthManager>> = Lazy::new(|| {
     RwLock::new(AuthManager::new())
 });
 
+/// Resolves login credentials to a stored user record for [`AuthManager::attempt`].
+///
+/// Implement this on your app's user store (database, in-memory, etc.). Given the
+/// submitted `credentials` (e.g. `{"email": ..., "password": ...}`), return the
+/// matching user record **including its hashed password** so that `attempt` can
+/// verify it, or `None` if no user matches the identifier. `attempt` never trusts
+/// the submitted password directly — it always verifies it against the hash in the
+/// record returned here.
+pub trait UserProvider: Send + Sync {
+    /// Look up the stored user record by its login identifier (not the password).
+    fn retrieve_by_credentials(&self, credentials: &Value) -> Option<Value>;
+
+    /// Name of the field in the returned record holding the (hashed) password.
+    fn password_field(&self) -> &str {
+        "password"
+    }
+}
+
 /// Authentication manager that holds the current authentication state
-#[derive(Debug)]
 pub struct AuthManager {
     /// Currently authenticated user (as JSON)
     current_user: Option<Value>,
@@ -20,6 +38,21 @@ pub struct AuthManager {
     via_remember: bool,
     /// Current guard name
     guard: String,
+    /// Optional user provider used by [`AuthManager::attempt`] to look up and
+    /// verify credentials. When `None`, `attempt` denies every request
+    /// (fail-closed) rather than authenticating unverified input.
+    provider: Option<Arc<dyn UserProvider>>,
+}
+
+impl std::fmt::Debug for AuthManager {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("AuthManager")
+            .field("current_user", &self.current_user)
+            .field("via_remember", &self.via_remember)
+            .field("guard", &self.guard)
+            .field("provider", &self.provider.as_ref().map(|_| "<provider>"))
+            .finish()
+    }
 }
 
 impl AuthManager {
@@ -29,7 +62,14 @@ impl AuthManager {
             current_user: None,
             via_remember: false,
             guard: "web".to_string(),
+            provider: None,
         }
+    }
+
+    /// Register the [`UserProvider`] that [`attempt`](Self::attempt) uses to look
+    /// up and verify credentials. Until one is set, `attempt` fails closed.
+    pub fn set_provider(&mut self, provider: Arc<dyn UserProvider>) {
+        self.provider = Some(provider);
     }
 
     /// Check if a user is authenticated
@@ -80,27 +120,56 @@ impl AuthManager {
         self.via_remember = false;
     }
 
-    /// Attempt login with credentials
+    /// Attempt to authenticate with the given credentials.
+    ///
+    /// Looks the user up through the registered [`UserProvider`] and verifies the
+    /// submitted password against the stored hash (bcrypt/argon2 auto-detected). On
+    /// success the user is logged in (with the password field stripped) and `true`
+    /// is returned; on any mismatch `false` is returned.
+    ///
+    /// This is **fail-closed**: if no provider has been registered, or the user is
+    /// not found, or the record has no usable password hash, authentication is
+    /// denied. It never authenticates unverified input.
     pub fn attempt(&mut self, credentials: Value) -> Result<bool, String> {
-        // This is a simplified version
-        // In a real implementation, this would:
-        // 1. Query the database for the user
-        // 2. Verify the password
-        // 3. Login if successful
+        // No provider configured -> deny (do NOT log anyone in).
+        let provider = match &self.provider {
+            Some(p) => p.clone(),
+            None => return Ok(false),
+        };
 
-        // For now, we just check if credentials have email and password
-        if credentials.get("email").is_some() && credentials.get("password").is_some() {
-            // Mock user login
-            let mock_user = serde_json::json!({
-                "id": 1,
-                "email": credentials["email"],
-                "name": "Mock User"
-            });
-            self.current_user = Some(mock_user);
-            Ok(true)
-        } else {
-            Ok(false)
+        let password = match credentials.get("password").and_then(Value::as_str) {
+            Some(p) => p,
+            None => return Ok(false),
+        };
+
+        // Look up the stored record for this identifier.
+        let record = match provider.retrieve_by_credentials(&credentials) {
+            Some(r) => r,
+            None => return Ok(false),
+        };
+
+        // Verify the submitted password against the stored hash.
+        let hash = match record.get(provider.password_field()).and_then(Value::as_str) {
+            Some(h) => h,
+            None => return Ok(false),
+        };
+
+        let verified = PasswordHasher::default()
+            .verify(password, hash)
+            .map_err(|e| format!("Password verification failed: {}", e))?;
+
+        if !verified {
+            return Ok(false);
         }
+
+        // Log the user in, but never keep the password hash in the session state.
+        let mut user = record;
+        if let Some(obj) = user.as_object_mut() {
+            obj.remove(provider.password_field());
+        }
+        self.current_user = Some(user);
+        self.via_remember = false;
+        Ok(true)
     }
 
     /// Check if the user was authenticated via remember me
@@ -226,18 +295,67 @@ mod tests {
         assert!(manager.via_remember());
     }
 
+    /// Test provider backing a single user with a real bcrypt-hashed password.
+    struct TestProvider {
+        email: String,
+        password_hash: String,
+    }
+
+    impl UserProvider for TestProvider {
+        fn retrieve_by_credentials(&self, credentials: &Value) -> Option<Value> {
+            let email = credentials.get("email").and_then(Value::as_str)?;
+            if email == self.email {
+                Some(serde_json::json!({
+                    "id": 1,
+                    "email": self.email,
+                    "name": "Real User",
+                    "password": self.password_hash,
+                }))
+            } else {
+                None
+            }
+        }
+    }
+
+    fn provider() -> Arc<dyn UserProvider> {
+        let hash = PasswordHasher::bcrypt(4).unwrap().hash("secret").unwrap();
+        Arc::new(TestProvider {
+            email: "test@example.com".to_string(),
+            password_hash: hash,
+        })
+    }
+
     #[test]
-    fn test_auth_manager_attempt() {
+    fn test_attempt_fails_closed_without_provider() {
         let mut manager = AuthManager::new();
+        let credentials = serde_json::json!({"email": "test@example.com", "password": "secret"});
+        assert!(!manager.attempt(credentials).unwrap());
+        assert!(!manager.check());
+    }
 
-        let credentials = serde_json::json!({
-            "email": "test@example.com",
-            "password": "secret"
-        });
-
-        let result = manager.attempt(credentials).unwrap();
-        assert!(result);
+    #[test]
+    fn test_attempt_succeeds_with_correct_password() {
+        let mut manager = AuthManager::new();
+        manager.set_provider(provider());
+        let credentials = serde_json::json!({"email": "test@example.com", "password": "secret"});
+        assert!(manager.attempt(credentials).unwrap());
         assert!(manager.check());
+        // Password hash must never be exposed in the session state.
+        assert!(manager.user::<Value>().unwrap().get("password").is_none());
+    }
+
+    #[test]
+    fn test_attempt_rejects_wrong_password_and_unknown_user() {
+        let mut manager = AuthManager::new();
+        manager.set_provider(provider());
+
+        let wrong_pw = serde_json::json!({"email": "test@example.com", "password": "nope"});
+        assert!(!manager.attempt(wrong_pw).unwrap());
+        assert!(!manager.check());
+
+        let unknown = serde_json::json!({"email": "ghost@example.com", "password": "secret"});
+        assert!(!manager.attempt(unknown).unwrap());
+        assert!(!manager.check());
     }
 
     #[test]
