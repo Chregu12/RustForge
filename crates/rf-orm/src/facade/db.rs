@@ -52,7 +52,7 @@ impl DB {
     /// # }
     /// ```
     pub fn select(query: &str, bindings: &[Value]) -> Result<Vec<Value>, String> {
-        let manager = GLOBAL_DB.read().unwrap();
+        let manager = GLOBAL_DB.lock().unwrap();
         manager.select(query, bindings)
     }
 
@@ -70,7 +70,7 @@ impl DB {
     /// # }
     /// ```
     pub fn insert(query: &str, bindings: &[Value]) -> Result<u64, String> {
-        let mut manager = GLOBAL_DB.write().unwrap();
+        let mut manager = GLOBAL_DB.lock().unwrap();
         manager.insert(query, bindings)
     }
 
@@ -88,7 +88,7 @@ impl DB {
     /// # }
     /// ```
     pub fn update(query: &str, bindings: &[Value]) -> Result<u64, String> {
-        let mut manager = GLOBAL_DB.write().unwrap();
+        let mut manager = GLOBAL_DB.lock().unwrap();
         manager.update(query, bindings)
     }
 
@@ -106,7 +106,7 @@ impl DB {
     /// # }
     /// ```
     pub fn delete(query: &str, bindings: &[Value]) -> Result<u64, String> {
-        let mut manager = GLOBAL_DB.write().unwrap();
+        let mut manager = GLOBAL_DB.lock().unwrap();
         manager.delete(query, bindings)
     }
 
@@ -123,7 +123,7 @@ impl DB {
     /// # }
     /// ```
     pub fn statement(query: &str) -> Result<bool, String> {
-        let mut manager = GLOBAL_DB.write().unwrap();
+        let mut manager = GLOBAL_DB.lock().unwrap();
         manager.statement(query)
     }
 
@@ -162,32 +162,32 @@ impl DB {
     /// # }
     /// ```
     pub fn begin_transaction() -> Result<(), String> {
-        let mut manager = GLOBAL_DB.write().unwrap();
+        let mut manager = GLOBAL_DB.lock().unwrap();
         manager.begin_transaction()
     }
 
     /// Commit the current transaction
     pub fn commit() -> Result<(), String> {
-        let mut manager = GLOBAL_DB.write().unwrap();
+        let mut manager = GLOBAL_DB.lock().unwrap();
         manager.commit()
     }
 
     /// Rollback the current transaction
     pub fn rollback() -> Result<(), String> {
-        let mut manager = GLOBAL_DB.write().unwrap();
+        let mut manager = GLOBAL_DB.lock().unwrap();
         manager.rollback()
     }
 
     /// Set the database connection to use
     pub fn connection(name: &str) -> Result<(), String> {
-        let mut manager = GLOBAL_DB.write().unwrap();
+        let mut manager = GLOBAL_DB.lock().unwrap();
         manager.set_connection(name.to_string());
         Ok(())
     }
 
     /// Get the current connection name
     pub fn connection_name() -> String {
-        let manager = GLOBAL_DB.read().unwrap();
+        let manager = GLOBAL_DB.lock().unwrap();
         manager.connection_name().to_string()
     }
 }
@@ -195,71 +195,58 @@ impl DB {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::json;
 
     #[test]
-    fn test_db_insert() {
-        let bindings = vec![
-            serde_json::json!("John"),
-            serde_json::json!("john@example.com")
-        ];
+    fn test_db_facade_real_roundtrip() {
+        // The DB facade talks to a single process-global SQLite connection, so this
+        // test uses its own dedicated table to stay independent of other tests.
+        DB::statement(
+            "CREATE TABLE IF NOT EXISTS facade_users (id INTEGER PRIMARY KEY, name TEXT, active INTEGER)",
+        )
+        .unwrap();
+        DB::statement("DELETE FROM facade_users").unwrap();
 
-        let result = DB::insert("INSERT INTO users (name, email) VALUES (?, ?)", &bindings);
-        assert!(result.is_ok());
+        let id = DB::insert(
+            "INSERT INTO facade_users (name, active) VALUES (?, ?)",
+            &[json!("John"), json!(true)],
+        )
+        .unwrap();
+        assert_eq!(id, 1);
+
+        let rows = DB::select("SELECT name FROM facade_users WHERE id = ?", &[json!(1)]).unwrap();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0]["name"], json!("John"));
+
+        let updated = DB::update(
+            "UPDATE facade_users SET active = ? WHERE id = ?",
+            &[json!(false), json!(1)],
+        )
+        .unwrap();
+        assert_eq!(updated, 1);
+
+        let deleted = DB::delete("DELETE FROM facade_users WHERE id = ?", &[json!(1)]).unwrap();
+        assert_eq!(deleted, 1);
+        assert_eq!(DB::select("SELECT id FROM facade_users", &[]).unwrap().len(), 0);
     }
 
     #[test]
-    fn test_db_select() {
-        let result = DB::select("SELECT * FROM users", &[]);
-        assert!(result.is_ok());
+    fn test_db_select_on_missing_table_errors() {
+        assert!(DB::select("SELECT * FROM definitely_missing_table", &[]).is_err());
     }
 
     #[test]
-    fn test_db_update() {
-        let bindings = vec![serde_json::json!(true)];
-        let result = DB::update("UPDATE users SET active = ?", &bindings);
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_db_delete() {
-        let bindings = vec![serde_json::json!(1)];
-        let result = DB::delete("DELETE FROM users WHERE id = ?", &bindings);
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_db_statement() {
-        let result = DB::statement("CREATE TABLE users (id INT)");
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_db_table() {
-        let builder = DB::table("users");
-        assert_eq!(builder.table_name(), "users");
-    }
-
-    #[test]
-    fn test_db_transaction() {
-        assert!(DB::begin_transaction().is_ok());
-        assert!(DB::commit().is_ok());
-        assert!(DB::rollback().is_ok());
-    }
-
-    #[test]
-    fn test_db_connection() {
-        assert!(DB::connection("mysql").is_ok());
-        let name = DB::connection_name();
-        assert_eq!(name, "mysql");
-    }
-
-    #[test]
-    fn test_db_query_builder_chaining() {
+    fn test_db_table_builder_is_pure() {
         let builder = DB::table("users")
-            .where_clause("active", "=", serde_json::json!(true))
+            .where_clause("active", "=", json!(true))
             .limit(10);
 
         assert_eq!(builder.table_name(), "users");
         assert_eq!(builder.limit_val(), Some(10));
+    }
+
+    #[test]
+    fn test_db_connection_name_default() {
+        assert_eq!(DB::connection_name(), "default");
     }
 }

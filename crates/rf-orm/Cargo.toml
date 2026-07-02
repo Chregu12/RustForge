@@ -32,6 +32,11 @@ serde.workspace = true
 serde_json.workspace = true
 once_cell.workspace = true
 
+# Synchronous SQLite driver backing the sync `DB` facade (no async runtime needed).
+# 0.32 pins libsqlite3-sys 0.30 to match sqlx (via sea-orm), so both share a
+# single bundled SQLite build instead of conflicting.
+rusqlite = { version = "0.32", features = ["bundled"] }
+
 # Error handling
 thiserror.workspace = true
 anyhow.workspace = true

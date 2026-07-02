@@ -2,8 +2,25 @@
 //!
 //! Provides a Laravel-style fluent query builder for database operations.
 
+use crate::facade::db_manager::GLOBAL_DB;
 use serde::Serialize;
 use serde_json::Value;
+
+/// Render a single `column op value` condition, appending the value (if any) to
+/// `bindings` as a `?` placeholder. `NULL` values become `IS`/`IS NOT NULL`.
+fn push_condition(out: &mut String, column: &str, op: &str, value: &Value, bindings: &mut Vec<Value>) {
+    if value.is_null() {
+        let op = if op == "IS NOT" || op == "!=" || op == "<>" {
+            "IS NOT"
+        } else {
+            "IS"
+        };
+        out.push_str(&format!("{} {} NULL", column, op));
+    } else {
+        bindings.push(value.clone());
+        out.push_str(&format!("{} {} ?", column, op));
+    }
+}
 
 /// Query builder for fluent database queries
 ///
@@ -542,9 +559,75 @@ impl QueryBuilder {
     ///         .get().await.unwrap();
     /// }
     /// ```
+    /// Build the `WHERE` clause body (AND-joined `wheres`, then OR-joined
+    /// `or_wheres`), collecting bound values into `bindings`. Empty if no filters.
+    fn build_where(&self, bindings: &mut Vec<Value>) -> String {
+        let mut clause = String::new();
+        for (col, op, val) in &self.wheres {
+            if !clause.is_empty() {
+                clause.push_str(" AND ");
+            }
+            push_condition(&mut clause, col, op, val, bindings);
+        }
+        for (col, op, val) in &self.or_wheres {
+            if clause.is_empty() {
+                push_condition(&mut clause, col, op, val, bindings);
+            } else {
+                clause.push_str(" OR ");
+                push_condition(&mut clause, col, op, val, bindings);
+            }
+        }
+        clause
+    }
+
+    /// Build the full `SELECT` statement and its bound values from this builder.
+    fn build_select_sql(&self) -> (String, Vec<Value>) {
+        let mut bindings = Vec::new();
+        let columns = if self.select_columns.is_empty() {
+            "*".to_string()
+        } else {
+            self.select_columns.join(", ")
+        };
+        let mut sql = format!("SELECT {} FROM {}", columns, self.table);
+
+        let where_clause = self.build_where(&mut bindings);
+        if !where_clause.is_empty() {
+            sql.push_str(&format!(" WHERE {}", where_clause));
+        }
+        if !self.group_by.is_empty() {
+            sql.push_str(&format!(" GROUP BY {}", self.group_by.join(", ")));
+        }
+        if !self.having.is_empty() {
+            let mut having = String::new();
+            for (col, op, val) in &self.having {
+                if !having.is_empty() {
+                    having.push_str(" AND ");
+                }
+                push_condition(&mut having, col, op, val, &mut bindings);
+            }
+            sql.push_str(&format!(" HAVING {}", having));
+        }
+        if !self.order_by.is_empty() {
+            let orders: Vec<String> = self
+                .order_by
+                .iter()
+                .map(|(col, dir)| format!("{} {}", col, dir))
+                .collect();
+            sql.push_str(&format!(" ORDER BY {}", orders.join(", ")));
+        }
+        if let Some(limit) = self.limit_value {
+            sql.push_str(&format!(" LIMIT {}", limit));
+        }
+        if let Some(offset) = self.offset_value {
+            sql.push_str(&format!(" OFFSET {}", offset));
+        }
+        (sql, bindings)
+    }
+
     pub async fn get(self) -> Result<Vec<Value>, String> {
-        // Mock implementation - in production this executes against DB
-        Ok(vec![])
+        let (sql, bindings) = self.build_select_sql();
+        let manager = GLOBAL_DB.lock().unwrap();
+        manager.select(&sql, &bindings)
     }
 
     /// Get the first result
@@ -1425,7 +1508,20 @@ impl QueryBuilder {
 
     /// Count the results
     pub async fn count(self) -> Result<usize, String> {
-        Ok(0)
+        let mut bindings = Vec::new();
+        let where_clause = self.build_where(&mut bindings);
+        let mut sql = format!("SELECT COUNT(*) AS count FROM {}", self.table);
+        if !where_clause.is_empty() {
+            sql.push_str(&format!(" WHERE {}", where_clause));
+        }
+        let manager = GLOBAL_DB.lock().unwrap();
+        let rows = manager.select(&sql, &bindings)?;
+        let count = rows
+            .first()
+            .and_then(|row| row.get("count"))
+            .and_then(Value::as_u64)
+            .unwrap_or(0);
+        Ok(count as usize)
     }
 
     /// Check if any records exist
@@ -1588,22 +1684,43 @@ mod tests {
 
     #[tokio::test]
     async fn test_query_builder_get() {
-        let builder = QueryBuilder::new("users");
-        let result = builder.get().await;
-        assert!(result.is_ok());
+        // Dedicated empty table so the result is deterministic on the shared global DB.
+        crate::DB::statement("CREATE TABLE IF NOT EXISTS qb_get (id INTEGER PRIMARY KEY)").unwrap();
+        crate::DB::statement("DELETE FROM qb_get").unwrap();
+        let result = QueryBuilder::new("qb_get").get().await;
+        assert_eq!(result.unwrap().len(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_query_builder_get_returns_real_rows() {
+        crate::DB::statement("CREATE TABLE IF NOT EXISTS qb_rows (id INTEGER PRIMARY KEY, active INTEGER)")
+            .unwrap();
+        crate::DB::statement("DELETE FROM qb_rows").unwrap();
+        crate::DB::insert("INSERT INTO qb_rows (id, active) VALUES (1, 1), (2, 0)", &[]).unwrap();
+        let rows = QueryBuilder::new("qb_rows")
+            .where_clause("active", "=", serde_json::json!(1))
+            .get()
+            .await
+            .unwrap();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0]["id"], serde_json::json!(1));
     }
 
     #[tokio::test]
     async fn test_query_builder_count() {
-        let builder = QueryBuilder::new("users");
-        let count = builder.count().await.unwrap();
-        assert_eq!(count, 0);
+        crate::DB::statement("CREATE TABLE IF NOT EXISTS qb_count (id INTEGER PRIMARY KEY)").unwrap();
+        crate::DB::statement("DELETE FROM qb_count").unwrap();
+        assert_eq!(QueryBuilder::new("qb_count").count().await.unwrap(), 0);
+        crate::DB::insert("INSERT INTO qb_count (id) VALUES (1), (2), (3)", &[]).unwrap();
+        assert_eq!(QueryBuilder::new("qb_count").count().await.unwrap(), 3);
     }
 
     #[tokio::test]
     async fn test_query_builder_exists() {
-        let builder = QueryBuilder::new("users");
-        let exists = builder.exists().await.unwrap();
-        assert!(!exists);
+        crate::DB::statement("CREATE TABLE IF NOT EXISTS qb_exists (id INTEGER PRIMARY KEY)").unwrap();
+        crate::DB::statement("DELETE FROM qb_exists").unwrap();
+        assert!(!QueryBuilder::new("qb_exists").exists().await.unwrap());
+        crate::DB::insert("INSERT INTO qb_exists (id) VALUES (1)", &[]).unwrap();
+        assert!(QueryBuilder::new("qb_exists").exists().await.unwrap());
     }
 }

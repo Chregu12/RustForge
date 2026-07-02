@@ -391,6 +391,15 @@ mod tests {
         const TABLE: &'static str = "posts";
     }
 
+    /// Ensure the `users` table exists on the shared global DB so the read-path
+    /// query tests exercise real SQL (empty table is fine — they assert success).
+    fn ensure_users_table() {
+        crate::DB::statement(
+            "CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, name TEXT, email TEXT, role TEXT, active INTEGER, created_at TEXT)",
+        )
+        .unwrap();
+    }
+
     #[test]
     fn test_model_table_name() {
         assert_eq!(<User as Model>::TABLE, "users");
@@ -399,6 +408,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_model_where() {
+        ensure_users_table();
         let query = User::r#where("active", true);
         let results: Result<Vec<Value>, String> = query.get().await;
         assert!(results.is_ok());
@@ -406,6 +416,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_model_query() {
+        ensure_users_table();
         let query = User::query()
             .r#where("active", true)
             .order_by("name", "asc")
@@ -417,12 +428,14 @@ mod tests {
 
     #[tokio::test]
     async fn test_model_all() {
+        ensure_users_table();
         let results = User::all().await;
         assert!(results.is_ok());
     }
 
     #[tokio::test]
     async fn test_model_find() {
+        ensure_users_table();
         let result = User::find(1).await;
         assert!(result.is_ok());
     }
@@ -447,6 +460,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_model_chained_query() {
+        ensure_users_table();
         let results = User::r#where("role", "admin")
             .r#where("active", true)
             .where_not_null("email")
@@ -460,6 +474,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_model_count() {
+        ensure_users_table();
         let count = User::count().await;
         assert!(count.is_ok());
     }
