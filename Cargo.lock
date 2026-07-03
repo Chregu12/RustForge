@@ -1674,6 +1674,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "blog-slice"
+version = "0.1.0"
+dependencies = [
+ "axum 0.7.9",
+ "rf",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tower 0.5.2",
+]
+
+[[package]]
 name = "blowfish"
 version = "0.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

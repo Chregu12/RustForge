@@ -107,6 +107,7 @@ members = [
     "examples/laravel-syntax-complete",
     "examples/laravel-syntax-simple",
     "examples/facades-demo",
+    "examples/blog-slice",
     # Benchmarks
     "benchmarks",
     # Legacy CLI (kept as foundry-cli)
