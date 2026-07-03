@@ -1263,17 +1263,28 @@ impl QueryBuilder {
     /// ).await?;
     /// ```
     #[allow(non_snake_case)]
-    pub async fn updateOrInsert<S: Serialize, U: Serialize>(self, search: S, update: U) -> Result<bool, String> {
+    pub async fn updateOrInsert<S: Serialize, U: Serialize>(
+        mut self,
+        search: S,
+        update: U,
+    ) -> Result<bool, String> {
         let search_value = serde_json::to_value(search).map_err(|e| e.to_string())?;
         let update_value = serde_json::to_value(update).map_err(|e| e.to_string())?;
 
-        // Try to update
+        // The search attributes are the WHERE filter for the update.
+        if let Value::Object(map) = &search_value {
+            for (key, value) in map {
+                self = self.where_clause(key.clone(), "=", value.clone());
+            }
+        }
+
+        // Try to update the matching row(s) first.
         let affected = self.clone().update(update_value.clone()).await?;
         if affected > 0 {
             return Ok(true);
         }
 
-        // Insert new
+        // No match: insert the merged search + update attributes.
         let mut merged = search_value;
         if let (Value::Object(ref mut m1), Value::Object(m2)) = (&mut merged, update_value) {
             m1.extend(m2);
@@ -1310,14 +1321,49 @@ impl QueryBuilder {
     pub async fn upsert<D: Serialize>(
         self,
         records: Vec<D>,
-        _unique_by: &[&str],
-        _update: &[&str]
+        unique_by: &[&str],
+        update: &[&str],
     ) -> Result<u64, String> {
+        let conflict = unique_by.join(", ");
+        let mut affected = 0u64;
+
         for record in records {
-            let _value = serde_json::to_value(record).map_err(|e| e.to_string())?;
+            let value = serde_json::to_value(record).map_err(|e| e.to_string())?;
+            let obj = value
+                .as_object()
+                .ok_or_else(|| "upsert() records must be JSON objects".to_string())?;
+            if obj.is_empty() {
+                continue;
+            }
+
+            let columns: Vec<&str> = obj.keys().map(String::as_str).collect();
+            let placeholders = vec!["?"; columns.len()].join(", ");
+            let conflict_action = if update.is_empty() {
+                "DO NOTHING".to_string()
+            } else {
+                let sets = update
+                    .iter()
+                    .map(|c| format!("{c} = excluded.{c}"))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                format!("DO UPDATE SET {sets}")
+            };
+            let sql = format!(
+                "INSERT INTO {} ({}) VALUES ({}) ON CONFLICT({}) {}",
+                self.table,
+                columns.join(", "),
+                placeholders,
+                conflict,
+                conflict_action
+            );
+            let bindings: Vec<Value> = obj.values().cloned().collect();
+
+            let mut manager = GLOBAL_DB.lock().unwrap();
+            manager.update(&sql, &bindings)?;
+            affected += 1;
         }
-        // Mock implementation - real impl would use INSERT ... ON CONFLICT
-        Ok(0)
+
+        Ok(affected)
     }
 
     /// Laravel-style touch - update timestamps
