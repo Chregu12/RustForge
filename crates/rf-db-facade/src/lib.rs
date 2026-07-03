@@ -53,15 +53,16 @@
 //! # }
 //! ```
 
-pub mod facade;
-pub mod manager;
-pub mod model;
-pub mod query_builder;
-
-pub use facade::DB;
-pub use manager::{DBManager, GLOBAL_DB};
-pub use model::Model;
-pub use query_builder::{QueryBuilder, PaginatedResult};
+// This crate used to carry its OWN duplicate DB/DBManager/Model/QueryBuilder
+// (~2400 lines) whose query builder returned mock data (`get()` -> Ok(vec![])),
+// so the Model!/create!/find! macros that expand to `rf_db_facade::Model` /
+// `rf_db_facade::QueryBuilder` never touched a real database. It now re-exports
+// the single real implementation from `rf_orm::facade`, so those macros execute
+// real SQL through the same rusqlite-backed manager as `rf::DB`.
+pub use rf_orm::facade::db::DB;
+pub use rf_orm::facade::db_manager::{DBManager, GLOBAL_DB};
+pub use rf_orm::facade::model::Model;
+pub use rf_orm::facade::query_builder::{PaginatedResult, QueryBuilder};
 
 // Re-export commonly used types
 pub use serde_json::Value;
