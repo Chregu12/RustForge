@@ -42,6 +42,16 @@ rf-model-macro = { path = "../rf-model-macro" }
 # bring those names into scope (see `prelude`) for an `rf`-only consumer to use
 # the macros it advertises.
 rf-db-facade = { path = "../rf-db-facade" }
+# Facade crates that the rf_macros helper macros (event!/send_mail!/cache!/auth!/
+# storage!/redirect!/session!/view!/back!) expand to by crate name. The `rf`
+# umbrella re-exports these (see `prelude`) so an `rf`-only consumer using
+# `use rf::prelude::*` can actually use the macros it advertises.
+rf-event-facade = { path = "../rf-event-facade" }
+rf-mail-facade = { path = "../rf-mail-facade" }
+rf-cache-facade = { path = "../rf-cache-facade" }
+rf-auth-facade = { path = "../rf-auth-facade" }
+rf-storage-facade = { path = "../rf-storage-facade" }
+rf-route-facade = { path = "../rf-route-facade" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 chrono = { version = "0.4", features = ["serde", "clock"] }

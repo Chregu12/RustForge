@@ -7266,10 +7266,12 @@ dependencies = [
  "chrono",
  "rf-api-resources",
  "rf-auth",
+ "rf-auth-facade",
  "rf-authorization",
  "rf-blade",
  "rf-broadcast",
  "rf-cache",
+ "rf-cache-facade",
  "rf-cashier",
  "rf-collections",
  "rf-config",
@@ -7277,6 +7279,7 @@ dependencies = [
  "rf-db-facade",
  "rf-eloquent",
  "rf-errors",
+ "rf-event-facade",
  "rf-events",
  "rf-global-helpers",
  "rf-helpers",
@@ -7285,6 +7288,7 @@ dependencies = [
  "rf-logging",
  "rf-macros",
  "rf-mail",
+ "rf-mail-facade",
  "rf-mcp",
  "rf-metrics",
  "rf-model-macro",
@@ -7298,10 +7302,12 @@ dependencies = [
  "rf-request",
  "rf-requests",
  "rf-response",
+ "rf-route-facade",
  "rf-routing",
  "rf-sanctum",
  "rf-sse",
  "rf-storage",
+ "rf-storage-facade",
  "rf-testing",
  "rf-upload",
  "rf-validation",
@@ -8355,6 +8361,15 @@ dependencies = [
  "tracing",
  "urlencoding",
  "uuid 1.18.1",
+]
+
+[[package]]
+name = "rf-mail-facade"
+version = "0.1.0"
+dependencies = [
+ "once_cell",
+ "rf-mail",
+ "tokio",
 ]
 
 [[package]]

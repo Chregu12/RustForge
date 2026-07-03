@@ -121,7 +121,14 @@ pub mod prelude {
     // Macros
     pub use rf_macros::{rules, route, controller, Model};
     pub use rf_macros::{update, create, find, delete};  // Eloquent CRUD macros
-    pub use rf_macros::{routes, migration, request, send_mail, dispatch, job};  // Laravel helper macros
+    pub use rf_macros::{routes, migration, request, send_mail, dispatch};  // Laravel helper macros
+    // Laravel-style facade helper macros. Only the ones whose expansion actually
+    // compiles against an existing facade are re-exported here. These are
+    // intentionally NOT advertised until their engines/signatures are fixed
+    // (see VISION_GAP.md): `event!` (facade dispatch arity drift), `view!`/`back!`
+    // (need Response::view/back), `session!` (targets a non-existent `rf_session`
+    // crate), `job!` (targets a missing `rf_job_facade`).
+    pub use rf_macros::{auth, cache, redirect, storage};
     pub use rf_validation_derive::Validate;
 
     // Support for the `Model!`/`create!`/`find!`/`update!`/`delete!` macros above.
@@ -137,6 +144,16 @@ pub mod prelude {
     // trait `Model` live in different namespaces, so both names coexist.
     pub use rf_db_facade::{self, Model, QueryBuilder};
     pub use {chrono, serde_json};
+
+    // The Laravel-style helper macros above (event!/send_mail!/cache!/auth!/
+    // storage!/redirect!/session!/view!/back!) expand to code that names their
+    // facade crate by path (e.g. `rf_event_facade::Event::dispatch(..)`). Re-export
+    // those crates here so the macro expansions resolve through the prelude glob
+    // for a consumer that only depends on `rf`.
+    pub use {
+        rf_auth_facade, rf_cache_facade, rf_event_facade, rf_mail_facade, rf_response,
+        rf_route_facade, rf_storage_facade,
+    };
 
     // Core Types
     pub use rf_response::Response;
