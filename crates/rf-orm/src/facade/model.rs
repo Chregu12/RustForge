@@ -442,6 +442,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_model_create() {
+        ensure_users_table();
         let result = User::create(serde_json::json!({
             "name": "Test User",
             "email": "test@example.com"
@@ -449,11 +450,13 @@ mod tests {
 
         assert!(result.is_ok());
         let user = result.unwrap();
+        // Real INSERT returns the row id (not a hardcoded fake).
         assert!(user.get("id").is_some());
     }
 
     #[tokio::test]
     async fn test_model_destroy() {
+        ensure_users_table();
         let result = User::destroy(1).await;
         assert!(result.is_ok());
     }

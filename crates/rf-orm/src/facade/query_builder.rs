@@ -886,7 +886,15 @@ impl QueryBuilder {
     /// ```
     pub async fn increment(self, column: impl Into<String>, amount: i64) -> Result<u64, String> {
         let col = column.into();
-        self.update(serde_json::json!({ col: { "$inc": amount } })).await
+        let mut bindings: Vec<Value> = vec![Value::from(amount)];
+        let mut sql = format!("UPDATE {} SET {} = {} + ?", self.table, col, col);
+        let where_clause = self.build_where(&mut bindings);
+        if !where_clause.is_empty() {
+            sql.push_str(&format!(" WHERE {}", where_clause));
+        }
+
+        let mut manager = GLOBAL_DB.lock().unwrap();
+        manager.update(&sql, &bindings)
     }
 
     /// Laravel-style decrement - decrement a column value
@@ -1376,9 +1384,26 @@ impl QueryBuilder {
     /// }
     /// ```
     pub async fn insert<D: Serialize>(self, data: D) -> Result<u64, String> {
-        let _value = serde_json::to_value(data).map_err(|e| e.to_string())?;
-        // Mock implementation - returns fake ID
-        Ok(1)
+        let value = serde_json::to_value(data).map_err(|e| e.to_string())?;
+        let obj = value
+            .as_object()
+            .ok_or_else(|| "insert() data must be a JSON object".to_string())?;
+        if obj.is_empty() {
+            return Err("insert() data must not be empty".to_string());
+        }
+
+        let columns: Vec<&str> = obj.keys().map(String::as_str).collect();
+        let placeholders = vec!["?"; columns.len()].join(", ");
+        let sql = format!(
+            "INSERT INTO {} ({}) VALUES ({})",
+            self.table,
+            columns.join(", "),
+            placeholders
+        );
+        let bindings: Vec<Value> = obj.values().cloned().collect();
+
+        let mut manager = GLOBAL_DB.lock().unwrap();
+        manager.insert(&sql, &bindings)
     }
 
     /// Create a record and return it - Laravel-style!
@@ -1451,11 +1476,14 @@ impl QueryBuilder {
     /// }
     /// ```
     pub async fn insert_many<D: Serialize>(self, data: Vec<D>) -> Result<u64, String> {
-        let len = data.len();
+        let table = self.table.clone();
+        let mut inserted = 0u64;
         for item in data {
-            let _value = serde_json::to_value(item).map_err(|e| e.to_string())?;
+            let value = serde_json::to_value(item).map_err(|e| e.to_string())?;
+            QueryBuilder::new(table.clone()).insert(value).await?;
+            inserted += 1;
         }
-        Ok(len as u64)
+        Ok(inserted)
     }
 
     /// Update records matching the where clauses
@@ -1483,9 +1511,32 @@ impl QueryBuilder {
     /// }
     /// ```
     pub async fn update<D: Serialize>(self, data: D) -> Result<u64, String> {
-        let _value = serde_json::to_value(data).map_err(|e| e.to_string())?;
-        // Mock implementation
-        Ok(1)
+        let value = serde_json::to_value(data).map_err(|e| e.to_string())?;
+        let obj = value
+            .as_object()
+            .ok_or_else(|| "update() data must be a JSON object".to_string())?;
+        if obj.is_empty() {
+            return Ok(0);
+        }
+
+        let mut bindings: Vec<Value> = Vec::new();
+        let set_clause = obj
+            .iter()
+            .map(|(col, val)| {
+                bindings.push(val.clone());
+                format!("{} = ?", col)
+            })
+            .collect::<Vec<_>>()
+            .join(", ");
+
+        let mut sql = format!("UPDATE {} SET {}", self.table, set_clause);
+        let where_clause = self.build_where(&mut bindings);
+        if !where_clause.is_empty() {
+            sql.push_str(&format!(" WHERE {}", where_clause));
+        }
+
+        let mut manager = GLOBAL_DB.lock().unwrap();
+        manager.update(&sql, &bindings)
     }
 
     /// Delete records matching the where clauses
@@ -1502,8 +1553,15 @@ impl QueryBuilder {
     /// }
     /// ```
     pub async fn delete(self) -> Result<u64, String> {
-        // Mock implementation
-        Ok(1)
+        let mut bindings: Vec<Value> = Vec::new();
+        let where_clause = self.build_where(&mut bindings);
+        let mut sql = format!("DELETE FROM {}", self.table);
+        if !where_clause.is_empty() {
+            sql.push_str(&format!(" WHERE {}", where_clause));
+        }
+
+        let mut manager = GLOBAL_DB.lock().unwrap();
+        manager.delete(&sql, &bindings)
     }
 
     /// Count the results
