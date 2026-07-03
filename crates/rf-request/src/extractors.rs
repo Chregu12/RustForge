@@ -29,14 +29,18 @@ fn merge_urlencoded(fields: &mut HashMap<String, Value>, input: &str) {
     }
 }
 
-#[async_trait]
-impl<S> FromRequest<S> for Request
+/// Parse an incoming request into `(fields, files, drained_inner_request)`.
+///
+/// Shared by the [`Request`] extractor and the `capture_request` middleware, so
+/// both populate identical fields/files from JSON, query, form and multipart.
+pub async fn parse_request<S>(
+    req: AxumRequest,
+    state: &S,
+) -> Result<(HashMap<String, Value>, HashMap<String, UploadedFile>, HttpRequest<Body>), RequestError>
 where
     S: Send + Sync,
 {
-    type Rejection = RequestError;
-
-    async fn from_request(req: AxumRequest, state: &S) -> Result<Self, Self::Rejection> {
+    {
         let (parts, body) = req.into_parts();
 
         let content_type = parts
@@ -136,7 +140,20 @@ where
             .body(Body::empty())
             .map_err(|e| RequestError::InvalidBody(e.to_string()))?;
 
-        Ok(Request::new(http_req).with_fields(fields).with_files(files))
+        Ok((fields, files, http_req))
+    }
+}
+
+#[async_trait]
+impl<S> FromRequest<S> for Request
+where
+    S: Send + Sync,
+{
+    type Rejection = RequestError;
+
+    async fn from_request(req: AxumRequest, state: &S) -> Result<Self, Self::Rejection> {
+        let (fields, files, inner) = parse_request(req, state).await?;
+        Ok(Request::new(inner).with_fields(fields).with_files(files))
     }
 }
 

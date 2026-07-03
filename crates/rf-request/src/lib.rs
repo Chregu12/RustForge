@@ -30,6 +30,7 @@
 //! };
 //! ```
 
+pub mod context;
 pub mod error;
 pub mod extractors;
 pub mod request;
@@ -38,6 +39,9 @@ pub mod upload;
 pub mod user;
 
 // Re-export main types
+pub use context::{
+    all, capture_request, file, has, input, with_request_context, RequestContext,
+};
 pub use error::{RequestError, RequestResult};
 pub use extractors::RequestExtractor;
 pub use request::Request;

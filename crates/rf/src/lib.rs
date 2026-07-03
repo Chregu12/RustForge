@@ -106,6 +106,9 @@ pub mod prelude {
     // Real handler-based route registration: `get("/", home_handler)` etc.,
     // served via `rf_routing::global_router().build_router()`.
     pub use rf_routing::{delete, get, patch, post, put};
+    // Implicit-request global helpers (behind the `capture_request` middleware):
+    // `file("image")`, `input("title")`, `has("title")`.
+    pub use rf_request::{file, has, input};
     pub use rf_auth::Auth;
     pub use rf_orm::DB;
     pub use rf_cache::CacheFacade as Cache;
