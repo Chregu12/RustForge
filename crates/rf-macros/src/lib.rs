@@ -56,6 +56,7 @@ mod query_macro;
 mod rules_macro;
 mod rustforge_block;
 mod simple_model;
+mod validate_macro;
 
 use await_transformer::AwaitTransformer;
 use proc_macro::TokenStream;
@@ -105,6 +106,25 @@ pub fn function(input: TokenStream) -> TokenStream {
 #[proc_macro]
 pub fn rules(input: TokenStream) -> TokenStream {
     rules_macro::rules_impl(input)
+}
+
+/// Typed, fluent validation DSL that validates the current request.
+///
+/// ```ignore
+/// let data = validate! {
+///     title: string.max(255),
+///     email: email,
+///     age:   int.min(18),
+///     bio:   string.optional,
+/// }?;
+/// ```
+///
+/// The leading type disambiguates length-vs-numeric `min`/`max`; fields are
+/// required unless `.optional`/`.nullable`. Expands to an `.await`ed validation
+/// of `rf_request::all()`, yielding `Result<ValidatedData, ValidationErrors>`.
+#[proc_macro]
+pub fn validate(input: TokenStream) -> TokenStream {
+    validate_macro::validate_impl(input)
 }
 
 /// Marks a struct implementation as a controller.

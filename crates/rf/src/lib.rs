@@ -128,6 +128,7 @@ pub mod prelude {
     pub use rf_macros::{rules, route, controller, Model};
     pub use rf_macros::{update, create, find, delete};  // Eloquent CRUD macros
     pub use rf_macros::{routes, migration, request, send_mail, dispatch};  // Laravel helper macros
+    pub use rf_macros::validate;  // typed validation DSL (validates the current request)
     // Laravel-style facade helper macros. Only the ones whose expansion actually
     // compiles against an existing facade are re-exported here. These are
     // intentionally NOT advertised until their engines/signatures are fixed
@@ -160,6 +161,10 @@ pub mod prelude {
         rf_auth_facade, rf_cache_facade, rf_event_facade, rf_mail_facade, rf_response,
         rf_route_facade, rf_storage_facade,
     };
+    // The `validate!` macro expands to code naming `rf_validation::` and
+    // `rf_request::` by crate path; re-export those crate names so it resolves
+    // through the prelude glob for an `rf`-only consumer.
+    pub use {rf_request, rf_validation};
 
     // Core Types
     pub use rf_response::Response;
