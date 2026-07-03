@@ -1,98 +1,25 @@
 //! # rf-auth-facade
 //!
-//! Laravel-style Auth facade for the RustForge framework.
+//! Laravel-style `Auth` facade for the RustForge framework.
 //!
-//! This crate provides a static, fluent API for authentication similar to Laravel's Auth facade,
-//! making it easy to work with authentication from anywhere in your application.
+//! This crate used to carry its **own** duplicate `Auth`/`AuthManager`/`Guard`
+//! implementation. That duplicate held the current user in a single process-global
+//! (a cross-request state leak) and shipped a mock `attempt` that logged anyone in.
+//! It now simply **re-exports the single, request-scoped implementation from
+//! [`rf_auth`]**, so there is exactly one correct source of truth. Establish a
+//! per-request scope with `rf_auth::middleware::auth_scope`.
 //!
 //! # Recommended Usage
 //!
-//! Use the consolidated `rf` crate for simpler imports (`use rf::Auth;` or
-//! `use rf::prelude::*;`). When depending on this crate directly, import it as:
+//! Prefer the consolidated `rf` crate (`use rf::Auth;` / `use rf::prelude::*;`).
+//! When depending on this crate directly:
+//!
 //! ```rust
 //! use rf_auth_facade::Auth;
 //! ```
-//!
-//! ## Features
-//!
-//! - **Static Auth API**: Use `Auth::check()`, `Auth::user()`, etc. - no `.await` needed!
-//! - **Global Auth Manager**: Thread-safe global authentication state
-//! - **Guard Support**: Multiple authentication guards
-//! - **Laravel-Compatible**: Familiar API for Laravel developers
-//!
-//! ## Quick Start
-//!
-//! ```rust,no_run
-//! // Recommended: use rf::Auth;
-//! use rf_auth_facade::Auth;  // Direct import also works
-//! use serde::{Serialize, Deserialize};
-//!
-//! #[derive(Debug, Clone, Serialize, Deserialize)]
-//! struct User {
-//!     id: u64,
-//!     email: String,
-//!     name: String,
-//! }
-//!
-//! fn example() -> Result<(), String> {
-//!     // Login a user
-//!     let user = User {
-//!         id: 1,
-//!         email: "user@example.com".to_string(),
-//!         name: "John Doe".to_string(),
-//!     };
-//!     Auth::login(user.clone())?;
-//!
-//!     // Check if authenticated
-//!     if Auth::check() {
-//!         println!("User is authenticated");
-//!     }
-//!
-//!     // Get current user
-//!     if let Some(current_user) = Auth::user::<User>() {
-//!         println!("Current user: {}", current_user.name);
-//!     }
-//!
-//!     // Get user ID
-//!     if let Some(id) = Auth::id() {
-//!         println!("User ID: {}", id);
-//!     }
-//!
-//!     // Logout
-//!     Auth::logout();
-//!     Ok(())
-//! }
-//! ```
-//!
-//! ## Authentication Flow
-//!
-//! ```rust,no_run
-//! // Recommended: use rf::Auth;
-//! use rf_auth_facade::Auth;  // Direct import also works
-//!
-//! fn example() -> Result<(), String> {
-//!     // Attempt login with credentials
-//!     let credentials = serde_json::json!({
-//!         "email": "user@example.com",
-//!         "password": "secret"
-//!     });
-//!
-//!     if Auth::attempt(credentials)? {
-//!         println!("Login successful!");
-//!     } else {
-//!         println!("Invalid credentials");
-//!     }
-//!     Ok(())
-//! }
-//! ```
 
-pub mod facade;
-pub mod manager;
-pub mod guard;
-
-pub use facade::Auth;
-pub use manager::{AuthManager, GLOBAL_AUTH};
-pub use guard::Guard;
-
-// Re-export commonly used types from rf-auth
-pub use rf_auth::{AuthError, AuthResult, Claims, JwtManager};
+// One source of truth: the request-scoped auth implementation in `rf-auth`.
+pub use rf_auth::{
+    with_auth_scope, with_auth_scope_sync, Auth, AuthError, AuthManager, AuthResult, Claims, Guard,
+    JwtManager, UserProvider, GLOBAL_AUTH,
+};

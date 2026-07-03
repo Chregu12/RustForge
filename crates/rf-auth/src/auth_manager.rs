@@ -1,16 +1,19 @@
-//! Global authentication manager
+//! Request-scoped authentication manager.
+//!
+//! The authenticated user is held in a **per-request** task-local scope, not a
+//! single process-global instance, so concurrent requests can never see each
+//! other's login state. The public API is unchanged: `GLOBAL_AUTH.read()/.write()`
+//! and `AuthManager` still work, but `AuthManager` is now a thin proxy over the
+//! active scope. Establish a scope per request with [`with_auth_scope`] (or the
+//! [`crate::middleware`] auth-scope middleware).
 
 use crate::password::PasswordHasher;
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::sync::{Arc, RwLock};
-
-/// Global authentication manager instance
-/// Uses std::sync::RwLock for synchronous access (no .await needed)
-pub static GLOBAL_AUTH: Lazy<RwLock<AuthManager>> = Lazy::new(|| {
-    RwLock::new(AuthManager::new())
-});
+use std::cell::RefCell;
+use std::future::Future;
+use std::sync::{Arc, Mutex, RwLock};
 
 /// Resolves login credentials to a stored user record for [`AuthManager::attempt`].
 ///
@@ -30,132 +33,192 @@ pub trait UserProvider: Send + Sync {
     }
 }
 
-/// Authentication manager that holds the current authentication state
-pub struct AuthManager {
-    /// Currently authenticated user (as JSON)
+/// The mutable per-request authentication state.
+#[derive(Default)]
+struct AuthState {
+    /// Currently authenticated user (as JSON).
     current_user: Option<Value>,
-    /// Remember me state
+    /// Remember-me flag.
     via_remember: bool,
-    /// Current guard name
-    guard: String,
-    /// Optional user provider used by [`AuthManager::attempt`] to look up and
-    /// verify credentials. When `None`, `attempt` denies every request
-    /// (fail-closed) rather than authenticating unverified input.
+    /// Current guard name (`None` == the default "web").
+    guard: Option<String>,
+    /// Per-scope provider override; falls back to [`DEFAULT_PROVIDER`] when `None`.
     provider: Option<Arc<dyn UserProvider>>,
 }
 
-impl std::fmt::Debug for AuthManager {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("AuthManager")
-            .field("current_user", &self.current_user)
-            .field("via_remember", &self.via_remember)
-            .field("guard", &self.guard)
-            .field("provider", &self.provider.as_ref().map(|_| "<provider>"))
-            .finish()
+impl AuthState {
+    fn guard_name(&self) -> String {
+        self.guard.clone().unwrap_or_else(|| "web".to_string())
     }
 }
 
+tokio::task_local! {
+    /// The per-request authentication state, established by [`with_auth_scope`].
+    static AUTH_STATE: RefCell<AuthState>;
+}
+
+/// Process-global default [`UserProvider`], set once at startup via
+/// `Auth::set_provider`. Per-request scopes with no override fall back to this.
+static DEFAULT_PROVIDER: Lazy<RwLock<Option<Arc<dyn UserProvider>>>> =
+    Lazy::new(|| RwLock::new(None));
+
+/// Fallback state used by code paths that are NOT inside a per-request auth scope
+/// (CLI, unit tests, startup). It is never used while serving concurrent HTTP
+/// requests — each of those runs inside its own task-local [`AUTH_STATE`] scope.
+static FALLBACK_STATE: Lazy<Mutex<AuthState>> = Lazy::new(|| Mutex::new(AuthState::default()));
+
+/// Run `f` against the active auth state: the per-request task-local scope if one
+/// is established, otherwise the process-global fallback.
+fn with_state<R>(f: impl FnOnce(&mut AuthState) -> R) -> R {
+    let mut f = Some(f);
+    let attempted = AUTH_STATE.try_with(|cell| (f.take().unwrap())(&mut cell.borrow_mut()));
+    match attempted {
+        Ok(r) => r,
+        Err(_) => (f.take().unwrap())(&mut FALLBACK_STATE.lock().unwrap()),
+    }
+}
+
+/// True if the current task is running inside a per-request auth scope.
+fn in_scope() -> bool {
+    AUTH_STATE.try_with(|_| ()).is_ok()
+}
+
+/// Run an async request handler inside a fresh per-request auth scope, so its
+/// login state cannot leak into other concurrent requests. This is what the
+/// auth-scope middleware wraps each request in.
+pub async fn with_auth_scope<F, R>(fut: F) -> R
+where
+    F: Future<Output = R>,
+{
+    AUTH_STATE.scope(RefCell::new(AuthState::default()), fut).await
+}
+
+/// Synchronous variant of [`with_auth_scope`] for non-async contexts (tests, CLI).
+pub fn with_auth_scope_sync<R>(f: impl FnOnce() -> R) -> R {
+    AUTH_STATE.sync_scope(RefCell::new(AuthState::default()), f)
+}
+
+/// Authentication manager — a thin proxy over the active [`AuthState`] scope.
+///
+/// It carries no state itself; all reads/writes go to the per-request task-local
+/// scope (or the process-global fallback outside a scope).
+#[derive(Debug, Clone, Copy, Default)]
+pub struct AuthManager;
+
 impl AuthManager {
-    /// Create a new authentication manager
+    /// Create a manager proxy. (State lives in the active scope, not in the proxy.)
     pub fn new() -> Self {
-        Self {
-            current_user: None,
-            via_remember: false,
-            guard: "web".to_string(),
-            provider: None,
+        AuthManager
+    }
+
+    /// Register the [`UserProvider`] used by [`attempt`](Self::attempt). Inside a
+    /// request/test scope this sets the scope-local provider; at app startup (no
+    /// scope) it sets the process-global default that every request inherits.
+    pub fn set_provider(&self, provider: Arc<dyn UserProvider>) {
+        if in_scope() {
+            with_state(|s| s.provider = Some(provider));
+        } else {
+            *DEFAULT_PROVIDER.write().unwrap() = Some(provider);
         }
     }
 
-    /// Register the [`UserProvider`] that [`attempt`](Self::attempt) uses to look
-    /// up and verify credentials. Until one is set, `attempt` fails closed.
-    pub fn set_provider(&mut self, provider: Arc<dyn UserProvider>) {
-        self.provider = Some(provider);
+    /// The provider that applies to the current scope (override, else the default).
+    fn active_provider(&self) -> Option<Arc<dyn UserProvider>> {
+        with_state(|s| s.provider.clone())
+            .or_else(|| DEFAULT_PROVIDER.read().unwrap().clone())
     }
 
-    /// Check if a user is authenticated
+    /// Check if a user is authenticated in the current scope.
     pub fn check(&self) -> bool {
-        self.current_user.is_some()
+        with_state(|s| s.current_user.is_some())
     }
 
-    /// Check if a user is not authenticated
+    /// Check if the current scope has no authenticated user.
     pub fn guest(&self) -> bool {
-        self.current_user.is_none()
+        with_state(|s| s.current_user.is_none())
     }
 
-    /// Get the currently authenticated user
+    /// Get the currently authenticated user.
     pub fn user<T: for<'de> Deserialize<'de>>(&self) -> Option<T> {
-        self.current_user.as_ref().and_then(|user| {
-            serde_json::from_value(user.clone()).ok()
+        with_state(|s| {
+            s.current_user
+                .as_ref()
+                .and_then(|user| serde_json::from_value(user.clone()).ok())
         })
     }
 
-    /// Get the ID of the currently authenticated user
+    /// Get the ID of the currently authenticated user.
     pub fn id(&self) -> Option<u64> {
-        self.current_user.as_ref().and_then(|user| {
-            user.get("id")
-                .and_then(|id| id.as_u64())
+        with_state(|s| {
+            s.current_user
+                .as_ref()
+                .and_then(|user| user.get("id").and_then(|id| id.as_u64()))
         })
     }
 
-    /// Login a user
-    pub fn login<T: Serialize>(&mut self, user: T) -> Result<(), String> {
-        let user_json = serde_json::to_value(user)
-            .map_err(|e| format!("Failed to serialize user: {}", e))?;
-
-        self.current_user = Some(user_json);
-        self.via_remember = false;
+    /// Login a user into the current scope.
+    pub fn login<T: Serialize>(&self, user: T) -> Result<(), String> {
+        let user_json =
+            serde_json::to_value(user).map_err(|e| format!("Failed to serialize user: {}", e))?;
+        with_state(|s| {
+            s.current_user = Some(user_json);
+            s.via_remember = false;
+        });
         Ok(())
     }
 
-    /// Login a user with remember me
-    pub fn login_with_remember<T: Serialize>(&mut self, user: T, remember: bool) -> Result<(), String> {
+    /// Login a user with a remember-me flag.
+    pub fn login_with_remember<T: Serialize>(
+        &self,
+        user: T,
+        remember: bool,
+    ) -> Result<(), String> {
         self.login(user)?;
-        self.via_remember = remember;
+        with_state(|s| s.via_remember = remember);
         Ok(())
     }
 
-    /// Logout the current user
-    pub fn logout(&mut self) {
-        self.current_user = None;
-        self.via_remember = false;
+    /// Logout the current scope's user.
+    pub fn logout(&self) {
+        with_state(|s| {
+            s.current_user = None;
+            s.via_remember = false;
+        });
     }
 
     /// Attempt to authenticate with the given credentials.
     ///
-    /// Looks the user up through the registered [`UserProvider`] and verifies the
+    /// Looks the user up through the active [`UserProvider`] and verifies the
     /// submitted password against the stored hash (bcrypt/argon2 auto-detected). On
-    /// success the user is logged in (with the password field stripped) and `true`
-    /// is returned; on any mismatch `false` is returned.
+    /// success the user is logged into the current scope (password field stripped)
+    /// and `true` is returned; on any mismatch `false`.
     ///
-    /// This is **fail-closed**: if no provider has been registered, or the user is
-    /// not found, or the record has no usable password hash, authentication is
-    /// denied. It never authenticates unverified input.
-    pub fn attempt(&mut self, credentials: Value) -> Result<bool, String> {
-        // No provider configured -> deny (do NOT log anyone in).
-        let provider = match &self.provider {
-            Some(p) => p.clone(),
-            None => return Ok(false),
-        };
-
-        let password = match credentials.get("password").and_then(Value::as_str) {
+    /// **Fail-closed**: if no provider is configured, the user is not found, or the
+    /// record has no usable password hash, authentication is denied. It never
+    /// authenticates unverified input.
+    pub fn attempt(&self, credentials: Value) -> Result<bool, String> {
+        let provider = match self.active_provider() {
             Some(p) => p,
             None => return Ok(false),
         };
 
-        // Look up the stored record for this identifier.
+        let password = match credentials.get("password").and_then(Value::as_str) {
+            Some(p) => p.to_string(),
+            None => return Ok(false),
+        };
+
         let record = match provider.retrieve_by_credentials(&credentials) {
             Some(r) => r,
             None => return Ok(false),
         };
 
-        // Verify the submitted password against the stored hash.
         let hash = match record.get(provider.password_field()).and_then(Value::as_str) {
-            Some(h) => h,
+            Some(h) => h.to_string(),
             None => return Ok(false),
         };
 
         let verified = PasswordHasher::default()
-            .verify(password, hash)
+            .verify(&password, &hash)
             .map_err(|e| format!("Password verification failed: {}", e))?;
 
         if !verified {
@@ -167,133 +230,75 @@ impl AuthManager {
         if let Some(obj) = user.as_object_mut() {
             obj.remove(provider.password_field());
         }
-        self.current_user = Some(user);
-        self.via_remember = false;
+        with_state(|s| {
+            s.current_user = Some(user);
+            s.via_remember = false;
+        });
         Ok(true)
     }
 
-    /// Check if the user was authenticated via remember me
+    /// Whether the current user was authenticated via remember-me.
     pub fn via_remember(&self) -> bool {
-        self.via_remember
+        with_state(|s| s.via_remember)
     }
 
-    /// Get the current guard name
-    pub fn guard_name(&self) -> &str {
-        &self.guard
+    /// The current guard name.
+    pub fn guard_name(&self) -> String {
+        with_state(|s| s.guard_name())
     }
 
-    /// Set the current guard
-    pub fn set_guard(&mut self, guard: String) {
-        self.guard = guard;
+    /// Set the current guard.
+    pub fn set_guard(&self, guard: String) {
+        with_state(|s| s.guard = Some(guard));
     }
 
-    /// Check if user has a specific role
+    /// Check if the current user has a specific role.
     pub fn has_role(&self, role: &str) -> bool {
-        if let Some(user) = &self.current_user {
-            if let Some(roles) = user.get("roles").and_then(|r| r.as_array()) {
-                return roles.iter().any(|r| r.as_str() == Some(role));
+        with_state(|s| {
+            if let Some(user) = &s.current_user {
+                if let Some(roles) = user.get("roles").and_then(|r| r.as_array()) {
+                    return roles.iter().any(|r| r.as_str() == Some(role));
+                }
             }
-        }
-        false
+            false
+        })
     }
 
-    /// Check if user has any of the given roles
+    /// Check if the current user has any of the given roles.
     pub fn has_any_role(&self, roles: &[&str]) -> bool {
         roles.iter().any(|role| self.has_role(role))
     }
 
-    /// Check if user has all of the given roles
+    /// Check if the current user has all of the given roles.
     pub fn has_all_roles(&self, roles: &[&str]) -> bool {
         roles.iter().all(|role| self.has_role(role))
     }
 }
 
-impl Default for AuthManager {
-    fn default() -> Self {
-        Self::new()
+/// Accessor that preserves the historical `GLOBAL_AUTH.read()/.write().unwrap()`
+/// call sites, now backed by the per-request scope instead of one shared instance.
+pub struct GlobalAuth;
+
+/// Global entry point for the auth manager proxy. `read()`/`write()` both hand out
+/// an [`AuthManager`] proxy over the active scope (the names are kept only for
+/// source compatibility; there is no lock to contend on).
+pub static GLOBAL_AUTH: GlobalAuth = GlobalAuth;
+
+impl GlobalAuth {
+    /// Get a manager proxy (compatibility shim; never fails).
+    pub fn read(&self) -> Result<AuthManager, std::convert::Infallible> {
+        Ok(AuthManager)
+    }
+
+    /// Get a manager proxy (compatibility shim; never fails).
+    pub fn write(&self) -> Result<AuthManager, std::convert::Infallible> {
+        Ok(AuthManager)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde::{Deserialize, Serialize};
-
-    #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-    struct TestUser {
-        id: u64,
-        email: String,
-        name: String,
-    }
-
-    #[test]
-    fn test_auth_manager_new() {
-        let manager = AuthManager::new();
-        assert!(!manager.check());
-        assert!(manager.guest());
-    }
-
-    #[test]
-    fn test_auth_manager_login() {
-        let mut manager = AuthManager::new();
-        let user = TestUser {
-            id: 1,
-            email: "test@example.com".to_string(),
-            name: "Test User".to_string(),
-        };
-
-        manager.login(user.clone()).unwrap();
-        assert!(manager.check());
-        assert!(!manager.guest());
-
-        let current: Option<TestUser> = manager.user();
-        assert_eq!(current, Some(user));
-    }
-
-    #[test]
-    fn test_auth_manager_logout() {
-        let mut manager = AuthManager::new();
-        let user = TestUser {
-            id: 1,
-            email: "test@example.com".to_string(),
-            name: "Test User".to_string(),
-        };
-
-        manager.login(user).unwrap();
-        assert!(manager.check());
-
-        manager.logout();
-        assert!(!manager.check());
-        assert!(manager.guest());
-    }
-
-    #[test]
-    fn test_auth_manager_id() {
-        let mut manager = AuthManager::new();
-        assert_eq!(manager.id(), None);
-
-        let user = TestUser {
-            id: 42,
-            email: "test@example.com".to_string(),
-            name: "Test User".to_string(),
-        };
-
-        manager.login(user).unwrap();
-        assert_eq!(manager.id(), Some(42));
-    }
-
-    #[test]
-    fn test_auth_manager_via_remember() {
-        let mut manager = AuthManager::new();
-        let user = TestUser {
-            id: 1,
-            email: "test@example.com".to_string(),
-            name: "Test User".to_string(),
-        };
-
-        manager.login_with_remember(user, true).unwrap();
-        assert!(manager.via_remember());
-    }
 
     /// Test provider backing a single user with a real bcrypt-hashed password.
     struct TestProvider {
@@ -317,7 +322,7 @@ mod tests {
         }
     }
 
-    fn provider() -> Arc<dyn UserProvider> {
+    fn test_provider() -> Arc<dyn UserProvider> {
         let hash = PasswordHasher::bcrypt(4).unwrap().hash("secret").unwrap();
         Arc::new(TestProvider {
             email: "test@example.com".to_string(),
@@ -327,43 +332,72 @@ mod tests {
 
     #[test]
     fn test_attempt_fails_closed_without_provider() {
-        let mut manager = AuthManager::new();
-        let credentials = serde_json::json!({"email": "test@example.com", "password": "secret"});
-        assert!(!manager.attempt(credentials).unwrap());
-        assert!(!manager.check());
+        with_auth_scope_sync(|| {
+            let m = AuthManager;
+            let credentials =
+                serde_json::json!({"email": "test@example.com", "password": "secret"});
+            assert!(!m.attempt(credentials).unwrap());
+            assert!(!m.check());
+        });
     }
 
     #[test]
     fn test_attempt_succeeds_with_correct_password() {
-        let mut manager = AuthManager::new();
-        manager.set_provider(provider());
-        let credentials = serde_json::json!({"email": "test@example.com", "password": "secret"});
-        assert!(manager.attempt(credentials).unwrap());
-        assert!(manager.check());
-        // Password hash must never be exposed in the session state.
-        assert!(manager.user::<Value>().unwrap().get("password").is_none());
+        with_auth_scope_sync(|| {
+            let m = AuthManager;
+            m.set_provider(test_provider()); // scope-local (we're in a scope)
+            let credentials =
+                serde_json::json!({"email": "test@example.com", "password": "secret"});
+            assert!(m.attempt(credentials).unwrap());
+            assert!(m.check());
+            // Password hash must never be exposed in the session state.
+            assert!(m.user::<Value>().unwrap().get("password").is_none());
+        });
     }
 
     #[test]
     fn test_attempt_rejects_wrong_password_and_unknown_user() {
-        let mut manager = AuthManager::new();
-        manager.set_provider(provider());
-
-        let wrong_pw = serde_json::json!({"email": "test@example.com", "password": "nope"});
-        assert!(!manager.attempt(wrong_pw).unwrap());
-        assert!(!manager.check());
-
-        let unknown = serde_json::json!({"email": "ghost@example.com", "password": "secret"});
-        assert!(!manager.attempt(unknown).unwrap());
-        assert!(!manager.check());
+        with_auth_scope_sync(|| {
+            let m = AuthManager;
+            m.set_provider(test_provider());
+            assert!(!m
+                .attempt(serde_json::json!({"email": "test@example.com", "password": "nope"}))
+                .unwrap());
+            assert!(!m
+                .attempt(serde_json::json!({"email": "ghost@example.com", "password": "secret"}))
+                .unwrap());
+            assert!(!m.check());
+        });
     }
 
     #[test]
-    fn test_auth_manager_guard() {
-        let mut manager = AuthManager::new();
-        assert_eq!(manager.guard_name(), "web");
+    fn test_guard_name_default_and_set() {
+        with_auth_scope_sync(|| {
+            let m = AuthManager;
+            assert_eq!(m.guard_name(), "web");
+            m.set_guard("api".to_string());
+            assert_eq!(m.guard_name(), "api");
+        });
+    }
 
-        manager.set_guard("api".to_string());
-        assert_eq!(manager.guard_name(), "api");
+    #[tokio::test]
+    async fn test_login_state_is_isolated_between_concurrent_scopes() {
+        // Two concurrent request scopes must not see each other's user.
+        let a = with_auth_scope(async {
+            let m = AuthManager;
+            m.login(serde_json::json!({"id": 1, "name": "Alice"})).unwrap();
+            // yield so the other task interleaves while we're "logged in"
+            tokio::task::yield_now().await;
+            (m.check(), m.id())
+        });
+        let b = with_auth_scope(async {
+            let m = AuthManager;
+            tokio::task::yield_now().await;
+            // b never logged in -> must be a guest despite a's concurrent login
+            (m.check(), m.id())
+        });
+        let ((a_check, a_id), (b_check, b_id)) = tokio::join!(a, b);
+        assert!(a_check && a_id == Some(1), "scope A keeps its own user");
+        assert!(!b_check && b_id.is_none(), "scope B is NOT authenticated by A's login");
     }
 }

@@ -2,6 +2,7 @@
 //!
 //! Provides middleware for protecting routes with JWT authentication.
 
+use crate::auth_manager::with_auth_scope;
 use crate::{jwt::JwtManager, Claims};
 use axum::{
     extract::{Extension, Request},
@@ -10,6 +11,25 @@ use axum::{
 };
 use rf_core::error::AppError;
 use std::sync::Arc;
+
+/// Establishes a fresh per-request authentication scope.
+///
+/// Every request handled through this middleware gets its own isolated auth state
+/// (current user, remember-me, guard), so a login performed while serving one
+/// request can never leak into another concurrent request. Add it once near the
+/// top of your middleware stack:
+///
+/// ```ignore
+/// use axum::{Router, routing::get, middleware};
+/// use rf_auth::middleware::auth_scope;
+///
+/// let app = Router::new()
+///     .route("/", get(handler))
+///     .layer(middleware::from_fn(auth_scope));
+/// ```
+pub async fn auth_scope(req: Request, next: Next) -> Response {
+    with_auth_scope(next.run(req)).await
+}
 
 /// Authentication middleware that validates JWT tokens
 ///
