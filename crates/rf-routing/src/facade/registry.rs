@@ -3,6 +3,8 @@
 //! This module provides a thread-safe global router that can be accessed
 //! from anywhere in the application.
 
+use axum::handler::Handler;
+use axum::routing::MethodRouter;
 use axum::Router;
 use once_cell::sync::Lazy;
 use parking_lot::RwLock;
@@ -19,9 +21,8 @@ pub struct RouteInfo {
 }
 
 /// Global router registry that maintains all routes in the application.
-#[derive(Debug)]
 pub struct GlobalRouter {
-    /// All registered routes
+    /// All registered routes (metadata: methods, uri, name, middleware).
     routes: RwLock<Vec<RouteInfo>>,
     /// Named route registry
     named_routes: RwLock<RouteRegistry>,
@@ -29,6 +30,20 @@ pub struct GlobalRouter {
     groups: RwLock<Vec<String>>,
     /// Middleware registry
     middleware: RwLock<HashMap<String, Vec<String>>>,
+    /// Real, executable Axum handlers keyed by path. Each entry accumulates the
+    /// method routes (GET/POST/...) registered for that path, so
+    /// [`build_router`](Self::build_router) can produce a router that actually
+    /// serves traffic.
+    handlers: RwLock<HashMap<String, MethodRouter<()>>>,
+}
+
+impl std::fmt::Debug for GlobalRouter {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("GlobalRouter")
+            .field("routes", &self.routes.read().len())
+            .field("handler_paths", &self.handlers.read().len())
+            .finish()
+    }
 }
 
 impl GlobalRouter {
@@ -39,7 +54,64 @@ impl GlobalRouter {
             named_routes: RwLock::new(RouteRegistry::new()),
             groups: RwLock::new(Vec::new()),
             middleware: RwLock::new(HashMap::new()),
+            handlers: RwLock::new(HashMap::new()),
         }
+    }
+
+    /// Register a real Axum handler for `path`, folding it into that path's
+    /// method router via `add` (e.g. `|mr| mr.get(handler)`).
+    fn upsert_handler<F>(&self, path: String, add: F)
+    where
+        F: FnOnce(MethodRouter<()>) -> MethodRouter<()>,
+    {
+        let mut handlers = self.handlers.write();
+        let existing = handlers.remove(&path).unwrap_or_default();
+        handlers.insert(path, add(existing));
+    }
+
+    /// Register a `GET` handler that will actually serve `path`.
+    pub fn add_get<H, T>(&self, path: impl Into<String>, handler: H)
+    where
+        H: Handler<T, ()>,
+        T: 'static,
+    {
+        self.upsert_handler(path.into(), move |mr| mr.get(handler));
+    }
+
+    /// Register a `POST` handler that will actually serve `path`.
+    pub fn add_post<H, T>(&self, path: impl Into<String>, handler: H)
+    where
+        H: Handler<T, ()>,
+        T: 'static,
+    {
+        self.upsert_handler(path.into(), move |mr| mr.post(handler));
+    }
+
+    /// Register a `PUT` handler that will actually serve `path`.
+    pub fn add_put<H, T>(&self, path: impl Into<String>, handler: H)
+    where
+        H: Handler<T, ()>,
+        T: 'static,
+    {
+        self.upsert_handler(path.into(), move |mr| mr.put(handler));
+    }
+
+    /// Register a `PATCH` handler that will actually serve `path`.
+    pub fn add_patch<H, T>(&self, path: impl Into<String>, handler: H)
+    where
+        H: Handler<T, ()>,
+        T: 'static,
+    {
+        self.upsert_handler(path.into(), move |mr| mr.patch(handler));
+    }
+
+    /// Register a `DELETE` handler that will actually serve `path`.
+    pub fn add_delete<H, T>(&self, path: impl Into<String>, handler: H)
+    where
+        H: Handler<T, ()>,
+        T: 'static,
+    {
+        self.upsert_handler(path.into(), move |mr| mr.delete(handler));
     }
 
     /// Register a new route.
@@ -114,19 +186,19 @@ impl GlobalRouter {
         *self.named_routes.write() = RouteRegistry::new();
         self.groups.write().clear();
         self.middleware.write().clear();
+        self.handlers.write().clear();
     }
 
-    /// Build an Axum router from all registered routes.
+    /// Build an Axum [`Router`] that actually serves every registered handler.
     ///
-    /// Note: This is a placeholder that returns an empty router.
-    /// In a real implementation, you would convert RouteInfo into actual Axum routes.
-    pub fn build_router<S>(&self) -> Router<S>
-    where
-        S: Clone + Send + Sync + 'static,
-    {
-        // This would need actual handler storage and conversion
-        // For now, return an empty router
-        Router::new()
+    /// Each path's accumulated method router (from `add_get`/`add_post`/…) is
+    /// mounted, producing a router ready to hand to `axum::serve`.
+    pub fn build_router(&self) -> Router {
+        let mut router = Router::new();
+        for (path, method_router) in self.handlers.read().iter() {
+            router = router.route(path, method_router.clone());
+        }
+        router
     }
 }
 
@@ -151,6 +223,65 @@ pub static GLOBAL_ROUTER: Lazy<GlobalRouter> = Lazy::new(GlobalRouter::new);
 /// ```
 pub fn global_router() -> &'static GlobalRouter {
     &GLOBAL_ROUTER
+}
+
+/// Register a real `GET` route with a handler that actually serves traffic.
+///
+/// Build the served router with `global_router().build_router()`.
+///
+/// ```rust,no_run
+/// use rf_routing::{get, global_router};
+///
+/// async fn home() -> &'static str { "hello" }
+///
+/// # fn main() {
+/// get("/", home);
+/// let app = global_router().build_router();
+/// # let _ = app;
+/// # }
+/// ```
+pub fn get<H, T>(path: impl Into<String>, handler: H)
+where
+    H: Handler<T, ()>,
+    T: 'static,
+{
+    global_router().add_get(path, handler);
+}
+
+/// Register a real `POST` route handler on the global router.
+pub fn post<H, T>(path: impl Into<String>, handler: H)
+where
+    H: Handler<T, ()>,
+    T: 'static,
+{
+    global_router().add_post(path, handler);
+}
+
+/// Register a real `PUT` route handler on the global router.
+pub fn put<H, T>(path: impl Into<String>, handler: H)
+where
+    H: Handler<T, ()>,
+    T: 'static,
+{
+    global_router().add_put(path, handler);
+}
+
+/// Register a real `PATCH` route handler on the global router.
+pub fn patch<H, T>(path: impl Into<String>, handler: H)
+where
+    H: Handler<T, ()>,
+    T: 'static,
+{
+    global_router().add_patch(path, handler);
+}
+
+/// Register a real `DELETE` route handler on the global router.
+pub fn delete<H, T>(path: impl Into<String>, handler: H)
+where
+    H: Handler<T, ()>,
+    T: 'static,
+{
+    global_router().add_delete(path, handler);
 }
 
 #[cfg(test)]

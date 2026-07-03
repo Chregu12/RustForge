@@ -122,7 +122,7 @@ pub use versioning::{
 pub use facade::{
     builder::FacadeRouteBuilder,
     group::GroupBuilder as FacadeGroupBuilder,
-    registry::{global_router, GlobalRouter},
+    registry::{delete, get, global_router, patch, post, put, GlobalRouter},
     route::{MiddlewareGroupBuilder, Route as RouteFacade},
 };
 

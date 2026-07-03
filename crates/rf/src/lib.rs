@@ -103,6 +103,9 @@ pub mod prelude {
 
     // All Facades (from merged locations in main crates)
     pub use rf_routing::RouteFacade as Route;
+    // Real handler-based route registration: `get("/", home_handler)` etc.,
+    // served via `rf_routing::global_router().build_router()`.
+    pub use rf_routing::{delete, get, patch, post, put};
     pub use rf_auth::Auth;
     pub use rf_orm::DB;
     pub use rf_cache::CacheFacade as Cache;
