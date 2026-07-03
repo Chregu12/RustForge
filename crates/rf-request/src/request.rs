@@ -3,6 +3,7 @@
 use crate::{
     error::{RequestError, RequestResult},
     session::Session,
+    upload::UploadedFile,
     user::User,
 };
 use axum::body::Body;
@@ -19,6 +20,8 @@ pub struct Request {
     pub inner: HttpRequest<Body>,
     /// Parsed request fields (from body, query, path, etc.)
     pub fields: HashMap<String, Value>,
+    /// Uploaded files (from a multipart/form-data body), keyed by field name.
+    files: HashMap<String, UploadedFile>,
     /// Authenticated user (if any)
     user: Option<User>,
     /// Session (if available)
@@ -31,6 +34,7 @@ impl Request {
         Self {
             inner,
             fields: HashMap::new(),
+            files: HashMap::new(),
             user: None,
             session: None,
         }
@@ -40,6 +44,22 @@ impl Request {
     pub fn with_fields(mut self, fields: HashMap<String, Value>) -> Self {
         self.fields = fields;
         self
+    }
+
+    /// Attach parsed uploaded files (from a multipart body).
+    pub fn with_files(mut self, files: HashMap<String, UploadedFile>) -> Self {
+        self.files = files;
+        self
+    }
+
+    /// Get an uploaded file by its form field name (e.g. `request.file("image")`).
+    pub fn file(&self, name: &str) -> Option<&UploadedFile> {
+        self.files.get(name)
+    }
+
+    /// True if a file was uploaded under `name`.
+    pub fn has_file(&self, name: &str) -> bool {
+        self.files.contains_key(name)
     }
 
     /// Set the authenticated user

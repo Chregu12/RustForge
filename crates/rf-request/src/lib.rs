@@ -34,6 +34,7 @@ pub mod error;
 pub mod extractors;
 pub mod request;
 pub mod session;
+pub mod upload;
 pub mod user;
 
 // Re-export main types
@@ -41,6 +42,7 @@ pub use error::{RequestError, RequestResult};
 pub use extractors::RequestExtractor;
 pub use request::Request;
 pub use session::Session;
+pub use upload::UploadedFile;
 pub use user::User;
 
 /// Prelude module for convenient imports

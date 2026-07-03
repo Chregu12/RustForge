@@ -1,19 +1,33 @@
-//! Axum extractors for Request type
+//! Axum extractor that parses the request body/query into a [`Request`].
+//!
+//! Populates `Request.fields` from the query string plus the body
+//! (`application/json`, `application/x-www-form-urlencoded`, or
+//! `multipart/form-data` text parts), and `Request` files from multipart file
+//! parts — so handler-side `request.get(..)` / `request.file(..)` are real.
 
-use crate::{error::RequestError, Request};
+use crate::{error::RequestError, upload::UploadedFile, Request};
 use async_trait::async_trait;
 use axum::{
     body::Body,
-    extract::{FromRequest, Request as AxumRequest},
+    extract::{FromRequest, Multipart, Request as AxumRequest},
     http::Request as HttpRequest,
 };
 use serde_json::Value;
 use std::collections::HashMap;
 
-/// Extractor for Request type
-///
-/// This allows using `Request` directly in Axum handlers
+/// Extractor marker for the [`Request`] type (the impl below is what does the work).
 pub struct RequestExtractor;
+
+const MAX_BODY_SIZE: usize = 10 * 1024 * 1024; // 10 MiB
+
+/// Parse a urlencoded string (query or form body) into string fields.
+fn merge_urlencoded(fields: &mut HashMap<String, Value>, input: &str) {
+    if let Ok(pairs) = serde_urlencoded::from_str::<Vec<(String, String)>>(input) {
+        for (k, v) in pairs {
+            fields.insert(k, Value::String(v));
+        }
+    }
+}
 
 #[async_trait]
 impl<S> FromRequest<S> for Request
@@ -22,51 +36,107 @@ where
 {
     type Rejection = RequestError;
 
-    async fn from_request(req: AxumRequest, _state: &S) -> Result<Self, Self::Rejection> {
-        // Extract the body first
+    async fn from_request(req: AxumRequest, state: &S) -> Result<Self, Self::Rejection> {
         let (parts, body) = req.into_parts();
 
-        // Get the content type from parts
         let content_type = parts
             .headers
             .get("content-type")
             .and_then(|v| v.to_str().ok())
-            .unwrap_or("");
+            .unwrap_or("")
+            .to_string();
 
-        // Parse the body based on content type
-        let fields = if content_type.contains("application/json") {
-            // Parse JSON body — limit to 10 MiB to prevent memory exhaustion from oversized requests
-            const MAX_BODY_SIZE: usize = 10 * 1024 * 1024;
+        // Captured so we can rebuild `inner` after the body/parts are consumed.
+        let method = parts.method.clone();
+        let uri = parts.uri.clone();
+        let version = parts.version;
+        let headers = parts.headers.clone();
+
+        // 1. Query string is always merged in as base fields.
+        let mut fields: HashMap<String, Value> = HashMap::new();
+        if let Some(query) = uri.query() {
+            merge_urlencoded(&mut fields, query);
+        }
+
+        let mut files: HashMap<String, UploadedFile> = HashMap::new();
+
+        // 2. Body, by content type (body values override query on key collision).
+        if content_type.contains("application/json") {
             let bytes = axum::body::to_bytes(body, MAX_BODY_SIZE)
                 .await
                 .map_err(|e| RequestError::InvalidBody(e.to_string()))?;
-
-            if bytes.is_empty() {
-                HashMap::new()
-            } else {
+            if !bytes.is_empty() {
                 let json: Value = serde_json::from_slice(&bytes)
                     .map_err(|e| RequestError::InvalidBody(e.to_string()))?;
-
                 match json {
-                    Value::Object(map) => map
-                        .into_iter()
-                        .map(|(k, v)| (k, v))
-                        .collect(),
-                    _ => return Err(RequestError::InvalidBody(
-                        "Expected JSON object".to_string(),
-                    )),
+                    Value::Object(map) => {
+                        for (k, v) in map {
+                            fields.insert(k, v);
+                        }
+                    }
+                    _ => {
+                        return Err(RequestError::InvalidBody(
+                            "Expected JSON object".to_string(),
+                        ))
+                    }
                 }
             }
-        } else {
-            // For now, we only support JSON
-            // TODO: Add support for form data, multipart, etc.
-            HashMap::new()
-        };
+        } else if content_type.contains("application/x-www-form-urlencoded") {
+            let bytes = axum::body::to_bytes(body, MAX_BODY_SIZE)
+                .await
+                .map_err(|e| RequestError::InvalidBody(e.to_string()))?;
+            let text = String::from_utf8_lossy(&bytes);
+            merge_urlencoded(&mut fields, &text);
+        } else if content_type.contains("multipart/form-data") {
+            // Hand the (parts, body) to axum's Multipart extractor.
+            let req = AxumRequest::from_parts(parts, body);
+            let mut multipart = Multipart::from_request(req, state)
+                .await
+                .map_err(|e| RequestError::InvalidBody(e.to_string()))?;
 
-        // Reconstruct the HTTP request
-        let http_req = HttpRequest::from_parts(parts, Body::empty());
+            while let Some(field) = multipart
+                .next_field()
+                .await
+                .map_err(|e| RequestError::InvalidBody(e.to_string()))?
+            {
+                let Some(name) = field.name().map(str::to_string) else {
+                    continue;
+                };
+                let filename = field.file_name().map(str::to_string);
+                let field_content_type = field.content_type().map(str::to_string);
 
-        Ok(Request::new(http_req).with_fields(fields))
+                if filename.is_some() {
+                    // A file part: keep the raw bytes for later `.store()`.
+                    let data = field
+                        .bytes()
+                        .await
+                        .map_err(|e| RequestError::InvalidBody(e.to_string()))?;
+                    files.insert(
+                        name.clone(),
+                        UploadedFile::new(name, filename, field_content_type, data),
+                    );
+                } else {
+                    // A plain text field.
+                    let text = field
+                        .text()
+                        .await
+                        .map_err(|e| RequestError::InvalidBody(e.to_string()))?;
+                    fields.insert(name, Value::String(text));
+                }
+            }
+        }
+        // Any other content type: no body fields (query params still apply).
+
+        // Rebuild a lightweight inner request (headers/method/uri preserved, body drained).
+        let mut builder = HttpRequest::builder().method(method).uri(uri).version(version);
+        if let Some(dst) = builder.headers_mut() {
+            *dst = headers;
+        }
+        let http_req = builder
+            .body(Body::empty())
+            .map_err(|e| RequestError::InvalidBody(e.to_string()))?;
+
+        Ok(Request::new(http_req).with_fields(fields).with_files(files))
     }
 }
 
@@ -78,36 +148,71 @@ mod tests {
 
     #[tokio::test]
     async fn test_extract_json_request() {
-        let json_body = r#"{"name": "John", "age": 30}"#;
-
         let http_req = HttpRequest::builder()
             .method("POST")
             .uri("/test")
             .header("content-type", "application/json")
-            .body(Body::from(json_body))
+            .body(Body::from(r#"{"name": "John", "age": 30}"#))
             .unwrap();
 
         let request = Request::from_request(http_req, &()).await.unwrap();
-
-        assert!(request.has("name"));
-        assert!(request.has("age"));
-
-        let name: String = request.get("name").unwrap();
-        assert_eq!(name, "John");
-
-        let age: u32 = request.get("age").unwrap();
-        assert_eq!(age, 30);
+        assert_eq!(request.get::<String>("name").unwrap(), "John");
+        assert_eq!(request.get::<u32>("age").unwrap(), 30);
     }
 
     #[tokio::test]
-    async fn test_extract_empty_request() {
+    async fn test_extract_query_params() {
         let http_req = HttpRequest::builder()
             .method("GET")
-            .uri("/test")
+            .uri("/search?q=rust&page=2")
             .body(Body::empty())
             .unwrap();
 
         let request = Request::from_request(http_req, &()).await.unwrap();
-        assert_eq!(request.all().len(), 0);
+        assert_eq!(request.get::<String>("q").unwrap(), "rust");
+        assert_eq!(request.get::<String>("page").unwrap(), "2");
+    }
+
+    #[tokio::test]
+    async fn test_extract_form_urlencoded() {
+        let http_req = HttpRequest::builder()
+            .method("POST")
+            .uri("/submit")
+            .header("content-type", "application/x-www-form-urlencoded")
+            .body(Body::from("title=Hello&body=World"))
+            .unwrap();
+
+        let request = Request::from_request(http_req, &()).await.unwrap();
+        assert_eq!(request.get::<String>("title").unwrap(), "Hello");
+        assert_eq!(request.get::<String>("body").unwrap(), "World");
+    }
+
+    #[tokio::test]
+    async fn test_extract_multipart_text_and_file() {
+        let boundary = "X-BOUNDARY";
+        let body = format!(
+            "--{b}\r\nContent-Disposition: form-data; name=\"title\"\r\n\r\nHi\r\n\
+             --{b}\r\nContent-Disposition: form-data; name=\"image\"; filename=\"a.txt\"\r\n\
+             Content-Type: text/plain\r\n\r\nFILEDATA\r\n--{b}--\r\n",
+            b = boundary
+        );
+        let http_req = HttpRequest::builder()
+            .method("POST")
+            .uri("/upload")
+            .header(
+                "content-type",
+                format!("multipart/form-data; boundary={boundary}"),
+            )
+            .body(Body::from(body))
+            .unwrap();
+
+        let request = Request::from_request(http_req, &()).await.unwrap();
+        // text field parsed into fields
+        assert_eq!(request.get::<String>("title").unwrap(), "Hi");
+        // file part parsed into files
+        let file = request.file("image").expect("image file present");
+        assert_eq!(file.filename(), Some("a.txt"));
+        assert_eq!(file.bytes(), b"FILEDATA");
+        assert_eq!(file.size(), 8);
     }
 }
