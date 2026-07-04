@@ -103,7 +103,9 @@ pub mod testing;
 // Re-exports
 pub use address::Address;
 pub use attachment::Attachment;
-pub use backends::{LogMailer, MemoryMailer, MockMailer, SendmailMailer, SmtpConfig, SmtpMailer};
+pub use backends::{
+    FileMailer, LogMailer, MemoryMailer, MockMailer, SendmailMailer, SmtpConfig, SmtpMailer,
+};
 
 // Phase 19: Production mail drivers
 #[cfg(feature = "postmark")]
@@ -145,7 +147,7 @@ pub mod prelude {
     };
 
     // Backends
-    pub use crate::{LogMailer, MemoryMailer, MockMailer, SendmailMailer, SmtpMailer};
+    pub use crate::{FileMailer, LogMailer, MemoryMailer, MockMailer, SendmailMailer, SmtpMailer};
 
     // Phase 19: Production mail drivers
     #[cfg(feature = "postmark")]

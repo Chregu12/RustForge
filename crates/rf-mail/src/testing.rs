@@ -95,6 +95,11 @@ impl MailFake {
         self.sent.lock().clone()
     }
 
+    /// Record a message synchronously (used by the synchronous `Mail` facade).
+    pub fn record(&self, mail: Mail) {
+        self.sent.lock().push(mail);
+    }
+
     /// Clear all sent messages
     pub fn clear(&self) {
         self.sent.lock().clear();

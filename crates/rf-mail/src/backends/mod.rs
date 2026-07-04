@@ -1,5 +1,6 @@
 //! Email backend implementations
 
+pub mod file;
 pub mod log;
 pub mod memory;
 pub mod mock;
@@ -19,6 +20,7 @@ pub mod sendgrid;
 #[cfg(feature = "ses")]
 pub mod ses;
 
+pub use file::FileMailer;
 pub use log::LogMailer;
 pub use memory::MemoryMailer;
 pub use mock::MockMailer;
