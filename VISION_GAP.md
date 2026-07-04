@@ -313,3 +313,49 @@ The single closest thing to the vision's "bareness implies something" is `Model!
 3. Split-brain engines: two DB facades exist (`rf-db-facade` mock, `rf-orm` real). If inference lands but stays wired to the mock, the "DB column" facet remains fake — the framework's known "documented API returns empty data" pattern (get()→`Ok(vec![])`). Consolidation is a prerequisite, not optional.
 4. Over-inference ambiguity: mapping `Option<T>`→nullable and `T`→required can surprise (e.g. bool defaults, foreign-key ids), and length/precision cannot be inferred from Rust types, so `max`/DB varchar sizing still needs attributes — the "zero config" promise is only partial.
 - **Key files:** `crates/rf-model-macro/src/lib.rs`, `crates/rf-validation-derive/src/generator.rs`, `crates/rf-validation-derive/src/lib.rs`, `crates/rf-macros/src/form_request_macro.rs`, `crates/rf-macros/src/simple_model.rs`, `crates/rf-macros/src/model_dsl.rs`, `crates/rf-db-facade/src/manager.rs`, `crates/rf-db-facade/src/query_builder.rs`
+
+---
+
+## Hard bets — feasibility
+
+_This section is the honest, source-grounded verdict on the two most-requested "vision-literal" features. It supersedes the one-line summaries in **Rust feasibility limits** and **Tier 3** above with a concrete, tested account of what is real today, what can be cleanly added, and what fights the language. Grounded in `crates/rf-macros/src/lib.rs`, `crates/rf-macros/src/await_transformer.rs`, and the running probe `sandbox/probes/hard_bets_feasibility/` (asserts every claim below)._
+
+### (a) Hiding `Result`/`Option`/`Ok`/`Err`/`Some`/`None`
+
+**What already works (and how far it goes).** The framework ships a real, tested async-hiding layer — NOT a mock:
+
+- `#[auto_await]` / `#[await_calls(..)]` (attribute proc-macros, `lib.rs:231/242`) walk a fn/impl/module AST and wrap each *name-matched* framework call (`find`, `all`, `create`, `get`, `put`, `send`, `dispatch`, … — the allow-list lives in `await_transformer.rs:35-116`) in a "maybe-await" adapter: `(&__rf_w(EXPR)).__rf_resolve().await`. Via autoref specialization (`await_transformer.rs:145-177`) the adapter **awaits the expression when it is a `Future` and passes it through unchanged when it is a plain value.** So one call site resolves correctly whether the underlying facade is sync (`Cache::get`) or async (`User::find`). A plain `fn` is auto-promoted to `async fn` when any call was wrapped (`lib.rs:320-330`).
+- `rustforge!{ .. }` (`lib.rs:1018`) wraps a whole block, auto-applying `#[auto_await]` per fn and honoring a `#[sync]` opt-out marker (`lib.rs:1036`, a pure no-op marker consumed by the block expander) so a genuinely synchronous helper is left untouched.
+
+**The probe proves the exact boundary:** in `sandbox/probes/hard_bets_feasibility/`, `handler()` calls `Cache::put`/`Cache::get`/`User::find`/`User::save`/`User::all` with **no `.await` anywhere**, and returns the correct value — `.await` is genuinely gone. But the same handler still writes `-> Result<i64, String>`, a `?` after **every** fallible call, `Ok(..)` at the tail, and `cached.unwrap_or(0)` to open the `Option`. That residue is the un-hidden half.
+
+**Why `Result`/`Option` hiding is essentially unsolved (not merely unbuilt):**
+
+1. **No uniform error type.** Auto-injecting `?` requires the enclosing fn to return a `Result` whose error type every wrapped call converts into. Real facades return heterogeneous errors (`String`, `CacheError`, `sea_orm::DbErr`, `anyhow::Error`). A body-rewriting macro that appends `?` would only compile if it also forced one lossy `Box<dyn Error>`/`anyhow::Error` return type — trading Rust's typed errors for stringly-typed ones. A wrongly-injected `?` on a non-`Result` value is a hard error surfaced at generated code, far from the user's source.
+2. **Return normalization is ambiguous.** Wrapping a bare tail expression into `Ok(..)` means the macro must decide which tails are "the success value" vs. already-`Result` vs. `()` — early `return x`, `if`/`match` arms, and the trailing expr all differ. There is no sound, local rule; guessing wrong is a type error at a synthesized span.
+3. **`Some`/`None` is not a macro problem at all.** Hiding `Option` means either a bespoke nullable value type (not `std::Option`) with accessor sugar, or silently unwrapping — which **masks real null-handling bugs**, the opposite of the framework's value proposition. A proc-macro over `std::Option` cannot change the fact that field access can't be fallible/`None`-shortcircuiting without `?`/`match`.
+4. **rust-analyzer / type-inference cost is already paid even for the await-only layer.** The `(&__rf_w(EXPR)).__rf_resolve().await` wrapper obscures the call's type: hover/goto-def/completion degrade and inference errors point at adapter code. Extending the rewrite to errors/returns multiplies this: users would debug generated `?`/`Ok` they never wrote.
+5. **Name-list matching is unsound by construction.** The allow-list is string-based, so a user's *sync, fallible* helper named `find`/`get`/`save`/`send`/`user`/`id` gets wrapped and awaited unexpectedly, and the list can silently drift from the real facade signatures. This is a *latent* footgun today and would compound if error handling were also name-driven.
+
+**Cleanly-feasible subset (the honest recommendation):** keep hiding `.await` only; keep `?`/`Result` visible and typed. This is already shipped and green (`crates/rf-macros/tests/auto_await_sync_async.rs`, plus this probe). For error *ergonomics* — rather than *hiding* — the codebase already offers the honest, non-magic helpers: `rescue!(expr, fallback)` (`lib.rs:1291`, error→fallback value), `abort_if!`/`abort_unless!` (`lib.rs:1259/1271`), and `#[handle_exceptions]` (`lib.rs:1248`) which maps a handler's `Result` into an HTTP response so `?` is still written but its propagation terminates cleanly. These reduce visible error ceremony **without** faking that errors don't exist. No new code was added for this feature — inventing a `?`-injecting macro here would ship exactly the "compiles but lies / cryptic generated-span errors" failure the audit warns against.
+
+### (b) Top-level `class`/`controller` keywords and `Controller@method` refs
+
+**These are not "hard" — they are impossible in valid Rust outside a macro's own token stream.** Concretely:
+
+- **`class Post { .. }` / `controller X { .. }` at module level do not parse.** Rust's grammar admits only a fixed set of item keywords at the top level (`fn`, `struct`, `enum`, `impl`, `mod`, `trait`, `const`, `static`, `use`, `type`, `macro_rules`, plus attributes/visibility). `class` and `controller` are not keywords and not items; the parser rejects them before any macro could run. There is no attribute, edition, or feature flag that adds a keyword — keywords are fixed by the compiler, not user-extensible.
+- **Method bodies without `fn`/param lists (`store() { .. }` directly inside a `controller` block) do not parse** as Rust items either.
+- **`Controller@index` is not an expression, path, or item.** `@` is only legal in Rust as a *pattern binding* (`x @ 1..=5`) and in a few attribute/macro-internal spots. In call/path position (`get("/", HomeController@index)`) it is a syntax error. The framework's real routing sugar therefore uses `Controller::method` tokens (see `routes!{}` in `laravel_macros.rs`, and the `model!`/`controller` examples), which the compiler *can* resolve to a real handler with goto-def and type-checking intact.
+
+**The only path is macro-wrapping**, and the repo already takes it consistently:
+
+- `model!{ Post => "posts" { .. belongs_to User via user_id, has_many Comment } }` (function-like proc-macro, `lib.rs:1787`) and `Model!(..)` (`lib.rs:460`) — the `belongs_to`/`has_many` "keywords" and the braced field DSL are legal **only** because they live inside the macro's `{ .. }` token group; the macro lowers them to a real `struct` + `impl`.
+- `#[controller] impl PostController { .. }` (attribute macro, `lib.rs:151`) — a decorated *real* `impl` block, not a bare `controller` keyword. This is why the current form keeps IDE support.
+
+**The probe demonstrates this positively:** `keywordish!(controller Post @ index)` accepts the keyword + bare-type + `@method` tokens verbatim *inside the macro invocation* and lowers them to an ordinary `fn index()`. The identical tokens written at module top level would not compile. That is the whole argument in executable form.
+
+**Costs of the macro-wrapped route (the honest trade):** a `model!{}`/`controller!{}` function-like macro that *fully* mimics `class Post { .. }` loses IDE syntax highlighting and goto-def *inside* the macro body, makes any injected `request`/`Request` binding a synthetic identifier the user cannot re-type, and produces error spans pointing at generated code. The attribute-macro-on-real-`impl` form (`#[controller] impl X`) and `::`-based refs (`Controller::method`) keep all IDE affordances at the cost of literal vision fidelity.
+
+**Recommendation (unchanged from Tier 3, now with evidence):** ship `::`-based real impls and `#[attr]`-on-real-item macros; do **not** chase bare top-level keywords or `@` — they cannot be made valid Rust, and the maximal function-like-macro emulation trades away the exact IDE/type guarantees that make Rust worth using over PHP. Reserve `model!{}`/`controller!{}` function-like wrapping for the cases where the braced DSL genuinely adds value (relationship keywords, column sugar) and accept `Controller::method`.
+
+**Verification:** `cargo run` in `sandbox/probes/hard_bets_feasibility/` (green) asserts (a) `.await` is hidden while `Result`/`?`/`Option` remain, and (b) keyword+`@` syntax lowers only via a macro token stream. No production code changed for this feature — the finding is that hiding `.await` is the correct, already-shipped ceiling for (a), and macro-wrapping is the only path for (b).
