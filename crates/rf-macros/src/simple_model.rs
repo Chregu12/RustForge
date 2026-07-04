@@ -281,6 +281,15 @@ fn generate_full_model(
         .map(|f| f.name.to_string())
         .collect();
 
+    // Infer validation rules from declared field types (convention over
+    // configuration). Every declared field (including `hidden` ones like
+    // passwords) contributes a `(name, type_keyword, required)` tuple.
+    let validation_rules: Vec<TokenStream2> = fields.iter().map(|f| {
+        let fname = f.name.to_string();
+        let (kw, required) = infer_field_rule(&f.ty);
+        quote! { (#fname, #kw, #required) }
+    }).collect();
+
     // Generate timestamp fields
     let timestamp_fields = if timestamps {
         quote! {
@@ -448,6 +457,21 @@ fn generate_full_model(
             pub const TIMESTAMPS: bool = #timestamps;
             pub const SOFT_DELETES: bool = #soft_deletes;
 
+            /// Validation rules inferred from the declared field types.
+            ///
+            /// Each entry is `(field_name, type_keyword, required)`:
+            /// `String -> "string"`, `iN/uN -> "integer"`, `f32/f64 -> "numeric"`,
+            /// `bool -> "boolean"`, `Option<T>` becomes non-required. An empty
+            /// keyword means only requiredness was inferred.
+            pub const VALIDATION_RULES: &'static [(&'static str, &'static str, bool)] =
+                &[#(#validation_rules),*];
+
+            /// Convention-over-configuration validation rules inferred from the
+            /// model's field declarations. See [`Self::VALIDATION_RULES`].
+            pub fn validation_rules() -> &'static [(&'static str, &'static str, bool)] {
+                Self::VALIDATION_RULES
+            }
+
             #(#relationship_methods)*
 
             #soft_delete_methods
@@ -484,6 +508,13 @@ fn generate_simple_model(name: Ident, fields: Vec<InferredField>) -> TokenStream
         .map(|f| f.name.to_string())
         .collect();
 
+    // Simple-syntax fields are all `String`, so every one infers a required
+    // string validation rule.
+    let validation_rules: Vec<TokenStream2> = fields.iter().map(|f| {
+        let fname = f.name.to_string();
+        quote! { (#fname, "string", true) }
+    }).collect();
+
     let expanded = quote! {
         #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
         pub struct #name {
@@ -511,6 +542,18 @@ fn generate_simple_model(name: Ident, fields: Vec<InferredField>) -> TokenStream
         impl #name {
             pub const FILLABLE: &'static [&'static str] = &[#(#fillable),*];
             pub const HIDDEN: &'static [&'static str] = &[#(#hidden),*];
+
+            /// Validation rules inferred from the declared fields. In the simple
+            /// syntax every field is a required `String`. Each entry is
+            /// `(field_name, type_keyword, required)`.
+            pub const VALIDATION_RULES: &'static [(&'static str, &'static str, bool)] =
+                &[#(#validation_rules),*];
+
+            /// Convention-over-configuration validation rules inferred from the
+            /// model's field declarations. See [`Self::VALIDATION_RULES`].
+            pub fn validation_rules() -> &'static [(&'static str, &'static str, bool)] {
+                Self::VALIDATION_RULES
+            }
         }
     };
 
@@ -530,4 +573,53 @@ fn to_snake_case(s: &str) -> String {
         }
     }
     result
+}
+
+/// Convention-over-configuration validation inference.
+///
+/// Maps a declared field type to a `(type_keyword, required)` pair so the
+/// generated model can expose inferred validation rules:
+///   - `String` / `&str`                 -> ("string",  required)
+///   - `iN` / `uN` (any width)           -> ("integer", required)
+///   - `f32` / `f64`                     -> ("numeric", required)
+///   - `bool`                            -> ("boolean", required)
+///   - `Option<T>`                       -> keyword of `T`, but NOT required
+///   - anything else                     -> ("", required)  (only requiredness)
+///
+/// The empty keyword means "no type rule inferred" (still required unless
+/// wrapped in `Option`). Consumers translate these into `rf_validation` rules.
+fn infer_field_rule(ty: &Type) -> (String, bool) {
+    infer_field_rule_inner(ty, true)
+}
+
+fn infer_field_rule_inner(ty: &Type, required: bool) -> (String, bool) {
+    if let Type::Path(tp) = ty {
+        if let Some(seg) = tp.path.segments.last() {
+            let ident = seg.ident.to_string();
+            if ident == "Option" {
+                // Optional field: not required; keyword comes from the inner type.
+                if let syn::PathArguments::AngleBracketed(args) = &seg.arguments {
+                    if let Some(syn::GenericArgument::Type(inner)) = args.args.first() {
+                        let (kw, _) = infer_field_rule_inner(inner, false);
+                        return (kw, false);
+                    }
+                }
+                return (String::new(), false);
+            }
+            return (keyword_for_ident(&ident), required);
+        }
+    }
+    (String::new(), required)
+}
+
+fn keyword_for_ident(ident: &str) -> String {
+    match ident {
+        "String" | "str" => "string",
+        "i8" | "i16" | "i32" | "i64" | "i128" | "isize" | "u8" | "u16" | "u32" | "u64"
+        | "u128" | "usize" => "integer",
+        "f32" | "f64" => "numeric",
+        "bool" => "boolean",
+        _ => "",
+    }
+    .to_string()
 }
