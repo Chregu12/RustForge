@@ -121,23 +121,54 @@ impl StorageFacade {
         let mut manager = GLOBAL_STORAGE.write().unwrap();
         manager.set_disk(name.to_string());
     }
+
+    /// Get the base directory files are persisted under.
+    pub fn root() -> std::path::PathBuf {
+        let manager = GLOBAL_STORAGE.read().unwrap();
+        manager.root().to_path_buf()
+    }
+
+    /// Set the base directory files are persisted under.
+    pub fn set_root(root: impl Into<std::path::PathBuf>) {
+        let mut manager = GLOBAL_STORAGE.write().unwrap();
+        manager.set_root(root);
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Once;
+
+    // The facade is backed by a process-global manager. Point it at a single,
+    // deterministic temp directory so tests persist to a scratch location
+    // (never the repo) without racing on distinct file names.
+    static INIT: Once = Once::new();
+
+    fn setup() {
+        INIT.call_once(|| {
+            let dir = std::env::temp_dir().join("rf_storage_facade_tests");
+            let _ = std::fs::remove_dir_all(&dir);
+            StorageFacade::set_root(&dir);
+        });
+    }
 
     #[test]
     fn test_storage_put_get() {
+        setup();
         let contents = b"Hello, World!".to_vec();
         StorageFacade::put("test_facade_put.txt", contents.clone()).unwrap();
 
         let retrieved = StorageFacade::get("test_facade_put.txt").unwrap();
         assert_eq!(retrieved, contents);
+
+        // Proves it went to a real file on disk.
+        assert!(StorageFacade::root().join("test_facade_put.txt").is_file());
     }
 
     #[test]
     fn test_storage_exists() {
+        setup();
         let path = "test_facade_exists.txt";
         StorageFacade::put(path, b"test".to_vec()).unwrap();
 
@@ -147,6 +178,7 @@ mod tests {
 
     #[test]
     fn test_storage_delete() {
+        setup();
         let path = "test_facade_delete.txt";
         StorageFacade::put(path, b"test".to_vec()).unwrap();
         assert!(StorageFacade::exists(path));
