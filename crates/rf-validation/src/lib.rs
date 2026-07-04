@@ -145,6 +145,8 @@ pub mod validators;
 
 // Re-export main types
 pub use error::{FieldError, ValidationErrors};
+// Byte-size helpers for the file/image size DSL (`max(mb(5))`, `min(kb(1))`).
+pub use rules::file::{kb, mb};
 pub use extractor::{ValidatedJson, ValidationRejection};
 pub use form_request::{
     FormRequest, FormRequestError, FormRequestResult, MessagesBuilder, RulesBuilder, Validated,

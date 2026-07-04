@@ -103,10 +103,134 @@ fn boxed(rule: TokenStream2) -> TokenStream2 {
     quote! { Box::new(#rule) as Box<dyn rf_validation::Rule> }
 }
 
+fn is_file(ty: &str) -> bool {
+    matches!(ty, "image" | "file")
+}
+
+/// Build the file/image validation for one field. Files are NOT in the JSON
+/// field map, so this validates the CURRENT request's upload
+/// (`rf_request::file(name)`) directly rather than going through the `Validator`.
+///
+/// Returns the check block on success, or a compile error for a bad modifier.
+fn file_check(field: &Field) -> std::result::Result<TokenStream2, syn::Error> {
+    let field_name = field.name.to_string();
+    let is_image = field.ty == "image";
+    let optional = field
+        .ops
+        .iter()
+        .any(|o| o.name == "optional" || o.name == "nullable");
+
+    let mut min_expr: Option<&Expr> = None;
+    let mut max_expr: Option<&Expr> = None;
+    let mut mime_exprs: Vec<&Expr> = Vec::new();
+
+    for op in &field.ops {
+        match op.name.to_string().as_str() {
+            "optional" | "nullable" => {}
+            "min" => {
+                min_expr = op.args.first();
+            }
+            "max" => {
+                max_expr = op.args.first();
+            }
+            "mime" | "mimes" => {
+                mime_exprs.extend(op.args.iter());
+            }
+            other => {
+                return Err(syn::Error::new(
+                    op.name.span(),
+                    format!(
+                        "validate!: unknown modifier `.{}` for a {} field (expected optional/min/max/mime)",
+                        other, field.ty
+                    ),
+                ));
+            }
+        }
+    }
+
+    let mut checks: Vec<TokenStream2> = Vec::new();
+
+    // `image` types must carry an image MIME type.
+    if is_image {
+        checks.push(quote! {
+            if let Err(__m) =
+                rf_validation::rules::ImageRule::new().check(__file.content_type())
+            {
+                __file_errors.add(
+                    #field_name,
+                    rf_validation::FieldError::new("image", __m),
+                );
+            }
+        });
+    }
+
+    // Explicit MIME allow-list via `.mime("image/png", ...)`.
+    if !mime_exprs.is_empty() {
+        checks.push(quote! {
+            if let Err(__m) =
+                rf_validation::rules::MimeRule::new([ #(#mime_exprs),* ])
+                    .check(__file.content_type())
+            {
+                __file_errors.add(
+                    #field_name,
+                    rf_validation::FieldError::new("mime", __m),
+                );
+            }
+        });
+    }
+
+    // Size bounds via `.max(mb(5))` / `.min(kb(1))`.
+    if max_expr.is_some() || min_expr.is_some() {
+        let mut size_rule = quote! { rf_validation::rules::FileSizeRule::new() };
+        if let Some(mx) = max_expr {
+            size_rule = quote! { #size_rule.max((#mx) as u64) };
+        }
+        if let Some(mn) = min_expr {
+            size_rule = quote! { #size_rule.min((#mn) as u64) };
+        }
+        checks.push(quote! {
+            if let Err(__m) = #size_rule.check(__file.size()) {
+                __file_errors.add(
+                    #field_name,
+                    rf_validation::FieldError::new("file_size", __m),
+                );
+            }
+        });
+    }
+
+    let block = if optional {
+        // Optional: only validate when a file was actually uploaded.
+        quote! {
+            if let Some(__file) = rf_request::file(#field_name) {
+                #(#checks)*
+            }
+        }
+    } else {
+        // Required: absent upload is an error.
+        quote! {
+            match rf_request::file(#field_name) {
+                Some(__file) => { #(#checks)* }
+                None => {
+                    __file_errors.add(
+                        #field_name,
+                        rf_validation::FieldError::new(
+                            "required",
+                            "This field is required".to_string(),
+                        ),
+                    );
+                }
+            }
+        }
+    };
+
+    Ok(block)
+}
+
 pub fn validate_impl(input: TokenStream) -> TokenStream {
     let ValidateInput { fields } = parse_macro_input!(input as ValidateInput);
 
     let mut inserts: Vec<TokenStream2> = Vec::new();
+    let mut file_checks: Vec<TokenStream2> = Vec::new();
 
     for field in &fields {
         let field_name = field.name.to_string();
@@ -117,10 +241,19 @@ pub fn validate_impl(input: TokenStream) -> TokenStream {
             .iter()
             .any(|o| o.name == "optional" || o.name == "nullable");
 
+        // File/image fields validate the request's uploads, not the JSON map.
+        if is_file(&ty) {
+            match file_check(field) {
+                Ok(block) => file_checks.push(block),
+                Err(e) => return e.to_compile_error().into(),
+            }
+            continue;
+        }
+
         // Unknown type keyword -> clear compile error.
         if base_rule(&ty).is_none() && !matches!(ty.as_str(), "bool" | "boolean") {
             let msg = format!(
-                "validate!: unknown field type `{}` (expected string/text/email/url/uuid/ip/int/float/decimal/date/array/bool)",
+                "validate!: unknown field type `{}` (expected string/text/email/url/uuid/ip/int/float/decimal/date/array/bool/image/file)",
                 ty
             );
             return syn::Error::new(field.ty.span(), msg)
@@ -189,6 +322,11 @@ pub fn validate_impl(input: TokenStream) -> TokenStream {
     }
 
     let expanded = quote! {{
+        // Bring the byte-size helpers into scope so `max(mb(5))` / `min(kb(1))`
+        // resolve inside the caller's expression (they are not otherwise imported).
+        #[allow(unused_imports)]
+        use rf_validation::{kb, mb};
+
         let mut __rules: std::collections::HashMap<
             &'static str,
             Vec<Box<dyn rf_validation::Rule>>,
@@ -196,7 +334,29 @@ pub fn validate_impl(input: TokenStream) -> TokenStream {
         #(#inserts)*
         let mut __validator = rf_validation::Validator::new(rf_request::all());
         __validator.rules(__rules);
-        __validator.validate().await
+        let __result = __validator.validate().await;
+
+        // File/image fields validate the current request's uploads directly.
+        let mut __file_errors = rf_validation::ValidationErrors::new();
+        #(#file_checks)*
+
+        match __result {
+            Ok(__data) => {
+                if __file_errors.is_empty() {
+                    Ok(__data)
+                } else {
+                    Err(__file_errors)
+                }
+            }
+            Err(mut __errs) => {
+                for (__field, __ferrs) in __file_errors.errors {
+                    for __fe in __ferrs {
+                        __errs.add(__field.clone(), __fe);
+                    }
+                }
+                Err(__errs)
+            }
+        }
     }};
 
     expanded.into()
