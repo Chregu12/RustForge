@@ -25,6 +25,10 @@ regex = "1.10"
 sea-orm = { version = "1.1", features = ["sqlx-postgres", "runtime-tokio-rustls", "macros"] }
 thiserror = "1.0"
 
+# Per-route capture of matched path params into the implicit-request globals
+# (`input("id")` for `/posts/:id`); wired into `build_router` as a route_layer.
+rf-request = { path = "../rf-request" }
+
 [dev-dependencies]
 tokio = { version = "1.0", features = ["full", "test-util"] }
 tower = { version = "0.4", features = ["util"] }

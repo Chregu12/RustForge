@@ -40,7 +40,8 @@ pub mod user;
 
 // Re-export main types
 pub use context::{
-    all, capture_request, file, has, input, with_request_context, RequestContext,
+    all, capture_path_params, capture_request, file, has, input, with_request_context,
+    RequestContext,
 };
 pub use error::{RequestError, RequestResult};
 pub use extractors::RequestExtractor;

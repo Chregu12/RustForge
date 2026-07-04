@@ -193,10 +193,19 @@ impl GlobalRouter {
     ///
     /// Each path's accumulated method router (from `add_get`/`add_post`/…) is
     /// mounted, producing a router ready to hand to `axum::serve`.
+    /// Each path's method router is wrapped with a `route_layer` that captures the
+    /// matched path parameters (e.g. `id` in `/posts/:id`) into the implicit-request
+    /// context. Because that layer runs *after* axum's route matching, `RawPathParams`
+    /// is populated by then — unlike the outer `capture_request` layer, which runs
+    /// before matching and only sees query/body/multipart. A handler with no
+    /// arguments can therefore read `input::<i64>("id")` for `/posts/:id`.
     pub fn build_router(&self) -> Router {
         let mut router = Router::new();
         for (path, method_router) in self.handlers.read().iter() {
-            router = router.route(path, method_router.clone());
+            let method_router = method_router
+                .clone()
+                .route_layer(axum::middleware::from_fn(rf_request::capture_path_params));
+            router = router.route(path, method_router);
         }
         router
     }

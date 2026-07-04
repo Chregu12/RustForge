@@ -8,7 +8,7 @@
 use crate::extractors::parse_request;
 use crate::upload::UploadedFile;
 use axum::{
-    extract::Request as AxumRequest,
+    extract::{RawPathParams, Request as AxumRequest},
     http::StatusCode,
     middleware::Next,
     response::{IntoResponse, Response},
@@ -93,6 +93,58 @@ pub async fn capture_request(req: AxumRequest, next: Next) -> Response {
     }
 }
 
+/// Per-route middleware that captures matched path parameters (e.g. the `id` in
+/// `GET /posts/:id`) and merges them into the current request context, so the
+/// global helpers can read `input::<i64>("id")` from a handler with no arguments.
+///
+/// Because axum only populates [`RawPathParams`] *after* route matching, this must
+/// run as a `route_layer` (inside the router), not as the outer `capture_request`
+/// layer which runs before matching. It is wired automatically for every route by
+/// `rf_routing::GlobalRouter::build_router`.
+///
+/// It extends whatever context [`capture_request`] already set (query/body/files);
+/// if that outer layer is absent it still exposes the path params on their own.
+/// Path params take precedence over query/body fields on key collision, matching
+/// the URL being authoritative.
+/// Coerce a raw path segment into the most natural JSON scalar so the typed
+/// helpers work: `/posts/5` yields a JSON number (`input::<i64>("id")` == 5),
+/// while a non-numeric slug stays a string (`input::<String>("slug")`).
+fn path_param_value(raw: &str) -> Value {
+    if let Ok(i) = raw.parse::<i64>() {
+        return Value::from(i);
+    }
+    Value::String(raw.to_string())
+}
+
+pub async fn capture_path_params(
+    // `Option`: axum's `RawPathParams` *rejects* on a route with no params
+    // (e.g. `/posts`), so extract it optionally to make this layer safe on every
+    // route rather than only parameterised ones.
+    params: Option<RawPathParams>,
+    req: AxumRequest,
+    next: Next,
+) -> Response {
+    // Start from the context set by `capture_request` (or an empty one).
+    let (mut fields, files) =
+        with_ctx(|c| (c.fields.clone(), c.files.clone())).unwrap_or_default();
+
+    let mut merged = false;
+    if let Some(params) = &params {
+        for (key, value) in params.iter() {
+            fields.insert(key.to_string(), path_param_value(value));
+            merged = true;
+        }
+    }
+
+    // Nothing to add and no outer context to preserve: avoid a needless re-scope.
+    if !merged && CURRENT_REQUEST.try_with(|_| ()).is_err() {
+        return next.run(req).await;
+    }
+
+    let ctx = Arc::new(RequestContext { fields, files });
+    with_request_context(ctx, next.run(req)).await
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -114,5 +166,50 @@ mod tests {
         // Outside any scope, globals are empty (no panic).
         assert_eq!(input::<String>("q"), None);
         assert!(!has("q"));
+    }
+
+    #[test]
+    fn test_path_param_value_coercion() {
+        assert_eq!(path_param_value("5"), Value::from(5_i64));
+        assert_eq!(path_param_value("-12"), Value::from(-12_i64));
+        assert_eq!(path_param_value("hello-world"), Value::String("hello-world".into()));
+        // A value that overflows i64 stays a string rather than being mangled.
+        assert_eq!(
+            path_param_value("99999999999999999999"),
+            Value::String("99999999999999999999".into())
+        );
+    }
+
+    #[tokio::test]
+    async fn test_capture_path_params_merges_into_globals() {
+        use axum::{body::Body, http::Request, routing::get, Router};
+        use tower::ServiceExt;
+
+        // A handler with NO arguments reads the matched `:id` via the globals.
+        async fn show() -> String {
+            let id: i64 = input("id").expect("id present as i64");
+            let extra: String = input("q").unwrap_or_default();
+            format!("id={id};q={extra}")
+        }
+
+        let app = Router::new().route(
+            "/posts/:id",
+            get(show).route_layer(axum::middleware::from_fn(capture_path_params)),
+        );
+
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .uri("/posts/42?q=hi")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        let bytes = axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+        // Path param merged (typed as i64); query is NOT parsed here (that is
+        // `capture_request`'s job) so `q` is absent — proving this layer is
+        // strictly additive over whatever context already exists.
+        assert_eq!(String::from_utf8_lossy(&bytes), "id=42;q=");
     }
 }

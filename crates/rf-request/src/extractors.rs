@@ -55,6 +55,12 @@ where
         let uri = parts.uri.clone();
         let version = parts.version;
         let headers = parts.headers.clone();
+        // Preserve request extensions (captured before the multipart branch may
+        // move `parts`). These carry axum's routing state — matched path params
+        // (`RawPathParams`) and `MatchedPath` — which are inserted during route
+        // matching. `capture_request` runs *after* matching, so dropping them here
+        // would hide `/posts/:id` params from any per-route layer or extractor.
+        let extensions = parts.extensions.clone();
 
         // 1. Query string is always merged in as base fields.
         let mut fields: HashMap<String, Value> = HashMap::new();
@@ -136,9 +142,10 @@ where
         if let Some(dst) = builder.headers_mut() {
             *dst = headers;
         }
-        let http_req = builder
+        let mut http_req = builder
             .body(Body::empty())
             .map_err(|e| RequestError::InvalidBody(e.to_string()))?;
+        *http_req.extensions_mut() = extensions;
 
         Ok((fields, files, http_req))
     }

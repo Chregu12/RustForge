@@ -18,5 +18,5 @@ async-trait = "0.1"
 rf-validation = { path = "../rf-validation" }
 
 [dev-dependencies]
-tower = "0.4"
+tower = { version = "0.4", features = ["util"] }
 hyper = "1.0"
