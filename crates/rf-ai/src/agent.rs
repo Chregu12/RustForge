@@ -72,6 +72,20 @@ impl<P: ChatProvider> Agent<P> {
         self
     }
 
+    /// Begin a fluent, single-prompt run: `agent.prompt("..").run().await`.
+    ///
+    /// Returns a [`PromptRun`] borrowing this agent. The returned builder can
+    /// carry a per-call [system prompt](PromptRun::system) override before being
+    /// awaited via [`PromptRun::run`]. This is the ergonomic entry point for the
+    /// vision surface; it drives the exact same tool-calling loop as [`Agent::run`].
+    pub fn prompt(&self, user_message: impl Into<String>) -> PromptRun<'_, P> {
+        PromptRun {
+            agent: self,
+            user_message: user_message.into(),
+            system: None,
+        }
+    }
+
     /// Run the loop with an initial user message and return the final text.
     ///
     /// On each turn the agent sends the conversation to the provider. If the
@@ -81,13 +95,19 @@ impl<P: ChatProvider> Agent<P> {
     /// If the loop runs `max_turns` times without a final answer, it returns
     /// [`AiError::MaxTurns`].
     pub async fn run(&self, user_message: impl Into<String>) -> AiResult<String> {
+        self.run_inner(user_message.into(), self.system.clone()).await
+    }
+
+    /// The shared tool-calling loop backing both [`Agent::run`] and
+    /// [`PromptRun::run`]. `system` is the effective system prompt for this run.
+    async fn run_inner(&self, user_message: String, system: Option<String>) -> AiResult<String> {
         let mut messages = vec![Message::user(user_message)];
 
         for _ in 0..self.max_turns {
             let mut request = ChatRequest::new(&self.model)
                 .messages(messages.clone())
                 .tools(self.tools.clone());
-            if let Some(system) = &self.system {
+            if let Some(system) = &system {
                 request = request.system(system.clone());
             }
 
@@ -119,5 +139,44 @@ impl<P: ChatProvider> Agent<P> {
         }
 
         Err(AiError::MaxTurns(self.max_turns))
+    }
+}
+
+/// A fluent, single-prompt run produced by [`Agent::prompt`].
+///
+/// Holds the user message (and an optional per-call system override) and borrows
+/// the originating [`Agent`]. Await [`PromptRun::run`] to execute the full
+/// tool-calling loop and obtain the final text answer.
+///
+/// ```rust
+/// use rf_ai::prelude::*;
+/// use rf_ai::mock::MockChatProvider;
+///
+/// # fn main() -> AiResult<()> {
+/// let agent = Agent::new(MockChatProvider::text("Paris."));
+/// let answer = futures::executor::block_on(
+///     agent.prompt("Capital of France?").run(),
+/// )?;
+/// assert_eq!(answer, "Paris.");
+/// # Ok(())
+/// # }
+/// ```
+pub struct PromptRun<'a, P: ChatProvider> {
+    agent: &'a Agent<P>,
+    user_message: String,
+    system: Option<String>,
+}
+
+impl<'a, P: ChatProvider> PromptRun<'a, P> {
+    /// Override the system prompt for just this run (does not mutate the agent).
+    pub fn system(mut self, system: impl Into<String>) -> Self {
+        self.system = Some(system.into());
+        self
+    }
+
+    /// Execute the tool-calling loop and return the final text answer.
+    pub async fn run(self) -> AiResult<String> {
+        let system = self.system.or_else(|| self.agent.system.clone());
+        self.agent.run_inner(self.user_message, system).await
     }
 }

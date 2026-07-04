@@ -88,7 +88,7 @@ pub mod request;
 pub mod response;
 pub mod tool;
 
-pub use agent::{Agent, ToolHandler};
+pub use agent::{Agent, PromptRun, ToolHandler};
 pub use error::{AiError, AiResult};
 pub use message::{ContentBlock, Message, Role};
 pub use mock::{MockChatProvider, MockEmbeddingProvider};
