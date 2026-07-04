@@ -268,8 +268,9 @@ pub use query_helpers::{
 };
 pub use relationships::{
     belongs_to_builder, has_many_builder, has_one_builder, BelongsTo, BelongsToBuilder,
-    BelongsToMany, HasMany, HasManyBuilder, HasManyThrough, HasOne, HasOneBuilder, HasOneThrough,
-    HasRelationships, RelationshipError, RelationshipKind, RelationshipResult,
+    BelongsToMany, BelongsToRef, HasMany, HasManyBuilder, HasManyRef, HasManyThrough, HasOne,
+    HasOneBuilder, HasOneRef, HasOneThrough, HasRelationships, RelationshipError, RelationshipKind,
+    RelationshipResult,
 };
 pub use scopes::{
     add_global_scope, apply_global_scopes, remove_global_scope, without_global_scopes,
@@ -326,8 +327,9 @@ pub mod prelude {
     };
     pub use super::relationships::{
         belongs_to_builder, has_many_builder, has_one_builder, BelongsTo, BelongsToBuilder,
-        BelongsToMany, HasMany, HasManyBuilder, HasManyThrough, HasOne, HasOneBuilder,
-        HasOneThrough, HasRelationships, RelationshipError, RelationshipKind, RelationshipResult,
+        BelongsToMany, BelongsToRef, HasMany, HasManyBuilder, HasManyRef, HasManyThrough, HasOne,
+        HasOneBuilder, HasOneRef, HasOneThrough, HasRelationships, RelationshipError,
+        RelationshipKind, RelationshipResult,
     };
     pub use super::scopes::{
         add_global_scope, apply_global_scopes, remove_global_scope, without_global_scopes,

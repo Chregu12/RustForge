@@ -684,6 +684,266 @@ where
     BelongsToBuilder::new(db, primary_key, foreign_key_value)
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Deferred-connection relationship accessors — Feature: post.user() / user.posts()
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// Unlike the `*Builder` types above (which own a `DatabaseConnection` from
+// construction), these `*Ref` builders capture only the parent key + column and
+// take the connection *by reference* at the terminal call. This yields the
+// ergonomic Laravel-style shape:
+//
+//     let posts  = user.posts().get(&db).await?;   // HasManyRef
+//     let author = post.user().get(&db).await?;    // BelongsToRef
+//
+// The `Ref` accessor methods take no `db` argument, so they can be generated
+// from a bare model instance via [`relationship_accessors!`].
+
+/// Deferred-connection builder for a **has-many** relationship.
+///
+/// Filters the related entity `E` on `foreign_key == parent_id`. The database
+/// connection is supplied at the terminal method (`get`/`first`/`count`),
+/// enabling the `user.posts().get(&db)` shape.
+pub struct HasManyRef<E>
+where
+    E: EntityTrait,
+{
+    query: Select<E>,
+}
+
+impl<E> HasManyRef<E>
+where
+    E: EntityTrait,
+    <E as EntityTrait>::Column: ColumnTrait,
+{
+    /// Build a has-many accessor filtering `foreign_key == parent_id`.
+    pub fn new<K>(foreign_key: E::Column, parent_id: K) -> Self
+    where
+        K: Into<Value> + Clone,
+    {
+        Self {
+            query: E::find().filter(foreign_key.eq(parent_id)),
+        }
+    }
+
+    /// Add an `ORDER BY` clause.
+    pub fn order_by(mut self, col: E::Column, dir: sea_orm::Order) -> Self {
+        self.query = self.query.order_by(col, dir);
+        self
+    }
+
+    /// Add a `LIMIT` clause.
+    pub fn limit(mut self, n: u64) -> Self {
+        self.query = self.query.limit(n);
+        self
+    }
+
+    /// Apply an additional `WHERE` filter.
+    pub fn filter<F>(mut self, condition: F) -> Self
+    where
+        F: sea_orm::sea_query::IntoCondition,
+    {
+        self.query = self.query.filter(condition);
+        self
+    }
+
+    /// Execute against `db` and return all related rows.
+    pub async fn get(self, db: &DatabaseConnection) -> Result<Vec<E::Model>, DbErr> {
+        self.query.all(db).await
+    }
+
+    /// Execute against `db` and return the first related row, if any.
+    pub async fn first(self, db: &DatabaseConnection) -> Result<Option<E::Model>, DbErr> {
+        self.query.one(db).await
+    }
+
+    /// Count the related rows.
+    pub async fn count(self, db: &DatabaseConnection) -> Result<u64, DbErr> {
+        Ok(self.query.all(db).await?.len() as u64)
+    }
+}
+
+/// Deferred-connection builder for a **has-one** relationship.
+///
+/// Like [`HasManyRef`] but the terminal `get`/`first` returns `Option<E::Model>`.
+pub struct HasOneRef<E>
+where
+    E: EntityTrait,
+{
+    query: Select<E>,
+}
+
+impl<E> HasOneRef<E>
+where
+    E: EntityTrait,
+    <E as EntityTrait>::Column: ColumnTrait,
+{
+    /// Build a has-one accessor filtering `foreign_key == parent_id`.
+    pub fn new<K>(foreign_key: E::Column, parent_id: K) -> Self
+    where
+        K: Into<Value> + Clone,
+    {
+        Self {
+            query: E::find().filter(foreign_key.eq(parent_id)),
+        }
+    }
+
+    /// Apply an additional `WHERE` filter.
+    pub fn filter<F>(mut self, condition: F) -> Self
+    where
+        F: sea_orm::sea_query::IntoCondition,
+    {
+        self.query = self.query.filter(condition);
+        self
+    }
+
+    /// Execute against `db` and return the related row, if any.
+    pub async fn get(self, db: &DatabaseConnection) -> Result<Option<E::Model>, DbErr> {
+        self.query.one(db).await
+    }
+
+    /// Alias for [`get`](HasOneRef::get).
+    pub async fn first(self, db: &DatabaseConnection) -> Result<Option<E::Model>, DbErr> {
+        self.query.one(db).await
+    }
+
+    /// Whether a related row exists.
+    pub async fn exists(self, db: &DatabaseConnection) -> Result<bool, DbErr> {
+        Ok(self.query.one(db).await?.is_some())
+    }
+}
+
+/// Deferred-connection builder for a **belongs-to** relationship.
+///
+/// Looks up the parent entity `E` by `primary_key == foreign_key_value`,
+/// enabling the `post.user().get(&db)` shape.
+pub struct BelongsToRef<E>
+where
+    E: EntityTrait,
+{
+    query: Select<E>,
+}
+
+impl<E> BelongsToRef<E>
+where
+    E: EntityTrait,
+    <E as EntityTrait>::Column: ColumnTrait,
+{
+    /// Build a belongs-to accessor filtering `primary_key == foreign_key_value`.
+    pub fn new<K>(primary_key: E::Column, foreign_key_value: K) -> Self
+    where
+        K: Into<Value> + Clone,
+    {
+        Self {
+            query: E::find().filter(primary_key.eq(foreign_key_value)),
+        }
+    }
+
+    /// Apply an additional `WHERE` filter.
+    pub fn filter<F>(mut self, condition: F) -> Self
+    where
+        F: sea_orm::sea_query::IntoCondition,
+    {
+        self.query = self.query.filter(condition);
+        self
+    }
+
+    /// Execute against `db` and return the parent row, if any.
+    pub async fn get(self, db: &DatabaseConnection) -> Result<Option<E::Model>, DbErr> {
+        self.query.one(db).await
+    }
+
+    /// Alias for [`get`](BelongsToRef::get).
+    pub async fn first(self, db: &DatabaseConnection) -> Result<Option<E::Model>, DbErr> {
+        self.query.one(db).await
+    }
+}
+
+/// `relationship_accessors!` — generate ergonomic instance accessors on a model.
+///
+/// Given a loaded model instance, this generates zero-argument accessor methods
+/// that read the join key straight from `self` and return a deferred-connection
+/// builder ([`HasManyRef`] / [`HasOneRef`] / [`BelongsToRef`]). The connection is
+/// passed at the terminal call, matching Laravel's `post.user()` / `user.posts()`.
+///
+/// Each entry has the form:
+///
+/// ```text
+/// <kind> <method> => <RelatedEntity>, <RelatedColumn>, <self_field>
+/// ```
+///
+/// * `has_many` / `has_one`: `<RelatedColumn>` is the FK column on the related
+///   table and `<self_field>` is the parent's key field (usually `id`).
+/// * `belongs_to`: `<RelatedColumn>` is the parent's PK column and `<self_field>`
+///   is the FK field stored on `self` (e.g. `user_id`).
+///
+/// # Example
+///
+/// ```rust,no_run
+/// # use rf_eloquent::relationship_accessors;
+/// # use sea_orm::DatabaseConnection;
+/// # fn main() {}
+/// # mod user {
+/// #     use sea_orm::entity::prelude::*;
+/// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+/// #     #[sea_orm(table_name = "users")]
+/// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32 }
+/// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+/// #     impl ActiveModelBehavior for ActiveModel {}
+/// # }
+/// # mod post {
+/// #     use sea_orm::entity::prelude::*;
+/// #     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+/// #     #[sea_orm(table_name = "posts")]
+/// #     pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub user_id: i32 }
+/// #     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)] pub enum Relation {}
+/// #     impl ActiveModelBehavior for ActiveModel {}
+/// # }
+/// // user.posts() -> HasManyRef<post::Entity> filtering post.user_id == user.id
+/// relationship_accessors!(user::Model {
+///     has_many posts => post::Entity, post::Column::UserId, id;
+/// });
+///
+/// // post.user() -> BelongsToRef<user::Entity> filtering user.id == post.user_id
+/// relationship_accessors!(post::Model {
+///     belongs_to user => user::Entity, user::Column::Id, user_id;
+/// });
+///
+/// # async fn example(db: &DatabaseConnection, u: &user::Model, p: &post::Model) -> Result<(), sea_orm::DbErr> {
+/// let posts  = u.posts().get(db).await?;
+/// let author = p.user().get(db).await?;
+/// # Ok(())
+/// # }
+/// ```
+#[macro_export]
+macro_rules! relationship_accessors {
+    ($model:ty { $($kind:ident $method:ident => $entity:ty, $col:expr, $field:ident);* $(;)? }) => {
+        impl $model {
+            $(
+                $crate::relationship_accessors!(@method $kind $method, $entity, $col, $field);
+            )*
+        }
+    };
+    (@method has_many $method:ident, $entity:ty, $col:expr, $field:ident) => {
+        /// Load the has-many relationship for this model instance.
+        pub fn $method(&self) -> $crate::relationships::HasManyRef<$entity> {
+            $crate::relationships::HasManyRef::new($col, self.$field.clone())
+        }
+    };
+    (@method has_one $method:ident, $entity:ty, $col:expr, $field:ident) => {
+        /// Load the has-one relationship for this model instance.
+        pub fn $method(&self) -> $crate::relationships::HasOneRef<$entity> {
+            $crate::relationships::HasOneRef::new($col, self.$field.clone())
+        }
+    };
+    (@method belongs_to $method:ident, $entity:ty, $col:expr, $field:ident) => {
+        /// Load the belongs-to (inverse) relationship for this model instance.
+        pub fn $method(&self) -> $crate::relationships::BelongsToRef<$entity> {
+            $crate::relationships::BelongsToRef::new($col, self.$field.clone())
+        }
+    };
+}
+
 /// `define_relationships!` — macro for concisely declaring relationship helpers on a model.
 ///
 /// ```rust,no_run
@@ -841,6 +1101,55 @@ mod tests {
         let rel = HasManyThrough::<(), (), ()>::new("country_id", "city_id");
         assert_eq!(rel.through_foreign_key(), "country_id");
         assert_eq!(rel.final_foreign_key(), "city_id");
+    }
+
+    mod user {
+        use sea_orm::entity::prelude::*;
+        #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+        #[sea_orm(table_name = "users")]
+        pub struct Model {
+            #[sea_orm(primary_key)]
+            pub id: i32,
+            pub name: String,
+        }
+        #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
+        pub enum Relation {}
+        impl ActiveModelBehavior for ActiveModel {}
+    }
+
+    mod post {
+        use sea_orm::entity::prelude::*;
+        #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+        #[sea_orm(table_name = "posts")]
+        pub struct Model {
+            #[sea_orm(primary_key)]
+            pub id: i32,
+            pub user_id: i32,
+            pub title: String,
+        }
+        #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
+        pub enum Relation {}
+        impl ActiveModelBehavior for ActiveModel {}
+    }
+
+    // Generate instance accessors: user.posts() and post.user().
+    crate::relationship_accessors!(user::Model {
+        has_many posts => post::Entity, post::Column::UserId, id;
+    });
+    crate::relationship_accessors!(post::Model {
+        belongs_to user => user::Entity, user::Column::Id, user_id;
+    });
+
+    #[test]
+    fn test_relationship_accessors_compile_and_type() {
+        // The accessor methods exist, take no db argument, and yield the
+        // deferred-connection Ref builders. (Terminal `.get(&db)` is exercised
+        // against a real DB in the `eloquent_relationship_accessors` sandbox probe.)
+        let u = user::Model { id: 7, name: "Alice".into() };
+        let _posts: HasManyRef<post::Entity> = u.posts();
+
+        let p = post::Model { id: 1, user_id: 7, title: "T".into() };
+        let _author: BelongsToRef<user::Entity> = p.user();
     }
 
     #[test]
