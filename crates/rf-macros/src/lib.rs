@@ -50,6 +50,7 @@ mod exception_handler;
 mod form_request_macro;
 mod function_macro;
 mod helpers;
+mod job_derive;
 mod laravel_macros;
 mod laravel_syntax;
 mod mailable_macro;
@@ -1694,6 +1695,44 @@ pub fn dispatch(input: TokenStream) -> TokenStream {
 #[proc_macro]
 pub fn job(input: TokenStream) -> TokenStream {
     helpers::job_impl(input)
+}
+
+/// Derive the `rf_queue::Job` trait, generating all of its mechanical wiring so
+/// defining a background job is minimal.
+///
+/// You implement only `rf_queue::JobHandler` (the one `handle` body that
+/// matters); the derive supplies `job_type()` (the struct name) and, from an
+/// optional `#[job(..)]` attribute, the `queue`/`max_retries`/`timeout`/
+/// `priority` accessors — and delegates `Job::handle` to your `JobHandler`.
+///
+/// # Example
+///
+/// ```ignore
+/// use rf_queue::{Job, JobHandler, QueueError, Jobs, Worker};
+/// use async_trait::async_trait;
+/// use serde::{Serialize, Deserialize};
+///
+/// #[derive(Serialize, Deserialize, Job)]
+/// #[job(queue = "emails", retries = 5)]
+/// struct SendEmail { to: String }
+///
+/// #[async_trait]
+/// impl JobHandler for SendEmail {
+///     async fn handle(&self) -> Result<(), QueueError> {
+///         println!("emailing {}", self.to);
+///         Ok(())
+///     }
+/// }
+///
+/// // dispatch_now() / Jobs::dispatch / Worker::register all keep working:
+/// SendEmail { to: "a@b.c".into() }.dispatch_now().unwrap();
+/// ```
+///
+/// Supported `#[job(..)]` keys: `job_type` (alias `name`), `queue`, `retries`
+/// (alias `max_retries`), `timeout` (seconds), `priority`.
+#[proc_macro_derive(Job, attributes(job))]
+pub fn derive_job(input: TokenStream) -> TokenStream {
+    job_derive::derive_job(input)
 }
 
 // =============================================================================

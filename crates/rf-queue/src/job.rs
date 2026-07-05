@@ -106,6 +106,46 @@ pub trait Job: Send + Sync + Serialize + for<'de> Deserialize<'de> {
     }
 }
 
+/// The user-authored execution body of a job, used with `#[derive(Job)]`.
+///
+/// The full [`Job`] trait is mostly mechanical: `job_type()` is the type name,
+/// and `queue`/`max_retries`/`timeout`/`priority` are configuration with sane
+/// defaults. The only part that genuinely needs a user body is [`Job::handle`].
+///
+/// `#[derive(Job)]` generates the entire [`Job`] impl for you — deriving
+/// `job_type` from the struct name and reading `queue`/`retries`/`timeout`/
+/// `priority` from a terse `#[job(..)]` attribute — and delegates the body to
+/// this trait. You therefore only write the one method that matters:
+///
+/// ```
+/// use rf_queue::{Job, JobHandler, QueueError};
+/// use async_trait::async_trait;
+/// use serde::{Serialize, Deserialize};
+///
+/// #[derive(Serialize, Deserialize, Job)]
+/// #[job(queue = "emails", retries = 5)]
+/// struct SendEmail { to: String }
+///
+/// #[async_trait]
+/// impl JobHandler for SendEmail {
+///     async fn handle(&self) -> Result<(), QueueError> {
+///         println!("emailing {}", self.to);
+///         Ok(())
+///     }
+/// }
+///
+/// // The derive wired the rest: job_type == "SendEmail", queue == "emails",
+/// // max_retries == 5, and dispatch_now()/Worker::register still work.
+/// assert_eq!(SendEmail { to: "a@b.c".into() }.job_type(), "SendEmail");
+/// assert_eq!(SendEmail { to: "a@b.c".into() }.queue(), "emails");
+/// ```
+#[async_trait]
+pub trait JobHandler: Send + Sync {
+    /// Execute the job body. This is the only method you implement by hand when
+    /// using `#[derive(Job)]`; the derive supplies the rest of [`Job`].
+    async fn handle(&self) -> Result<(), QueueError>;
+}
+
 /// Job metadata stored in queue
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JobMetadata {
