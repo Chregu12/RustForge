@@ -30,6 +30,7 @@
 //! # }
 //! ```
 
+pub mod bridge;
 mod error;
 pub mod facade;
 mod local;
@@ -41,6 +42,7 @@ mod storage;
 pub mod storage_manager;
 mod stream;
 
+pub use bridge::{AsyncBridge, BridgedStorage};
 pub use error::{StorageError, StorageResult};
 pub use facade::StorageFacade;
 pub use local::LocalStorage;
@@ -54,7 +56,8 @@ pub use stream::{detect_content_type, extract_file_name, FileStream};
 /// Prelude module for convenient imports
 pub mod prelude {
     pub use crate::{
-        detect_content_type, extract_file_name, FileStream, LocalStorage, MemoryStorage, S3Config,
-        S3Storage, Storage, StorageError, StorageManager, StorageResult,
+        detect_content_type, extract_file_name, AsyncBridge, BridgedStorage, FileStream,
+        LocalStorage, MemoryStorage, S3Config, S3Storage, Storage, StorageError, StorageManager,
+        StorageResult,
     };
 }
