@@ -1,8 +1,10 @@
 //! Job trait and types
 
 use crate::error::QueueError;
+use crate::queue::Queue;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 use std::time::Duration;
 
 /// Job trait for queue jobs
@@ -63,6 +65,23 @@ pub trait Job: Send + Sync + Serialize + for<'de> Deserialize<'de> {
     fn priority(&self) -> i32 {
         0
     }
+
+    /// Ergonomically dispatch this job onto a queue.
+    ///
+    /// This is the concise form envisioned as `SendInvoice { .. }.dispatch(&queue)`:
+    /// it serializes the job into a [`JobMetadata`] and enqueues it. A [`Worker`]
+    /// registered for this job type (see [`Worker::register`]) will later dequeue
+    /// and execute [`Job::handle`].
+    ///
+    /// [`Worker`]: crate::worker::Worker
+    /// [`Worker::register`]: crate::worker::Worker::register
+    async fn dispatch(&self, queue: &Arc<dyn Queue>) -> Result<String, QueueError>
+    where
+        Self: Sized,
+    {
+        let metadata = JobMetadata::new(self)?;
+        queue.push(metadata).await
+    }
 }
 
 /// Job metadata stored in queue
@@ -73,6 +92,19 @@ pub struct JobMetadata {
 
     /// Job type identifier
     pub job_type: String,
+
+    /// Concrete Rust type key used to route the job to a worker handler.
+    ///
+    /// This is the stable `std::any::type_name::<J>()` of the dispatched job,
+    /// which is how [`Worker::register`]/[`Worker::handle`] key their handlers.
+    /// It is distinct from [`Self::job_type`] (a user-facing label that may
+    /// collide across types). Defaults to empty for payloads serialized before
+    /// this field existed, in which case the worker falls back to `job_type`.
+    ///
+    /// [`Worker::register`]: crate::worker::Worker::register
+    /// [`Worker::handle`]: crate::worker::Worker::handle
+    #[serde(default)]
+    pub handler_key: String,
 
     /// Serialized job data
     pub data: Vec<u8>,
@@ -111,6 +143,7 @@ impl JobMetadata {
         Ok(Self {
             id: uuid::Uuid::new_v4().to_string(),
             job_type: job.job_type().to_string(),
+            handler_key: std::any::type_name::<J>().to_string(),
             data,
             queue: job.queue().to_string(),
             attempts: 0,

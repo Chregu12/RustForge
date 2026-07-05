@@ -75,6 +75,43 @@ impl Worker {
         self
     }
 
+    /// Register a job type so the worker can execute its [`Job::handle`] directly.
+    ///
+    /// This is the ergonomic counterpart to [`Job::dispatch`]: you dispatch a
+    /// job with `job.dispatch(&queue).await`, register its type on a worker with
+    /// `Worker::new(queue).register::<MyJob>()`, and the worker deserializes the
+    /// payload back into `MyJob` and runs `handle()` for real, in-process.
+    pub fn register<J: Job + 'static>(mut self) -> Self {
+        let key = std::any::type_name::<J>().to_string();
+
+        let handler_fn = Arc::new(move |data: Vec<u8>| -> JobHandlerFuture {
+            Box::pin(async move {
+                let job: J = serde_json::from_slice(&data)
+                    .map_err(|e| QueueError::DeserializationError(e.to_string()))?;
+                job.handle().await
+            })
+        });
+
+        self.handlers.insert(key, handler_fn);
+        self
+    }
+
+    /// Process at most one ready job across the configured queues.
+    ///
+    /// Reserves the next available job (respecting delayed `execute_at`),
+    /// executes its handler, and reports the outcome to the queue backend
+    /// (`complete`/`retry`/`fail`). Returns `Ok(true)` if a job was processed,
+    /// `Ok(false)` if every configured queue was empty (a safe no-op).
+    pub async fn work_once(&self) -> QueueResult<bool> {
+        for queue_name in &self.queue_names {
+            if let Some(metadata) = self.queue.reserve(queue_name).await? {
+                self.process_job(metadata).await;
+                return Ok(true);
+            }
+        }
+        Ok(false)
+    }
+
     /// Start processing jobs
     pub async fn start(self) -> QueueResult<()> {
         let worker = Arc::new(self);
@@ -126,8 +163,15 @@ impl Worker {
             "Processing job"
         );
 
-        // Find handler
-        let handler = match self.handlers.get(&job_type) {
+        // Route to a handler by the concrete Rust type key (handler_key), which is
+        // how handlers are registered. Fall back to the user-facing job_type for
+        // payloads serialized before handler_key existed.
+        let lookup_key = if metadata.handler_key.is_empty() {
+            job_type.as_str()
+        } else {
+            metadata.handler_key.as_str()
+        };
+        let handler = match self.handlers.get(lookup_key) {
             Some(h) => h,
             None => {
                 tracing::error!(job_type = %job_type, "No handler registered for job type");
@@ -210,6 +254,12 @@ mod tests {
     use crate::memory::MemoryQueue;
     use async_trait::async_trait;
     use serde::{Deserialize, Serialize};
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    // A process-wide side-effect sink so the test can prove the worker actually
+    // executed the job body (not merely dequeued it).
+    static COUNTER: AtomicUsize = AtomicUsize::new(0);
+    static LAST_PAYLOAD: std::sync::Mutex<String> = std::sync::Mutex::new(String::new());
 
     #[derive(Serialize, Deserialize, Clone)]
     struct TestJob {
@@ -223,6 +273,8 @@ mod tests {
             if self.should_fail {
                 Err(QueueError::JobFailed("Intentional failure".to_string()))
             } else {
+                COUNTER.fetch_add(1, Ordering::SeqCst);
+                *LAST_PAYLOAD.lock().unwrap() = self.message.clone();
                 Ok(())
             }
         }
@@ -236,50 +288,42 @@ mod tests {
         }
     }
 
+    // Single sequential test: the side-effect sinks (COUNTER/LAST_PAYLOAD) are
+    // process-global because `Job::handle(&self)` has no external state handle,
+    // so running the scenarios in one test avoids cross-test races.
     #[tokio::test]
-    async fn test_worker_processes_job() {
-        // Skip this test for now - there's a design issue where handlers are registered
-        // by Rust type name but jobs are identified by job_type() string.
-        // This needs to be fixed in the Worker design.
-        #[cfg(feature = "redis-backend")]
-        if !redis_available().await {
-            eprintln!("⏭️  Skipping test_worker_processes_job: Redis not available");
-            return;
-        }
-        #[cfg(not(feature = "redis-backend"))]
-        {
-            eprintln!("⏭️  Skipping test_worker_processes_job: Test needs fixing");
-            return;
-        }
-        #[allow(unreachable_code)]
-        let queue = Arc::new(MemoryQueue::new());
-        let job = TestJob {
-            message: "test".to_string(),
-            should_fail: false,
-        };
+    async fn test_worker_executes_jobs_fifo_and_empty_is_noop() {
+        COUNTER.store(0, Ordering::SeqCst);
+        let queue: Arc<dyn Queue> = Arc::new(MemoryQueue::new());
+        let worker = Worker::new(Arc::clone(&queue)).register::<TestJob>();
 
-        let metadata = JobMetadata::new(&job).unwrap();
-        queue.push(metadata).await.unwrap();
+        // Empty queue -> safe no-op, no side effect.
+        assert!(!worker.work_once().await.unwrap(), "empty queue is a no-op");
+        assert_eq!(COUNTER.load(Ordering::SeqCst), 0);
 
-        let processed = Arc::new(tokio::sync::Mutex::new(false));
-        let processed_clone = Arc::clone(&processed);
-
-        let worker = Worker::new(Arc::clone(&queue) as Arc<dyn Queue>)
-            .poll_interval(Duration::from_millis(10))
-            .handle(move |job: TestJob| {
-                let processed = Arc::clone(&processed_clone);
-                Box::pin(async move {
-                    *processed.lock().await = true;
-                    job.handle().await
-                })
-            });
-
-        // Run worker for a short time
-        tokio::select! {
-            _ = worker.start() => {}
-            _ = tokio::time::sleep(Duration::from_millis(100)) => {}
+        // Dispatch three jobs and prove FIFO execution of handle() with payload.
+        for msg in ["first", "second", "third"] {
+            TestJob {
+                message: msg.to_string(),
+                should_fail: false,
+            }
+            .dispatch(&queue)
+            .await
+            .unwrap();
         }
 
-        assert!(*processed.lock().await, "Job should have been processed");
+        assert!(worker.work_once().await.unwrap());
+        assert_eq!(&*LAST_PAYLOAD.lock().unwrap(), "first");
+        assert_eq!(COUNTER.load(Ordering::SeqCst), 1);
+
+        assert!(worker.work_once().await.unwrap());
+        assert_eq!(&*LAST_PAYLOAD.lock().unwrap(), "second");
+
+        assert!(worker.work_once().await.unwrap());
+        assert_eq!(&*LAST_PAYLOAD.lock().unwrap(), "third");
+
+        // Drained -> no-op again; handle() ran exactly three times total.
+        assert!(!worker.work_once().await.unwrap());
+        assert_eq!(COUNTER.load(Ordering::SeqCst), 3);
     }
 }
