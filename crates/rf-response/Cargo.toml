@@ -11,6 +11,10 @@ authors.workspace = true
 # `Response`/`ResponseBuilder` surface if its `IntoResponse` is the same axum
 # version as the router; the 0.8 workspace default made that surface unusable.
 axum = "0.7"
+# Prefer the real Tera engine (full expression evaluation, filters, richer
+# control flow) when `rf_view::ViewEngine` has been initialized; falls back to
+# the built-in file renderer below when it has not, so zero-config still works.
+rf-view = { path = "../rf-view" }
 serde.workspace = true
 serde_json.workspace = true
 tokio.workspace = true

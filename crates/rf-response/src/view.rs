@@ -98,9 +98,66 @@ impl ViewResponse {
     /// layout inheritance — see the module-level [`render_document`] for the full
     /// directive set (`@if`/`@foreach`/`@extends`/`@section`/`@yield`/`@include`).
     pub fn render(&self) -> Result<String, String> {
+        // Prefer the real rf-view Tera engine when it has been initialized AND
+        // it actually knows this template: full expression evaluation, filters,
+        // and richer control flow. Tera rendering is synchronous, so this needs
+        // no async bridge and cannot deadlock a runtime.
+        if let Some(result) = render_via_tera(&self.name, &self.data) {
+            return result;
+        }
+        // Fall back to the built-in file renderer so zero-config (no
+        // `ViewEngine::init`) keeps working exactly as before.
         let template = load_template(&self.name)?;
         render_document(&template, &self.data, 0)
     }
+}
+
+/// Try to render `name` via the initialized `rf_view` Tera engine.
+///
+/// Returns:
+///   * `None` — the engine is not initialized, or it holds no template matching
+///     `name`; the caller should use the built-in file renderer.
+///   * `Some(Ok(html))` — Tera rendered the template.
+///   * `Some(Err(msg))` — the engine owns the template but rendering failed; the
+///     real Tera error is surfaced (never fabricated), and we do NOT silently
+///     fall back to a different file.
+fn render_via_tera(name: &str, data: &Value) -> Option<Result<String, String>> {
+    use rf_view::{Context, ViewEngine};
+
+    // `template_names()` returns an error only when the engine is uninitialized;
+    // an initialized-but-empty engine returns `Ok(vec![])`. Use it as the
+    // initialization probe so we don't touch engine internals.
+    if ViewEngine::template_names().is_err() {
+        return None;
+    }
+
+    let tpl = tera_template_name(name)?;
+
+    let mut ctx = Context::new();
+    if let Value::Object(map) = data {
+        for (k, v) in map {
+            ctx.insert(k, v);
+        }
+    }
+
+    Some(ViewEngine::render(&tpl, &ctx).map_err(|e| e.to_string()))
+}
+
+/// Resolve a dotted/plain view name to a template registered with the Tera
+/// engine, mirroring `rf_view`'s naming (dots → slashes, `.tera` extension).
+fn tera_template_name(name: &str) -> Option<String> {
+    use rf_view::ViewEngine;
+
+    let slashed = name.replace('.', "/");
+    let candidates = [
+        name.to_string(),
+        format!("{name}.tera"),
+        format!("{slashed}.tera"),
+        format!("{slashed}.html"),
+    ];
+    candidates
+        .into_iter()
+        .find(|c| ViewEngine::has_template(c).unwrap_or(false))
 }
 
 /// Load a template file off disk by view name (dotted or plain), returning its
