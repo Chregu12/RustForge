@@ -5,7 +5,7 @@
 
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
-use sea_orm::DatabaseConnection;
+use sea_orm::{ConnectionTrait, DatabaseBackend, DatabaseConnection, QueryResult, Statement, Value};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
@@ -118,24 +118,51 @@ impl PermissionService {
         Self { db }
     }
 
-    /// Get all permissions for a user
-    pub async fn get_user_permissions(&self, _user_id: i64) -> Result<Vec<Permission>, AuthError> {
-        // Query to get all permissions for a user through their roles
-        // This would join: users -> role_user -> roles -> permission_role -> permissions
-
-        // Simplified placeholder
-        // In production, use proper SeaORM queries
-        Ok(vec![])
+    fn backend(&self) -> DatabaseBackend {
+        self.db.get_database_backend()
     }
 
-    /// Get all roles for a user
-    pub async fn get_user_roles(&self, _user_id: i64) -> Result<Vec<Role>, AuthError> {
-        // Query to get all roles for a user
-        // This would join: users -> role_user -> roles
+    /// Get all permissions for a user (through the user's roles).
+    ///
+    /// Joins: `role_user` -> `permission_role` -> `permissions`.
+    pub async fn get_user_permissions(&self, user_id: i64) -> Result<Vec<Permission>, AuthError> {
+        let sql = "SELECT DISTINCT p.id, p.name, p.slug, p.description, p.created_at, p.updated_at \
+                   FROM permissions p \
+                   INNER JOIN permission_role pr ON pr.permission_id = p.id \
+                   INNER JOIN role_user ru ON ru.role_id = pr.role_id \
+                   WHERE ru.user_id = ? \
+                   ORDER BY p.id";
+        let rows = self
+            .db
+            .query_all(Statement::from_sql_and_values(
+                self.backend(),
+                sql,
+                [Value::BigInt(Some(user_id))],
+            ))
+            .await
+            .map_err(db_err)?;
+        rows.iter().map(row_to_permission).collect()
+    }
 
-        // Simplified placeholder
-        // In production, use proper SeaORM queries
-        Ok(vec![])
+    /// Get all roles assigned to a user.
+    ///
+    /// Joins: `role_user` -> `roles`.
+    pub async fn get_user_roles(&self, user_id: i64) -> Result<Vec<Role>, AuthError> {
+        let sql = "SELECT r.id, r.name, r.slug, r.description, r.created_at, r.updated_at \
+                   FROM roles r \
+                   INNER JOIN role_user ru ON ru.role_id = r.id \
+                   WHERE ru.user_id = ? \
+                   ORDER BY r.id";
+        let rows = self
+            .db
+            .query_all(Statement::from_sql_and_values(
+                self.backend(),
+                sql,
+                [Value::BigInt(Some(user_id))],
+            ))
+            .await
+            .map_err(db_err)?;
+        rows.iter().map(row_to_role).collect()
     }
 
     /// Check if user has permission
@@ -154,58 +181,101 @@ impl PermissionService {
         Ok(roles.iter().any(|r| r.slug == role_slug))
     }
 
-    /// Assign a role to a user
-    pub async fn assign_role_to_user(&self, _user_id: i64, _role_id: i64) -> Result<(), AuthError> {
-        // Insert into role_user table
-        // In production, use SeaORM
+    /// Assign a role to a user (idempotent).
+    pub async fn assign_role_to_user(&self, user_id: i64, role_id: i64) -> Result<(), AuthError> {
+        let sql = match self.backend() {
+            DatabaseBackend::Postgres => {
+                "INSERT INTO role_user (role_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING"
+            }
+            _ => "INSERT OR IGNORE INTO role_user (role_id, user_id) VALUES (?, ?)",
+        };
+        self.db
+            .execute(Statement::from_sql_and_values(
+                self.backend(),
+                sql,
+                [Value::BigInt(Some(role_id)), Value::BigInt(Some(user_id))],
+            ))
+            .await
+            .map_err(db_err)?;
         Ok(())
     }
 
-    /// Remove a role from a user
+    /// Remove a role from a user.
     pub async fn remove_role_from_user(
         &self,
-        _user_id: i64,
-        _role_id: i64,
+        user_id: i64,
+        role_id: i64,
     ) -> Result<(), AuthError> {
-        // Delete from role_user table
-        // In production, use SeaORM
+        self.db
+            .execute(Statement::from_sql_and_values(
+                self.backend(),
+                "DELETE FROM role_user WHERE role_id = ? AND user_id = ?",
+                [Value::BigInt(Some(role_id)), Value::BigInt(Some(user_id))],
+            ))
+            .await
+            .map_err(db_err)?;
         Ok(())
     }
 
-    /// Assign a permission to a role
+    /// Assign a permission to a role (idempotent).
     pub async fn assign_permission_to_role(
         &self,
-        _role_id: i64,
-        _permission_id: i64,
+        role_id: i64,
+        permission_id: i64,
     ) -> Result<(), AuthError> {
-        // Insert into permission_role table
-        // In production, use SeaORM
+        let sql = match self.backend() {
+            DatabaseBackend::Postgres => {
+                "INSERT INTO permission_role (permission_id, role_id) VALUES ($1, $2) ON CONFLICT DO NOTHING"
+            }
+            _ => "INSERT OR IGNORE INTO permission_role (permission_id, role_id) VALUES (?, ?)",
+        };
+        self.db
+            .execute(Statement::from_sql_and_values(
+                self.backend(),
+                sql,
+                [
+                    Value::BigInt(Some(permission_id)),
+                    Value::BigInt(Some(role_id)),
+                ],
+            ))
+            .await
+            .map_err(db_err)?;
         Ok(())
     }
 
-    /// Remove a permission from a role
+    /// Remove a permission from a role.
     pub async fn remove_permission_from_role(
         &self,
-        _role_id: i64,
-        _permission_id: i64,
+        role_id: i64,
+        permission_id: i64,
     ) -> Result<(), AuthError> {
-        // Delete from permission_role table
-        // In production, use SeaORM
+        self.db
+            .execute(Statement::from_sql_and_values(
+                self.backend(),
+                "DELETE FROM permission_role WHERE permission_id = ? AND role_id = ?",
+                [
+                    Value::BigInt(Some(permission_id)),
+                    Value::BigInt(Some(role_id)),
+                ],
+            ))
+            .await
+            .map_err(db_err)?;
         Ok(())
     }
 
-    /// Create a new permission
+    /// Create a new permission and return it with its assigned id.
     pub async fn create_permission(
         &self,
         name: String,
         slug: String,
         description: Option<String>,
     ) -> Result<Permission, AuthError> {
-        // Insert into permissions table
-        // In production, use SeaORM
         let now = Utc::now();
+        let id = self
+            .insert_named("permissions", &name, &slug, &description, now)
+            .await?;
         Ok(Permission {
-            id: 0,
+            id,
             name,
             slug,
             description,
@@ -214,18 +284,19 @@ impl PermissionService {
         })
     }
 
-    /// Create a new role
+    /// Create a new role and return it with its assigned id.
     pub async fn create_role(
         &self,
         name: String,
         slug: String,
         description: Option<String>,
     ) -> Result<Role, AuthError> {
-        // Insert into roles table
-        // In production, use SeaORM
         let now = Utc::now();
+        let id = self
+            .insert_named("roles", &name, &slug, &description, now)
+            .await?;
         Ok(Role {
-            id: 0,
+            id,
             name,
             slug,
             description,
@@ -234,36 +305,159 @@ impl PermissionService {
         })
     }
 
-    /// Find permission by slug
+    /// Shared insert for the `permissions` / `roles` tables. Returns the new row id.
+    async fn insert_named(
+        &self,
+        table: &str,
+        name: &str,
+        slug: &str,
+        description: &Option<String>,
+        now: DateTime<Utc>,
+    ) -> Result<i64, AuthError> {
+        let values = [
+            Value::String(Some(Box::new(name.to_string()))),
+            Value::String(Some(Box::new(slug.to_string()))),
+            match description {
+                Some(d) => Value::String(Some(Box::new(d.clone()))),
+                None => Value::String(None),
+            },
+            Value::ChronoDateTimeUtc(Some(Box::new(now))),
+            Value::ChronoDateTimeUtc(Some(Box::new(now))),
+        ];
+        if self.backend() == DatabaseBackend::Postgres {
+            let sql = format!(
+                "INSERT INTO {table} (name, slug, description, created_at, updated_at) \
+                 VALUES ($1, $2, $3, $4, $5) RETURNING id"
+            );
+            let row = self
+                .db
+                .query_one(Statement::from_sql_and_values(self.backend(), sql, values))
+                .await
+                .map_err(db_err)?
+                .ok_or_else(|| AuthError::Internal("insert returned no id".into()))?;
+            row.try_get::<i64>("", "id").map_err(db_err)
+        } else {
+            let sql = format!(
+                "INSERT INTO {table} (name, slug, description, created_at, updated_at) \
+                 VALUES (?, ?, ?, ?, ?)"
+            );
+            let res = self
+                .db
+                .execute(Statement::from_sql_and_values(self.backend(), sql, values))
+                .await
+                .map_err(db_err)?;
+            Ok(res.last_insert_id() as i64)
+        }
+    }
+
+    /// Find a permission by its slug.
     pub async fn find_permission_by_slug(
         &self,
-        _slug: &str,
+        slug: &str,
     ) -> Result<Option<Permission>, AuthError> {
-        // Query permissions table
-        // In production, use SeaORM
-        Ok(None)
+        let row = self
+            .db
+            .query_one(Statement::from_sql_and_values(
+                self.backend(),
+                "SELECT id, name, slug, description, created_at, updated_at \
+                 FROM permissions WHERE slug = ? LIMIT 1",
+                [Value::String(Some(Box::new(slug.to_string())))],
+            ))
+            .await
+            .map_err(db_err)?;
+        row.as_ref().map(row_to_permission).transpose()
     }
 
-    /// Find role by slug
-    pub async fn find_role_by_slug(&self, _slug: &str) -> Result<Option<Role>, AuthError> {
-        // Query roles table
-        // In production, use SeaORM
-        Ok(None)
+    /// Find a role by its slug.
+    pub async fn find_role_by_slug(&self, slug: &str) -> Result<Option<Role>, AuthError> {
+        let row = self
+            .db
+            .query_one(Statement::from_sql_and_values(
+                self.backend(),
+                "SELECT id, name, slug, description, created_at, updated_at \
+                 FROM roles WHERE slug = ? LIMIT 1",
+                [Value::String(Some(Box::new(slug.to_string())))],
+            ))
+            .await
+            .map_err(db_err)?;
+        row.as_ref().map(row_to_role).transpose()
     }
 
-    /// Get all permissions
+    /// Get all permissions.
     pub async fn get_all_permissions(&self) -> Result<Vec<Permission>, AuthError> {
-        // Query all permissions
-        // In production, use SeaORM
-        Ok(vec![])
+        let rows = self
+            .db
+            .query_all(Statement::from_string(
+                self.backend(),
+                "SELECT id, name, slug, description, created_at, updated_at \
+                 FROM permissions ORDER BY id"
+                    .to_string(),
+            ))
+            .await
+            .map_err(db_err)?;
+        rows.iter().map(row_to_permission).collect()
     }
 
-    /// Get all roles
+    /// Get all roles.
     pub async fn get_all_roles(&self) -> Result<Vec<Role>, AuthError> {
-        // Query all roles
-        // In production, use SeaORM
-        Ok(vec![])
+        let rows = self
+            .db
+            .query_all(Statement::from_string(
+                self.backend(),
+                "SELECT id, name, slug, description, created_at, updated_at \
+                 FROM roles ORDER BY id"
+                    .to_string(),
+            ))
+            .await
+            .map_err(db_err)?;
+        rows.iter().map(row_to_role).collect()
     }
+}
+
+/// Map a SeaORM database error into an [`AuthError`].
+fn db_err(e: sea_orm::DbErr) -> AuthError {
+    AuthError::Internal(e.to_string())
+}
+
+/// Robustly read a timestamp column across backends (sqlite stores TEXT).
+fn get_timestamp(row: &QueryResult, col: &str) -> DateTime<Utc> {
+    if let Ok(dt) = row.try_get::<DateTime<Utc>>("", col) {
+        return dt;
+    }
+    if let Ok(naive) = row.try_get::<chrono::NaiveDateTime>("", col) {
+        return DateTime::from_naive_utc_and_offset(naive, Utc);
+    }
+    if let Ok(s) = row.try_get::<String>("", col) {
+        if let Ok(dt) = DateTime::parse_from_rfc3339(&s) {
+            return dt.with_timezone(&Utc);
+        }
+        if let Ok(naive) = chrono::NaiveDateTime::parse_from_str(&s, "%Y-%m-%d %H:%M:%S") {
+            return DateTime::from_naive_utc_and_offset(naive, Utc);
+        }
+    }
+    Utc::now()
+}
+
+fn row_to_permission(row: &QueryResult) -> Result<Permission, AuthError> {
+    Ok(Permission {
+        id: row.try_get("", "id").map_err(db_err)?,
+        name: row.try_get("", "name").map_err(db_err)?,
+        slug: row.try_get("", "slug").map_err(db_err)?,
+        description: row.try_get::<Option<String>>("", "description").unwrap_or(None),
+        created_at: get_timestamp(row, "created_at"),
+        updated_at: get_timestamp(row, "updated_at"),
+    })
+}
+
+fn row_to_role(row: &QueryResult) -> Result<Role, AuthError> {
+    Ok(Role {
+        id: row.try_get("", "id").map_err(db_err)?,
+        name: row.try_get("", "name").map_err(db_err)?,
+        slug: row.try_get("", "slug").map_err(db_err)?,
+        description: row.try_get::<Option<String>>("", "description").unwrap_or(None),
+        created_at: get_timestamp(row, "created_at"),
+        updated_at: get_timestamp(row, "updated_at"),
+    })
 }
 
 /// User with permissions and roles (wrapper around DbUser)
