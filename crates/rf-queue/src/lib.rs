@@ -81,6 +81,7 @@
 mod api;
 mod config;
 mod error;
+mod facade;
 mod job;
 mod memory;
 mod queue;
@@ -93,6 +94,7 @@ pub mod drivers;
 
 pub use api::{dispatch, dispatch_later, QueueFacade};
 pub use config::{QueueConfig, QueueConfigBuilder};
+pub use facade::{default_queue, set_default_queue, Jobs};
 pub use error::{QueueError, QueueResult};
 pub use job::{Job, JobMetadata};
 pub use memory::MemoryQueue;

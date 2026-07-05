@@ -82,6 +82,28 @@ pub trait Job: Send + Sync + Serialize + for<'de> Deserialize<'de> {
         let metadata = JobMetadata::new(self)?;
         queue.push(metadata).await
     }
+
+    /// Ergonomically dispatch this job onto the **process-global default queue**
+    /// with no queue handle threaded through the call site.
+    ///
+    /// This is the concise, handle-free form envisioned as
+    /// `SendInvoice { .. }.dispatch_now()`. The default queue is configured once
+    /// at boot with [`set_default_queue`](crate::set_default_queue) /
+    /// [`Jobs::set_queue`](crate::Jobs::set_queue) (until then it is an in-memory
+    /// queue).
+    ///
+    /// Unlike [`Job::dispatch`], this is **synchronous** and drives the async
+    /// enqueue on the deadlock-safe [`AsyncBridge`](rf_async_bridge::AsyncBridge),
+    /// so it is safe to call from plain sync code *and* from inside an existing
+    /// Tokio runtime (an Axum handler, a spawned task, `#[tokio::main]`) without
+    /// a "runtime within a runtime" panic.
+    fn dispatch_now(&self) -> Result<String, QueueError>
+    where
+        Self: Sized,
+    {
+        let metadata = JobMetadata::new(self)?;
+        crate::facade::push_to_default(metadata)
+    }
 }
 
 /// Job metadata stored in queue

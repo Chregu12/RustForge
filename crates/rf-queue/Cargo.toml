@@ -14,9 +14,13 @@ tracing.workspace = true
 tokio = { workspace = true, features = ["sync", "time"] }
 chrono.workspace = true
 uuid.workspace = true
+once_cell.workspace = true
 
 # Core runtime for sync/async bridge
 rf-core = { path = "../rf-core" }
+
+# Deadlock-safe sync-over-async bridge for the global dispatch facade
+rf-async-bridge = { path = "../rf-async-bridge" }
 
 # Redis support (optional)
 redis = { workspace = true, optional = true }
