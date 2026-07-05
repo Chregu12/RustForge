@@ -82,6 +82,7 @@
 mod address;
 mod attachment;
 mod backends;
+pub mod bridge;
 mod builder;
 mod config;
 mod error;
@@ -120,6 +121,7 @@ pub use backends::{SendGridConfig, SendGridMailer};
 #[cfg(feature = "ses")]
 pub use backends::{SesConfig, SesMailer};
 
+pub use bridge::{AsyncBridge, BridgedMailer, BridgedSmtpMailer};
 pub use builder::MessageBuilder;
 pub use config::{
     Encryption, MailConfig, MailDriver, SendmailConfig, SmtpConfig as SmtpMailConfig,

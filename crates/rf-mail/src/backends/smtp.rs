@@ -61,6 +61,7 @@ pub struct SmtpConfig {
 /// # Ok(())
 /// # }
 /// ```
+#[derive(Clone)]
 pub struct SmtpMailer {
     transport: AsyncSmtpTransport<Tokio1Executor>,
 }
