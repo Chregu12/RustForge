@@ -511,20 +511,197 @@ impl Compiler {
     }
 
     /// Compile @for directive
+    ///
+    /// Executes C-style integer loops of the form
+    /// `@for($i = 0; $i < 10; $i++)`. The loop variable is exposed to the
+    /// body (and can be referenced with `{{ $i }}`), while any variables
+    /// already present in the surrounding context remain visible. The
+    /// following forms are supported for each clause:
+    ///
+    /// * init: `$i = <int|var>`
+    /// * condition: `$i <op> <int|var>` where op is `<`, `<=`, `>`, `>=`,
+    ///   `==` or `!=`
+    /// * increment: `$i++`, `$i--`, `$i += <n>`, `$i -= <n>`,
+    ///   `$i = $i + <n>`, `$i = $i - <n>`
     fn compile_for(
         &self,
         init: &str,
         condition: &str,
         increment: &str,
-        _body: &[AstNode],
-        _context: &mut RenderContext,
+        body: &[AstNode],
+        context: &mut RenderContext,
     ) -> CompileResult<String> {
-        // Simplified @for implementation
-        // For full implementation, would need to parse and execute PHP-like expressions
-        Ok(format!(
-            "<!-- for loop: {}; {}; {} -->",
-            init, condition, increment
-        ))
+        const MAX_ITERATIONS: usize = 1_000_000;
+
+        let (var_name, start) = Self::parse_for_init(init, context)?;
+
+        let mut output = String::new();
+        let mut value = start;
+        let mut iterations = 0usize;
+
+        loop {
+            // Expose the loop variable to the body/condition via a child context.
+            let mut loop_context = context.clone();
+            Self::set_int_var(&mut loop_context, &var_name, value);
+
+            if !Self::eval_for_condition(condition, &loop_context)? {
+                break;
+            }
+
+            if iterations >= MAX_ITERATIONS {
+                return Err(CompileError::EvaluationError(
+                    "Infinite loop detected in @for".to_string(),
+                ));
+            }
+
+            let html = self.compile(body, &mut loop_context)?;
+            output.push_str(&html);
+            iterations += 1;
+
+            value = Self::apply_for_increment(increment, value, &loop_context)?;
+        }
+
+        Ok(output)
+    }
+
+    /// Parse the init clause of an @for loop into (variable name, start value).
+    fn parse_for_init(init: &str, context: &RenderContext) -> CompileResult<(String, i64)> {
+        let (lhs, rhs) = init.split_once('=').ok_or_else(|| {
+            CompileError::EvaluationError(format!("Invalid @for init clause: {}", init))
+        })?;
+        let var = lhs.trim().trim_start_matches('$').to_string();
+        if var.is_empty() {
+            return Err(CompileError::EvaluationError(format!(
+                "Invalid @for init variable: {}",
+                init
+            )));
+        }
+        let start = Self::eval_int_operand(rhs, context).ok_or_else(|| {
+            CompileError::EvaluationError(format!("Invalid @for init value: {}", rhs))
+        })?;
+        Ok((var, start))
+    }
+
+    /// Evaluate an integer operand: either a literal or a variable reference.
+    fn eval_int_operand(token: &str, context: &RenderContext) -> Option<i64> {
+        let token = token.trim();
+        if let Ok(n) = token.parse::<i64>() {
+            return Some(n);
+        }
+        match context.get_var(token) {
+            Some(Value::Number(n)) => n.as_i64(),
+            _ => None,
+        }
+    }
+
+    /// Evaluate the condition clause of an @for loop.
+    fn eval_for_condition(condition: &str, context: &RenderContext) -> CompileResult<bool> {
+        let cond = condition.trim();
+        for op in ["<=", ">=", "==", "!=", "<", ">"] {
+            if let Some((lhs, rhs)) = cond.split_once(op) {
+                let l = Self::eval_int_operand(lhs, context).ok_or_else(|| {
+                    CompileError::EvaluationError(format!(
+                        "Invalid @for condition operand: {}",
+                        lhs
+                    ))
+                })?;
+                let r = Self::eval_int_operand(rhs, context).ok_or_else(|| {
+                    CompileError::EvaluationError(format!(
+                        "Invalid @for condition operand: {}",
+                        rhs
+                    ))
+                })?;
+                let result = match op {
+                    "<=" => l <= r,
+                    ">=" => l >= r,
+                    "==" => l == r,
+                    "!=" => l != r,
+                    "<" => l < r,
+                    ">" => l > r,
+                    _ => unreachable!(),
+                };
+                return Ok(result);
+            }
+        }
+        Err(CompileError::EvaluationError(format!(
+            "Unsupported @for condition: {}",
+            condition
+        )))
+    }
+
+    /// Apply the increment clause of an @for loop to the current value.
+    ///
+    /// `context` must already expose the loop variable at its current value so
+    /// that assignment forms like `$i = $i + 1` resolve correctly.
+    fn apply_for_increment(
+        increment: &str,
+        current: i64,
+        context: &RenderContext,
+    ) -> CompileResult<i64> {
+        let inc = increment.trim();
+
+        if inc.ends_with("++") || inc.starts_with("++") {
+            return Ok(current + 1);
+        }
+        if inc.ends_with("--") || inc.starts_with("--") {
+            return Ok(current - 1);
+        }
+        if let Some((_, rhs)) = inc.split_once("+=") {
+            let step = Self::eval_int_operand(rhs, context).ok_or_else(|| {
+                CompileError::EvaluationError(format!("Invalid @for increment step: {}", rhs))
+            })?;
+            return Ok(current + step);
+        }
+        if let Some((_, rhs)) = inc.split_once("-=") {
+            let step = Self::eval_int_operand(rhs, context).ok_or_else(|| {
+                CompileError::EvaluationError(format!("Invalid @for increment step: {}", rhs))
+            })?;
+            return Ok(current - step);
+        }
+        if let Some((_, rhs)) = inc.split_once('=') {
+            let rhs = rhs.trim();
+            if let Some((a, b)) = rhs.split_once('+') {
+                let av = Self::eval_int_operand(a, context).ok_or_else(|| {
+                    CompileError::EvaluationError(format!("Invalid @for increment operand: {}", a))
+                })?;
+                let bv = Self::eval_int_operand(b, context).ok_or_else(|| {
+                    CompileError::EvaluationError(format!("Invalid @for increment operand: {}", b))
+                })?;
+                return Ok(av + bv);
+            }
+            if let Some((a, b)) = rhs.split_once('-') {
+                let av = Self::eval_int_operand(a, context).ok_or_else(|| {
+                    CompileError::EvaluationError(format!("Invalid @for increment operand: {}", a))
+                })?;
+                let bv = Self::eval_int_operand(b, context).ok_or_else(|| {
+                    CompileError::EvaluationError(format!("Invalid @for increment operand: {}", b))
+                })?;
+                return Ok(av - bv);
+            }
+            if let Some(v) = Self::eval_int_operand(rhs, context) {
+                return Ok(v);
+            }
+        }
+
+        Err(CompileError::EvaluationError(format!(
+            "Unsupported @for increment: {}",
+            increment
+        )))
+    }
+
+    /// Set an integer variable on a render context's data object.
+    fn set_int_var(context: &mut RenderContext, name: &str, value: i64) {
+        let entry = Value::Number(serde_json::Number::from(value));
+        match &mut context.data {
+            Value::Object(map) => {
+                map.insert(name.to_string(), entry);
+            }
+            other => {
+                let mut map = serde_json::Map::new();
+                map.insert(name.to_string(), entry);
+                *other = Value::Object(map);
+            }
+        }
     }
 
     /// Compile @while directive
@@ -812,6 +989,35 @@ mod tests {
 
         let html = compiler.compile(&nodes, &mut context).unwrap();
         assert_eq!(html, "abc");
+    }
+
+    #[test]
+    fn test_compile_for() {
+        let compiler = Compiler::new();
+
+        // Ascending loop with post-increment.
+        let nodes = Parser::parse("@for($i = 0; $i < 3; $i++){{ $i }}@endfor").unwrap();
+        let mut context = RenderContext::new(json!({}));
+        assert_eq!(compiler.compile(&nodes, &mut context).unwrap(), "012");
+
+        // Stepped loop with += and an inclusive bound.
+        let nodes = Parser::parse("@for($n = 1; $n <= 10; $n += 3)[{{ $n }}]@endfor").unwrap();
+        let mut context = RenderContext::new(json!({}));
+        assert_eq!(
+            compiler.compile(&nodes, &mut context).unwrap(),
+            "[1][4][7][10]"
+        );
+
+        // Descending loop whose start comes from context data.
+        let nodes = Parser::parse("@for($i = $start; $i > 0; $i--){{ $i }}@endfor").unwrap();
+        let mut context = RenderContext::new(json!({ "start": 3 }));
+        assert_eq!(compiler.compile(&nodes, &mut context).unwrap(), "321");
+
+        // Assignment-style increment plus access to an outer variable.
+        let nodes =
+            Parser::parse("@for($i = 0; $i < 2; $i = $i + 1){{ $label }}{{ $i }} @endfor").unwrap();
+        let mut context = RenderContext::new(json!({ "label": "x" }));
+        assert_eq!(compiler.compile(&nodes, &mut context).unwrap(), "x0 x1 ");
     }
 
     #[test]
