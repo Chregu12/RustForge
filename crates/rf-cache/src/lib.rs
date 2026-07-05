@@ -53,6 +53,8 @@ use thiserror::Error;
 use tokio::sync::{Mutex, RwLock};
 
 pub mod advanced;
+/// Deadlock-safe sync-over-async bridge (used to expose async drivers behind the sync facade).
+pub mod bridge;
 pub mod config;
 pub mod drivers;
 
@@ -72,6 +74,9 @@ pub use config::{CacheBackend, CacheConfig, CacheConfigBuilder};
 // Re-export facade types (Laravel-style static API)
 pub use cache_manager::{CacheManager, GLOBAL_CACHE};
 pub use facade::{Cache as CacheFacade, IntoTtl};
+
+// Re-export the sync-over-async bridge
+pub use bridge::{AsyncBridge, BridgedCache};
 
 // Re-export drivers
 #[cfg(feature = "memcached")]
@@ -542,6 +547,7 @@ pub use pubsub::{PubSubMessage, RedisPubSub};
 /// Prelude module for convenient imports
 pub mod prelude {
     pub use crate::advanced::{CacheWarmer, MultiLevelCache, ProbabilisticCache};
+    pub use crate::bridge::{AsyncBridge, BridgedCache};
     pub use crate::config::{CacheBackend, CacheConfig, CacheConfigBuilder};
     pub use crate::{Cache, CacheError, CacheResult, CacheStats, MemoryCache, TaggedCache};
 
