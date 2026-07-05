@@ -152,12 +152,13 @@ pub mod prelude {
     // Laravel-style facade helper macros. Only the ones whose expansion actually
     // compiles against an existing facade are re-exported here. `view!` expands to
     // `rf_response::Response::view(name, data)` — a real file+interpolate renderer
-    // (loads `resources/views/<name>.blade.html`, fills `{{ var }}`). Still NOT
-    // advertised until their engines/signatures are fixed (see VISION_GAP.md):
-    // `event!` (facade dispatch arity drift), `back!` (needs Response::back wiring),
-    // `session!` (targets a non-existent `rf_session` crate), `job!` (targets a
-    // missing `rf_job_facade`).
-    pub use rf_macros::{auth, cache, redirect, storage, view};
+    // (loads `resources/views/<name>.blade.html`, fills `{{ var }}`). `event!`
+    // expands to `rf_event_facade::event(payload)` — the real type-keyed sync event
+    // bus (fires every listener registered for the payload's concrete type). Still
+    // NOT advertised until their engines/signatures are fixed (see VISION_GAP.md):
+    // `back!` (needs Response::back wiring), `session!` (targets a non-existent
+    // `rf_session` crate), `job!` (targets a missing `rf_job_facade`).
+    pub use rf_macros::{auth, cache, event, redirect, storage, view};
     pub use rf_validation_derive::Validate;
 
     // Support for the `Model!`/`create!`/`find!`/`update!`/`delete!` macros above.

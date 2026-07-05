@@ -45,6 +45,11 @@
 
 pub mod facade;
 pub mod manager;
+pub mod typed;
 
 pub use facade::Event;
 pub use manager::{EventManager, GLOBAL_EVENT};
+
+// Typed, synchronous, in-process event surface (the vision's `event(payload)`).
+// Dispatches by the payload's concrete type rather than by a string name.
+pub use typed::{event, event_later, forget_all as forget_all_typed, listen};

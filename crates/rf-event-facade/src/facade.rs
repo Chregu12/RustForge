@@ -160,6 +160,51 @@ impl Event {
         manager.forget_all();
     }
 
+    /// Dispatch a typed event by its concrete type (synchronous, in-process).
+    ///
+    /// This is the type-keyed counterpart to [`Event::dispatch`] (which keys by a
+    /// string name). Every listener registered via [`Event::listen_typed`] for the
+    /// payload's type is invoked synchronously. Returns the number of listeners
+    /// fired. See [`crate::typed`] for the free-function form `event(payload)`.
+    ///
+    /// ```
+    /// use rf_event_facade::Event;
+    /// struct Shipped { order_id: u64 }
+    /// Event::listen_typed::<Shipped, _>(|e| assert_eq!(e.order_id, 9));
+    /// let fired = Event::fire(Shipped { order_id: 9 });
+    /// assert!(fired >= 1);
+    /// ```
+    pub fn fire<E: Send + Sync + 'static>(payload: E) -> usize {
+        crate::typed::event(payload)
+    }
+
+    /// Register a typed listener for events of type `E` (type-keyed dispatch).
+    ///
+    /// Counterpart to the string-keyed [`Event::listen`]. The closure receives a
+    /// reference to the concrete event value when [`Event::fire`] / the free
+    /// `event(payload)` dispatches one.
+    pub fn listen_typed<E, F>(callback: F)
+    where
+        E: Send + Sync + 'static,
+        F: Fn(&E) + Send + Sync + 'static,
+    {
+        crate::typed::listen::<E, F>(callback);
+    }
+
+    /// Dispatch a typed event after a delay of `delay_secs` seconds.
+    ///
+    /// Runs a real background thread that sleeps and then performs a synchronous
+    /// typed dispatch. Fire-and-forget; no async runtime required. This is the
+    /// target of the `dispatch!(delay: n, Event { .. })` macro form.
+    pub fn dispatch_later<E: Send + Sync + 'static>(payload: E, delay_secs: u64) {
+        crate::typed::event_later(payload, std::time::Duration::from_secs(delay_secs));
+    }
+
+    /// Number of typed listeners registered for event type `E`.
+    pub fn typed_listener_count<E: 'static>() -> usize {
+        crate::typed::typed_listener_count::<E>()
+    }
+
     /// Get event dispatch history (for testing/debugging)
     pub fn history() -> Vec<(String, Value)> {
         let manager = GLOBAL_EVENT.read().unwrap();

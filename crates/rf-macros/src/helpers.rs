@@ -1162,8 +1162,12 @@ pub fn logger_impl(input: TokenStream) -> TokenStream {
 pub fn event_impl(input: TokenStream) -> TokenStream {
     let event: Expr = parse_macro_input!(input as Expr);
 
+    // Type-keyed synchronous dispatch: `event!(UserCreated { .. })` fires every
+    // listener registered for that concrete event type. Returns the listener
+    // count. This is the vision's `event(payload)` surface, not the string-keyed
+    // `Event::dispatch("name", data)` facade.
     let expanded = quote! {
-        rf_event_facade::Event::dispatch(#event)
+        rf_event_facade::event(#event)
     };
 
     TokenStream::from(expanded)
@@ -1664,29 +1668,45 @@ pub fn dispatch_impl(input: TokenStream) -> TokenStream {
 
     let args = parse_macro_input!(input as DispatchArgs);
 
-    let event_expr = match args.event {
+    // Two real backends:
+    //  * Named events ("user.registered", field = value) route through the
+    //    string-keyed facade `Event::dispatch(name, json_payload)`.
+    //  * Struct events (`UserRegistered { .. }`) route through the type-keyed
+    //    synchronous bus `event(payload)` / `Event::dispatch_later(payload, secs)`.
+    let expanded = match args.event {
         DispatchEvent::Named(name, fields) => {
             let field_names: Vec<_> = fields.iter().map(|(k, _)| k.to_string()).collect();
             let field_values: Vec<_> = fields.iter().map(|(_, v)| v).collect();
-            quote! {
-                serde_json::json!({
-                    "event": #name,
-                    #( #field_names: #field_values ),*
-                })
+            let payload = quote! {
+                serde_json::json!({ #( #field_names: #field_values ),* })
+            };
+            if args.delay.is_some() {
+                // The string facade has no delayed variant; a delayed dispatch
+                // needs a typed struct event. Fail loudly rather than silently
+                // dropping the delay.
+                quote! {
+                    compile_error!(
+                        "dispatch!: delayed dispatch requires a struct event \
+                         (e.g. dispatch!(delay: 3600, OrderShipped { .. })), \
+                         not a named event"
+                    )
+                }
+            } else {
+                quote! {
+                    rf_event_facade::Event::dispatch(#name, #payload)
+                }
             }
         }
         DispatchEvent::Struct(expr) => {
-            quote! { #expr }
-        }
-    };
-
-    let expanded = if let Some(delay_expr) = args.delay {
-        quote! {
-            rf_event_facade::Event::dispatch_later(#event_expr, #delay_expr)
-        }
-    } else {
-        quote! {
-            rf_event_facade::Event::dispatch(#event_expr)
+            if let Some(delay_expr) = args.delay {
+                quote! {
+                    rf_event_facade::Event::dispatch_later(#expr, #delay_expr)
+                }
+            } else {
+                quote! {
+                    rf_event_facade::event(#expr)
+                }
+            }
         }
     };
 
