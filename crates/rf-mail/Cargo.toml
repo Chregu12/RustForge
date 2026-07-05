@@ -6,6 +6,7 @@ license.workspace = true
 authors.workspace = true
 
 [dependencies]
+rf-async-bridge = { path = "../rf-async-bridge" }
 async-trait.workspace = true
 serde.workspace = true
 serde_json.workspace = true

@@ -28,6 +28,7 @@ members = [
     "crates/rf-graphql",
     "crates/rf-tenancy",
     "crates/rf-cache",
+    "crates/rf-async-bridge",
     "crates/rf-ai",
     "crates/rf-vector",
     "crates/rf-oauth2-server",

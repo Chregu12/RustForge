@@ -26,135 +26,15 @@
 //! implementation is a natural **future consolidation**; it is duplicated here for
 //! now to avoid an inter-crate dependency for one small type.
 
-use std::future::Future;
-use std::pin::Pin;
-use std::sync::mpsc as std_mpsc;
-use std::thread::JoinHandle;
-
-use tokio::sync::mpsc as tokio_mpsc;
-
 use crate::backends::{SmtpConfig, SmtpMailer};
 use crate::{Mail, MailResult, Mailer};
 
-/// A type-erased, `Send`, `'static` unit-future executed on the bridge worker.
-type BridgeJob = Pin<Box<dyn Future<Output = ()> + Send + 'static>>;
-
-/// A deadlock-safe sync-over-async bridge backed by a dedicated worker thread.
-///
-/// Clone cheaply: clones share the same worker thread and job queue.
-///
-/// ```rust
-/// use rf_mail::bridge::AsyncBridge;
-/// use std::time::Duration;
-///
-/// let bridge = AsyncBridge::new();
-/// let n = bridge.block_on(async {
-///     tokio::time::sleep(Duration::from_millis(1)).await;
-///     2 + 2
-/// });
-/// assert_eq!(n, 4);
-/// ```
-#[derive(Clone)]
-pub struct AsyncBridge {
-    sender: tokio_mpsc::UnboundedSender<BridgeJob>,
-    // Held purely for its `Drop`: shared so cloning the bridge doesn't join the
-    // thread twice, and so the worker is only torn down once the last handle drops.
-    #[allow(dead_code)]
-    worker: std::sync::Arc<WorkerGuard>,
-}
-
-/// Joins the worker thread when the last [`AsyncBridge`] handle is dropped.
-struct WorkerGuard {
-    handle: std::sync::Mutex<Option<JoinHandle<()>>>,
-}
-
-impl Drop for WorkerGuard {
-    fn drop(&mut self) {
-        // The `sender` inside `AsyncBridge` has already been dropped by the time
-        // the last `Arc<WorkerGuard>` drops, so the worker's `recv()` returns
-        // `None`, its loop exits and the runtime shuts down. Join to be tidy.
-        if let Some(handle) = self.handle.lock().unwrap().take() {
-            let _ = handle.join();
-        }
-    }
-}
-
-impl AsyncBridge {
-    /// Spawn the dedicated worker thread and its current-thread Tokio runtime.
-    ///
-    /// # Panics
-    ///
-    /// Panics only if the OS refuses to spawn the worker thread or the worker
-    /// cannot build its Tokio runtime — both unrecoverable setup failures.
-    pub fn new() -> Self {
-        let (sender, mut receiver) = tokio_mpsc::unbounded_channel::<BridgeJob>();
-
-        let handle = std::thread::Builder::new()
-            .name("rf-mail-async-bridge".to_string())
-            .spawn(move || {
-                let rt = tokio::runtime::Builder::new_current_thread()
-                    .enable_all()
-                    .build()
-                    .expect("rf-mail async bridge failed to build its runtime");
-
-                rt.block_on(async move {
-                    // Drive each submitted job as a task so multiple in-flight jobs
-                    // make progress concurrently on this single thread.
-                    while let Some(job) = receiver.recv().await {
-                        tokio::spawn(job);
-                    }
-                });
-            })
-            .expect("rf-mail async bridge failed to spawn its worker thread");
-
-        Self {
-            sender,
-            worker: std::sync::Arc::new(WorkerGuard {
-                handle: std::sync::Mutex::new(Some(handle)),
-            }),
-        }
-    }
-
-    /// Run `fut` to completion on the bridge worker and block the current thread
-    /// until it produces a value.
-    ///
-    /// Safe to call from plain sync code *and* from inside a running Tokio
-    /// runtime: unlike `Runtime::block_on`, it never touches the caller's ambient
-    /// runtime, so it cannot panic with "runtime within a runtime" nor deadlock
-    /// the executor.
-    ///
-    /// # Panics
-    ///
-    /// Panics if the worker thread has died (e.g. the submitted future panicked
-    /// before replying), surfacing the failure rather than blocking forever.
-    pub fn block_on<F>(&self, fut: F) -> F::Output
-    where
-        F: Future + Send + 'static,
-        F::Output: Send + 'static,
-    {
-        let (reply_tx, reply_rx) = std_mpsc::sync_channel::<F::Output>(1);
-
-        let job: BridgeJob = Box::pin(async move {
-            let output = fut.await;
-            // Receiver may have gone away only if the caller was cancelled; ignore.
-            let _ = reply_tx.send(output);
-        });
-
-        self.sender
-            .send(job)
-            .expect("rf-mail async bridge worker is not running");
-
-        reply_rx
-            .recv()
-            .expect("rf-mail async bridge worker dropped the reply (job panicked?)")
-    }
-}
-
-impl Default for AsyncBridge {
-    fn default() -> Self {
-        Self::new()
-    }
-}
+// The deadlock-safe sync-over-async core now lives in the shared
+// `rf-async-bridge` crate (it was previously duplicated verbatim here and in
+// `rf-cache` / `rf-storage`). Re-export it so `rf_mail::bridge::AsyncBridge` and
+// the `rf_mail::AsyncBridge` re-export keep working unchanged; the
+// crate-specific `BridgedMailer` wrapper below is built on top of it.
+pub use rf_async_bridge::AsyncBridge;
 
 /// A **synchronous** view over any async [`Mailer`] driver, executed through an
 /// [`AsyncBridge`].

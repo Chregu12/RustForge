@@ -7486,6 +7486,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "rf-async-bridge"
+version = "1.0.0"
+dependencies = [
+ "tokio",
+]
+
+[[package]]
 name = "rf-audit"
 version = "0.1.0"
 dependencies = [
@@ -7677,6 +7684,7 @@ dependencies = [
  "once_cell",
  "rand 0.8.5",
  "redis",
+ "rf-async-bridge",
  "sea-orm 1.1.19",
  "serde",
  "serde_json",
@@ -8363,6 +8371,7 @@ dependencies = [
  "pulldown-cmark",
  "regex",
  "reqwest 0.11.27",
+ "rf-async-bridge",
  "rf-jobs",
  "rf-view",
  "serde",
@@ -9114,6 +9123,7 @@ dependencies = [
  "chrono",
  "futures",
  "once_cell",
+ "rf-async-bridge",
  "rf-plugins",
  "serde",
  "serde_json",
