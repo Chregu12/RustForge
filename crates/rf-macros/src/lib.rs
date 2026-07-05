@@ -44,6 +44,7 @@ extern crate proc_macro;
 
 mod await_transformer;
 mod blade_macro;
+mod controller_block_macro;
 mod controller_macro;
 mod exception_handler;
 mod form_request_macro;
@@ -150,6 +151,44 @@ pub fn validate(input: TokenStream) -> TokenStream {
 #[proc_macro_attribute]
 pub fn controller(attr: TokenStream, item: TokenStream) -> TokenStream {
     controller_macro::controller_impl(attr, item)
+}
+
+/// The vision controller syntax as a function-like macro.
+///
+/// A bare top-level `controller Name { .. }` keyword is impossible in Rust, so the
+/// vision controller is written as `controller_block! { Name { method() { .. } } }`.
+/// It generates a unit struct plus an inherent `impl` of `async`, argument-less
+/// handler methods that return an `IntoResponse` and read the request through the
+/// implicit-request globals (`input()`/`file()`) — so they register directly with
+/// the framework router.
+///
+/// This is additive: the existing `#[controller]` attribute macro (which decorates
+/// a hand-written `impl`) is unchanged.
+///
+/// # Example
+///
+/// ```ignore
+/// use rf::prelude::*;
+///
+/// controller_block! {
+///     PostController {
+///         index() { json(Post::all()) }
+///         show()  { json(Post::find(input::<i64>("id").unwrap())) }
+///         store() { json(Post::create(all())) }
+///     }
+/// }
+///
+/// get("/posts", PostController::index);
+/// get("/posts/:id", PostController::show);
+/// post("/posts", PostController::store);
+/// let app = global_router().build_router();
+/// ```
+///
+/// Each method may declare an explicit return type (`show() -> Response { .. }`);
+/// otherwise it defaults to `impl IntoResponse`.
+#[proc_macro]
+pub fn controller_block(input: TokenStream) -> TokenStream {
+    controller_block_macro::controller_block_impl(input)
 }
 
 /// Automatically adds `.await` to async function calls.

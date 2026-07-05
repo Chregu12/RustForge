@@ -134,6 +134,11 @@ pub mod prelude {
 
     // Macros
     pub use rf_macros::{rules, route, controller, Model};
+    // `controller_block!` — the vision controller syntax (function-like macro that
+    // generates a struct + async, argument-less handler methods returning
+    // `IntoResponse`). Its expansion names `rf_response::IntoResponse` by path,
+    // which the `rf_response` re-export further below resolves.
+    pub use rf_macros::controller_block;
     pub use rf_macros::{update, create, find, delete};  // Eloquent CRUD macros
     pub use rf_macros::{routes, migration, request, send_mail, dispatch};  // Laravel helper macros
     pub use rf_macros::validate;  // typed validation DSL (validates the current request)
