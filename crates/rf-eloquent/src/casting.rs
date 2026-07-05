@@ -58,6 +58,51 @@ pub enum CastError {
 
 pub type CastResult<T> = Result<T, CastError>;
 
+/// Process-global encryption key used by [`CastType::Encrypted`].
+///
+/// When unset, the resolver falls back to the `APP_KEY` / `RF_APP_KEY`
+/// environment variables (the RustForge / Laravel convention).
+static ENCRYPTION_KEY: Lazy<RwLock<Option<String>>> = Lazy::new(|| RwLock::new(None));
+
+/// Configure the encryption key used for `CastType::Encrypted` attributes.
+///
+/// Accepts a base64-encoded 32-byte key, optionally prefixed with `base64:`
+/// (produced by `rf_encryption::Encryptor::generate_key`). This is the key
+/// used to AES-256-GCM encrypt attribute values at rest.
+///
+/// If no key is configured here, the `APP_KEY` (then `RF_APP_KEY`) environment
+/// variable is used instead.
+pub fn set_encryption_key(key: impl Into<String>) {
+    if let Ok(mut guard) = ENCRYPTION_KEY.write() {
+        *guard = Some(key.into());
+    }
+}
+
+/// Build the encryptor for `CastType::Encrypted` from the configured key.
+///
+/// Errors (rather than silently degrading to a reversible encoding) when no
+/// key is available, so encrypted attributes are never stored in the clear.
+fn resolve_encryptor() -> CastResult<rf_encryption::Encryptor> {
+    let key = ENCRYPTION_KEY
+        .read()
+        .ok()
+        .and_then(|guard| guard.clone())
+        .or_else(|| std::env::var("APP_KEY").ok())
+        .or_else(|| std::env::var("RF_APP_KEY").ok())
+        .ok_or_else(|| {
+            CastError::EncryptionError(
+                "No encryption key configured for CastType::Encrypted. Set the APP_KEY \
+                 environment variable (base64) or call rf_eloquent::set_encryption_key(...)"
+                    .to_string(),
+            )
+        })?;
+
+    rf_encryption::Encryptor::new()
+        .key(key)
+        .build()
+        .map_err(|e| CastError::EncryptionError(e.to_string()))
+}
+
 /// Supported cast types
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum CastType {
@@ -375,14 +420,11 @@ pub fn cast_value(value: &str, cast_type: CastType) -> CastResult<CastedValue> {
             Ok(CastedValue::DateTime(dt))
         }
         CastType::Encrypted => {
-            // Decrypt the value (simplified - use proper encryption in production)
-            use base64::Engine;
-            let decrypted = base64::engine::general_purpose::STANDARD
-                .decode(value)
+            // AES-256-GCM decryption using the configured application key.
+            let plaintext = resolve_encryptor()?
+                .decrypt(value)
                 .map_err(|e| CastError::DecryptionError(e.to_string()))?;
-            let s = String::from_utf8(decrypted)
-                .map_err(|e| CastError::DecryptionError(e.to_string()))?;
-            Ok(CastedValue::String(s))
+            Ok(CastedValue::String(plaintext))
         }
         CastType::Array => {
             let arr: Vec<serde_json::Value> = serde_json::from_str(value)?;
@@ -425,9 +467,10 @@ pub fn uncast_value(value: CastedValue, cast_type: CastType) -> CastResult<Strin
         (CastedValue::DateTime(dt), CastType::DateTime) => Ok(dt.to_rfc3339()),
         (CastedValue::DateTime(dt), CastType::Date) => Ok(dt.format("%Y-%m-%d").to_string()),
         (CastedValue::String(s), CastType::Encrypted) => {
-            // Encrypt the value (simplified)
-            use base64::Engine;
-            Ok(base64::engine::general_purpose::STANDARD.encode(s.as_bytes()))
+            // AES-256-GCM encryption using the configured application key.
+            resolve_encryptor()?
+                .encrypt(&s)
+                .map_err(|e| CastError::EncryptionError(e.to_string()))
         }
         (CastedValue::Array(arr), CastType::Array | CastType::Collection) => {
             let json_arr: Vec<serde_json::Value> = arr
@@ -539,5 +582,49 @@ mod tests {
         let value = CastedValue::Boolean(true);
         let result = uncast_value(value, CastType::Boolean).unwrap();
         assert_eq!(result, "true");
+    }
+
+    #[test]
+    fn test_encrypted_cast_uses_real_aes_gcm() {
+        // Configure a real 32-byte AES-256 key.
+        set_encryption_key(rf_encryption::Encryptor::generate_key());
+
+        let plaintext = "top-secret-value";
+
+        // Encrypt via the Encrypted cast (uncast = value -> DB representation).
+        let ciphertext = uncast_value(
+            CastedValue::String(plaintext.to_string()),
+            CastType::Encrypted,
+        )
+        .unwrap();
+
+        // Real encryption must NOT be a reversible plaintext encoding:
+        // base64 of the plaintext would be recoverable; AES-GCM ciphertext must not be.
+        use base64::Engine;
+        let naive_b64 = base64::engine::general_purpose::STANDARD.encode(plaintext.as_bytes());
+        assert_ne!(
+            ciphertext, naive_b64,
+            "Encrypted cast must produce ciphertext, not base64 of the plaintext"
+        );
+        assert!(!ciphertext.contains(plaintext));
+        // Decoding the stored value as base64 must not reveal the plaintext.
+        if let Ok(decoded) = base64::engine::general_purpose::STANDARD.decode(&ciphertext) {
+            assert_ne!(decoded, plaintext.as_bytes());
+        }
+
+        // GCM is nonce-randomized: encrypting again yields different ciphertext.
+        let ciphertext2 = uncast_value(
+            CastedValue::String(plaintext.to_string()),
+            CastType::Encrypted,
+        )
+        .unwrap();
+        assert_ne!(
+            ciphertext, ciphertext2,
+            "AES-GCM must use a random nonce per encryption"
+        );
+
+        // Round-trips back to the original plaintext via the Encrypted cast.
+        let recovered = cast_value(&ciphertext, CastType::Encrypted).unwrap();
+        assert_eq!(recovered.as_string().unwrap(), plaintext);
     }
 }

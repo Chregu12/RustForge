@@ -250,8 +250,8 @@ pub use accessors::{
     AttributeValue, HasAccessors, HasMutators,
 };
 pub use casting::{
-    cast_value, register_caster, uncast_value, Castable, CastError, CastRegistry, CastResult,
-    CastType, CastedValue, CustomCasterRegistry, HasCasts,
+    cast_value, register_caster, set_encryption_key, uncast_value, Castable, CastError,
+    CastRegistry, CastResult, CastType, CastedValue, CustomCasterRegistry, HasCasts,
 };
 pub use eager_loading::{
     EagerLoadBuilder, EagerLoadError, EagerLoadRelation, EagerLoadResult, EagerLoadStats,
@@ -310,8 +310,8 @@ pub mod prelude {
         AttributeValue, HasAccessors, HasMutators,
     };
     pub use super::casting::{
-        cast_value, register_caster, uncast_value, Castable, CastError, CastRegistry, CastResult,
-        CastType, CastedValue, CustomCasterRegistry, HasCasts,
+        cast_value, register_caster, set_encryption_key, uncast_value, Castable, CastError,
+        CastRegistry, CastResult, CastType, CastedValue, CustomCasterRegistry, HasCasts,
     };
     pub use super::eager_loading::{
         EagerLoadBuilder, EagerLoadError, EagerLoadRelation, EagerLoadResult, EagerLoadStats,

@@ -11,6 +11,7 @@ description = "Laravel Eloquent-style ORM for RustForge - Advanced relationship 
 rf-core = { path = "../rf-core" }
 rf-orm = { path = "../rf-orm" }
 rf-config = { path = "../rf-config" }
+rf-encryption = { path = "../rf-encryption" }
 
 # SeaORM
 sea-orm = { workspace = true }

@@ -7937,6 +7937,7 @@ dependencies = [
  "regex",
  "rf-config",
  "rf-core",
+ "rf-encryption",
  "rf-orm",
  "sea-orm 1.1.19",
  "serde",
