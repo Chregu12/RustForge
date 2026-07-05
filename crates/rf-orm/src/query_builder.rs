@@ -2,8 +2,8 @@ use sea_orm::{
     sea_query::{
         Expr, LockBehavior, LockType,
     },
-    ColumnTrait, Condition, DatabaseConnection, DbErr, EntityTrait, Order, QueryFilter, QueryOrder,
-    QuerySelect, QueryTrait, Select, Value,
+    ColumnTrait, Condition, DatabaseConnection, DbErr, EntityTrait, Order, PrimaryKeyToColumn,
+    QueryFilter, QueryOrder, QuerySelect, QueryTrait, Select, Value,
 };
 use std::marker::PhantomData;
 use std::sync::Arc;
@@ -1776,14 +1776,21 @@ where
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn find<C, V>(self, _id: V) -> Result<Option<E::Model>, sea_orm::DbErr>
+    pub async fn find<C, V>(mut self, id: V) -> Result<Option<E::Model>, sea_orm::DbErr>
     where
         C: ColumnTrait,
         V: Into<sea_orm::Value>,
     {
-        // Note: This is a simplified version. In production, you'd want to get
-        // the primary key column dynamically from the entity and use:
-        // self.where_eq(primary_key_column, id).first().await
+        // Resolve the entity's primary-key column dynamically and filter on it so
+        // that `find(id)` returns the row whose primary key equals `id` (not just
+        // the first row in the table).
+        let pk_column = <E::PrimaryKey as sea_orm::Iterable>::iter()
+            .next()
+            .ok_or_else(|| {
+                sea_orm::DbErr::Custom("Entity has no primary key column".to_string())
+            })?
+            .into_column();
+        self.select = self.select.filter(pk_column.eq(id));
         self.first().await
     }
 
