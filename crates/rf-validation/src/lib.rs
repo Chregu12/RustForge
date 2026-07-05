@@ -157,6 +157,11 @@ pub use validator::{Rule, RuleResult, ValidatedData, Validator};
 // Re-export validator traits and derive macro from external crate
 pub use ::validator::Validate;
 
+// Re-export serde_json so `derive(Validate)` generated code can build a
+// `serde_json::Value` from a field (for the DB-backed unique/exists rules)
+// without requiring the downstream crate to depend on serde_json directly.
+pub use serde_json;
+
 // Re-export derive macro from rf-validation-derive
 #[cfg(feature = "derive")]
 pub use rf_validation_derive::Validate as ValidateDerive;

@@ -455,39 +455,63 @@ fn generate_rule_validation(field: &FieldInfo, rule: &ValidationRule) -> TokenSt
             }
         }
 
-        // Database rules - generate placeholder for async validation
+        // Database rules - run a REAL COUNT(*) through the process-global
+        // `rf_orm::DB` facade via the facade-backed DbExistsRule / DbUniqueRule.
+        // These rules are async in the `Rule` trait, but the underlying facade
+        // query is synchronous, so we call their sync `check()` entry point
+        // inline from this synchronous `validate()`.
         ValidationRule::Exists { table, column } => {
+            // Default the column to the field name when unspecified
+            // (`#[validate(exists = "users")]` -> column = field name).
+            let column = column.clone().unwrap_or_else(|| field_name_str.clone());
             quote! {
-                // Database validation requires async context
-                // This should be handled by a separate async validator
-                // Placeholder: assume validation passes (implement in async context)
-                #[allow(unused_variables)]
-                let _table = #table;
-                #[allow(unused_variables)]
-                let _column = #column;
+                {
+                    let __rf_value = rf_validation::serde_json::to_value(#value_expr)
+                        .unwrap_or(rf_validation::serde_json::Value::Null);
+                    if let Err(__rf_msg) =
+                        rf_validation::rules::DbExistsRule::new(#table, #column).check(&__rf_value)
+                    {
+                        let mut error = ::validator::ValidationError::new(#error_code);
+                        error.message = Some(::std::borrow::Cow::Owned(__rf_msg));
+                        errors.add(#field_name_str, error);
+                    }
+                }
             }
         }
 
         ValidationRule::Unique { table, column } => {
+            let column = column.clone().unwrap_or_else(|| field_name_str.clone());
             quote! {
-                // Database validation requires async context
-                // This should be handled by a separate async validator
-                #[allow(unused_variables)]
-                let _table = #table;
-                #[allow(unused_variables)]
-                let _column = #column;
+                {
+                    let __rf_value = rf_validation::serde_json::to_value(#value_expr)
+                        .unwrap_or(rf_validation::serde_json::Value::Null);
+                    if let Err(__rf_msg) =
+                        rf_validation::rules::DbUniqueRule::new(#table, #column).check(&__rf_value)
+                    {
+                        let mut error = ::validator::ValidationError::new(#error_code);
+                        error.message = Some(::std::borrow::Cow::Owned(__rf_msg));
+                        errors.add(#field_name_str, error);
+                    }
+                }
             }
         }
 
-        ValidationRule::UniqueIgnore { table, column, id } => {
+        ValidationRule::UniqueIgnore { table, column, id: _ } => {
+            // The facade-backed DbUniqueRule has no id-ignore variant yet, so run
+            // a real uniqueness check on the column. (Note: this arm is not
+            // currently reachable from the attribute parser.)
             quote! {
-                // Database validation requires async context
-                #[allow(unused_variables)]
-                let _table = #table;
-                #[allow(unused_variables)]
-                let _column = #column;
-                #[allow(unused_variables)]
-                let _id = #id;
+                {
+                    let __rf_value = rf_validation::serde_json::to_value(#value_expr)
+                        .unwrap_or(rf_validation::serde_json::Value::Null);
+                    if let Err(__rf_msg) =
+                        rf_validation::rules::DbUniqueRule::new(#table, #column).check(&__rf_value)
+                    {
+                        let mut error = ::validator::ValidationError::new(#error_code);
+                        error.message = Some(::std::borrow::Cow::Owned(__rf_msg));
+                        errors.add(#field_name_str, error);
+                    }
+                }
             }
         }
 

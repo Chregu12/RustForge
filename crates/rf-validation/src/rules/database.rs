@@ -610,15 +610,12 @@ impl DbUniqueRule {
             column: column.into(),
         }
     }
-}
 
-#[async_trait]
-impl Rule for DbUniqueRule {
-    fn name(&self) -> &str {
-        "unique"
-    }
-
-    async fn validate(&self, value: &Value, _data: &HashMap<String, Value>) -> RuleResult {
+    /// Sync uniqueness check against the `rf_orm::DB` facade. The facade is sync,
+    /// so this runs the real `COUNT(*)` inline and can be called from a synchronous
+    /// context (e.g. the `derive(Validate)` generated `validate()`). Passes (Ok)
+    /// when zero rows match; a null value is treated as pass.
+    pub fn check(&self, value: &Value) -> Result<(), String> {
         if value.is_null() {
             return Ok(());
         }
@@ -628,6 +625,17 @@ impl Rule for DbUniqueRule {
         } else {
             Err(self.message())
         }
+    }
+}
+
+#[async_trait]
+impl Rule for DbUniqueRule {
+    fn name(&self) -> &str {
+        "unique"
+    }
+
+    async fn validate(&self, value: &Value, _data: &HashMap<String, Value>) -> RuleResult {
+        self.check(value)
     }
 
     fn message(&self) -> String {
@@ -651,15 +659,12 @@ impl DbExistsRule {
             column: column.into(),
         }
     }
-}
 
-#[async_trait]
-impl Rule for DbExistsRule {
-    fn name(&self) -> &str {
-        "exists"
-    }
-
-    async fn validate(&self, value: &Value, _data: &HashMap<String, Value>) -> RuleResult {
+    /// Sync existence check against the `rf_orm::DB` facade. Runs the real
+    /// `COUNT(*)` inline so it can be called from a synchronous context (e.g. the
+    /// `derive(Validate)` generated `validate()`). Passes (Ok) when at least one
+    /// row matches; a null value is treated as pass.
+    pub fn check(&self, value: &Value) -> Result<(), String> {
         if value.is_null() {
             return Ok(());
         }
@@ -669,6 +674,17 @@ impl Rule for DbExistsRule {
         } else {
             Err(self.message())
         }
+    }
+}
+
+#[async_trait]
+impl Rule for DbExistsRule {
+    fn name(&self) -> &str {
+        "exists"
+    }
+
+    async fn validate(&self, value: &Value, _data: &HashMap<String, Value>) -> RuleResult {
+        self.check(value)
     }
 
     fn message(&self) -> String {
