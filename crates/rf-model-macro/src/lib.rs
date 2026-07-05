@@ -171,133 +171,90 @@ pub fn model(_attr: TokenStream, item: TokenStream) -> TokenStream {
     TokenStream::from(expanded)
 }
 
-/// Relations macro for defining model relationships
+/// Relations macro for defining model relationships.
+///
+/// Annotate an `impl` block whose methods return relationship builders. The
+/// macro **preserves your method bodies verbatim** so the accessors you write
+/// are emitted and callable — it no longer discards them.
+///
+/// Each recognized relationship method (return type `HasMany<T>` / `HasOne<T>` /
+/// `BelongsTo<T>`) additionally gets a generated `<method>_kind()` companion
+/// returning the [`RelationshipKind`](rf_eloquent::relationships::RelationshipKind)
+/// name as a `&'static str`, for lightweight introspection.
 ///
 /// # Example
 /// ```text
 /// #[relations]
 /// impl User {
-///     fn posts() -> HasMany<Post> {
-///         self.has_many()
-///     }
-///
-///     fn profile() -> HasOne<Profile> {
-///         self.has_one()
+///     // Body is preserved and callable.
+///     fn posts(&self) -> HasManyRef<post::Entity> {
+///         HasManyRef::new(post::Column::UserId, self.id)
 ///     }
 /// }
+///
+/// // Generated companion:
+/// //   User::posts_kind() == "HasMany"
 /// ```
+///
+/// Note: automatically deriving a SeaORM `Relation` enum + `Related` impls from
+/// method signatures alone is intentionally out of scope — foreign-key columns
+/// and join tables cannot be inferred from `HasMany<T>` return types, so the
+/// macro delegates the actual query construction to the method bodies (which
+/// typically use `rf_eloquent`'s `HasManyRef`/`has_many()` helpers).
 #[proc_macro_attribute]
 pub fn relations(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let input = parse_macro_input!(item as syn::ItemImpl);
 
-    let _model_name = &input.self_ty;
-    let items = &input.items;
+    // Collect (method_name, relationship_kind_str) for recognized accessors so
+    // we can emit lightweight introspection companions WITHOUT dropping bodies.
+    let mut kind_companions: Vec<proc_macro2::TokenStream> = Vec::new();
 
-    // Extract relation definitions from methods
-    let mut has_many_relations = Vec::new();
-    let mut has_one_relations = Vec::new();
-    let mut belongs_to_relations = Vec::new();
-
-    for item in items {
-        if let syn::ImplItem::Fn(method) = item {
-            let method_name = &method.sig.ident;
-            let return_type = &method.sig.output;
-
-            // Parse return type to detect relation type
-            if let syn::ReturnType::Type(_, ty) = return_type {
+    for it in &input.items {
+        if let syn::ImplItem::Fn(method) = it {
+            if let syn::ReturnType::Type(_, ty) = &method.sig.output {
                 let type_str = quote!(#ty).to_string();
-
-                if type_str.contains("HasMany") {
-                    // Extract the related model from HasMany<Post>
-                    if let syn::Type::Path(type_path) = &**ty {
-                        if let Some(segment) = type_path.path.segments.last() {
-                            if let syn::PathArguments::AngleBracketed(args) = &segment.arguments {
-                                if let Some(syn::GenericArgument::Type(related_model)) = args.args.first() {
-                                    has_many_relations.push((method_name.clone(), related_model.clone()));
-                                }
-                            }
-                        }
-                    }
+                // Order matters: "BelongsToMany" contains "BelongsTo"; check longest first.
+                let kind = if type_str.contains("BelongsToMany") {
+                    Some("BelongsToMany")
+                } else if type_str.contains("HasManyThrough") {
+                    Some("HasManyThrough")
+                } else if type_str.contains("HasOneThrough") {
+                    Some("HasOneThrough")
+                } else if type_str.contains("HasMany") {
+                    Some("HasMany")
                 } else if type_str.contains("HasOne") {
-                    if let syn::Type::Path(type_path) = &**ty {
-                        if let Some(segment) = type_path.path.segments.last() {
-                            if let syn::PathArguments::AngleBracketed(args) = &segment.arguments {
-                                if let Some(syn::GenericArgument::Type(related_model)) = args.args.first() {
-                                    has_one_relations.push((method_name.clone(), related_model.clone()));
-                                }
-                            }
-                        }
-                    }
+                    Some("HasOne")
                 } else if type_str.contains("BelongsTo") {
-                    if let syn::Type::Path(type_path) = &**ty {
-                        if let Some(segment) = type_path.path.segments.last() {
-                            if let syn::PathArguments::AngleBracketed(args) = &segment.arguments {
-                                if let Some(syn::GenericArgument::Type(related_model)) = args.args.first() {
-                                    belongs_to_relations.push((method_name.clone(), related_model.clone()));
-                                }
-                            }
-                        }
-                    }
+                    Some("BelongsTo")
+                } else {
+                    None
+                };
+
+                if let Some(kind) = kind {
+                    let companion = syn::Ident::new(
+                        &format!("{}_kind", method.sig.ident),
+                        method.sig.ident.span(),
+                    );
+                    kind_companions.push(quote! {
+                        /// Relationship kind for the like-named accessor (generated by `#[relations]`).
+                        pub fn #companion() -> &'static str { #kind }
+                    });
                 }
             }
         }
     }
 
-    // Generate relation enum variants
-    let relation_variants: Vec<_> = has_many_relations.iter().map(|(name, _model)| {
-        let variant_name = syn::Ident::new(&name.to_string().to_pascal_case(), name.span());
-        quote! {
-            #[sea_orm(has_many = "super::#_model::Entity")]
-            #variant_name
-        }
-    }).chain(has_one_relations.iter().map(|(name, _model)| {
-        let variant_name = syn::Ident::new(&name.to_string().to_pascal_case(), name.span());
-        quote! {
-            #[sea_orm(has_one = "super::#_model::Entity")]
-            #variant_name
-        }
-    })).chain(belongs_to_relations.iter().map(|(name, _model)| {
-        let variant_name = syn::Ident::new(&name.to_string().to_pascal_case(), name.span());
-        quote! {
-            #[sea_orm(belongs_to = "super::#_model::Entity")]
-            #variant_name
-        }
-    })).collect();
+    let self_ty = &input.self_ty;
+    let (impl_generics, _ty_generics, where_clause) = input.generics.split_for_impl();
 
-    // Generate Related implementations
-    let related_impls: Vec<_> = has_many_relations.iter().map(|(_, model)| {
-        quote! {
-            impl sea_orm::Related<super::#model::Entity> for Entity {
-                fn to() -> sea_orm::RelationDef {
-                    Relation::#model.def()
-                }
-            }
-        }
-    }).chain(has_one_relations.iter().map(|(_, model)| {
-        quote! {
-            impl sea_orm::Related<super::#model::Entity> for Entity {
-                fn to() -> sea_orm::RelationDef {
-                    Relation::#model.def()
-                }
-            }
-        }
-    })).chain(belongs_to_relations.iter().map(|(_, model)| {
-        quote! {
-            impl sea_orm::Related<super::#model::Entity> for Entity {
-                fn to() -> sea_orm::RelationDef {
-                    Relation::#model.def()
-                }
-            }
-        }
-    })).collect();
-
+    // Re-emit the ORIGINAL impl block unchanged (preserving all method bodies),
+    // then add the generated introspection companions in a sibling impl block.
     let expanded = quote! {
-        #[derive(Copy, Clone, Debug, sea_orm::EnumIter, sea_orm::DeriveRelation)]
-        pub enum Relation {
-            #(#relation_variants,)*
-        }
+        #input
 
-        #(#related_impls)*
+        impl #impl_generics #self_ty #where_clause {
+            #(#kind_companions)*
+        }
     };
 
     TokenStream::from(expanded)

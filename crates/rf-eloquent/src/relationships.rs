@@ -62,27 +62,32 @@ pub type RelationshipResult<T> = Result<T, RelationshipError>;
 
 /// Trait for models that support relationships
 ///
-/// This trait provides default implementations that use the query helpers module.
-/// Models implementing this trait should provide their primary key value via a `get_id()` method.
+/// This trait provides default implementations that delegate to the
+/// [`query_helpers`](crate::query_helpers) module. The defaults execute **real**
+/// database queries against the supplied connection — they are not stubs and do
+/// not panic.
 ///
-/// # Implementation Note
+/// # Design
 ///
-/// The default implementations call the standalone query helper functions which execute
-/// REAL database queries. This is not a stub - these functions actually load data from the database.
+/// Because the related row is loaded into a concrete SeaORM entity, the loader
+/// methods are generic over the related `Entity` (`E`), the row model to
+/// deserialize into (`M`) and the parent-key value (`K`). The join column is
+/// passed as a typed `E::Column` rather than a stringly-typed name so the query
+/// is type-checked at compile time.
 ///
-/// For full functionality, use the query helper functions directly:
-/// - `rf_eloquent::has_one()` for HasOne relationships
-/// - `rf_eloquent::has_many()` for HasMany relationships
-/// - `rf_eloquent::belongs_to()` for BelongsTo relationships
+/// For a free-function form (no trait bound on `Self`), the equivalent helpers
+/// are also exported directly:
+/// - [`crate::query_helpers::has_one`] for HasOne relationships
+/// - [`crate::query_helpers::has_many`] for HasMany relationships
+/// - [`crate::query_helpers::belongs_to`] for BelongsTo relationships
 ///
 #[async_trait]
 pub trait HasRelationships: Sized + Send + Sync {
-    /// Load a has-one relationship
+    /// Load a has-one relationship.
     ///
-    /// # Implementation Note
-    ///
-    /// This is a trait method that requires manual implementation or use of the standalone
-    /// query helper function `rf_eloquent::has_one()` which provides the actual implementation.
+    /// Delegates to [`crate::query_helpers::has_one`], returning the single
+    /// related row of entity `E` whose `foreign_key` column equals `parent_id`
+    /// (typically `self`'s primary key), or `None` if there is no match.
     ///
     /// # Example
     ///
@@ -117,25 +122,30 @@ pub trait HasRelationships: Sized + Send + Sync {
     /// # Ok(())
     /// # }
     /// ```
-    async fn load_has_one<R>(
+    async fn load_has_one<E, M, K>(
         &self,
-        _db: &DatabaseConnection,
-        _foreign_key: &str,
-    ) -> RelationshipResult<Option<R>>
+        db: &DatabaseConnection,
+        parent_id: K,
+        foreign_key: E::Column,
+    ) -> RelationshipResult<Option<M>>
     where
-        R: Send + Sync,
+        E: EntityTrait,
+        M: FromQueryResult + Sized + Send,
+        K: Into<Value> + Clone + Send,
+        <E as EntityTrait>::Column: ColumnTrait,
     {
-        // Default implementation: Users should use the query_helpers functions directly
-        // This method is kept for trait compatibility but panics if called
-        panic!("load_has_one() is a trait placeholder. Use rf_eloquent::has_one() directly with the entity types.")
+        // Real query: delegates to the working query helper (no panic).
+        crate::query_helpers::has_one::<E, M, K>(db, parent_id, foreign_key)
+            .await
+            .map_err(RelationshipError::from)
     }
 
-    /// Load a has-many relationship
+    /// Load a has-many relationship.
     ///
-    /// # Implementation Note
-    ///
-    /// This is a trait method that requires manual implementation or use of the standalone
-    /// query helper function `rf_eloquent::has_many()` which provides the actual implementation.
+    /// Delegates to [`crate::query_helpers::has_many`], returning every related
+    /// row of entity `E` whose `foreign_key` column equals `parent_id`
+    /// (typically `self`'s primary key). Returns an empty vector when there are
+    /// no matches.
     ///
     /// # Example
     ///
@@ -170,25 +180,29 @@ pub trait HasRelationships: Sized + Send + Sync {
     /// # Ok(())
     /// # }
     /// ```
-    async fn load_has_many<R>(
+    async fn load_has_many<E, M, K>(
         &self,
-        _db: &DatabaseConnection,
-        _foreign_key: &str,
-    ) -> RelationshipResult<Vec<R>>
+        db: &DatabaseConnection,
+        parent_id: K,
+        foreign_key: E::Column,
+    ) -> RelationshipResult<Vec<M>>
     where
-        R: Send + Sync,
+        E: EntityTrait,
+        M: FromQueryResult + Sized + Send,
+        K: Into<Value> + Clone + Send,
+        <E as EntityTrait>::Column: ColumnTrait,
     {
-        // Default implementation: Users should use the query_helpers functions directly
-        // This method is kept for trait compatibility but panics if called
-        panic!("load_has_many() is a trait placeholder. Use rf_eloquent::has_many() directly with the entity types.")
+        // Real query: delegates to the working query helper (no panic).
+        crate::query_helpers::has_many::<E, M, K>(db, parent_id, foreign_key)
+            .await
+            .map_err(RelationshipError::from)
     }
 
-    /// Load a belongs-to relationship
+    /// Load a belongs-to (inverse) relationship.
     ///
-    /// # Implementation Note
-    ///
-    /// This is a trait method that requires manual implementation or use of the standalone
-    /// query helper function `rf_eloquent::belongs_to()` which provides the actual implementation.
+    /// Delegates to [`crate::query_helpers::belongs_to`], loading the single
+    /// parent row of entity `E` whose `primary_key` column equals the foreign
+    /// key value stored on `self` (`foreign_key_value`), or `None` if not found.
     ///
     /// # Example
     ///
@@ -223,17 +237,22 @@ pub trait HasRelationships: Sized + Send + Sync {
     /// # Ok(())
     /// # }
     /// ```
-    async fn load_belongs_to<R>(
+    async fn load_belongs_to<E, M, K>(
         &self,
-        _db: &DatabaseConnection,
-        _foreign_key: &str,
-    ) -> RelationshipResult<Option<R>>
+        db: &DatabaseConnection,
+        foreign_key_value: K,
+        primary_key: E::Column,
+    ) -> RelationshipResult<Option<M>>
     where
-        R: Send + Sync,
+        E: EntityTrait,
+        M: FromQueryResult + Sized + Send,
+        K: Into<Value> + Clone + Send,
+        <E as EntityTrait>::Column: ColumnTrait,
     {
-        // Default implementation: Users should use the query_helpers functions directly
-        // This method is kept for trait compatibility but panics if called
-        panic!("load_belongs_to() is a trait placeholder. Use rf_eloquent::belongs_to() directly with the entity types.")
+        // Real query: delegates to the working query helper (no panic).
+        crate::query_helpers::belongs_to::<E, M, K>(db, foreign_key_value, primary_key)
+            .await
+            .map_err(RelationshipError::from)
     }
 }
 
