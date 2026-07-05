@@ -154,6 +154,7 @@ mod tests {
     use super::*;
     use crate::messages::DatabaseNotification;
     use sea_orm::{DbBackend, MockDatabase, MockExecResult};
+    use uuid::Uuid;
 
     struct TestUser {
         id: i64,
@@ -184,12 +185,24 @@ mod tests {
 
     #[tokio::test]
     async fn test_database_channel_send() {
-        // Create mock database
+        // Create mock database. `ActiveModel::insert` execs the INSERT and then
+        // reloads the row via a SELECT, so the mock must supply both an exec
+        // result and the returned model row.
+        let returned = notification::Model {
+            id: Uuid::new_v4(),
+            r#type: "dyn Notification".to_string(),
+            notifiable_id: 1,
+            notifiable_type: "User".to_string(),
+            data: serde_json::json!({"title": "Test"}),
+            read_at: None,
+            created_at: sea_orm::prelude::DateTimeUtc::from(chrono::Utc::now()),
+        };
         let db = MockDatabase::new(DbBackend::Postgres)
             .append_exec_results([MockExecResult {
                 last_insert_id: 1,
                 rows_affected: 1,
             }])
+            .append_query_results([vec![returned]])
             .into_connection();
 
         let channel = DatabaseChannel::new(db);

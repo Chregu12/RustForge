@@ -12,7 +12,7 @@ thiserror = "1.0"
 chrono = { version = "0.4", features = ["serde"] }
 handlebars = "5.0"
 uuid = { version = "1.0", features = ["v4", "serde"] }
-sea-orm = { version = "1.1", default-features = false, features = ["runtime-tokio-rustls", "sqlx-sqlite", "sqlx-postgres", "macros"], optional = true }
+sea-orm = { version = "1.1", default-features = false, features = ["runtime-tokio-rustls", "sqlx-sqlite", "sqlx-postgres", "macros", "with-chrono", "with-uuid", "with-json"], optional = true }
 reqwest = { version = "0.12", features = ["json"], optional = true }
 
 # Internal dependencies

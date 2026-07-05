@@ -3,7 +3,7 @@
 use crate::channels::NotificationChannel;
 use crate::{Notifiable, Notification, NotificationError, NotificationResult};
 use async_trait::async_trait;
-use rf_mail::{Address, Mailer, MessageBuilder};
+use rf_mail::{Address, MailBuilder, Mailer};
 use std::sync::Arc;
 
 /// Mail channel that integrates with rf-mail
@@ -43,8 +43,8 @@ impl NotificationChannel for MailChannel {
             })?
         };
 
-        // Build rf-mail message
-        let message = MessageBuilder::new()
+        // Build rf-mail message. `Mailer::send` consumes the `Mail` by value.
+        let message = MailBuilder::new()
             .from(Address::new(
                 mail_message.from.as_ref().unwrap_or(&self.default_from),
             ))
@@ -54,8 +54,8 @@ impl NotificationChannel for MailChannel {
             .text(mail_message.to_text())
             .build()?;
 
-        // Send via mailer
-        self.mailer.send(&message).await?;
+        // Send via mailer (delivers for real: FileMailer writes an .eml, etc.)
+        self.mailer.send(message).await?;
 
         Ok(())
     }
