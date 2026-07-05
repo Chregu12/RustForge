@@ -561,13 +561,130 @@ impl Rule for SimpleUniqueRule {
     }
 }
 
+// ============================================================================
+// Facade-backed Database Rules (used by the `validate!` DSL)
+// ============================================================================
+//
+// The `SimpleExistsRule`/`SimpleUniqueRule` above require a caller-provided
+// `sea_orm::DatabaseConnection`. The `validate!` macro has no such handle, so
+// the rules below run their `COUNT(*)` query through the process-global
+// `rf_orm::DB` facade (the real rusqlite-backed connection). The DB facade is
+// sync, so these rules simply call it inline from within `validate` — no extra
+// runtime blocking machinery is needed.
+
+/// Run `SELECT COUNT(*) ... WHERE <column> = ?` through the `rf_orm::DB` facade
+/// and return the matched row count. Identifiers are validated up-front to
+/// prevent SQL injection through the table/column names.
+fn facade_count(table: &str, column: &str, value: &Value) -> Result<i64, String> {
+    validate_sql_identifier(table)?;
+    validate_sql_identifier(column)?;
+
+    let query = format!(
+        "SELECT COUNT(*) AS rf_count FROM {} WHERE {} = ?",
+        table, column
+    );
+    let rows = rf_orm::DB::select(&query, std::slice::from_ref(value))
+        .map_err(|e| format!("Database error: {}", e))?;
+
+    let count = rows
+        .first()
+        .and_then(|row| row.get("rf_count"))
+        .and_then(Value::as_i64)
+        .unwrap_or(0);
+    Ok(count)
+}
+
+/// Validates that a field's value is UNIQUE in `<table>.<column>` by running a
+/// real `COUNT(*)` against the `rf_orm::DB` facade. Passes when zero rows match.
+///
+/// Wired into the `validate!` DSL as `email: email.unique("users", "email")`.
+pub struct DbUniqueRule {
+    table: String,
+    column: String,
+}
+
+impl DbUniqueRule {
+    pub fn new(table: impl Into<String>, column: impl Into<String>) -> Self {
+        Self {
+            table: table.into(),
+            column: column.into(),
+        }
+    }
+}
+
+#[async_trait]
+impl Rule for DbUniqueRule {
+    fn name(&self) -> &str {
+        "unique"
+    }
+
+    async fn validate(&self, value: &Value, _data: &HashMap<String, Value>) -> RuleResult {
+        if value.is_null() {
+            return Ok(());
+        }
+        let count = facade_count(&self.table, &self.column, value)?;
+        if count == 0 {
+            Ok(())
+        } else {
+            Err(self.message())
+        }
+    }
+
+    fn message(&self) -> String {
+        format!("The {} has already been taken", self.column.replace('_', " "))
+    }
+}
+
+/// Validates that a field's value EXISTS in `<table>.<column>` by running a real
+/// `COUNT(*)` against the `rf_orm::DB` facade. Passes when at least one row matches.
+///
+/// Wired into the `validate!` DSL as `user_id: int.exists("users", "id")`.
+pub struct DbExistsRule {
+    table: String,
+    column: String,
+}
+
+impl DbExistsRule {
+    pub fn new(table: impl Into<String>, column: impl Into<String>) -> Self {
+        Self {
+            table: table.into(),
+            column: column.into(),
+        }
+    }
+}
+
+#[async_trait]
+impl Rule for DbExistsRule {
+    fn name(&self) -> &str {
+        "exists"
+    }
+
+    async fn validate(&self, value: &Value, _data: &HashMap<String, Value>) -> RuleResult {
+        if value.is_null() {
+            return Ok(());
+        }
+        let count = facade_count(&self.table, &self.column, value)?;
+        if count >= 1 {
+            Ok(())
+        } else {
+            Err(self.message())
+        }
+    }
+
+    fn message(&self) -> String {
+        format!(
+            "The selected value does not exist in {}.{}",
+            self.table, self.column
+        )
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    // Note: These tests are placeholders since database rules require
-    // actual database connections and entities. In a real application,
-    // you would use integration tests with a test database.
+    // Note: The entity-based rules require actual database connections and
+    // entities, exercised via integration tests / sandbox probes.
 
     #[tokio::test]
     async fn test_simple_exists_rule_placeholder() {
@@ -581,5 +698,41 @@ mod tests {
         // This is a placeholder test
         // In practice, you would set up a test database and verify the behavior
         assert!(true);
+    }
+
+    // Facade-backed rules run against the real process-global rf_orm::DB
+    // (rusqlite). One dedicated table keeps this independent of other tests.
+    #[tokio::test]
+    async fn test_facade_unique_and_exists_rules() {
+        rf_orm::DB::statement(
+            "CREATE TABLE IF NOT EXISTS rf_val_users (id INTEGER PRIMARY KEY, email TEXT)",
+        )
+        .unwrap();
+        rf_orm::DB::statement("DELETE FROM rf_val_users").unwrap();
+        rf_orm::DB::insert(
+            "INSERT INTO rf_val_users (id, email) VALUES (?, ?)",
+            &[serde_json::json!(1), serde_json::json!("taken@example.com")],
+        )
+        .unwrap();
+
+        let data = HashMap::new();
+        let unique = DbUniqueRule::new("rf_val_users", "email");
+        // Present value fails unique, absent value passes.
+        assert!(unique
+            .validate(&serde_json::json!("taken@example.com"), &data)
+            .await
+            .is_err());
+        assert!(unique
+            .validate(&serde_json::json!("fresh@example.com"), &data)
+            .await
+            .is_ok());
+
+        let exists = DbExistsRule::new("rf_val_users", "id");
+        // Present id passes exists, absent id fails.
+        assert!(exists.validate(&serde_json::json!(1), &data).await.is_ok());
+        assert!(exists
+            .validate(&serde_json::json!(999), &data)
+            .await
+            .is_err());
     }
 }

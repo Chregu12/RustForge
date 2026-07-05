@@ -307,6 +307,39 @@ pub fn validate_impl(input: TokenStream) -> TokenStream {
                         quote! { rf_validation::rules::BetweenRule::new(#lo as f64, #hi as f64) },
                     ));
                 }
+                // DB-backed rules run a real COUNT(*) via the rf_orm::DB facade:
+                // `.unique(table, column)` passes when 0 rows match the value,
+                // `.exists(table, column)` passes when >= 1 row matches.
+                "unique" => {
+                    if op.args.len() != 2 {
+                        return syn::Error::new(
+                            op.name.span(),
+                            "validate!: `.unique(table, column)` requires exactly two arguments",
+                        )
+                        .to_compile_error()
+                        .into();
+                    }
+                    let table = &op.args[0];
+                    let column = &op.args[1];
+                    rule_exprs.push(boxed(
+                        quote! { rf_validation::rules::DbUniqueRule::new(#table, #column) },
+                    ));
+                }
+                "exists" => {
+                    if op.args.len() != 2 {
+                        return syn::Error::new(
+                            op.name.span(),
+                            "validate!: `.exists(table, column)` requires exactly two arguments",
+                        )
+                        .to_compile_error()
+                        .into();
+                    }
+                    let table = &op.args[0];
+                    let column = &op.args[1];
+                    rule_exprs.push(boxed(
+                        quote! { rf_validation::rules::DbExistsRule::new(#table, #column) },
+                    ));
+                }
                 other => {
                     let msg = format!("validate!: unknown modifier `.{}`", other);
                     return syn::Error::new(op.name.span(), msg)

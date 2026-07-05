@@ -31,6 +31,8 @@ tower.workspace = true
 
 # Database integration (for database rules)
 sea-orm.workspace = true
+# Real DB facade (rusqlite-backed) used by the validate! unique/exists rules
+rf-orm = { path = "../rf-orm" }
 
 # Validation
 validator = { version = "0.18", features = ["derive"] }
