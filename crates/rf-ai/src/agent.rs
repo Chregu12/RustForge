@@ -83,6 +83,7 @@ impl<P: ChatProvider> Agent<P> {
             agent: self,
             user_message: user_message.into(),
             system: None,
+            attachments: Vec::new(),
         }
     }
 
@@ -95,13 +96,15 @@ impl<P: ChatProvider> Agent<P> {
     /// If the loop runs `max_turns` times without a final answer, it returns
     /// [`AiError::MaxTurns`].
     pub async fn run(&self, user_message: impl Into<String>) -> AiResult<String> {
-        self.run_inner(user_message.into(), self.system.clone()).await
+        self.run_inner(Message::user(user_message.into()), self.system.clone())
+            .await
     }
 
     /// The shared tool-calling loop backing both [`Agent::run`] and
-    /// [`PromptRun::run`]. `system` is the effective system prompt for this run.
-    async fn run_inner(&self, user_message: String, system: Option<String>) -> AiResult<String> {
-        let mut messages = vec![Message::user(user_message)];
+    /// [`PromptRun::run`]. `first_message` is the initial user turn (which may
+    /// carry attachment blocks) and `system` is the effective system prompt.
+    async fn run_inner(&self, first_message: Message, system: Option<String>) -> AiResult<String> {
+        let mut messages = vec![first_message];
 
         for _ in 0..self.max_turns {
             let mut request = ChatRequest::new(&self.model)
@@ -165,6 +168,7 @@ pub struct PromptRun<'a, P: ChatProvider> {
     agent: &'a Agent<P>,
     user_message: String,
     system: Option<String>,
+    attachments: Vec<ContentBlock>,
 }
 
 impl<'a, P: ChatProvider> PromptRun<'a, P> {
@@ -174,9 +178,47 @@ impl<'a, P: ChatProvider> PromptRun<'a, P> {
         self
     }
 
+    /// Attach an image from raw bytes (base64-encoded into the message).
+    ///
+    /// `media_type` is the image MIME type, e.g. `image/png`. This is the vision
+    /// surface: `agent.prompt("..").image("image/png", bytes).run()`.
+    pub fn image(mut self, media_type: impl Into<String>, bytes: impl AsRef<[u8]>) -> Self {
+        self.attachments
+            .push(ContentBlock::image(media_type, bytes));
+        self
+    }
+
+    /// Attach a base64 document such as a PDF, from raw bytes.
+    ///
+    /// `media_type` is the document MIME type, typically `application/pdf`.
+    pub fn document(mut self, media_type: impl Into<String>, bytes: impl AsRef<[u8]>) -> Self {
+        self.attachments
+            .push(ContentBlock::document(media_type, bytes));
+        self
+    }
+
+    /// Attach an inline plain-text document (`text/plain`).
+    pub fn text_document(mut self, text: impl Into<String>) -> Self {
+        self.attachments.push(ContentBlock::text_document(text));
+        self
+    }
+
+    /// Append an already-built attachment [`ContentBlock`] (e.g. one produced by
+    /// [`ContentBlock::image_base64`] or [`ContentBlock::document_base64`]).
+    pub fn attachment(mut self, block: ContentBlock) -> Self {
+        self.attachments.push(block);
+        self
+    }
+
     /// Execute the tool-calling loop and return the final text answer.
+    ///
+    /// The initial user turn carries any attachments first, followed by the text
+    /// prompt — the order Anthropic recommends for image/document inputs.
     pub async fn run(self) -> AiResult<String> {
         let system = self.system.or_else(|| self.agent.system.clone());
-        self.agent.run_inner(self.user_message, system).await
+        let mut content = self.attachments;
+        content.push(ContentBlock::text(self.user_message));
+        let first_message = Message::with_blocks(Role::User, content);
+        self.agent.run_inner(first_message, system).await
     }
 }

@@ -90,7 +90,7 @@ pub mod tool;
 
 pub use agent::{Agent, PromptRun, ToolHandler};
 pub use error::{AiError, AiResult};
-pub use message::{ContentBlock, Message, Role};
+pub use message::{ContentBlock, Message, Role, Source};
 pub use mock::{MockChatProvider, MockEmbeddingProvider};
 pub use provider::{AnthropicProvider, ChatProvider, EmbeddingProvider};
 pub use request::{ChatRequest, DEFAULT_MODEL};
@@ -101,7 +101,7 @@ pub use tool::{Tool, ToolChoice};
 pub mod prelude {
     pub use crate::{
         Agent, AiError, AiResult, AnthropicProvider, ChatProvider, ChatRequest, ChatResponse,
-        ContentBlock, EmbeddingProvider, Message, Role, Tool, ToolChoice,
+        ContentBlock, EmbeddingProvider, Message, Role, Source, Tool, ToolChoice,
     };
 }
 
@@ -154,6 +154,52 @@ mod tests {
         assert_eq!(
             serde_json::to_value(ToolChoice::Any).unwrap(),
             json!({"type": "any"})
+        );
+    }
+
+    #[test]
+    fn image_block_matches_anthropic_wire_shape() {
+        // base64 of the three bytes 0x89 'P' 'N' -> "iVBO" (spot-check encoding).
+        let block = ContentBlock::image("image/png", [0x89u8, b'P', b'N', b'G']);
+        let value = serde_json::to_value(&block).unwrap();
+
+        assert_eq!(value["type"], "image");
+        assert_eq!(value["source"]["type"], "base64");
+        assert_eq!(value["source"]["media_type"], "image/png");
+        // The data field is a real base64 encoding of the input bytes.
+        assert_eq!(value["source"]["data"], "iVBORw==");
+
+        // Exact-shape round-trip through JSON.
+        let s = serde_json::to_string(&block).unwrap();
+        let back: ContentBlock = serde_json::from_str(&s).unwrap();
+        assert_eq!(back, block);
+    }
+
+    #[test]
+    fn document_blocks_round_trip_base64_and_text() {
+        let pdf = ContentBlock::document("application/pdf", b"%PDF-1.7\n");
+        let pv = serde_json::to_value(&pdf).unwrap();
+        assert_eq!(pv["type"], "document");
+        assert_eq!(pv["source"]["type"], "base64");
+        assert_eq!(pv["source"]["media_type"], "application/pdf");
+        // %PDF-1.7\n base64-encodes to this exact string.
+        assert_eq!(pv["source"]["data"], "JVBERi0xLjcK");
+        assert_eq!(
+            serde_json::from_value::<ContentBlock>(pv).unwrap(),
+            pdf,
+            "base64 document round-trips",
+        );
+
+        let doc = ContentBlock::text_document("Quarterly report: revenue up 10%.");
+        let dv = serde_json::to_value(&doc).unwrap();
+        assert_eq!(dv["type"], "document");
+        assert_eq!(dv["source"]["type"], "text");
+        assert_eq!(dv["source"]["media_type"], "text/plain");
+        assert_eq!(dv["source"]["data"], "Quarterly report: revenue up 10%.");
+        assert_eq!(
+            serde_json::from_value::<ContentBlock>(dv).unwrap(),
+            doc,
+            "plain-text document round-trips",
         );
     }
 
