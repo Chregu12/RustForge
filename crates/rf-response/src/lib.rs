@@ -23,8 +23,10 @@
 
 mod macros;
 mod response;
+pub mod view;
 
 pub use response::{back, download, json, redirect, Response, ResponseBuilder, StreamBody};
+pub use view::{view, ViewResponse};
 
 // Re-export commonly used types
 pub use axum::http::StatusCode;

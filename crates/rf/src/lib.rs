@@ -130,7 +130,10 @@ pub mod prelude {
     // `Content-Disposition` header. Each returns a `rf_response::ResponseBuilder`,
     // which implements `axum::response::IntoResponse`. (`redirect` above already
     // provides the redirect helper, with its richer flash-message API.)
-    pub use rf_response::{back, download, json};
+    // `view(name, data)` renders `resources/views/<name>.blade.html`, interpolating
+    // `{{ var }}` from the data, and returns a `text/html` response (a
+    // `rf_response::ViewResponse`, which implements `IntoResponse`).
+    pub use rf_response::{back, download, json, view};
 
     // Macros
     pub use rf_macros::{rules, route, controller, Model};
@@ -143,12 +146,14 @@ pub mod prelude {
     pub use rf_macros::{routes, migration, request, send_mail, dispatch};  // Laravel helper macros
     pub use rf_macros::validate;  // typed validation DSL (validates the current request)
     // Laravel-style facade helper macros. Only the ones whose expansion actually
-    // compiles against an existing facade are re-exported here. These are
-    // intentionally NOT advertised until their engines/signatures are fixed
-    // (see VISION_GAP.md): `event!` (facade dispatch arity drift), `view!`/`back!`
-    // (need Response::view/back), `session!` (targets a non-existent `rf_session`
-    // crate), `job!` (targets a missing `rf_job_facade`).
-    pub use rf_macros::{auth, cache, redirect, storage};
+    // compiles against an existing facade are re-exported here. `view!` expands to
+    // `rf_response::Response::view(name, data)` — a real file+interpolate renderer
+    // (loads `resources/views/<name>.blade.html`, fills `{{ var }}`). Still NOT
+    // advertised until their engines/signatures are fixed (see VISION_GAP.md):
+    // `event!` (facade dispatch arity drift), `back!` (needs Response::back wiring),
+    // `session!` (targets a non-existent `rf_session` crate), `job!` (targets a
+    // missing `rf_job_facade`).
+    pub use rf_macros::{auth, cache, redirect, storage, view};
     pub use rf_validation_derive::Validate;
 
     // Support for the `Model!`/`create!`/`find!`/`update!`/`delete!` macros above.

@@ -62,6 +62,21 @@ impl Response {
     pub fn text(text: impl Into<String>) -> ResponseBuilder {
         ResponseBuilder::new().text(text).status(StatusCode::OK)
     }
+
+    /// Render an HTML view template and return it as a `text/html` response.
+    ///
+    /// Loads `resources/views/<name>.blade.html` (dots in `name` become path
+    /// separators, e.g. `"users.index"`), interpolates `{{ var }}` placeholders
+    /// from `data`, and returns the rendered HTML. See [`crate::view`] for the
+    /// free-function form and rendering details.
+    ///
+    /// ```no_run
+    /// use rf_response::Response;
+    /// let resp = Response::view("home", serde_json::json!({ "title": "Welcome" }));
+    /// ```
+    pub fn view<T: Serialize>(name: impl Into<String>, data: T) -> crate::view::ViewResponse {
+        crate::view::ViewResponse::new(name, data)
+    }
 }
 
 /// Response builder for constructing responses
