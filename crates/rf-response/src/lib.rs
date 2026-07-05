@@ -24,7 +24,7 @@
 mod macros;
 mod response;
 
-pub use response::{Response, ResponseBuilder, StreamBody};
+pub use response::{back, download, json, redirect, Response, ResponseBuilder, StreamBody};
 
 // Re-export commonly used types
 pub use axum::http::StatusCode;

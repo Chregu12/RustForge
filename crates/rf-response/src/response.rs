@@ -25,6 +25,21 @@ impl Response {
         ResponseBuilder::new().redirect(url)
     }
 
+    /// Redirect "back" to the previous page.
+    ///
+    /// Without access to the incoming request's `Referer` header this falls back
+    /// to the site root (`/`). Use [`Response::back_or`] to choose a different
+    /// fallback destination.
+    pub fn back() -> ResponseBuilder {
+        ResponseBuilder::new().redirect("/")
+    }
+
+    /// Redirect "back", using `fallback` as the destination when no previous
+    /// page is known.
+    pub fn back_or(fallback: impl Into<String>) -> ResponseBuilder {
+        ResponseBuilder::new().redirect(fallback)
+    }
+
     /// Create a file download response
     pub fn download(path: impl Into<String>, filename: impl Into<String>) -> ResponseBuilder {
         ResponseBuilder::new().download(path, filename)
@@ -112,16 +127,25 @@ impl ResponseBuilder {
         let path = path.into();
         let filename = filename.into();
 
-        // In a real implementation, read the file and set body
-        // For now, we'll just set the headers
+        // Set the download headers regardless of whether the file exists, so a
+        // caller can always see what was requested.
         self = self.header(
             "content-disposition",
             format!("attachment; filename=\"{}\"", filename),
         );
         self = self.header("content-type", "application/octet-stream");
 
-        // Mock file content
-        self.body = Some(Body::from(format!("File content from: {}", path)));
+        // Serve the real file bytes off disk. A missing/unreadable file becomes a
+        // 404 with an empty body rather than fabricated content.
+        match std::fs::read(&path) {
+            Ok(bytes) => {
+                self.body = Some(Body::from(bytes));
+            }
+            Err(_) => {
+                self.status = StatusCode::NOT_FOUND;
+                self.body = Some(Body::empty());
+            }
+        }
         self
     }
 
@@ -174,6 +198,61 @@ impl IntoResponse for ResponseBuilder {
     fn into_response(self) -> AxumResponse {
         self.build()
     }
+}
+
+// ============================================================================
+// Global helper functions (Laravel-style free functions)
+//
+// These mirror the `Response` constructors as bare functions so handlers can
+// write `json(data)` / `download(path)` directly. Each returns a
+// [`ResponseBuilder`], which implements [`IntoResponse`].
+// ============================================================================
+
+/// Build a JSON response from any [`Serialize`] value.
+///
+/// ```
+/// use rf_response::json;
+/// let resp = json(serde_json::json!({"ok": true}));
+/// ```
+pub fn json<T: Serialize>(data: T) -> ResponseBuilder {
+    Response::json(&data)
+}
+
+/// Redirect to `url` (302 Found).
+///
+/// ```
+/// use rf_response::redirect;
+/// let resp = redirect("/dashboard");
+/// ```
+pub fn redirect(url: impl Into<String>) -> ResponseBuilder {
+    Response::redirect(url)
+}
+
+/// Redirect "back" to the previous page, falling back to the site root (`/`).
+///
+/// ```
+/// use rf_response::back;
+/// let resp = back();
+/// ```
+pub fn back() -> ResponseBuilder {
+    Response::back()
+}
+
+/// Serve a file download. The `Content-Disposition` filename is derived from the
+/// path's final component (falling back to `"download"`).
+///
+/// ```no_run
+/// use rf_response::download;
+/// let resp = download("/var/www/report.pdf");
+/// ```
+pub fn download(path: impl Into<String>) -> ResponseBuilder {
+    let path = path.into();
+    let filename = std::path::Path::new(&path)
+        .file_name()
+        .and_then(|s| s.to_str())
+        .unwrap_or("download")
+        .to_string();
+    Response::download(path, filename)
 }
 
 /// Stream body wrapper

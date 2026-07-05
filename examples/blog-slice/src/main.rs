@@ -15,37 +15,40 @@ use rf::prelude::*;
 Model!(Post: title, body);
 
 /// POST /posts — validate the request, persist a real row, return it as JSON.
-async fn create_post() -> String {
+///
+/// Returns a real typed response via the `json(..)` global helper (an
+/// `application/json` `ResponseBuilder`) rather than a hand-built JSON string.
+async fn create_post() -> impl axum::response::IntoResponse {
     if validate! { title: string.max(100), body: string }.is_err() {
-        return r#"{"error":"validation failed"}"#.to_string();
+        return json(serde_json::json!({"error": "validation failed"}));
     }
     let title: String = input("title").unwrap_or_default();
     let body: String = input("body").unwrap_or_default();
     match create!(Post, title = title, body = body) {
-        Ok(created) => created.to_string(),
-        Err(e) => format!(r#"{{"error":"{e}"}}"#),
+        Ok(created) => json(created),
+        Err(e) => json(serde_json::json!({"error": e.to_string()})),
     }
 }
 
 /// GET /posts — list every post as JSON (a real SELECT).
-async fn list_posts() -> String {
+async fn list_posts() -> impl axum::response::IntoResponse {
     match Post::all().await {
-        Ok(posts) => serde_json::to_string(&posts).unwrap_or_else(|_| "[]".into()),
-        Err(e) => format!(r#"{{"error":"{e}"}}"#),
+        Ok(posts) => json(posts),
+        Err(e) => json(serde_json::json!({"error": e.to_string()})),
     }
 }
 
 /// GET /posts/:id — show a single post. The `:id` path param is available to the
 /// implicit-request globals (no `Request` argument, no explicit `Path` extractor).
-async fn show_post() -> String {
+async fn show_post() -> impl axum::response::IntoResponse {
     let id: i64 = match input("id") {
         Some(id) => id,
-        None => return r#"{"error":"invalid id"}"#.to_string(),
+        None => return json(serde_json::json!({"error": "invalid id"})),
     };
     match Post::find(id).await {
-        Ok(Some(post)) => post.to_string(),
-        Ok(None) => r#"{"error":"not found"}"#.to_string(),
-        Err(e) => format!(r#"{{"error":"{e}"}}"#),
+        Ok(Some(post)) => json(post),
+        Ok(None) => json(serde_json::json!({"error": "not found"})),
+        Err(e) => json(serde_json::json!({"error": e.to_string()})),
     }
 }
 

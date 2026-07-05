@@ -124,6 +124,14 @@ pub mod prelude {
     pub use rf_global_helpers::{Hash, redirect, csrf_token, csrf_field};
     pub use rf_collections::{Collection, collect};
 
+    // Real Response global helpers. `json(data)` builds an `application/json`
+    // response from any `Serialize` value; `back()` redirects to the previous
+    // page (falling back to `/`); `download(path)` serves a file's bytes with a
+    // `Content-Disposition` header. Each returns a `rf_response::ResponseBuilder`,
+    // which implements `axum::response::IntoResponse`. (`redirect` above already
+    // provides the redirect helper, with its richer flash-message API.)
+    pub use rf_response::{back, download, json};
+
     // Macros
     pub use rf_macros::{rules, route, controller, Model};
     pub use rf_macros::{update, create, find, delete};  // Eloquent CRUD macros
