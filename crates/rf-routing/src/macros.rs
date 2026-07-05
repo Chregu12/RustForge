@@ -174,7 +174,9 @@ macro_rules! nested_group {
 
 /// Define a resource route.
 ///
-/// # Example
+/// This macro has two families of forms:
+///
+/// ## 1. Metadata builder (returns a [`ResourceRouter`](crate::ResourceRouter))
 ///
 /// ```rust,ignore
 /// use rf_routing::resource;
@@ -184,12 +186,66 @@ macro_rules! nested_group {
 /// let comments = resource!("comments", except: [Destroy]);
 /// let api_posts = resource!("posts", api: true);
 /// ```
+///
+/// ## 2. RESTful handler registration (wires a controller to the global router)
+///
+/// Given a controller type (e.g. one produced by `controller_block!`) whose
+/// associated functions are async, argument-less handlers, this maps the
+/// standard RESTful routes onto the corresponding handler in one call, reusing
+/// the real [`get`](crate::get)/[`post`](crate::post)/[`put`](crate::put)/
+/// [`patch`](crate::patch)/[`delete`](crate::delete) registration on the global
+/// router:
+///
+/// | Action    | Route                      |
+/// |-----------|----------------------------|
+/// | `index`   | `GET    {prefix}`          |
+/// | `create`  | `GET    {prefix}/create`   |
+/// | `store`   | `POST   {prefix}`          |
+/// | `show`    | `GET    {prefix}/:id`      |
+/// | `edit`    | `GET    {prefix}/:id/edit` |
+/// | `update`  | `PUT`+`PATCH {prefix}/:id` |
+/// | `destroy` | `DELETE {prefix}/:id`      |
+///
+/// ```rust,ignore
+/// use rf_routing::resource;
+///
+/// // Register every RESTful action (all five must be defined on the controller):
+/// resource!("/posts", PostController);
+///
+/// // Or register only the actions the controller actually defines:
+/// resource!("/posts", PostController { index, show, store });
+/// ```
+///
+/// Build the served router afterwards with
+/// `rf_routing::global_router().build_router()`.
 #[macro_export]
 macro_rules! resource {
-    ($name:expr) => {
-        $crate::ResourceRouter::new($name)
+    // --- internal per-action registration arms -----------------------------
+    // (the leading `@` token makes these unambiguous vs. the public forms)
+    (@action $prefix:expr, $controller:path, index) => {
+        $crate::get($prefix, <$controller>::index);
+    };
+    (@action $prefix:expr, $controller:path, create) => {
+        $crate::get(::std::format!("{}/create", $prefix), <$controller>::create);
+    };
+    (@action $prefix:expr, $controller:path, store) => {
+        $crate::post($prefix, <$controller>::store);
+    };
+    (@action $prefix:expr, $controller:path, show) => {
+        $crate::get(::std::format!("{}/:id", $prefix), <$controller>::show);
+    };
+    (@action $prefix:expr, $controller:path, edit) => {
+        $crate::get(::std::format!("{}/:id/edit", $prefix), <$controller>::edit);
+    };
+    (@action $prefix:expr, $controller:path, update) => {
+        $crate::put(::std::format!("{}/:id", $prefix), <$controller>::update);
+        $crate::patch(::std::format!("{}/:id", $prefix), <$controller>::update);
+    };
+    (@action $prefix:expr, $controller:path, destroy) => {
+        $crate::delete(::std::format!("{}/:id", $prefix), <$controller>::destroy);
     };
 
+    // --- metadata builder forms (return a `ResourceRouter`) -----------------
     ($name:expr, only: [$($action:ident),* $(,)?]) => {
         $crate::ResourceRouter::new($name)
             .only(vec![$($crate::ControllerAction::$action),*])
@@ -206,6 +262,24 @@ macro_rules! resource {
 
     ($name:expr, shallow: true) => {
         $crate::ResourceRouter::new($name).shallow()
+    };
+
+    // --- RESTful handler registration forms ---------------------------------
+    // Explicit subset: only register the listed actions.
+    ($prefix:expr, $controller:path { $($action:ident),+ $(,)? }) => {
+        $(
+            $crate::resource!(@action $prefix, $controller, $action);
+        )+
+    };
+
+    // Full RESTful set: index, show, store, update, destroy (all must exist).
+    ($prefix:expr, $controller:path) => {
+        $crate::resource!($prefix, $controller { index, show, store, update, destroy });
+    };
+
+    // Metadata builder: bare name only.
+    ($name:expr) => {
+        $crate::ResourceRouter::new($name)
     };
 }
 
@@ -283,6 +357,34 @@ macro_rules! middleware_group {
 
 #[cfg(test)]
 mod tests {
-    // Note: Tests for route_params! are in url_generation module
-    // Other macro tests would go here if needed
+    // Note: Tests for route_params! are in url_generation module.
+    //
+    // The RESTful handler-registration forms of `resource!` (e.g.
+    // `resource!("/posts", PostController { index, show, store })`) are proven
+    // end-to-end — real requests served through `build_router()` — by the
+    // `resource_routing` sandbox probe, since they depend on the global router
+    // singleton and async serving.
+    use crate::ControllerAction;
+
+    // Regression guard: the pre-existing metadata builder forms must keep working
+    // now that the RESTful handler-registration arms have been added.
+    #[test]
+    fn resource_metadata_forms_still_build() {
+        let posts = resource!("posts");
+        assert_eq!(posts.name(), "posts");
+
+        let only = resource!("posts", only: [Index, Show]);
+        assert!(only.should_include(&ControllerAction::Index));
+        assert!(only.should_include(&ControllerAction::Show));
+        assert!(!only.should_include(&ControllerAction::Store));
+
+        let except = resource!("posts", except: [Destroy]);
+        assert!(!except.should_include(&ControllerAction::Destroy));
+
+        let api = resource!("posts", api: true);
+        assert!(api.is_api_only());
+
+        let shallow = resource!("comments", shallow: true);
+        assert!(shallow.is_shallow());
+    }
 }

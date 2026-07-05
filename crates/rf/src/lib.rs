@@ -106,6 +106,10 @@ pub mod prelude {
     // Real handler-based route registration: `get("/", home_handler)` etc.,
     // served via `rf_routing::global_router().build_router()`.
     pub use rf_routing::{delete, get, patch, post, put};
+    // RESTful resource routing sugar: `resource!("/posts", PostController { index, show, store })`
+    // maps the standard REST routes onto a controller's handlers in one call,
+    // reusing the real `get`/`post`/`put`/`patch`/`delete` registration above.
+    pub use rf_routing::resource;
     // Implicit-request global helpers (behind the `capture_request` middleware):
     // `file("image")`, `input("title")`, `has("title")`.
     pub use rf_request::{file, has, input};
