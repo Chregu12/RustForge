@@ -66,6 +66,7 @@ pub struct QueryBuilder {
     offset_value: Option<usize>,
     order_by: Vec<(String, String)>,
     select_columns: Vec<String>,
+    distinct: bool,
 }
 
 impl QueryBuilder {
@@ -81,6 +82,7 @@ impl QueryBuilder {
             offset_value: None,
             order_by: Vec::new(),
             select_columns: Vec::new(),
+            distinct: false,
         }
     }
 
@@ -588,7 +590,8 @@ impl QueryBuilder {
         } else {
             self.select_columns.join(", ")
         };
-        let mut sql = format!("SELECT {} FROM {}", columns, self.table);
+        let select_kw = if self.distinct { "SELECT DISTINCT" } else { "SELECT" };
+        let mut sql = format!("{} {} FROM {}", select_kw, columns, self.table);
 
         let where_clause = self.build_where(&mut bindings);
         if !where_clause.is_empty() {
@@ -802,9 +805,10 @@ impl QueryBuilder {
 
     /// Laravel-style distinct - select distinct rows
     ///
-    /// Note: This is a marker method, actual implementation depends on SQL builder
-    pub fn distinct(self) -> Self {
-        // In a real implementation, this would set a distinct flag
+    /// Emits `SELECT DISTINCT ...` in the generated SQL (see [`get`](Self::get)
+    /// and [`to_sql`](Self::to_sql)).
+    pub fn distinct(mut self) -> Self {
+        self.distinct = true;
         self
     }
 
@@ -1060,7 +1064,8 @@ impl QueryBuilder {
     /// ```
     #[allow(non_snake_case)]
     pub fn toSql(&self) -> String {
-        let mut sql = format!("SELECT {} FROM {}",
+        let mut sql = format!("{} {} FROM {}",
+            if self.distinct { "SELECT DISTINCT" } else { "SELECT" },
             if self.select_columns.is_empty() {
                 "*".to_string()
             } else {

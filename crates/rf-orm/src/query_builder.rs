@@ -801,16 +801,36 @@ where
     /// # Ok(())
     /// # }
     /// ```
-    ///
-    /// Note: This is a simplified implementation. For production use,
-    /// you may want to use raw SQL for more complex aggregations.
-    pub async fn sum(self, _column_name: &str) -> Result<Option<f64>, DbErr> {
-        // Note: This is a placeholder. In a real implementation, you would:
-        // 1. Convert the Select to SQL
-        // 2. Wrap it in a SUM() query
-        // 3. Execute it
-        // For now, we return None as this requires more complex SeaORM integration
-        Ok(None)
+    pub async fn sum(self, column_name: &str) -> Result<Option<f64>, DbErr> {
+        use sea_orm::sea_query::Func;
+        self.aggregate(Func::sum(Self::float_column(column_name)))
+            .await
+    }
+
+    /// Builds a column expression coerced to a floating-point value
+    /// (`column * 1.0`). This keeps the aggregate result decodable as `f64`
+    /// across backends: SQLite otherwise returns an `INTEGER`-typed value for
+    /// `SUM`/`MIN`/`MAX` over integer columns, which strict decoders reject.
+    fn float_column(column_name: &str) -> sea_orm::sea_query::SimpleExpr {
+        use sea_orm::sea_query::{Alias, Expr};
+        Expr::col(Alias::new(column_name)).mul(1.0)
+    }
+
+    /// Executes the current query's filters wrapped in the given SQL aggregate
+    /// function, returning the scalar result (or `None` when there are no
+    /// matching rows / the aggregate is SQL `NULL`).
+    async fn aggregate(
+        self,
+        func: sea_orm::sea_query::FunctionCall,
+    ) -> Result<Option<f64>, DbErr> {
+        let result: Option<Option<f64>> = self
+            .select
+            .select_only()
+            .expr_as(func, "aggregate")
+            .into_tuple::<Option<f64>>()
+            .one(self.db.as_ref())
+            .await?;
+        Ok(result.flatten())
     }
 
     /// Average a column
@@ -833,9 +853,10 @@ where
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn avg(self, _column_name: &str) -> Result<Option<f64>, DbErr> {
-        // Placeholder - similar to sum()
-        Ok(None)
+    pub async fn avg(self, column_name: &str) -> Result<Option<f64>, DbErr> {
+        use sea_orm::sea_query::Func;
+        self.aggregate(Func::avg(Self::float_column(column_name)))
+            .await
     }
 
     /// Minimum value of a column
@@ -858,9 +879,10 @@ where
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn min(self, _column_name: &str) -> Result<Option<f64>, DbErr> {
-        // Placeholder - similar to sum()
-        Ok(None)
+    pub async fn min(self, column_name: &str) -> Result<Option<f64>, DbErr> {
+        use sea_orm::sea_query::Func;
+        self.aggregate(Func::min(Self::float_column(column_name)))
+            .await
     }
 
     /// Maximum value of a column
@@ -883,9 +905,10 @@ where
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn max(self, _column_name: &str) -> Result<Option<f64>, DbErr> {
-        // Placeholder - similar to sum()
-        Ok(None)
+    pub async fn max(self, column_name: &str) -> Result<Option<f64>, DbErr> {
+        use sea_orm::sea_query::Func;
+        self.aggregate(Func::max(Self::float_column(column_name)))
+            .await
     }
 
     // ----- Chunking -----
