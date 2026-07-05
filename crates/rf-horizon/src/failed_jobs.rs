@@ -32,6 +32,9 @@ pub struct FailedJob {
     pub exception: String,
     pub failed_at: DateTime<Utc>,
     pub retry_count: u32,
+    /// Tags used to group/filter failed jobs (e.g. for `retry_by_tag`)
+    #[serde(default)]
+    pub tags: Vec<String>,
 }
 
 impl FailedJob {
@@ -50,7 +53,19 @@ impl FailedJob {
             exception: exception.into(),
             failed_at: Utc::now(),
             retry_count: 0,
+            tags: Vec::new(),
         }
+    }
+
+    /// Attach tags to this failed job (builder-style)
+    pub fn with_tags(mut self, tags: impl IntoIterator<Item = impl Into<String>>) -> Self {
+        self.tags = tags.into_iter().map(Into::into).collect();
+        self
+    }
+
+    /// Returns true if this job carries the given tag
+    pub fn has_tag(&self, tag: &str) -> bool {
+        self.tags.iter().any(|t| t == tag)
     }
 
     /// Check if job is eligible for retry based on age
@@ -221,10 +236,22 @@ impl FailedJobHandler {
 
     /// Retry failed jobs by tag
     pub async fn retry_by_tag(&self, tag: &str) -> Result<u64> {
-        // For now, we don't have tags on FailedJob struct
-        // This would need to be enhanced to support tags
-        // For compatibility, return 0
-        Ok(0)
+        let job_ids: Vec<String> = {
+            let jobs = self.failed_jobs.read().await;
+            jobs.values()
+                .filter(|job| job.has_tag(tag))
+                .map(|job| job.id.clone())
+                .collect()
+        };
+
+        let mut retried = 0u64;
+        for job_id in job_ids {
+            if self.retry(job_id.as_str()).await.is_ok() {
+                retried += 1;
+            }
+        }
+
+        Ok(retried)
     }
 
     /// Flush (delete) all failed jobs
@@ -247,7 +274,7 @@ impl FailedJobHandler {
             payload: serde_json::from_str(&job.payload).unwrap_or(serde_json::Value::Null),
             exception: job.exception.clone(),
             failed_at: job.failed_at,
-            tags: Vec::new(), // Would need to add tags to FailedJob
+            tags: job.tags.clone(),
         })
     }
 
@@ -358,6 +385,46 @@ mod tests {
 
         let job = handler.find(&job_id).await.unwrap();
         assert_eq!(job.retry_count, 1);
+    }
+
+    #[tokio::test]
+    async fn test_retry_by_tag() {
+        let handler = FailedJobHandler::new();
+
+        handler
+            .record(FailedJob::new("emails", "Job1", "{}", "Error").with_tags(["billing", "urgent"]))
+            .await;
+        handler
+            .record(FailedJob::new("emails", "Job2", "{}", "Error").with_tags(["billing"]))
+            .await;
+        let untagged_id = {
+            let job = FailedJob::new("default", "Job3", "{}", "Error");
+            let id = job.id.clone();
+            handler.record(job).await;
+            id
+        };
+
+        // Only the two "billing" jobs should be retried.
+        let retried = handler.retry_by_tag("billing").await.unwrap();
+        assert_eq!(retried, 2);
+
+        // "urgent" only tags one job.
+        let retried_urgent = handler.retry_by_tag("urgent").await.unwrap();
+        assert_eq!(retried_urgent, 1);
+
+        // Unknown tag retries nothing.
+        assert_eq!(handler.retry_by_tag("nope").await.unwrap(), 0);
+
+        // Untagged job was never retried.
+        let untagged = handler.find(&untagged_id).await.unwrap();
+        assert_eq!(untagged.retry_count, 0);
+
+        // get_details surfaces the tags.
+        let details = handler
+            .get_details(&handler.for_queue("emails").await[0].id)
+            .await
+            .unwrap();
+        assert!(details.tags.contains(&"billing".to_string()));
     }
 
     #[tokio::test]
