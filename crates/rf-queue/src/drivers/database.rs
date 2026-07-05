@@ -468,7 +468,7 @@ mod tests {
         let reserved = queue.reserve("default").await.unwrap().unwrap();
 
         // Complete job
-        queue.complete(&reserved.id.unwrap()).await.unwrap();
+        queue.complete(&reserved.id).await.unwrap();
 
         // Verify queue is empty
         let size = queue.size("default").await.unwrap();
@@ -490,7 +490,7 @@ mod tests {
 
         // Fail job
         queue
-            .fail(&reserved.id.unwrap(), "Test error")
+            .fail(&reserved.id, "Test error")
             .await
             .unwrap();
 
