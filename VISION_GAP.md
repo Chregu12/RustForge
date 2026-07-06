@@ -461,3 +461,34 @@ Runs 8-9 cleared **all but two** of the Re-audit-2 shortlist (items 1, 2, 4, 5, 
 - **Stub-hunt round 7 — a real SECURITY fix.** `rf-requests::AuthorizationChecker` (publicly re-exported) had `can()`/`has_role()`/`has_any_role()`/`has_all_roles()` all returning `true` unconditionally — **every user was authorized for everything.** Now evaluates against a new `HasAuthorization` trait (permissions/roles) with Laravel-style `*` super-admin + `prefix.*` wildcards. Probe asserts an unprivileged user is denied.
 
 **Remaining after run 9:** #3 eager nested hydration (bare eager `post.user` into a struct field), #6 one live-backend CI proof (Redis/SMTP/S3), #7 broadcast/websocket end-to-end example. `Result`/`Option` hiding stays parked as the documented language ceiling. Headline: **~85% of the vision is now genuinely real** — the request→model→validation→response→events→queue→cache→mail→storage→auth→AI spine is real end-to-end, DTOs self-validate, authorization actually enforces, and the flagship example dogfoods the high-level DX.
+
+---
+
+## Re-audit 3 (after architect run 9) — 2026-07-07
+
+_Fresh source-grounded pass (4 parallel Explore audits over `crates/*/src` + `examples/` + `sandbox/`): eager relation hydration, the `Model!` `@` validation DSL, broadcast-example + live-backend infra, and a round-8 stub-hunt. Graded against the four pillars: **write less code than Laravel · hide async/Result · global facades · typed DSLs.**_
+
+### Overall verdict — roughly **85% of the vision is genuinely real** (holding at the run-9 headline; this run converts *proof/coverage* debt, not engine debt)
+
+The engine is real end-to-end. What Re-audit 3 surfaces is no longer "the backend is fake" — it is **coverage and shipped-surface debt**: a real capability (broadcast) with no shipped example, real bridges (redis/smtp/s3) proven offline but not yet exercised against the *already-committed* `docker-compose.test.yml`, a young `@` DSL exposing 3 of ~20 real rules, and a handful of genuine but peripheral stubs. One structural item (eager struct-field hydration) is a real redesign, not a quick fix.
+
+### Findings (file:line evidence)
+
+| Area | Status | Evidence | Verdict |
+|---|---|---|---|
+| **broadcast/ws end-to-end example** | 🟨 real capability, NO shipped example | `crates/rf-broadcast/src/lib.rs:81` exports `websocket_router`/`MemoryBroadcaster`/`RoomRegistry`; TWO sandbox probes prove it over real sockets (`sandbox/probes/broadcast_ws_transport`, `broadcasting`); `examples/` has none | **Clean single-agent win** — promote the probe to a shipped `examples/` crate (axum 0.8) with a `#[tokio::test]` tokio-tungstenite driver |
+| **live-backend proof** | 🟨 infra exists, coverage partial | `docker-compose.test.yml` (redis/postgres/mailhog/minio) + `scripts/test-env-up.sh` + `rf-testing/src/docker.rs` all REAL; S3 has a graceful-skip live test (`crates/rf-storage/src/s3.rs:287` `s3_available()` → skip if `127.0.0.1:9000` down); **Redis PubSub + SMTP/MailHog have NO live integration test** | **Clean win** — add graceful-skip live tests for Redis PubSub (`publish`→`subscribe` round-trip) + SMTP via MailHog, mirroring the s3.rs skip pattern. Converts config-gated → end-to-end-proven when infra is up |
+| **`Model!` `@` validation DSL** | 🟨 young — 3 of ~20 rules | Supported today: `@ email`, `@ min(N)`, `@ max(N)` (string-length only) at `crates/rf-macros/src/simple_model.rs:57-65,915-945`; NOT reachable though REAL in rf-validation: numeric `MinRule`/`MaxRule`/`BetweenRule` (`rules/numeric.rs:134/181/228`), `UrlRule`/`RegexRule`/`UuidRule`/`IpRule` (`rules/string.rs:140/518/238/186); explicit punt at `simple_model.rs:947` | **Clean additive win** — add `@ url` (parallels `@ email`) + `@ range(min,max)` (closes the numeric gap: `age: i64 @ range(18,150)`); one file |
+| **eager struct-field hydration (bare `post.user`)** | 🟥 real redesign, DEFER | Batch loaders REAL (`rf-orm/src/relationships/loading.rs:393` SeaORM `LoaderTrait`, no N+1; `rf-eloquent/src/query_helpers.rs:171`); method accessors REAL (`post.user()`); but generated structs have NO relation FIELDS, and `eager_loading_optimized.rs:241` + `eager_loading.rs:276` are no-op placeholders; `loading.rs:491` string-dispatch is a **deliberate** `DbErr` (not a stub) | **DEFER with note** — making bare `post.user` a *populated field* needs struct-field codegen + hydration + a design decision (do `post.user` field and `post.user()` method coexist?). Feasible in plain Rust but a 3-4 unit sprint, not a single agent. Lazy bare `post.user` stays impossible (documented) |
+| **stub-hunt round 8** | 🟨 3 genuine but peripheral | (1) `rf-application/src/auth/database.rs:279` `DatabaseSessionStore::load_session()` → `Ok(None)` always ("in production, use SeaORM entities"); (2) `rf-nova/src/resource/crud.rs:118` `bulk_destroy()` → `Ok(0)` ignoring `ids`; (3) `rf-api/src/health_endpoint.rs:78` `readiness_check()` always "ready" | **Fix the best reachable one** — `bulk_destroy` is a clear, easy real fix (`delete_many` + PK `IN`); `load_session` is real but needs its `save_session` counterpart + a Session entity to be meaningful; `readiness_check` needs a design call on *which* services to probe. Verify reachability first |
+| **async / `Result` / `Option` hiding** | 🟥 by-design ceiling | unchanged | Correctly parked, not a bug |
+
+### Re-audit-3 shortlist (this run targets 1-4; 5 deferred)
+
+1. **Ship a broadcast/websocket example** (`examples/realtime-chat` or similar) exercising `websocket_router` + `MemoryBroadcaster` + `RoomRegistry` with a real `#[tokio::test]` socket round-trip. — pillar: global facades / less code.
+2. **Live-backend proof tests (graceful-skip)** for Redis PubSub + SMTP(MailHog), mirroring the s3.rs `*_available()`→skip pattern, against the committed `docker-compose.test.yml`. — pillar: trust.
+3. **Extend the `@` DSL** with `@ url` + numeric `@ range(min,max)` (reuse existing real rf-validation rules). — pillar: typed DSL.
+4. **Stub-hunt round 8 fix** — fix the highest-confidence *reachable* stub (likely `rf-nova bulk_destroy`), honestly skip/redesign-defer the rest. — pillar: trust.
+5. **(DEFER) eager struct-field hydration** — real redesign; needs a dedicated multi-step run + a field-vs-method design decision. Documented here so it is not mistaken for a fake surface.
+
+`Result`/`Option` hiding stays the documented language ceiling. Headline unchanged at **~85% real**; the spine is real, and the remaining work is shipped-surface + coverage + one honest redesign.
