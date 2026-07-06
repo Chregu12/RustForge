@@ -496,16 +496,22 @@ fn generate_rule_validation(field: &FieldInfo, rule: &ValidationRule) -> TokenSt
             }
         }
 
-        ValidationRule::UniqueIgnore { table, column, id: _ } => {
-            // The facade-backed DbUniqueRule has no id-ignore variant yet, so run
-            // a real uniqueness check on the column. (Note: this arm is not
-            // currently reachable from the attribute parser.)
+        ValidationRule::UniqueIgnore { table, column, id } => {
+            // Update-form uniqueness: run a REAL `COUNT(*) ... WHERE <column> = ?
+            // AND <id> != ?` through the facade-backed DbUniqueRule so the record
+            // being updated may keep its own value. `id` names both the id column
+            // and the struct field holding this record's own id, read from `self`.
+            let id_ident = syn::Ident::new(id, proc_macro2::Span::call_site());
             quote! {
                 {
                     let __rf_value = rf_validation::serde_json::to_value(#value_expr)
                         .unwrap_or(rf_validation::serde_json::Value::Null);
+                    let __rf_id = rf_validation::serde_json::to_value(&self.#id_ident)
+                        .unwrap_or(rf_validation::serde_json::Value::Null);
                     if let Err(__rf_msg) =
-                        rf_validation::rules::DbUniqueRule::new(#table, #column).check(&__rf_value)
+                        rf_validation::rules::DbUniqueRule::new(#table, #column)
+                            .ignoring(#id, __rf_id)
+                            .check(&__rf_value)
                     {
                         let mut error = ::validator::ValidationError::new(#error_code);
                         error.message = Some(::std::borrow::Cow::Owned(__rf_msg));

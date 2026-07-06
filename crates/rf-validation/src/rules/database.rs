@@ -594,6 +594,37 @@ fn facade_count(table: &str, column: &str, value: &Value) -> Result<i64, String>
     Ok(count)
 }
 
+/// Run `SELECT COUNT(*) ... WHERE <column> = ? AND <id_column> != ?` through the
+/// `rf_orm::DB` facade and return the matched row count, EXCLUDING the row whose
+/// `<id_column>` equals `id_value`. This powers the update-form uniqueness check,
+/// where a record is allowed to keep its own value. All identifiers are validated
+/// up-front to prevent SQL injection through the table/column names.
+fn facade_count_ignoring(
+    table: &str,
+    column: &str,
+    value: &Value,
+    id_column: &str,
+    id_value: &Value,
+) -> Result<i64, String> {
+    validate_sql_identifier(table)?;
+    validate_sql_identifier(column)?;
+    validate_sql_identifier(id_column)?;
+
+    let query = format!(
+        "SELECT COUNT(*) AS rf_count FROM {} WHERE {} = ? AND {} != ?",
+        table, column, id_column
+    );
+    let rows = rf_orm::DB::select(&query, &[value.clone(), id_value.clone()])
+        .map_err(|e| format!("Database error: {}", e))?;
+
+    let count = rows
+        .first()
+        .and_then(|row| row.get("rf_count"))
+        .and_then(Value::as_i64)
+        .unwrap_or(0);
+    Ok(count)
+}
+
 /// Validates that a field's value is UNIQUE in `<table>.<column>` by running a
 /// real `COUNT(*)` against the `rf_orm::DB` facade. Passes when zero rows match.
 ///
@@ -601,6 +632,10 @@ fn facade_count(table: &str, column: &str, value: &Value) -> Result<i64, String>
 pub struct DbUniqueRule {
     table: String,
     column: String,
+    /// Optional `(id_column, id_value)` to exclude from the uniqueness check.
+    /// Used by the update form ("unique except my own row") — the row whose
+    /// `id_column` equals `id_value` is ignored so a record may keep its value.
+    ignore: Option<(String, Value)>,
 }
 
 impl DbUniqueRule {
@@ -608,18 +643,35 @@ impl DbUniqueRule {
         Self {
             table: table.into(),
             column: column.into(),
+            ignore: None,
         }
+    }
+
+    /// Exclude the record whose `<id_column>` equals `id_value` from the
+    /// uniqueness check (the Laravel `unique(...)->ignore($id)` behaviour). When
+    /// set, the check runs `... WHERE <column> = ? AND <id_column> != ?`, so an
+    /// update that keeps a record's own value still passes.
+    pub fn ignoring(mut self, id_column: impl Into<String>, id_value: Value) -> Self {
+        self.ignore = Some((id_column.into(), id_value));
+        self
     }
 
     /// Sync uniqueness check against the `rf_orm::DB` facade. The facade is sync,
     /// so this runs the real `COUNT(*)` inline and can be called from a synchronous
     /// context (e.g. the `derive(Validate)` generated `validate()`). Passes (Ok)
-    /// when zero rows match; a null value is treated as pass.
+    /// when zero rows match; a null value is treated as pass. When an id to ignore
+    /// has been set via [`DbUniqueRule::ignoring`], that record's own row is
+    /// excluded from the count.
     pub fn check(&self, value: &Value) -> Result<(), String> {
         if value.is_null() {
             return Ok(());
         }
-        let count = facade_count(&self.table, &self.column, value)?;
+        let count = match &self.ignore {
+            Some((id_column, id_value)) => {
+                facade_count_ignoring(&self.table, &self.column, value, id_column, id_value)?
+            }
+            None => facade_count(&self.table, &self.column, value)?,
+        };
         if count == 0 {
             Ok(())
         } else {

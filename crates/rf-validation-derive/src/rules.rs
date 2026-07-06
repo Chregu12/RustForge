@@ -185,10 +185,7 @@ impl ValidationRule {
                 let (table, column) = Self::extract_table_column(value)?;
                 Ok(Self::Exists { table, column })
             }
-            "unique" => {
-                let (table, column) = Self::extract_table_column(value)?;
-                Ok(Self::Unique { table, column })
-            }
+            "unique" => Self::extract_unique(value),
             "required_with" => {
                 let field = Self::extract_string(value)?;
                 Ok(Self::RequiredWith(field))
@@ -226,6 +223,29 @@ impl ValidationRule {
             }
             _ => Err(syn::Error::new_spanned(expr, "Expected string literal")),
         }
+    }
+
+    /// Parse the `unique = ...` attribute value into either a plain [`Unique`]
+    /// rule or, for the update form, a [`UniqueIgnore`] rule.
+    ///
+    /// Grammar:
+    ///   * `unique = "users"`                    -> Unique (column = field name)
+    ///   * `unique = ["users", "email"]`         -> Unique on `users.email`
+    ///   * `unique = ["users", "email", "id"]`   -> UniqueIgnore: unique on
+    ///     `users.email` EXCEPT the row whose `id` column equals `self.id`
+    ///     (the third element names both the id column and the struct field
+    ///     holding the record's own id, which is read to ignore that row).
+    fn extract_unique(expr: &Expr) -> Result<Self, syn::Error> {
+        if let Expr::Array(arr) = expr {
+            if arr.elems.len() == 3 {
+                let table = Self::extract_string(&arr.elems[0])?;
+                let column = Self::extract_string(&arr.elems[1])?;
+                let id = Self::extract_string(&arr.elems[2])?;
+                return Ok(Self::UniqueIgnore { table, column, id });
+            }
+        }
+        let (table, column) = Self::extract_table_column(expr)?;
+        Ok(Self::Unique { table, column })
     }
 
     /// Extract table and optional column from expression
