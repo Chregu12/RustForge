@@ -21,6 +21,42 @@ pub trait AuthorizationPolicy<T> {
     async fn can(&self, user: &Self::User, action: &str, resource: &T) -> bool;
 }
 
+/// Implemented by user types so an [`AuthorizationChecker`] can make real
+/// permission/role decisions.
+///
+/// Without this, the checker would have no way to know what a user is allowed
+/// to do. Implement it for your authenticated-user type (typically by reading
+/// the roles/permissions you loaded from the database or token).
+///
+/// # Wildcards
+///
+/// A permission of `"*"` returned from [`permissions`](HasAuthorization::permissions)
+/// grants every permission (Laravel-style super-admin). A `"prefix.*"` entry
+/// grants every permission under that dotted prefix (e.g. `"posts.*"` grants
+/// `"posts.create"`).
+pub trait HasAuthorization {
+    /// The permissions granted to this user (e.g. `"posts.create"`).
+    fn permissions(&self) -> Vec<String>;
+
+    /// The roles assigned to this user (e.g. `"admin"`).
+    fn roles(&self) -> Vec<String>;
+}
+
+/// Returns `true` when `granted` authorizes `wanted`, honouring `"*"` and
+/// `"prefix.*"` wildcards.
+fn permission_matches(granted: &str, wanted: &str) -> bool {
+    if granted == "*" || granted == wanted {
+        return true;
+    }
+    if let Some(prefix) = granted.strip_suffix(".*") {
+        // "posts.*" grants "posts.create" (and nested "posts.tags.edit").
+        return wanted
+            .strip_prefix(prefix)
+            .is_some_and(|rest| rest.starts_with('.'));
+    }
+    false
+}
+
 /// Helper for authorization checks.
 pub struct AuthorizationChecker<U> {
     user: U,
@@ -32,28 +68,42 @@ impl<U> AuthorizationChecker<U> {
         Self { user }
     }
 
-    /// Check if user has permission.
-    pub fn can(&self, _permission: &str) -> bool {
-        // Simplified - would check actual permissions
-        true
+    /// Borrow the wrapped user.
+    pub fn user(&self) -> &U {
+        &self.user
+    }
+}
+
+impl<U: HasAuthorization> AuthorizationChecker<U> {
+    /// Check if the user has the given permission.
+    ///
+    /// Honours `"*"` (all permissions) and `"prefix.*"` wildcards.
+    pub fn can(&self, permission: &str) -> bool {
+        self.user
+            .permissions()
+            .iter()
+            .any(|granted| permission_matches(granted, permission))
     }
 
-    /// Check if user has role.
-    pub fn has_role(&self, _role: &str) -> bool {
-        // Simplified - would check actual roles
-        true
+    /// Check if the user has the given role.
+    pub fn has_role(&self, role: &str) -> bool {
+        self.user.roles().iter().any(|r| r == role)
     }
 
-    /// Check if user has any of the given roles.
-    pub fn has_any_role(&self, _roles: &[&str]) -> bool {
-        // Simplified - would check actual roles
-        true
+    /// Check if the user has any of the given roles.
+    pub fn has_any_role(&self, roles: &[&str]) -> bool {
+        let user_roles = self.user.roles();
+        roles
+            .iter()
+            .any(|role| user_roles.iter().any(|r| r == role))
     }
 
-    /// Check if user has all of the given roles.
-    pub fn has_all_roles(&self, _roles: &[&str]) -> bool {
-        // Simplified - would check actual roles
-        true
+    /// Check if the user has all of the given roles.
+    pub fn has_all_roles(&self, roles: &[&str]) -> bool {
+        let user_roles = self.user.roles();
+        roles
+            .iter()
+            .all(|role| user_roles.iter().any(|r| r == role))
     }
 }
 
@@ -93,6 +143,24 @@ mod tests {
         is_admin: bool,
     }
 
+    impl HasAuthorization for TestUser {
+        fn permissions(&self) -> Vec<String> {
+            if self.is_admin {
+                vec!["*".to_string()]
+            } else {
+                vec!["posts.create".to_string(), "posts.edit".to_string()]
+            }
+        }
+
+        fn roles(&self) -> Vec<String> {
+            if self.is_admin {
+                vec!["admin".to_string(), "editor".to_string()]
+            } else {
+                vec!["editor".to_string()]
+            }
+        }
+    }
+
     struct TestResource {
         user_id: i64,
     }
@@ -128,15 +196,54 @@ mod tests {
     }
 
     #[test]
-    fn test_authorization_checker() {
-        let user = TestUser {
+    fn test_authorization_checker_admin_wildcard() {
+        let checker = AuthorizationChecker::new(TestUser {
             id: 1,
             is_admin: true,
-        };
-        let checker = AuthorizationChecker::new(user);
+        });
 
-        assert!(checker.can("create_post"));
+        // "*" grants every permission.
+        assert!(checker.can("posts.delete"));
+        assert!(checker.can("anything.at.all"));
         assert!(checker.has_role("admin"));
+        assert!(checker.has_any_role(&["admin", "nope"]));
+        assert!(checker.has_all_roles(&["admin", "editor"]));
+    }
+
+    #[test]
+    fn test_authorization_checker_denies_missing() {
+        let checker = AuthorizationChecker::new(TestUser {
+            id: 2,
+            is_admin: false,
+        });
+
+        // Real checks: only granted permissions/roles pass.
+        assert!(checker.can("posts.create"));
+        assert!(!checker.can("posts.delete"));
+        assert!(!checker.can("*"));
+        assert!(checker.has_role("editor"));
+        assert!(!checker.has_role("admin"));
+        assert!(!checker.has_any_role(&["admin", "owner"]));
+        assert!(checker.has_any_role(&["admin", "editor"]));
+        assert!(!checker.has_all_roles(&["editor", "admin"]));
+    }
+
+    #[test]
+    fn test_permission_wildcard_prefix() {
+        struct Mod;
+        impl HasAuthorization for Mod {
+            fn permissions(&self) -> Vec<String> {
+                vec!["posts.*".to_string()]
+            }
+            fn roles(&self) -> Vec<String> {
+                vec![]
+            }
+        }
+        let checker = AuthorizationChecker::new(Mod);
+        assert!(checker.can("posts.create"));
+        assert!(checker.can("posts.tags.edit"));
+        assert!(!checker.can("users.create"));
+        assert!(!checker.can("posts")); // no trailing segment
     }
 
     #[test]

@@ -46,7 +46,7 @@ pub mod form_request;
 pub mod validation;
 
 pub use authorization::{
-    Authorizable, AuthorizationChecker, AuthorizationPolicy, AuthorizationResult,
+    Authorizable, AuthorizationChecker, AuthorizationPolicy, AuthorizationResult, HasAuthorization,
 };
 pub use form_request::{
     FormRequest, FormRequestError, FormRequestResult, ValidationRule, ValidationRulesBuilder,
