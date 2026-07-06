@@ -2,11 +2,20 @@
 //!
 //! This module provides a synchronous public API while using async operations internally.
 //! This follows Laravel's pattern where queue operations appear synchronous to the user.
+//!
+//! Every synchronous entry point drives its async `Queue` operation on the single
+//! process-global [`AsyncBridge`](rf_async_bridge::AsyncBridge) shared with the
+//! [`Jobs`](crate::Jobs) facade (see [`crate::facade`]). Unlike a raw
+//! `Runtime::block_on`, the bridge runs the future on a dedicated worker thread
+//! with its own runtime, so these calls are safe **from inside** an ambient Tokio
+//! runtime (an Axum handler, a spawned task, `#[tokio::main]`) as well as from
+//! plain sync code — they never panic with "cannot start a runtime from within a
+//! runtime".
 
 use crate::error::QueueResult;
+use crate::facade::shared_bridge;
 use crate::job::{Job, JobMetadata};
 use crate::queue::Queue;
-use rf_core::runtime::block_on;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -47,7 +56,7 @@ impl QueueFacade {
     /// ```
     pub fn push(&self, metadata: JobMetadata) -> QueueResult<String> {
         let queue = Arc::clone(&self.queue);
-        block_on(async move { queue.push(metadata).await })
+        shared_bridge().block_on(async move { queue.push(metadata).await })
     }
 
     /// Push a job with delay (synchronous API)
@@ -77,21 +86,21 @@ impl QueueFacade {
     /// ```
     pub fn push_later(&self, metadata: JobMetadata) -> QueueResult<String> {
         let queue = Arc::clone(&self.queue);
-        block_on(async move { queue.push(metadata).await })
+        shared_bridge().block_on(async move { queue.push(metadata).await })
     }
 
     /// Reserve the next job for processing (synchronous API)
     pub fn reserve(&self, queue: &str) -> QueueResult<Option<JobMetadata>> {
         let queue_ref = Arc::clone(&self.queue);
         let queue_name = queue.to_string();
-        block_on(async move { queue_ref.reserve(&queue_name).await })
+        shared_bridge().block_on(async move { queue_ref.reserve(&queue_name).await })
     }
 
     /// Mark a job as completed (synchronous API)
     pub fn complete(&self, job_id: &str) -> QueueResult<()> {
         let queue = Arc::clone(&self.queue);
         let id = job_id.to_string();
-        block_on(async move { queue.complete(&id).await })
+        shared_bridge().block_on(async move { queue.complete(&id).await })
     }
 
     /// Mark a job as failed (synchronous API)
@@ -99,27 +108,27 @@ impl QueueFacade {
         let queue = Arc::clone(&self.queue);
         let id = job_id.to_string();
         let err = error.to_string();
-        block_on(async move { queue.fail(&id, &err).await })
+        shared_bridge().block_on(async move { queue.fail(&id, &err).await })
     }
 
     /// Retry a failed job (synchronous API)
     pub fn retry(&self, metadata: JobMetadata) -> QueueResult<()> {
         let queue = Arc::clone(&self.queue);
-        block_on(async move { queue.retry(metadata).await })
+        shared_bridge().block_on(async move { queue.retry(metadata).await })
     }
 
     /// Get queue size (synchronous API)
     pub fn size(&self, queue: &str) -> QueueResult<usize> {
         let queue_ref = Arc::clone(&self.queue);
         let queue_name = queue.to_string();
-        block_on(async move { queue_ref.size(&queue_name).await })
+        shared_bridge().block_on(async move { queue_ref.size(&queue_name).await })
     }
 
     /// Clear a queue (synchronous API)
     pub fn clear(&self, queue: &str) -> QueueResult<()> {
         let queue_ref = Arc::clone(&self.queue);
         let queue_name = queue.to_string();
-        block_on(async move { queue_ref.clear(&queue_name).await })
+        shared_bridge().block_on(async move { queue_ref.clear(&queue_name).await })
     }
 }
 
@@ -259,5 +268,36 @@ mod tests {
         // Size should now be 1
         let size = facade.size("default").unwrap();
         assert_eq!(size, 1);
+    }
+
+    /// The whole point of routing off raw `block_on`: calling the synchronous
+    /// free-fn / facade API from *inside* a multi-thread Tokio runtime must NOT
+    /// panic with "cannot start a runtime from within a runtime", and the job
+    /// must actually land on the queue.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn sync_api_is_safe_from_inside_tokio_runtime() {
+        let queue: Arc<dyn Queue> = Arc::new(MemoryQueue::new());
+        let q = Arc::clone(&queue);
+
+        // spawn_blocking so the blocking bridge wait doesn't stall a worker.
+        let (dispatched, size, pushed) = tokio::task::spawn_blocking(move || {
+            let facade = QueueFacade::new(Arc::clone(&q));
+
+            // Free-fn dispatch() from inside the runtime.
+            let dispatched = dispatch(Arc::clone(&q), TestJob { message: "a".into() }).is_ok();
+
+            // Facade push() from inside the runtime.
+            let metadata = JobMetadata::new(&TestJob { message: "b".into() }).unwrap();
+            let pushed = facade.push(metadata).is_ok();
+
+            let size = facade.size("default").unwrap();
+            (dispatched, size, pushed)
+        })
+        .await
+        .expect("bridge-backed sync API panicked inside a Tokio runtime");
+
+        assert!(dispatched, "dispatch() succeeded inside the runtime");
+        assert!(pushed, "facade.push() succeeded inside the runtime");
+        assert_eq!(size, 2, "both jobs were really enqueued");
     }
 }

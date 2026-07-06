@@ -60,6 +60,15 @@ static DEFAULT_QUEUE: Lazy<RwLock<Arc<dyn Queue>>> =
 /// facade can drive async `Queue::push` from inside or outside a Tokio runtime.
 static BRIDGE: Lazy<AsyncBridge> = Lazy::new(AsyncBridge::new);
 
+/// Borrow the single process-global [`AsyncBridge`]. Shared with the
+/// [`QueueFacade`](crate::QueueFacade) free-fn API so every synchronous queue
+/// entry point drives its async operation on the *same* deadlock-safe worker
+/// thread instead of spinning up a fresh runtime (or panicking on a raw
+/// `block_on` from inside an ambient Tokio runtime).
+pub(crate) fn shared_bridge() -> &'static AsyncBridge {
+    &BRIDGE
+}
+
 /// Install the process-global default queue used by the handle-free dispatch
 /// API ([`Jobs::dispatch`], [`Job::dispatch_now`]).
 ///
