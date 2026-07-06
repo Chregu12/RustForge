@@ -110,6 +110,7 @@ members = [
     "examples/facades-demo",
     "examples/blog-slice",
     "examples/phase12-blog",
+    "examples/realtime-chat",
     # Benchmarks
     "benchmarks",
     # Legacy CLI (kept as foundry-cli)

@@ -1,0 +1,17 @@
+[package]
+name = "realtime-chat"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+# rf-broadcast is axum 0.8, so this example uses axum 0.8 (NOT 0.7).
+rf-broadcast = { path = "../../crates/rf-broadcast" }
+axum = { version = "0.8", features = ["ws"] }
+tokio = { version = "1.37", features = ["macros", "rt-multi-thread", "sync", "net", "time", "signal"] }
+serde_json = "1.0"
+
+[dev-dependencies]
+# Real WebSocket clients for the end-to-end integration test.
+tokio-tungstenite = "0.26"
+futures-util = "0.3"
