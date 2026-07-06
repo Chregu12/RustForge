@@ -1,245 +1,216 @@
-// # Phase 12 Blog Example
-//
-// A full-stack blog application demonstrating integration of all Phase 12 crates:
-// - rf-blade: Template engine
-// - rf-vite: Asset pipeline
-// - rf-livereload: Development hot reload
-// - rf-cms: Media management
+//! # Phase 12 Blog — migrated onto RustForge's high-level primitives
+//!
+//! This example used to hand-write ~18 raw `.await`/`Result<>` lines against
+//! bare axum (manual `Router::new().route(..)`, `State`/`Path`/`Multipart`
+//! extractors, `Html`/`StatusCode` plumbing). That predates the framework's
+//! high-level surface and contradicts the vision (hide async/`Result`, offer a
+//! Laravel-like DX). It is now written with ONLY that surface — exactly the set
+//! `examples/blog-slice` uses:
+//!
+//!   * `get`/`post` routing + `global_router().build_router()`
+//!   * the `capture_request` middleware
+//!   * the `input`/`file` implicit-request globals (no `Request` argument, no
+//!     explicit `State`/`Path`/`Multipart` extractors threaded into handlers)
+//!   * the `validate!` typed validation DSL
+//!   * the `Model!`/`create!`/`find!` ORM macros backed by the real (SQLite) DB
+//!   * the `json`/`view` response helpers (no hand-built `Html`/JSON strings)
+//!
+//! Every handler is argument-less and returns `impl IntoResponse`; there is no
+//! visible axum plumbing and no `Result<_, StatusCode>` in a handler signature.
+//!
+//! Run it:  `cargo run -p phase12-blog --bin blog-server`
+//!   (serves on http://127.0.0.1:3000)
+//!   GET  /                 HTML index (rendered via `view`)
+//!   GET  /posts            JSON list
+//!   GET  /posts/:id        JSON single post (`:id` reaches the handler via `input`)
+//!   POST /posts            {"title":"Hello","content":"World"} -> validate + persist
+//!   POST /media/upload     multipart `image=@file` -> parsed via the `file` global
+use rf::prelude::*;
 
-use axum::{
-    routing::{get, post},
-    Router, extract::{Path, State, Multipart},
-    response::{Html, IntoResponse},
-    http::StatusCode,
-};
-use dashmap::DashMap;
-use serde::{Deserialize, Serialize};
-use std::sync::Arc;
-use tower_http::services::ServeDir;
-use tracing_subscriber;
-use uuid::Uuid;
-use chrono::{DateTime, Utc};
+// A model backed by the real (SQLite) DB.
+Model!(Post: title, content);
 
-// Import Phase 12 crates
-use rf_blade::BladeEngine;
-use rf_vite::ViteConfig;
-use rf_livereload::LiveReload;
-use rf_cms::MediaLibrary;
-
-/// Application state
-#[derive(Clone)]
-struct AppState {
-    blade: Arc<BladeEngine>,
-    media: Arc<MediaLibrary>,
-    posts: Arc<DashMap<Uuid, Post>>,
-    vite_dev: bool,
+/// GET / — render the blog index as HTML through the `view` helper, which reads
+/// a real on-disk template (`resources/views/home.blade.html`) and interpolates
+/// the posts with `@foreach`. No `axum::response::Html`, no manual templating.
+async fn home() -> impl axum::response::IntoResponse {
+    let posts = Post::all().await.unwrap_or_default();
+    view("home", serde_json::json!({ "posts": posts }))
 }
 
-/// Blog post model
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct Post {
-    id: Uuid,
-    title: String,
-    content: String,
-    featured_image: Option<String>,
-    created_at: DateTime<Utc>,
-    updated_at: DateTime<Utc>,
+/// GET /posts — list every post as JSON (a real SELECT), returned via the
+/// `json` global helper rather than a hand-built JSON string.
+async fn list_posts() -> impl axum::response::IntoResponse {
+    match Post::all().await {
+        Ok(posts) => json(posts),
+        Err(e) => json(serde_json::json!({ "error": e.to_string() })),
+    }
+}
+
+/// GET /posts/:id — show a single post as JSON. The `:id` path param is read via
+/// the implicit-request `input` global (no `Request` argument, no `Path`
+/// extractor threaded through the handler).
+async fn show_post() -> impl axum::response::IntoResponse {
+    let id: i64 = match input("id") {
+        Some(id) => id,
+        None => return json(serde_json::json!({ "error": "invalid id" })),
+    };
+    match Post::find(id).await {
+        Ok(Some(post)) => json(post),
+        Ok(None) => json(serde_json::json!({ "error": "not found" })),
+        Err(e) => json(serde_json::json!({ "error": e.to_string() })),
+    }
+}
+
+/// POST /posts — validate the request with the `validate!` DSL, persist a real
+/// row with `create!`, and return it as JSON. No `.await?`, no `Result` in the
+/// signature, no hand-rolled body parsing.
+async fn create_post() -> impl axum::response::IntoResponse {
+    if validate! { title: string.max(100), content: string }.is_err() {
+        return json(serde_json::json!({ "error": "validation failed" }));
+    }
+    let title: String = input("title").unwrap_or_default();
+    let content: String = input("content").unwrap_or_default();
+    match create!(Post, title = title, content = content) {
+        Ok(created) => json(created),
+        Err(e) => json(serde_json::json!({ "error": e.to_string() })),
+    }
+}
+
+/// POST /media/upload — accept a multipart upload through the `file` global,
+/// which `capture_request` populates from the request's `multipart/form-data`
+/// body. This replaces the old hand-rolled `while multipart.next_field().await`
+/// loop with a single implicit-request lookup.
+async fn upload_media() -> impl axum::response::IntoResponse {
+    match file("image") {
+        Some(f) => json(serde_json::json!({
+            "success": true,
+            "filename": f.filename(),
+            "size": f.size(),
+            "content_type": f.content_type(),
+        })),
+        None => json(serde_json::json!({ "success": false, "error": "no file uploaded" })),
+    }
+}
+
+/// Wire the routes and return the served router (registers on the global router,
+/// then attaches the `capture_request` middleware that backs the implicit-request
+/// globals).
+fn build_app() -> axum::Router {
+    get("/", home);
+    get("/posts", list_posts);
+    get("/posts/:id", show_post);
+    post("/posts", create_post);
+    post("/media/upload", upload_media);
+    rf::global_router()
+        .build_router()
+        .layer(axum::middleware::from_fn(rf::web::capture_request))
+}
+
+/// Create the posts table (a one-time boot step, not handler logic).
+fn migrate() {
+    DB::statement(
+        "CREATE TABLE IF NOT EXISTS posts (id INTEGER PRIMARY KEY, title TEXT, content TEXT)",
+    )
+    .expect("create posts table");
 }
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Initialize tracing
-    tracing_subscriber::fmt::init();
+async fn main() {
+    migrate();
+    let app = build_app();
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:3000")
+        .await
+        .expect("bind");
+    println!("phase12-blog listening on http://127.0.0.1:3000");
+    axum::serve(listener, app).await.expect("serve");
+}
 
-    tracing::info!("Starting Phase 12 Blog Example...");
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::{body::Body, http::Request};
+    use tower::ServiceExt;
 
-    // Initialize rf-blade template engine
-    let blade = Arc::new(BladeEngine::new("templates/")?);
-    blade.add_component_path("templates/components/")?;
-
-    // Initialize rf-cms media library
-    let media = Arc::new(MediaLibrary::new("storage/media"));
-
-    // Initialize in-memory post storage
-    let posts = Arc::new(DashMap::new());
-
-    // Seed with example post
-    seed_posts(&posts, &media).await?;
-
-    // Determine if running in dev mode
-    let vite_dev = std::env::var("VITE_DEV").unwrap_or_else(|_| "true".to_string()) == "true";
-
-    // Initialize rf-livereload (dev mode only)
-    if vite_dev {
-        tracing::info!("Starting live reload server...");
-        let live_reload = LiveReload::new()
-            .watch("templates")
-            .watch("resources/css")
-            .watch("resources/js")
-            .debounce_ms(300);
-
-        tokio::spawn(async move {
-            if let Ok(_server) = live_reload.start().await {
-                tracing::info!("Live reload server started on port 35729");
-            }
-        });
+    async fn call(app: &axum::Router, req: Request<Body>) -> (axum::http::StatusCode, String) {
+        let resp = app.clone().oneshot(req).await.unwrap();
+        let status = resp.status();
+        let bytes = axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+        (status, String::from_utf8_lossy(&bytes).into_owned())
     }
 
-    // Initialize rf-vite (dev mode only)
-    if vite_dev {
-        tracing::info!("Starting Vite dev server...");
-        let vite_config = ViteConfig::new(".")
-            .entry("resources/js/app.js")
-            .entry("resources/css/app.css");
-
-        tokio::spawn(async move {
-            if let Ok(_dev_server) = vite_config.dev_server().await {
-                tracing::info!("Vite dev server started");
-            }
-        });
+    fn post_json(uri: &str, body: &str) -> Request<Body> {
+        Request::builder()
+            .method("POST")
+            .uri(uri)
+            .header("content-type", "application/json")
+            .body(Body::from(body.to_string()))
+            .unwrap()
     }
 
-    // Create application state
-    let state = AppState {
-        blade,
-        media,
-        posts,
-        vite_dev,
-    };
+    #[tokio::test]
+    async fn blog_example_uses_real_high_level_primitives() {
+        migrate();
+        let app = build_app();
 
-    // Build router
-    let app = Router::new()
-        .route("/", get(home))
-        .route("/posts/:id", get(show_post))
-        .route("/posts/create", get(create_post_form).post(create_post))
-        .route("/media/upload", post(upload_media))
-        .nest_service("/storage", ServeDir::new("storage"))
-        .with_state(state);
+        // POST /posts — validate! + create! persist a real row.
+        let (_, out) = call(&app, post_json("/posts", r#"{"title":"Hello","content":"World"}"#)).await;
+        let v: serde_json::Value = serde_json::from_str(&out).unwrap();
+        assert_eq!(v["title"], "Hello");
+        let created_id = v["id"].as_i64().unwrap();
+        assert!(created_id >= 1);
 
-    // Start server
-    let addr = "127.0.0.1:3000";
-    tracing::info!("Blog server listening on http://{}", addr);
+        // GET /posts/:id — the `:id` path param reaches the argument-less handler
+        // through `input::<i64>("id")` and returns the very row we just created.
+        let (_, out) = call(
+            &app,
+            Request::builder()
+                .uri(format!("/posts/{created_id}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await;
+        let shown: serde_json::Value = serde_json::from_str(&out).unwrap();
+        assert_eq!(shown["id"].as_i64().unwrap(), created_id);
+        assert_eq!(shown["title"], "Hello");
+        assert_eq!(shown["content"], "World");
 
-    let listener = tokio::net::TcpListener::bind(addr).await?;
-    axum::serve(listener, app).await?;
+        // Invalid create (title too long) -> validate! rejects it.
+        let long = "x".repeat(200);
+        let (_, out) =
+            call(&app, post_json("/posts", &format!(r#"{{"title":"{long}","content":"b"}}"#))).await;
+        assert!(out.contains("validation failed"), "expected validation failure, got: {out}");
 
-    Ok(())
-}
+        // GET / — the `view` helper renders the real on-disk template, listing
+        // the persisted post (proves `view` + `@foreach` work end to end).
+        let (status, html) =
+            call(&app, Request::builder().uri("/").body(Body::empty()).unwrap()).await;
+        assert_eq!(status, axum::http::StatusCode::OK, "home render failed: {html}");
+        assert!(html.contains("<h1>RustForge Blog</h1>"), "home html: {html}");
+        assert!(html.contains("Hello"), "home should list the post title, got: {html}");
+        assert!(html.contains(&format!("/posts/{created_id}")), "home should link the post: {html}");
 
-/// Home page - list all posts
-async fn home(State(state): State<AppState>) -> Result<Html<String>, StatusCode> {
-    let posts: Vec<Post> = state.posts.iter().map(|p| p.value().clone()).collect();
-    let mut posts_sorted = posts;
-    posts_sorted.sort_by(|a, b| b.created_at.cmp(&a.created_at));
-
-    let html = state.blade.render("posts.index", serde_json::json!({
-        "posts": posts_sorted,
-        "vite_dev": state.vite_dev,
-    })).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-
-    Ok(Html(html))
-}
-
-/// Show single post
-async fn show_post(
-    Path(id): Path<String>,
-    State(state): State<AppState>,
-) -> Result<Html<String>, StatusCode> {
-    let uuid = Uuid::parse_str(&id).map_err(|_| StatusCode::BAD_REQUEST)?;
-
-    let post = state.posts.get(&uuid)
-        .ok_or(StatusCode::NOT_FOUND)?
-        .clone();
-
-    let html = state.blade.render("posts.show", serde_json::json!({
-        "post": post,
-        "vite_dev": state.vite_dev,
-    })).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-
-    Ok(Html(html))
-}
-
-/// Show create post form
-async fn create_post_form(State(state): State<AppState>) -> Result<Html<String>, StatusCode> {
-    let html = state.blade.render("posts.create", serde_json::json!({
-        "vite_dev": state.vite_dev,
-    })).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-
-    Ok(Html(html))
-}
-
-/// Create new post
-async fn create_post(
-    State(state): State<AppState>,
-    multipart: Multipart,
-) -> Result<impl IntoResponse, StatusCode> {
-    // In a real app, parse multipart form data
-    // For this example, we'll just redirect
-    Ok((StatusCode::SEE_OTHER, [("Location", "/")]))
-}
-
-/// Upload media file
-async fn upload_media(
-    State(state): State<AppState>,
-    mut multipart: Multipart,
-) -> Result<impl IntoResponse, StatusCode> {
-    while let Some(field) = multipart.next_field().await.map_err(|_| StatusCode::BAD_REQUEST)? {
-        if let Some(filename) = field.file_name() {
-            let data = field.bytes().await.map_err(|_| StatusCode::BAD_REQUEST)?;
-
-            let file = state.media.upload(filename, data.to_vec())
-                .await
-                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-
-            return Ok(serde_json::json!({
-                "success": true,
-                "file_id": file.id,
-                "url": format!("/storage/media/{}", file.filename)
-            }).to_string());
-        }
+        // POST /media/upload — the `file` global parses the multipart body that
+        // `capture_request` staged (replacing the old manual `next_field` loop).
+        let boundary = "X-RUSTFORGE-BOUNDARY";
+        let body = format!(
+            "--{b}\r\nContent-Disposition: form-data; name=\"image\"; filename=\"photo.png\"\r\nContent-Type: image/png\r\n\r\n{data}\r\n--{b}--\r\n",
+            b = boundary,
+            data = "PNGDATA!"
+        );
+        let (_, out) = call(
+            &app,
+            Request::builder()
+                .method("POST")
+                .uri("/media/upload")
+                .header("content-type", format!("multipart/form-data; boundary={boundary}"))
+                .body(Body::from(body))
+                .unwrap(),
+        )
+        .await;
+        let up: serde_json::Value = serde_json::from_str(&out).unwrap();
+        assert_eq!(up["success"], true, "upload response: {out}");
+        assert_eq!(up["filename"], "photo.png");
+        assert_eq!(up["size"].as_u64().unwrap(), "PNGDATA!".len() as u64);
     }
-
-    Err(StatusCode::BAD_REQUEST)
-}
-
-/// Seed example posts
-async fn seed_posts(
-    posts: &DashMap<Uuid, Post>,
-    _media: &MediaLibrary,
-) -> Result<(), Box<dyn std::error::Error>> {
-    let post1 = Post {
-        id: Uuid::new_v4(),
-        title: "Welcome to RustForge Blog".to_string(),
-        content: r#"<p>This is a <strong>full-stack blog</strong> built with RustForge Phase 12 features:</p>
-<ul>
-<li><strong>rf-blade</strong>: Laravel Blade-like templating</li>
-<li><strong>rf-vite</strong>: Modern asset pipeline with HMR</li>
-<li><strong>rf-livereload</strong>: Live browser reload</li>
-<li><strong>rf-cms</strong>: Media library and content management</li>
-</ul>
-<p>This demonstrates how all Phase 12 crates work together seamlessly!</p>"#.to_string(),
-        featured_image: None,
-        created_at: Utc::now(),
-        updated_at: Utc::now(),
-    };
-
-    let post2 = Post {
-        id: Uuid::new_v4(),
-        title: "Getting Started with RustForge".to_string(),
-        content: r#"<p>RustForge now supports full-stack development with features like:</p>
-<h3>Template Engine</h3>
-<p>Use Blade syntax for your views with template inheritance and components.</p>
-<h3>Asset Pipeline</h3>
-<p>Integrate Vite for lightning-fast frontend builds with Hot Module Replacement.</p>
-<h3>Media Management</h3>
-<p>Upload images, generate thumbnails, and manage media files easily.</p>"#.to_string(),
-        featured_image: None,
-        created_at: Utc::now(),
-        updated_at: Utc::now(),
-    };
-
-    posts.insert(post1.id, post1);
-    posts.insert(post2.id, post2);
-
-    Ok(())
 }

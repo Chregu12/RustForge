@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <title>RustForge Blog</title>
+</head>
+<body>
+    <h1>RustForge Blog</h1>
+    <ul>
+@foreach(post in posts)
+        <li><a href="/posts/{{ post.id }}">{{ post.title }}</a></li>
+@endforeach
+    </ul>
+</body>
+</html>
