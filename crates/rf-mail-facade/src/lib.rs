@@ -1,113 +1,31 @@
 //! # rf-mail-facade
 //!
-//! Laravel-style Mail facade for RustForge
+//! Laravel-style `Mail` facade for the RustForge framework.
 //!
-//! ## Features
+//! This crate used to carry its **own** duplicate `Mail`/`Mailer` implementation
+//! backed by a *separate* global `MemoryMailer` that only delivered via
+//! `block_in_place` (and therefore required an ambient Tokio runtime). The real
+//! `rf::Mail` (which resolves to `rf_mail::MailFacade`) meanwhile grew a proper
+//! synchronous file/SMTP transport. The `send_mail!` helper macro expands to
+//! `rf_mail_facade::Mail::…`, so it targeted the stale mock instead of the real
+//! transport.
 //!
-//! - **Static Mail API**: Use `Mail::send()`, `Mail::to()`, etc. - no `.await` needed!
-//! - **Global Mailer**: Thread-safe global mail state
-//! - **Laravel-Compatible**: Familiar API for Laravel developers
+//! It now simply **re-exports the single real implementation from
+//! [`rf_mail`]**, so there is exactly one source of truth: `Mail::to(..).send(..)`
+//! writes real `.eml` files (or delivers over SMTP when configured), with or
+//! without a Tokio runtime.
 //!
-//! ## Quick Start
+//! # Recommended Usage
 //!
-//! ```rust,no_run
+//! Prefer the consolidated `rf` crate (`use rf::Mail;`). When depending on this
+//! crate directly:
+//!
+//! ```rust
 //! use rf_mail_facade::Mail;
-//!
-//! # fn example() -> Result<(), Box<dyn std::error::Error>> {
-//! // Send mail to specific address
-//! let mailer = Mail::to("user@example.com");
-//! # Ok(())
-//! # }
 //! ```
 
-use once_cell::sync::Lazy;
-use rf_mail::{MemoryMailer, MailResult, Mailable};
-use std::sync::RwLock;
+// One source of truth: the real Mail facade lives in `rf-mail`.
+pub use rf_mail::facade::{Mail, Mailer, GLOBAL_MAILER};
 
-/// Global mailer instance
-/// Uses std::sync::RwLock for synchronous access (no .await needed)
-pub static GLOBAL_MAILER: Lazy<RwLock<MemoryMailer>> = Lazy::new(|| {
-    RwLock::new(MemoryMailer::new())
-});
-
-pub struct Mail;
-
-impl Mail {
-    /// Send a mailable
-    ///
-    /// # Examples
-    ///
-    /// ```rust,ignore
-    /// use rf_mail_facade::Mail;
-    ///
-    /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// // Mail::send(my_mailable)?;
-    /// # Ok(())
-    /// # }
-    /// ```
-    pub fn send<M: Mailable>(mailable: M) -> MailResult<()> {
-        let mailer = GLOBAL_MAILER.read().unwrap();
-        // Block on async operation
-        tokio::task::block_in_place(|| {
-            tokio::runtime::Handle::current().block_on(async {
-                mailable.send(&*mailer).await
-            })
-        })
-    }
-
-    /// Create a mailer for a specific recipient
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rf_mail_facade::Mail;
-    ///
-    /// let mailer = Mail::to("user@example.com");
-    /// ```
-    pub fn to(address: impl Into<String>) -> Mailer {
-        Mailer::new(address.into())
-    }
-}
-
-pub struct Mailer {
-    pub to: String,
-}
-
-impl Mailer {
-    pub fn new(to: String) -> Self {
-        Self { to }
-    }
-
-    /// Send a mailable to this recipient
-    ///
-    /// # Examples
-    ///
-    /// ```rust,ignore
-    /// use rf_mail_facade::Mail;
-    ///
-    /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// // Mail::to("user@example.com").send(my_mailable)?;
-    /// # Ok(())
-    /// # }
-    /// ```
-    pub fn send<M: Mailable>(self, mailable: M) -> MailResult<()> {
-        let mailer = GLOBAL_MAILER.read().unwrap();
-        // Block on async operation
-        tokio::task::block_in_place(|| {
-            tokio::runtime::Handle::current().block_on(async {
-                mailable.send(&*mailer).await
-            })
-        })
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_mail_to() {
-        let mailer = Mail::to("test@example.com");
-        assert_eq!(mailer.to, "test@example.com");
-    }
-}
+// Re-export commonly used types from rf-mail (kept for API stability).
+pub use rf_mail::{MailResult, Mailable, MemoryMailer};

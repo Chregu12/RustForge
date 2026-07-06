@@ -1,63 +1,29 @@
 //! # rf-cache-facade
 //!
-//! Laravel-style Cache facade for the RustForge framework.
+//! Laravel-style `Cache` facade for the RustForge framework.
+//!
+//! This crate used to carry its **own** duplicate `Cache`/`CacheManager`
+//! implementation backed by a *separate* process-global `GLOBAL_CACHE`. That
+//! meant `use rf::Cache` (which resolves to `rf_cache::CacheFacade`) and the
+//! `cache!` helper macro (which expands to `rf_cache_facade::Cache::…`) wrote to
+//! **two different** in-memory caches — a split-brain bug.
+//!
+//! It now simply **re-exports the single real implementation from
+//! [`rf_cache`]**, so there is exactly one source of truth and one global cache
+//! shared by the prelude facade and the `cache!` macro.
 //!
 //! # Recommended Usage
 //!
-//! Use the consolidated `rf` crate for simpler imports (`use rf::Cache;`),
-//! or import directly from this crate:
+//! Prefer the consolidated `rf` crate (`use rf::Cache;`). When depending on this
+//! crate directly:
+//!
 //! ```rust
 //! use rf_cache_facade::Cache;
 //! ```
-//!
-//! ## Features
-//!
-//! - **Static Cache API**: Use `Cache::get()`, `Cache::put()`, etc.
-//! - **Global Cache Manager**: Thread-safe global cache state
-//! - **Tag Support**: Group cache entries with tags
-//! - **Laravel-Compatible**: Familiar API for Laravel developers
-//! - **Flexible TTL**: Pass seconds as `u64` or `Duration`
-//!
-//! ## Quick Start
-//!
-//! ```rust,no_run
-//! // Recommended: use rf::Cache;
-//! use rf_cache_facade::Cache;  // Direct import also works
-//!
-//! # fn example() -> Result<(), Box<dyn std::error::Error>> {
-//! // Put a value in cache - Laravel style with seconds!
-//! Cache::put("key", "value", 3600)?;
-//!
-//! // Get a value from cache
-//! if let Some(value) = Cache::get::<String>("key")? {
-//!     println!("Cached value: {}", value);
-//! }
-//!
-//! // Remember pattern - just pass seconds!
-//! let value: String = Cache::remember("expensive_key", 3600, || async {
-//!     Ok("expensive computation".to_string())
-//! })?;
-//!
-//! // Add only if key doesn't exist
-//! Cache::add("new_key", "value", 60)?;
-//!
-//! // Store forever
-//! Cache::forever("permanent", "value")?;
-//!
-//! // Forget a value
-//! Cache::forget("key")?;
-//!
-//! // Flush all cache
-//! Cache::flush()?;
-//! # Ok(())
-//! # }
-//! ```
 
-pub mod facade;
-pub mod manager;
+// One source of truth: the real Cache facade + global manager live in `rf-cache`.
+pub use rf_cache::cache_manager::{CacheManager, GLOBAL_CACHE};
+pub use rf_cache::facade::{Cache, IntoTtl};
 
-pub use facade::{Cache, IntoTtl};
-pub use manager::{CacheManager, GLOBAL_CACHE};
-
-// Re-export commonly used types from rf-cache
+// Re-export commonly used types from rf-cache (kept for API stability).
 pub use rf_cache::{CacheError, CacheResult, MemoryCache, TaggedCache};

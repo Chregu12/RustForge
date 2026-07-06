@@ -2,14 +2,8 @@
 name = "rf-storage-facade"
 version = "0.1.0"
 edition = "2021"
-description = "Laravel-style Storage facade for RustForge"
+description = "Laravel-style Storage facade for RustForge (re-export of rf-storage)"
 license = "MIT OR Apache-2.0"
 
 [dependencies]
 rf-storage = { path = "../rf-storage" }
-once_cell = "1.19"
-tokio = { version = "1.35", features = ["sync"] }
-parking_lot = "0.12"
-
-[dev-dependencies]
-tokio = { version = "1.35", features = ["full", "test-util"] }

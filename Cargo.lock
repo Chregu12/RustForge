@@ -7698,10 +7698,7 @@ dependencies = [
 name = "rf-cache-facade"
 version = "0.1.0"
 dependencies = [
- "once_cell",
  "rf-cache",
- "serde",
- "tokio",
 ]
 
 [[package]]
@@ -8390,9 +8387,7 @@ dependencies = [
 name = "rf-mail-facade"
 version = "0.1.0"
 dependencies = [
- "once_cell",
  "rf-mail",
- "tokio",
 ]
 
 [[package]]
@@ -9142,10 +9137,7 @@ dependencies = [
 name = "rf-storage-facade"
 version = "0.1.0"
 dependencies = [
- "once_cell",
- "parking_lot",
  "rf-storage",
- "tokio",
 ]
 
 [[package]]
