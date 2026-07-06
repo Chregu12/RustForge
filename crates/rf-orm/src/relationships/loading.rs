@@ -445,7 +445,24 @@ where
     }
 }
 
-/// Load multiple relationships for a collection of models
+/// Load multiple relationships for a collection of models, dispatched by their
+/// string names.
+///
+/// # Real batch loading vs. string dispatch
+///
+/// The actual batch load (`WHERE parent_id IN (...)`, no N+1) is implemented and
+/// proven by the *typed* entrypoints [`load_relation`] and
+/// [`crate::relationships::eager_load`], which resolve the child entity `R` from
+/// the `E: Related<R>` bound at compile time.
+///
+/// This function instead takes relation names as **strings**. Rust cannot map a
+/// runtime `&str` to a static `EntityTrait` type without codegen, so — rather
+/// than silently pretending to load — it returns an error naming the relations
+/// it was asked for. A future `#[derive]` on the model can generate the
+/// name → type registry that would make this string-based form dispatch to the
+/// real typed loader.
+///
+/// An empty relation list is a no-op and returns `Ok(())`.
 ///
 /// # Example
 ///
@@ -463,7 +480,11 @@ where
 /// # }
 /// # async fn example(db: sea_orm::DatabaseConnection) -> Result<(), Box<dyn std::error::Error>> {
 /// let mut users = user::Entity::find().all(&db).await?;
-/// load_relations::<user::Entity>(&db, &mut users, &["posts", "comments"]).await?;
+/// // For the real batch load, prefer the typed API:
+/// //   load_relation::<user::Entity, post::Entity>(&db, &mut users, "posts").await?;
+/// // The string-based multi form reports that it needs a derive to dispatch:
+/// let names: &[&str] = &[];
+/// load_relations::<user::Entity>(&db, &mut users, names).await?; // Ok: nothing requested
 /// # Ok(())
 /// # }
 /// ```
@@ -476,13 +497,20 @@ where
     E: EntityTrait,
     E::Model: ModelTrait,
 {
-    for relation in relations {
-        // In a real implementation, we would dynamically load each relation
-        // For now, this is a placeholder
-        let _ = relation;
+    if relations.is_empty() {
+        return Ok(());
     }
 
-    Ok(())
+    // We deliberately do NOT return a fake `Ok(())` here: string → entity-type
+    // dispatch is impossible without generated code, so report it honestly.
+    Err(DbErr::Custom(format!(
+        "load_relations: cannot dispatch relations {:?} from string names without a \
+         generated name->type registry. Use the typed batch loader instead: \
+         `load_relation::<Parent, Child>(db, &mut models, \"{}\")` or \
+         `relationships::eager_load::<Parent, Child>(models, db)`.",
+        relations,
+        relations.first().copied().unwrap_or("posts"),
+    )))
 }
 
 /// Extension trait for collections to support lazy eager loading

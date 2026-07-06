@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use sea_orm::{DatabaseConnection, DbErr, EntityTrait, ModelTrait, Related};
+use sea_orm::{DatabaseConnection, DbErr, EntityTrait, LoaderTrait, ModelTrait, Related};
 
 /// Simplified Relationship helpers for Laravel-like syntax
 ///
@@ -154,7 +154,21 @@ pub trait RelationshipHelpers: ModelTrait + Sized {
 // Blanket implementation for all ModelTrait types
 impl<T> RelationshipHelpers for T where T: ModelTrait {}
 
-/// Eager loading helper
+/// Eager loading helper: batch-load a `has_many` / `belongs_to` relation for a
+/// whole collection of parent models in a SINGLE query (no N+1), returning each
+/// parent paired with its loaded children.
+///
+/// This is the ergonomic "attach the relation" surface: the returned
+/// `Vec<(parent, Vec<child>)>` lets a caller consume `parent.1` as the populated
+/// relation (e.g. `user.posts`) directly. Rust cannot write a preloaded value
+/// into an arbitrary user struct field without codegen, so the loaded children
+/// are handed back alongside each parent instead of mutated into a bare field
+/// (a `#[derive]` for bare-field population is a future extension).
+///
+/// Internally this uses SeaORM's [`LoaderTrait::load_many`], which issues one
+/// `SELECT ... WHERE parent_id IN (...)` and returns the children aligned by
+/// index with the parents — so the pairing is exact and requires no per-parent
+/// query.
 ///
 /// # Example
 ///
@@ -201,16 +215,20 @@ where
     E: EntityTrait,
     R: EntityTrait,
     E: Related<R>,
-    E::Model: ModelTrait,
+    E::Model: ModelTrait + Sync,
+    R::Model: Send + Sync,
 {
-    let mut result = Vec::new();
-
-    for model in models {
-        let related = model.find_related(R::default()).all(db).await?;
-        result.push((model, related));
+    if models.is_empty() {
+        return Ok(Vec::new());
     }
 
-    Ok(result)
+    // Single batched query for ALL parents (no N+1): `load_many` collects every
+    // parent key, issues one `WHERE parent_key IN (...)` query, and returns the
+    // children aligned by index with `models`.
+    let related: Vec<Vec<R::Model>> = models.load_many(R::default(), db).await?;
+
+    // Pair each parent with its (already grouped) children.
+    Ok(models.into_iter().zip(related).collect())
 }
 
 #[cfg(test)]
