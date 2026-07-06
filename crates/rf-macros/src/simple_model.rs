@@ -44,13 +44,33 @@ mod kw {
     syn::custom_keyword!(belongsToMany);
     syn::custom_keyword!(timestamps);
     syn::custom_keyword!(softDeletes);
+    syn::custom_keyword!(validated);
+    syn::custom_keyword!(email);
+    syn::custom_keyword!(max);
+    syn::custom_keyword!(min);
 }
 
-/// A field: `name: String` or `hidden password: String`
+/// An explicit validation override attached to a field via the `@` DSL, e.g.
+/// `title: String @ min(3) max(200)` or `email: String @ email`. These augment
+/// the type-inferred rules with real presence/length/email checks that serde's
+/// deserialization alone cannot enforce.
+#[derive(Debug, Clone)]
+enum FieldOverride {
+    /// `@ email` — value must be a syntactically valid email address.
+    Email,
+    /// `@ max(N)` — string length must be `<= N`.
+    Max(usize),
+    /// `@ min(N)` — string length must be `>= N`.
+    Min(usize),
+}
+
+/// A field: `name: String`, `hidden password: String`, or with validation
+/// overrides `name: String @ min(1) max(120) email`.
 struct SimpleField {
     hidden: bool,
     name: Ident,
     ty: Type,
+    overrides: Vec<FieldOverride>,
 }
 
 impl Parse for SimpleField {
@@ -64,7 +84,36 @@ impl Parse for SimpleField {
         input.parse::<Token![:]>()?;
         let ty: Type = input.parse()?;
 
-        Ok(SimpleField { hidden, name, ty })
+        // Optional trailing validation overrides: `@ email min(3) max(200)`.
+        // `@` cannot appear inside a type path, so the preceding `Type` parse
+        // stops right before it — keeping this fully backward-compatible with
+        // plain `name: Type` fields.
+        let mut overrides = Vec::new();
+        if input.peek(Token![@]) {
+            input.parse::<Token![@]>()?;
+            loop {
+                if input.peek(kw::email) {
+                    input.parse::<kw::email>()?;
+                    overrides.push(FieldOverride::Email);
+                } else if input.peek(kw::max) {
+                    input.parse::<kw::max>()?;
+                    let content;
+                    syn::parenthesized!(content in input);
+                    let lit: syn::LitInt = content.parse()?;
+                    overrides.push(FieldOverride::Max(lit.base10_parse()?));
+                } else if input.peek(kw::min) {
+                    input.parse::<kw::min>()?;
+                    let content;
+                    syn::parenthesized!(content in input);
+                    let lit: syn::LitInt = content.parse()?;
+                    overrides.push(FieldOverride::Min(lit.base10_parse()?));
+                } else {
+                    break;
+                }
+            }
+        }
+
+        Ok(SimpleField { hidden, name, ty, overrides })
     }
 }
 
@@ -146,6 +195,7 @@ enum ModelDef {
         relationships: Vec<Relationship>,
         timestamps: bool,
         soft_deletes: bool,
+        validated: bool,
     },
     Simple {
         name: Ident,
@@ -176,8 +226,21 @@ impl Parse for ModelDef {
             let mut relationships = Vec::new();
             let mut timestamps = true; // Default to true like Laravel
             let mut soft_deletes = false;
+            let mut validated = false;
 
             while !content.is_empty() {
+                // Check for the `validated` opt-in marker. When present, the
+                // generated Create/Update DTOs also get a real
+                // `rf_validation::Validate` impl (drives the ValidatedJson
+                // extractor). Opt-in keeps existing Model! users that don't
+                // depend on rf_validation compiling unchanged.
+                if content.peek(kw::validated) {
+                    content.parse::<kw::validated>()?;
+                    validated = true;
+                    let _ = content.parse::<Token![,]>();
+                    continue;
+                }
+
                 // Check for table = "..."
                 if content.peek(kw::table) {
                     content.parse::<kw::table>()?;
@@ -225,7 +288,7 @@ impl Parse for ModelDef {
                 let _ = content.parse::<Token![,]>();
             }
 
-            Ok(ModelDef::Full { name, table, fields, relationships, timestamps, soft_deletes })
+            Ok(ModelDef::Full { name, table, fields, relationships, timestamps, soft_deletes, validated })
         }
     }
 }
@@ -234,8 +297,8 @@ pub fn simple_model_impl(input: TokenStream) -> TokenStream {
     let model = parse_macro_input!(input as ModelDef);
 
     match model {
-        ModelDef::Full { name, table, fields, relationships, timestamps, soft_deletes } => {
-            generate_full_model(name, table, fields, relationships, timestamps, soft_deletes)
+        ModelDef::Full { name, table, fields, relationships, timestamps, soft_deletes, validated } => {
+            generate_full_model(name, table, fields, relationships, timestamps, soft_deletes, validated)
         }
         ModelDef::Simple { name, fields } => {
             generate_simple_model(name, fields)
@@ -250,6 +313,7 @@ fn generate_full_model(
     relationships: Vec<Relationship>,
     timestamps: bool,
     soft_deletes: bool,
+    validated: bool,
 ) -> TokenStream {
     let table_name = table.unwrap_or_else(|| {
         let s = name.to_string();
@@ -366,6 +430,54 @@ fn generate_full_model(
                 Self::VALIDATION_RULES
             }
         }
+    };
+
+    // ---- Companion DTO `Validate` impls (opt-in) -------------------------
+    // When the model opts in (the `validated` marker OR any field carries an
+    // `@`-override), also emit a REAL `rf_validation::Validate` (the external
+    // `validator` crate trait that the `ValidatedJson` extractor requires) for
+    // both DTOs. This closes the loop: `ValidatedJson<Create<Name>>` now
+    // deserializes AND validates in one extractor, no manual `validate!()`.
+    //
+    // Type keywords (string/integer/numeric) are already guaranteed by the
+    // strongly-typed DTO fields + serde deserialization, so the emitted impl
+    // adds the checks serde CANNOT express: presence (non-empty required
+    // strings) plus the explicit `@ email / min(N) / max(N)` overrides.
+    let emit_validate = validated || fields.iter().any(|f| !f.overrides.is_empty());
+    let dto_validate_impls = if emit_validate {
+        // Create DTO: fields verbatim (Option<T> stays optional).
+        let create_checks: Vec<TokenStream2> = fields.iter().map(|f| {
+            let is_opt = is_option_type(&f.ty);
+            let (kw, _) = infer_field_rule(&f.ty);
+            dto_field_checks(&f.name, is_opt, &kw, &f.overrides)
+        }).collect();
+        // Update DTO: every field Option-wrapped -> all optional.
+        let update_checks: Vec<TokenStream2> = fields.iter().map(|f| {
+            let (kw, _) = infer_field_rule(&f.ty);
+            dto_field_checks(&f.name, true, &kw, &f.overrides)
+        }).collect();
+
+        quote! {
+            #[automatically_derived]
+            impl rf_validation::Validate for #create_name {
+                fn validate(&self) -> ::std::result::Result<(), rf_validation::ext_validator::ValidationErrors> {
+                    let mut errors = rf_validation::ext_validator::ValidationErrors::new();
+                    #(#create_checks)*
+                    if errors.is_empty() { ::std::result::Result::Ok(()) } else { ::std::result::Result::Err(errors) }
+                }
+            }
+
+            #[automatically_derived]
+            impl rf_validation::Validate for #update_name {
+                fn validate(&self) -> ::std::result::Result<(), rf_validation::ext_validator::ValidationErrors> {
+                    let mut errors = rf_validation::ext_validator::ValidationErrors::new();
+                    #(#update_checks)*
+                    if errors.is_empty() { ::std::result::Result::Ok(()) } else { ::std::result::Result::Err(errors) }
+                }
+            }
+        }
+    } else {
+        quote! {}
     };
 
     // Generate timestamp fields
@@ -556,6 +668,8 @@ fn generate_full_model(
         }
 
         #dto_defs
+
+        #dto_validate_impls
     };
 
     TokenStream::from(expanded)
@@ -773,6 +887,104 @@ fn option_wrap(ty: &Type) -> TokenStream2 {
         quote! { #ty }
     } else {
         quote! { ::std::option::Option<#ty> }
+    }
+}
+
+/// Emit the `validator::Validate` check statements for a single DTO field.
+///
+/// `is_option` selects the access pattern: `Option<T>` fields only validate
+/// when `Some` (partial-update semantics), while non-optional string fields
+/// additionally get a presence (non-empty) check — the piece serde cannot
+/// enforce. `keyword` is the inferred type keyword ("string" gets length/email
+/// treatment); `overrides` are the explicit `@ email / min / max` rules. All
+/// paths resolve through `rf_validation::…` so the consuming crate only needs an
+/// `rf_validation` dependency.
+fn dto_field_checks(
+    name: &Ident,
+    is_option: bool,
+    keyword: &str,
+    overrides: &[FieldOverride],
+) -> TokenStream2 {
+    let name_str = name.to_string();
+    let is_string = keyword == "string";
+
+    // Checks that operate on a bound `value` (`&String` in scope).
+    let mut inner: Vec<TokenStream2> = Vec::new();
+    for ov in overrides {
+        match ov {
+            FieldOverride::Max(n) if is_string => {
+                let n = *n;
+                let msg = format!("The {} field must be at most {} characters.", name_str, n);
+                inner.push(quote! {
+                    if value.len() > #n {
+                        let mut error = rf_validation::ext_validator::ValidationError::new("length");
+                        error.message = ::std::option::Option::Some(::std::borrow::Cow::Borrowed(#msg));
+                        errors.add(#name_str, error);
+                    }
+                });
+            }
+            FieldOverride::Min(n) if is_string => {
+                let n = *n;
+                let msg = format!("The {} field must be at least {} characters.", name_str, n);
+                inner.push(quote! {
+                    if value.len() < #n {
+                        let mut error = rf_validation::ext_validator::ValidationError::new("length");
+                        error.message = ::std::option::Option::Some(::std::borrow::Cow::Borrowed(#msg));
+                        errors.add(#name_str, error);
+                    }
+                });
+            }
+            FieldOverride::Email => {
+                let msg = format!("The {} field must be a valid email address.", name_str);
+                inner.push(quote! {
+                    if !rf_validation::validators::email::validate_email(value) {
+                        let mut error = rf_validation::ext_validator::ValidationError::new("email");
+                        error.message = ::std::option::Option::Some(::std::borrow::Cow::Borrowed(#msg));
+                        errors.add(#name_str, error);
+                    }
+                });
+            }
+            // Overrides on non-string fields (e.g. numeric range) are not yet
+            // expressible here; the inferred type rule still applies via serde.
+            _ => {}
+        }
+    }
+
+    if is_option {
+        if inner.is_empty() {
+            return quote! {};
+        }
+        quote! {
+            if let ::std::option::Option::Some(ref value) = self.#name {
+                #(#inner)*
+            }
+        }
+    } else {
+        // Presence: a required, non-optional string must not be empty.
+        let presence = if is_string {
+            let msg = format!("The {} field is required.", name_str);
+            quote! {
+                if self.#name.is_empty() {
+                    let mut error = rf_validation::ext_validator::ValidationError::new("required");
+                    error.message = ::std::option::Option::Some(::std::borrow::Cow::Borrowed(#msg));
+                    errors.add(#name_str, error);
+                }
+            }
+        } else {
+            quote! {}
+        };
+
+        if inner.is_empty() {
+            presence
+        } else {
+            quote! {
+                #presence
+                {
+                    let value = &self.#name;
+                    #(#inner)*
+                }
+            }
+        }
     }
 }
 

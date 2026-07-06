@@ -157,6 +157,13 @@ pub use validator::{rules_from_spec, FieldSpec, Rule, RuleResult, ValidatedData,
 // Re-export validator traits and derive macro from external crate
 pub use ::validator::Validate;
 
+// Re-export the external `validator` crate (aliased to avoid clashing with the
+// internal `validator` rule-engine module) so macro-generated `Validate` impls
+// (e.g. the `Model!`-emitted Create/Update DTO validators) can name its error
+// types via `rf_validation::ext_validator::…` WITHOUT the downstream crate
+// needing a direct `validator` dependency.
+pub use ::validator as ext_validator;
+
 // Re-export serde_json so `derive(Validate)` generated code can build a
 // `serde_json::Value` from a field (for the DB-backed unique/exists rules)
 // without requiring the downstream crate to depend on serde_json directly.
