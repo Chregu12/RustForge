@@ -220,4 +220,70 @@ mod tests {
         let lettre_msg = convert_to_lettre(&mail);
         assert!(lettre_msg.is_ok());
     }
+
+    /// Helper to check whether a live MailHog SMTP server is reachable.
+    ///
+    /// Mirrors the graceful-skip TCP probe used by `rf-storage`'s
+    /// `s3_available`: the live test SKIPS (prints a skip line and passes) when
+    /// MailHog is down, and sends a real message when it is up. Bring the
+    /// service up with `scripts/test-env-up.sh` (mailhog SMTP on 1025 / HTTP UI
+    /// on 8025 in `docker-compose.test.yml`).
+    async fn mailhog_available() -> bool {
+        use tokio::io::AsyncReadExt;
+
+        let Ok(mut stream) = tokio::net::TcpStream::connect("127.0.0.1:1025").await else {
+            return false;
+        };
+        // A bare TCP probe (as used for S3/MinIO on 9000) can false-positive on
+        // 1025: unrelated local processes sometimes squat that port, accept the
+        // connection, and never speak SMTP. Confirm we are really talking to an
+        // SMTP server by reading its greeting, which must begin with the "220"
+        // service-ready reply, before declaring MailHog "available". A squatter
+        // that sends nothing simply times out and is treated as absent (skip).
+        let mut buf = [0u8; 3];
+        match tokio::time::timeout(
+            std::time::Duration::from_secs(2),
+            stream.read_exact(&mut buf),
+        )
+        .await
+        {
+            Ok(Ok(_)) => &buf == b"220",
+            _ => false,
+        }
+    }
+
+    #[tokio::test]
+    async fn test_smtp_send_via_mailhog() {
+        if !mailhog_available().await {
+            eprintln!(
+                "⏭️  Skipping test_smtp_send_via_mailhog: MailHog SMTP (127.0.0.1:1025) not available"
+            );
+            eprintln!("   Start services with: ./scripts/test-env-up.sh");
+            return;
+        }
+
+        // MailHog speaks plaintext SMTP on 1025 (no TLS, no auth), so the
+        // transport is built with `builder_dangerous` rather than the TLS
+        // `relay` used by `SmtpMailer::new`. Everything downstream — the real
+        // `convert_to_lettre` message construction and `SmtpMailer::send` over a
+        // live lettre SMTP connection — is exercised exactly as in production.
+        let transport = AsyncSmtpTransport::<Tokio1Executor>::builder_dangerous("127.0.0.1")
+            .port(1025)
+            .build();
+        let mailer = SmtpMailer { transport };
+
+        let message = MessageBuilder::new()
+            .from(Address::new("noreply@example.com"))
+            .to(Address::new("recipient@example.com"))
+            .subject("RustForge live SMTP test")
+            .text("Hello from the RustForge graceful-skip live SMTP test")
+            .build()
+            .unwrap();
+
+        let result = mailer.send(message.into()).await;
+        assert!(
+            result.is_ok(),
+            "live SMTP send to MailHog must succeed: {result:?}"
+        );
+    }
 }

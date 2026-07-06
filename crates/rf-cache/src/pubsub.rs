@@ -156,3 +156,54 @@ impl RedisPubSub {
         Ok(rx)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::Duration;
+
+    /// Helper to check whether a live Redis is reachable for testing.
+    ///
+    /// Mirrors the graceful-skip TCP probe used by `rf-storage`'s
+    /// `s3_available`: the live test SKIPS (prints a skip line and passes) when
+    /// Redis is down, and runs a full round-trip when it is up. Bring the
+    /// service up with `scripts/test-env-up.sh` (redis on 6379 in
+    /// `docker-compose.test.yml`).
+    async fn redis_available() -> bool {
+        tokio::net::TcpStream::connect("127.0.0.1:6379")
+            .await
+            .is_ok()
+    }
+
+    #[tokio::test]
+    async fn test_pubsub_publish_subscribe_roundtrip() {
+        if !redis_available().await {
+            eprintln!("⏭️  Skipping test_pubsub_publish_subscribe_roundtrip: Redis not available");
+            eprintln!("   Start services with: ./scripts/test-env-up.sh");
+            return;
+        }
+
+        let pubsub = RedisPubSub::new("redis://127.0.0.1:6379")
+            .await
+            .expect("connect to live redis");
+
+        // Unique channel so parallel test runs never cross-talk.
+        let channel = format!("rf_cache:test:pubsub:{}", std::process::id());
+        let mut rx = pubsub.subscribe(&channel).await.expect("subscribe");
+
+        // Give the background listener a moment to attach before publishing so
+        // the message isn't emitted before the subscription is fully live.
+        tokio::time::sleep(Duration::from_millis(100)).await;
+
+        let payload = r#"{"id":"abc","total":42}"#;
+        pubsub.publish(&channel, payload).await.expect("publish");
+
+        let msg = tokio::time::timeout(Duration::from_secs(5), rx.recv())
+            .await
+            .expect("timed out waiting for a pubsub message over live redis")
+            .expect("pubsub channel closed before a message arrived");
+
+        assert_eq!(msg.channel, channel);
+        assert_eq!(msg.payload, payload);
+    }
+}
