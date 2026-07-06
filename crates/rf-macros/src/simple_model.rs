@@ -290,6 +290,84 @@ fn generate_full_model(
         quote! { (#fname, #kw, #required) }
     }).collect();
 
+    // ---- Companion request DTOs (convention over configuration) ----------
+    // A single Model! declaration also emits `Create<Name>` (all declared,
+    // non-`id`, non-timestamp fields as-is) and `Update<Name>` (the same fields
+    // Option-wrapped for partial updates). Both carry a `VALIDATION_RULES`
+    // spec + `validation_rules()` seeded from the declared field TYPES, ready to
+    // feed into `rf_validation::rules_from_spec` (the REAL engine). This
+    // collapses "entity + input DTO + validation" from three declarations to one.
+    let create_name = syn::Ident::new(&format!("Create{}", name), name.span());
+    let update_name = syn::Ident::new(&format!("Update{}", name), name.span());
+
+    // Create-DTO fields: every declared field verbatim (hidden fields such as
+    // `password` are legitimate *inputs*, so they are kept — `hidden` only
+    // affects the model's serialization, not what may be submitted).
+    let create_field_defs: Vec<TokenStream2> = fields.iter().map(|f| {
+        let fname = &f.name;
+        let ftype = &f.ty;
+        quote! { pub #fname: #ftype }
+    }).collect();
+
+    // Update-DTO fields: same names, Option-wrapped (partial update semantics).
+    let update_field_defs: Vec<TokenStream2> = fields.iter().map(|f| {
+        let fname = &f.name;
+        let wrapped = option_wrap(&f.ty);
+        quote! { pub #fname: #wrapped }
+    }).collect();
+
+    // Create-DTO rules mirror the entity's inferred rules (required as declared).
+    let create_validation_rules = validation_rules.clone();
+    // Update-DTO rules: every field is optional, so requiredness is dropped but
+    // the inferred TYPE keyword is preserved (still type-checked when present).
+    let update_validation_rules: Vec<TokenStream2> = fields.iter().map(|f| {
+        let fname = f.name.to_string();
+        let (kw, _required) = infer_field_rule(&f.ty);
+        quote! { (#fname, #kw, false) }
+    }).collect();
+
+    let dto_defs = quote! {
+        /// Request DTO for creating a `#name` (generated from the single Model!
+        /// declaration). Fields mirror the declared, non-`id` model fields.
+        #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+        pub struct #create_name {
+            #(#create_field_defs,)*
+        }
+
+        impl #create_name {
+            /// Convention-inferred validation spec `(field, type_keyword, required)`,
+            /// seeded from the model's declared field types. Feed into
+            /// `rf_validation::rules_from_spec(..)` to drive the real Validator.
+            pub const VALIDATION_RULES: &'static [(&'static str, &'static str, bool)] =
+                &[#(#create_validation_rules),*];
+
+            /// See [`Self::VALIDATION_RULES`].
+            pub fn validation_rules() -> &'static [(&'static str, &'static str, bool)] {
+                Self::VALIDATION_RULES
+            }
+        }
+
+        /// Request DTO for partially updating a `#name` (generated). Every field
+        /// is `Option`-wrapped so only the submitted fields are touched.
+        #[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
+        pub struct #update_name {
+            #(#update_field_defs,)*
+        }
+
+        impl #update_name {
+            /// Convention-inferred validation spec `(field, type_keyword, required)`.
+            /// All fields optional (`required = false`) but still TYPE-checked when
+            /// present. Feed into `rf_validation::rules_from_spec(..)`.
+            pub const VALIDATION_RULES: &'static [(&'static str, &'static str, bool)] =
+                &[#(#update_validation_rules),*];
+
+            /// See [`Self::VALIDATION_RULES`].
+            pub fn validation_rules() -> &'static [(&'static str, &'static str, bool)] {
+                Self::VALIDATION_RULES
+            }
+        }
+    };
+
     // Generate timestamp fields
     let timestamp_fields = if timestamps {
         quote! {
@@ -476,6 +554,8 @@ fn generate_full_model(
 
             #soft_delete_methods
         }
+
+        #dto_defs
     };
 
     TokenStream::from(expanded)
@@ -514,6 +594,68 @@ fn generate_simple_model(name: Ident, fields: Vec<InferredField>) -> TokenStream
         let fname = f.name.to_string();
         quote! { (#fname, "string", true) }
     }).collect();
+
+    // ---- Companion request DTOs (see generate_full_model) ----------------
+    // Simple-syntax fields are all `String`, so Create<Name> takes `String`
+    // fields and Update<Name> takes `Option<String>` fields.
+    let create_name = syn::Ident::new(&format!("Create{}", name), name.span());
+    let update_name = syn::Ident::new(&format!("Update{}", name), name.span());
+
+    let create_field_defs: Vec<TokenStream2> = fields.iter().map(|f| {
+        let fname = &f.name;
+        quote! { pub #fname: String }
+    }).collect();
+
+    let update_field_defs: Vec<TokenStream2> = fields.iter().map(|f| {
+        let fname = &f.name;
+        quote! { pub #fname: ::std::option::Option<String> }
+    }).collect();
+
+    let create_validation_rules = validation_rules.clone();
+    let update_validation_rules: Vec<TokenStream2> = fields.iter().map(|f| {
+        let fname = f.name.to_string();
+        quote! { (#fname, "string", false) }
+    }).collect();
+
+    let dto_defs = quote! {
+        /// Request DTO for creating a `#name` (generated from the single Model!
+        /// declaration).
+        #[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
+        pub struct #create_name {
+            #(#create_field_defs,)*
+        }
+
+        impl #create_name {
+            /// Convention-inferred validation spec `(field, type_keyword, required)`.
+            /// Feed into `rf_validation::rules_from_spec(..)` for the real Validator.
+            pub const VALIDATION_RULES: &'static [(&'static str, &'static str, bool)] =
+                &[#(#create_validation_rules),*];
+
+            /// See [`Self::VALIDATION_RULES`].
+            pub fn validation_rules() -> &'static [(&'static str, &'static str, bool)] {
+                Self::VALIDATION_RULES
+            }
+        }
+
+        /// Request DTO for partially updating a `#name` (generated); all fields
+        /// `Option`-wrapped.
+        #[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
+        pub struct #update_name {
+            #(#update_field_defs,)*
+        }
+
+        impl #update_name {
+            /// Convention-inferred validation spec `(field, type_keyword, required)`
+            /// (all optional). Feed into `rf_validation::rules_from_spec(..)`.
+            pub const VALIDATION_RULES: &'static [(&'static str, &'static str, bool)] =
+                &[#(#update_validation_rules),*];
+
+            /// See [`Self::VALIDATION_RULES`].
+            pub fn validation_rules() -> &'static [(&'static str, &'static str, bool)] {
+                Self::VALIDATION_RULES
+            }
+        }
+    };
 
     let expanded = quote! {
         #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -555,6 +697,8 @@ fn generate_simple_model(name: Ident, fields: Vec<InferredField>) -> TokenStream
                 Self::VALIDATION_RULES
             }
         }
+
+        #dto_defs
     };
 
     TokenStream::from(expanded)
@@ -610,6 +754,26 @@ fn infer_field_rule_inner(ty: &Type, required: bool) -> (String, bool) {
         }
     }
     (String::new(), required)
+}
+
+/// Returns `true` if `ty` is syntactically an `Option<...>`.
+fn is_option_type(ty: &Type) -> bool {
+    if let Type::Path(tp) = ty {
+        if let Some(seg) = tp.path.segments.last() {
+            return seg.ident == "Option";
+        }
+    }
+    false
+}
+
+/// Wrap `ty` in `Option<...>` for Update-DTO fields, unless it is already an
+/// `Option<T>` (avoids double-wrapping declared optional fields).
+fn option_wrap(ty: &Type) -> TokenStream2 {
+    if is_option_type(ty) {
+        quote! { #ty }
+    } else {
+        quote! { ::std::option::Option<#ty> }
+    }
 }
 
 fn keyword_for_ident(ident: &str) -> String {

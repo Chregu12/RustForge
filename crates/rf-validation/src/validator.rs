@@ -198,6 +198,54 @@ impl Validator {
     }
 }
 
+/// A convention-inferred field validation spec: `(field_name, type_keyword, required)`.
+///
+/// This is exactly the shape emitted by the `Model!` macro's
+/// `VALIDATION_RULES` / `validation_rules()` (see `rf-macros`). The
+/// `type_keyword` is one of `"string"`, `"integer"`, `"numeric"`, `"boolean"`,
+/// or `""` (no type rule inferred); `required` reflects whether the declared
+/// field was non-`Option`.
+pub type FieldSpec = (&'static str, &'static str, bool);
+
+/// Bridge convention-inferred field specs into REAL `rf_validation` rule-sets.
+///
+/// Translates each seeded `(name, type_keyword, required)` tuple produced by the
+/// `Model!` macro into the concrete engine rules:
+///   - `required == true`   -> [`RequiredRule`](crate::rules::RequiredRule)
+///   - `"string"`           -> [`StringRule`](crate::rules::StringRule)
+///   - `"integer"`          -> [`IntegerRule`](crate::rules::IntegerRule)
+///   - `"numeric"`          -> [`NumericRule`](crate::rules::NumericRule)
+///   - `""` / `"boolean"`   -> only requiredness (no built-in boolean type rule)
+///
+/// The returned map is ready to feed straight into [`Validator::rules`], so a
+/// single model declaration drives real validation end to end:
+///
+/// ```ignore
+/// let mut v = Validator::new(payload);
+/// v.rules(rf_validation::rules_from_spec(CreateUser::VALIDATION_RULES));
+/// v.validate().await?;
+/// ```
+pub fn rules_from_spec(spec: &[FieldSpec]) -> HashMap<&'static str, Vec<Box<dyn Rule>>> {
+    use crate::rules::{IntegerRule, NumericRule, RequiredRule, StringRule};
+
+    let mut map: HashMap<&'static str, Vec<Box<dyn Rule>>> = HashMap::new();
+    for (field, keyword, required) in spec {
+        let mut field_rules: Vec<Box<dyn Rule>> = Vec::new();
+        if *required {
+            field_rules.push(Box::new(RequiredRule));
+        }
+        match *keyword {
+            "string" => field_rules.push(Box::new(StringRule)),
+            "integer" => field_rules.push(Box::new(IntegerRule)),
+            "numeric" => field_rules.push(Box::new(NumericRule)),
+            // "boolean" and "" carry no built-in type rule; requiredness only.
+            _ => {}
+        }
+        map.insert(*field, field_rules);
+    }
+    map
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -312,5 +360,45 @@ mod tests {
         );
         assert_eq!(validated.get_i64("int_field"), Some(42));
         assert_eq!(validated.get_bool("bool_field"), Some(true));
+    }
+
+    // Bridge from convention-inferred `(name, type_keyword, required)` specs
+    // (as emitted by the `Model!` macro) into the real engine rule-sets.
+    const CREATE_SPEC: &[FieldSpec] = &[
+        ("title", "string", true),
+        ("views", "integer", true),
+        ("subtitle", "string", false), // Option<String> -> optional
+    ];
+
+    #[tokio::test]
+    async fn rules_from_spec_accepts_valid_and_skips_optional() {
+        let mut data = HashMap::new();
+        data.insert("title".to_string(), Value::String("Hello".to_string()));
+        data.insert("views".to_string(), Value::Number(42.into()));
+        // `subtitle` omitted: optional, so absence is fine.
+
+        let mut v = Validator::new(data);
+        v.rules(rules_from_spec(CREATE_SPEC));
+        assert!(v.validate().await.is_ok(), "valid data should pass");
+    }
+
+    #[tokio::test]
+    async fn rules_from_spec_rejects_missing_required_and_wrong_type() {
+        // Missing required `title`.
+        let mut data = HashMap::new();
+        data.insert("views".to_string(), Value::Number(1.into()));
+        let mut v = Validator::new(data);
+        v.rules(rules_from_spec(CREATE_SPEC));
+        let errs = v.validate().await.expect_err("missing required must fail");
+        assert!(errs.get("title").is_some());
+
+        // Wrong type for inferred integer field.
+        let mut data = HashMap::new();
+        data.insert("title".to_string(), Value::String("Ok".to_string()));
+        data.insert("views".to_string(), Value::String("nope".to_string()));
+        let mut v = Validator::new(data);
+        v.rules(rules_from_spec(CREATE_SPEC));
+        let errs = v.validate().await.expect_err("wrong type must fail");
+        assert!(errs.get("views").is_some());
     }
 }

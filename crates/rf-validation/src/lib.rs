@@ -152,7 +152,7 @@ pub use form_request::{
     FormRequest, FormRequestError, FormRequestResult, MessagesBuilder, RulesBuilder, Validated,
     ValidationMessages, ValidationRules,
 };
-pub use validator::{Rule, RuleResult, ValidatedData, Validator};
+pub use validator::{rules_from_spec, FieldSpec, Rule, RuleResult, ValidatedData, Validator};
 
 // Re-export validator traits and derive macro from external crate
 pub use ::validator::Validate;
@@ -176,7 +176,7 @@ pub mod prelude {
             Validated, ValidationMessages, ValidationRules,
         },
         rules,
-        validator::{Rule, RuleResult, ValidatedData, Validator},
+        validator::{rules_from_spec, FieldSpec, Rule, RuleResult, ValidatedData, Validator},
         validators,
     };
     pub use ::validator::Validate;
