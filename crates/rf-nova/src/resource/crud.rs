@@ -4,8 +4,9 @@
 
 use super::resource::{PaginatedResponse, PaginationMeta, ResourceError, ResourceQuery, ResourceResult};
 use sea_orm::{
-    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, IntoActiveModel, ModelTrait,
-    PaginatorTrait, QueryFilter, QueryOrder, QuerySelect, QueryTrait,
+    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, IntoActiveModel, Iterable,
+    ModelTrait, PaginatorTrait, PrimaryKeyToColumn, QueryFilter, QueryOrder, QuerySelect,
+    QueryTrait,
 };
 use serde::{de::DeserializeOwned, Serialize};
 use serde_json::Value;
@@ -114,14 +115,73 @@ where
     Ok(())
 }
 
-/// Bulk delete resources
+/// Bulk delete resources by their primary keys.
+///
+/// Resolves the entity's primary-key column dynamically (the same way
+/// `rf-orm`'s `find(id)` does), coerces each incoming JSON id into a
+/// `sea_orm::Value` matching that column's type, and issues a single
+/// `DELETE ... WHERE pk IN (...)`. Returns the real number of rows removed.
 pub async fn bulk_destroy<E>(db: &DatabaseConnection, ids: Vec<Value>) -> ResourceResult<u64>
 where
     E: EntityTrait,
 {
-    // Note: This would need to be implemented based on the entity's primary key type
-    // For now, this is a placeholder
-    Ok(0)
+    if ids.is_empty() {
+        return Ok(0);
+    }
+
+    // Resolve the entity's primary-key column (first PK column for composite keys).
+    let pk_column = <E::PrimaryKey as Iterable>::iter()
+        .next()
+        .ok_or_else(|| ResourceError::InvalidInput("Entity has no primary key column".to_string()))?
+        .into_column();
+    let col_type = pk_column.def().get_column_type().clone();
+
+    // Coerce the incoming JSON ids into values matching the primary-key column type.
+    let mut pk_values = Vec::with_capacity(ids.len());
+    for id in &ids {
+        pk_values.push(json_to_pk_value(id, &col_type)?);
+    }
+
+    let result = E::delete_many()
+        .filter(pk_column.is_in(pk_values))
+        .exec(db)
+        .await?;
+
+    Ok(result.rows_affected)
+}
+
+/// Convert a JSON id into a `sea_orm::Value` that matches the primary-key
+/// column type so the generated `IN (...)` bind parameters are correctly typed.
+fn json_to_pk_value(id: &Value, col_type: &sea_orm::ColumnType) -> ResourceResult<sea_orm::Value> {
+    use sea_orm::ColumnType;
+
+    let invalid = || {
+        ResourceError::InvalidInput(format!(
+            "id {id} is not compatible with the primary-key column type {col_type:?}"
+        ))
+    };
+
+    let value = match col_type {
+        ColumnType::TinyInteger => id.as_i64().map(|n| sea_orm::Value::from(n as i8)),
+        ColumnType::SmallInteger => id.as_i64().map(|n| sea_orm::Value::from(n as i16)),
+        ColumnType::Integer => id.as_i64().map(|n| sea_orm::Value::from(n as i32)),
+        ColumnType::BigInteger => id.as_i64().map(sea_orm::Value::from),
+        ColumnType::TinyUnsigned => id.as_u64().map(|n| sea_orm::Value::from(n as u8)),
+        ColumnType::SmallUnsigned => id.as_u64().map(|n| sea_orm::Value::from(n as u16)),
+        ColumnType::Unsigned => id.as_u64().map(|n| sea_orm::Value::from(n as u32)),
+        ColumnType::BigUnsigned => id.as_u64().map(sea_orm::Value::from),
+        ColumnType::String(_) | ColumnType::Text | ColumnType::Char(_) => {
+            id.as_str().map(|s| sea_orm::Value::from(s.to_string()))
+        }
+        // Fallback: infer from the JSON shape for column types we don't special-case.
+        _ => match id {
+            Value::Number(n) if n.is_i64() => n.as_i64().map(sea_orm::Value::from),
+            Value::String(s) => Some(sea_orm::Value::from(s.clone())),
+            _ => None,
+        },
+    };
+
+    value.ok_or_else(invalid)
 }
 
 /// Export resources to various formats
@@ -185,5 +245,151 @@ where
 impl From<serde_json::Error> for ResourceError {
     fn from(err: serde_json::Error) -> Self {
         ResourceError::InvalidInput(err.to_string())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use sea_orm::{ConnectionTrait, Database, Set};
+
+    mod widget {
+        use sea_orm::entity::prelude::*;
+
+        #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+        #[sea_orm(table_name = "widgets")]
+        pub struct Model {
+            #[sea_orm(primary_key)]
+            pub id: i32,
+            pub name: String,
+        }
+
+        #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
+        pub enum Relation {}
+
+        impl ActiveModelBehavior for ActiveModel {}
+    }
+
+    mod thing {
+        use sea_orm::entity::prelude::*;
+
+        // String primary key to exercise the text-coercion path.
+        #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+        #[sea_orm(table_name = "things")]
+        pub struct Model {
+            #[sea_orm(primary_key, auto_increment = false)]
+            pub slug: String,
+            pub label: String,
+        }
+
+        #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
+        pub enum Relation {}
+
+        impl ActiveModelBehavior for ActiveModel {}
+    }
+
+    async fn seed_widgets(db: &DatabaseConnection) {
+        db.execute_unprepared(
+            "CREATE TABLE widgets (id INTEGER PRIMARY KEY, name TEXT NOT NULL)",
+        )
+        .await
+        .unwrap();
+
+        for (id, name) in [(1, "a"), (2, "b"), (3, "c"), (4, "d")] {
+            widget::ActiveModel {
+                id: Set(id),
+                name: Set(name.to_string()),
+            }
+            .insert(db)
+            .await
+            .unwrap();
+        }
+    }
+
+    #[tokio::test]
+    async fn bulk_destroy_removes_exactly_the_given_integer_ids() {
+        let db = Database::connect("sqlite::memory:").await.unwrap();
+        seed_widgets(&db).await;
+
+        let removed = bulk_destroy::<widget::Entity>(
+            &db,
+            vec![serde_json::json!(2), serde_json::json!(4)],
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(removed, 2, "should report exactly the two rows deleted");
+
+        let remaining: Vec<i32> = widget::Entity::find()
+            .all(&db)
+            .await
+            .unwrap()
+            .into_iter()
+            .map(|m| m.id)
+            .collect();
+        assert_eq!(remaining, vec![1, 3], "only ids 1 and 3 should survive");
+    }
+
+    #[tokio::test]
+    async fn bulk_destroy_ignores_missing_ids_and_reports_real_count() {
+        let db = Database::connect("sqlite::memory:").await.unwrap();
+        seed_widgets(&db).await;
+
+        // id 99 does not exist; only id 1 should be deleted.
+        let removed = bulk_destroy::<widget::Entity>(
+            &db,
+            vec![serde_json::json!(1), serde_json::json!(99)],
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(removed, 1, "count must reflect actually-deleted rows only");
+        assert_eq!(widget::Entity::find().all(&db).await.unwrap().len(), 3);
+    }
+
+    #[tokio::test]
+    async fn bulk_destroy_empty_ids_is_a_noop() {
+        let db = Database::connect("sqlite::memory:").await.unwrap();
+        seed_widgets(&db).await;
+
+        let removed = bulk_destroy::<widget::Entity>(&db, vec![]).await.unwrap();
+        assert_eq!(removed, 0);
+        assert_eq!(widget::Entity::find().all(&db).await.unwrap().len(), 4);
+    }
+
+    #[tokio::test]
+    async fn bulk_destroy_works_with_string_primary_keys() {
+        let db = Database::connect("sqlite::memory:").await.unwrap();
+        db.execute_unprepared(
+            "CREATE TABLE things (slug TEXT PRIMARY KEY, label TEXT NOT NULL)",
+        )
+        .await
+        .unwrap();
+        for (slug, label) in [("x", "X"), ("y", "Y"), ("z", "Z")] {
+            thing::ActiveModel {
+                slug: Set(slug.to_string()),
+                label: Set(label.to_string()),
+            }
+            .insert(&db)
+            .await
+            .unwrap();
+        }
+
+        let removed = bulk_destroy::<thing::Entity>(
+            &db,
+            vec![serde_json::json!("x"), serde_json::json!("z")],
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(removed, 2);
+        let remaining: Vec<String> = thing::Entity::find()
+            .all(&db)
+            .await
+            .unwrap()
+            .into_iter()
+            .map(|m| m.slug)
+            .collect();
+        assert_eq!(remaining, vec!["y".to_string()]);
     }
 }
