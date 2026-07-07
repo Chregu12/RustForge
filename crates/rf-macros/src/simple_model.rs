@@ -948,6 +948,110 @@ fn generate_full_model(
         quote! {}
     };
 
+    // ---- Fetch-time chained eager-load builder (Laravel `with(...)->get()`) ---
+    // `Post::with(&["user", "comments"]).get().await` returns a typed
+    // `Vec<Post>` with the requested relation FIELDS already populated — no
+    // manual `serde_json::from_value`, no separate `with_relations` call. The
+    // builder wraps the SAME real `rf_db_facade::QueryBuilder` used by every
+    // other query entry point and remembers the requested relation names; its
+    // chainable methods (`where`/`filter`/`where_op`/`order_by`/`limit`/
+    // `offset`) just forward to that inner builder (only methods that REALLY
+    // exist on QueryBuilder are delegated). `get(self)` runs ONE fetch,
+    // deserializes the resulting `Value`s into the concrete model exactly like
+    // the loaders do (`filter_map(serde_json::from_value)`), then calls
+    // `Self::with_relations` for the requested names — so K relations + 1 fetch
+    // = K+1 batched queries total, never N+1. With no relations it is a plain
+    // typed fetch.
+    let builder_name = syn::Ident::new(&format!("{}WithBuilder", name), name.span());
+    let with_builder = quote! {
+        /// Fetch-time chained eager-load builder for `#name` (Laravel's
+        /// `with(...)->get()`). Holds the real `rf_db_facade::QueryBuilder`
+        /// plus the requested relation names; chain filters/order/limit, then
+        /// `get().await` for a typed `Vec<#name>` with those relations
+        /// populated (K relations + 1 fetch = K+1 queries, never N+1).
+        pub struct #builder_name {
+            query: rf_db_facade::QueryBuilder,
+            relations: ::std::vec::Vec<::std::string::String>,
+        }
+
+        impl #builder_name {
+            /// Add a `column = value` filter (delegates to the inner QueryBuilder).
+            pub fn r#where<V: ::std::convert::Into<::serde_json::Value>>(
+                mut self,
+                column: impl ::std::convert::Into<::std::string::String>,
+                value: V,
+            ) -> Self {
+                self.query = self.query.r#where(column, value);
+                self
+            }
+
+            /// Alias for [`Self::where`] (delegates to the inner QueryBuilder).
+            pub fn filter<V: ::std::convert::Into<::serde_json::Value>>(
+                mut self,
+                column: impl ::std::convert::Into<::std::string::String>,
+                value: V,
+            ) -> Self {
+                self.query = self.query.filter(column, value);
+                self
+            }
+
+            /// Add a `column <op> value` filter (delegates to the inner QueryBuilder).
+            pub fn where_op<V: ::std::convert::Into<::serde_json::Value>>(
+                mut self,
+                column: impl ::std::convert::Into<::std::string::String>,
+                operator: impl ::std::convert::Into<::std::string::String>,
+                value: V,
+            ) -> Self {
+                self.query = self.query.where_op(column, operator, value);
+                self
+            }
+
+            /// Add an `ORDER BY` clause (delegates to the inner QueryBuilder).
+            pub fn order_by(
+                mut self,
+                column: impl ::std::convert::Into<::std::string::String>,
+                direction: impl ::std::convert::Into<::std::string::String>,
+            ) -> Self {
+                self.query = self.query.order_by(column, direction);
+                self
+            }
+
+            /// Set a row `LIMIT` (delegates to the inner QueryBuilder).
+            pub fn limit(mut self, limit: usize) -> Self {
+                self.query = self.query.limit(limit);
+                self
+            }
+
+            /// Set a row `OFFSET` (delegates to the inner QueryBuilder).
+            pub fn offset(mut self, offset: usize) -> Self {
+                self.query = self.query.offset(offset);
+                self
+            }
+
+            /// Run the fetch and return typed rows with the requested relations
+            /// eagerly populated. ONE `SELECT` (this builder's QueryBuilder) is
+            /// deserialized into `Vec<#name>` (rows that fail to deserialize are
+            /// skipped, mirroring the loaders), then `#name::with_relations`
+            /// hydrates each requested relation with its own batched query — so
+            /// K relations + 1 fetch = K+1 queries, never N+1. With no requested
+            /// relations this is a plain typed fetch.
+            pub async fn get(self) -> ::std::result::Result<::std::vec::Vec<#name>, String> {
+                let #builder_name { query, relations } = self;
+                let values = query.get().await?;
+                let mut rows: ::std::vec::Vec<#name> = values
+                    .into_iter()
+                    .filter_map(|v| ::serde_json::from_value(v).ok())
+                    .collect();
+                if !relations.is_empty() {
+                    let names: ::std::vec::Vec<&str> =
+                        relations.iter().map(|s| s.as_str()).collect();
+                    #name::with_relations(&mut rows, &names).await?;
+                }
+                ::std::result::Result::Ok(rows)
+            }
+        }
+    };
+
     let expanded = quote! {
         #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
         pub struct #name {
@@ -997,6 +1101,29 @@ fn generate_full_model(
 
             #(#relationship_methods)*
 
+            /// Start a fetch-time chained eager-load builder (Laravel's
+            /// `Model::with(...)`). Chain `where`/`filter`/`where_op`/`order_by`/
+            /// `limit`/`offset`, then `get().await` for a typed `Vec<Self>` with
+            /// the named relations already populated:
+            ///
+            /// ```rust,ignore
+            /// let posts = Post::with(&["user", "comments"]) // K relations
+            ///     .r#where("published", true)               // delegated filter
+            ///     .order_by("created_at", "DESC")
+            ///     .limit(20)
+            ///     .get()                                     // 1 fetch
+            ///     .await?;                                   // = K + 1 queries
+            /// ```
+            ///
+            /// K relations + 1 fetch = K+1 batched queries total, never N+1.
+            /// Passing an empty slice is a plain typed fetch.
+            pub fn with(names: &[&str]) -> #builder_name {
+                #builder_name {
+                    query: rf_db_facade::QueryBuilder::new(#table_name),
+                    relations: names.iter().map(|s| s.to_string()).collect(),
+                }
+            }
+
             /// Eagerly hydrate MANY relations on a whole slice with ONE call
             /// (Laravel's `Model::with(...)`). For each requested name this
             /// dispatches — via a compile-time match the macro emits over the
@@ -1030,6 +1157,8 @@ fn generate_full_model(
 
             #soft_delete_methods
         }
+
+        #with_builder
 
         #dto_defs
 
