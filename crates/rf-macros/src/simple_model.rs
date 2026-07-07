@@ -57,6 +57,7 @@ mod kw {
     syn::custom_keyword!(alphanumeric);
     syn::custom_keyword!(starts_with);
     syn::custom_keyword!(ends_with);
+    syn::custom_keyword!(message);
 }
 
 /// An explicit validation override attached to a field via the `@` DSL, e.g.
@@ -95,6 +96,12 @@ enum FieldOverride {
     /// `@ ends_with("suffix")` — value must end with the given suffix (String
     /// fields only). Mirrors the real `rf_validation` `EndsWithRule`.
     EndsWith(String),
+    /// `@ message("Custom text")` — a per-field custom validation message that
+    /// OVERRIDES the auto-generated English message of EVERY rule check emitted
+    /// for this field (presence + all `@` modifier checks). Purely cosmetic:
+    /// it changes the `ValidationError.message`, never which checks run or their
+    /// stable `code`. Fields without it behave exactly as before.
+    Message(String),
 }
 
 /// A field: `name: String`, `hidden password: String`, or with validation
@@ -198,6 +205,16 @@ impl Parse for SimpleField {
                     syn::parenthesized!(content in input);
                     let lit: syn::LitInt = content.parse()?;
                     overrides.push(FieldOverride::Min(lit.base10_parse()?));
+                } else if input.peek(kw::message) {
+                    // Trailing per-field custom message: `@ ... message("text")`.
+                    // Parsed as a parenthesized string literal exactly like
+                    // `@ regex`/`@ starts_with`. It overrides the message of the
+                    // checks emitted for this field (see `dto_field_checks`).
+                    input.parse::<kw::message>()?;
+                    let content;
+                    syn::parenthesized!(content in input);
+                    let lit: syn::LitStr = content.parse()?;
+                    overrides.push(FieldOverride::Message(lit.value()));
                 } else {
                     break;
                 }
@@ -1582,13 +1599,23 @@ fn dto_field_checks(
     let is_string = keyword == "string";
     let is_numeric = keyword == "integer" || keyword == "numeric";
 
+    // Per-field custom message override (`@ message("...")`). When present it
+    // REPLACES the auto-generated English message of every check emitted for
+    // this field (presence + all `@` modifier checks); the stable `code` is
+    // untouched. `msg_for(auto)` yields the custom text when set, else `auto`.
+    let custom_msg: ::std::option::Option<String> = overrides.iter().find_map(|ov| match ov {
+        FieldOverride::Message(m) => Some(m.clone()),
+        _ => None,
+    });
+    let msg_for = |auto: String| -> String { custom_msg.clone().unwrap_or(auto) };
+
     // Checks that operate on a bound `value` (`&String` in scope).
     let mut inner: Vec<TokenStream2> = Vec::new();
     for ov in overrides {
         match ov {
             FieldOverride::Max(n) if is_string => {
                 let n = *n;
-                let msg = format!("The {} field must be at most {} characters.", name_str, n);
+                let msg = msg_for(format!("The {} field must be at most {} characters.", name_str, n));
                 inner.push(quote! {
                     if value.len() > #n {
                         let mut error = rf_validation::ext_validator::ValidationError::new("length");
@@ -1599,7 +1626,7 @@ fn dto_field_checks(
             }
             FieldOverride::Min(n) if is_string => {
                 let n = *n;
-                let msg = format!("The {} field must be at least {} characters.", name_str, n);
+                let msg = msg_for(format!("The {} field must be at least {} characters.", name_str, n));
                 inner.push(quote! {
                     if value.len() < #n {
                         let mut error = rf_validation::ext_validator::ValidationError::new("length");
@@ -1609,7 +1636,7 @@ fn dto_field_checks(
                 });
             }
             FieldOverride::Email => {
-                let msg = format!("The {} field must be a valid email address.", name_str);
+                let msg = msg_for(format!("The {} field must be a valid email address.", name_str));
                 inner.push(quote! {
                     if !rf_validation::validators::email::validate_email(value) {
                         let mut error = rf_validation::ext_validator::ValidationError::new("email");
@@ -1621,7 +1648,7 @@ fn dto_field_checks(
             // `@ url` parallels `@ email`, reusing the real rf_validation url
             // validator. Only meaningful on String fields (`value` is `&String`).
             FieldOverride::Url if is_string => {
-                let msg = format!("The {} field must be a valid URL.", name_str);
+                let msg = msg_for(format!("The {} field must be a valid URL.", name_str));
                 inner.push(quote! {
                     if !rf_validation::validators::url::validate_url(value) {
                         let mut error = rf_validation::ext_validator::ValidationError::new("url");
@@ -1633,7 +1660,7 @@ fn dto_field_checks(
             // `@ uuid` parallels `@ url`, reusing the real rf_validation uuid
             // validator. Only meaningful on String fields (`value` is `&String`).
             FieldOverride::Uuid if is_string => {
-                let msg = format!("The {} field must be a valid UUID.", name_str);
+                let msg = msg_for(format!("The {} field must be a valid UUID.", name_str));
                 inner.push(quote! {
                     if !rf_validation::validators::uuid::validate_uuid(value) {
                         let mut error = rf_validation::ext_validator::ValidationError::new("uuid");
@@ -1645,7 +1672,7 @@ fn dto_field_checks(
             // `@ ip` parallels `@ url`, reusing the real rf_validation ip
             // validator (accepts IPv4 OR IPv6). String fields only.
             FieldOverride::Ip if is_string => {
-                let msg = format!("The {} field must be a valid IP address.", name_str);
+                let msg = msg_for(format!("The {} field must be a valid IP address.", name_str));
                 inner.push(quote! {
                     if !rf_validation::validators::ip::validate_ip(value) {
                         let mut error = rf_validation::ext_validator::ValidationError::new("ip");
@@ -1660,10 +1687,10 @@ fn dto_field_checks(
             FieldOverride::Range(min, max) if is_numeric => {
                 let min = *min;
                 let max = *max;
-                let msg = format!(
+                let msg = msg_for(format!(
                     "The {} field must be between {} and {}.",
                     name_str, min, max
-                );
+                ));
                 inner.push(quote! {
                     let __rf_range_value = *value as f64;
                     if __rf_range_value < #min || __rf_range_value > #max {
@@ -1677,10 +1704,10 @@ fn dto_field_checks(
             // rf_validation regex validator. String fields only (`value` is
             // `&String`). An invalid pattern falls back to never-match.
             FieldOverride::Regex(pattern) if is_string => {
-                let msg = format!(
+                let msg = msg_for(format!(
                     "The {} field must match the pattern {}.",
                     name_str, pattern
-                );
+                ));
                 inner.push(quote! {
                     if !rf_validation::validators::regex::validate_regex(value, #pattern) {
                         let mut error = rf_validation::ext_validator::ValidationError::new("regex");
@@ -1693,7 +1720,7 @@ fn dto_field_checks(
             // rf_validation `AlphaRule` (non-empty AND all chars alphabetic).
             // String fields only (`value` is `&String`).
             FieldOverride::Alpha if is_string => {
-                let msg = format!("The {} field must contain only letters.", name_str);
+                let msg = msg_for(format!("The {} field must contain only letters.", name_str));
                 inner.push(quote! {
                     if value.is_empty() || !value.chars().all(|c| c.is_alphabetic()) {
                         let mut error = rf_validation::ext_validator::ValidationError::new("alpha");
@@ -1705,7 +1732,7 @@ fn dto_field_checks(
             // `@ alphanumeric` parallels `@ alpha`: letters+digits check inlined
             // exactly as rf_validation `AlphaNumericRule`. String fields only.
             FieldOverride::AlphaNumeric if is_string => {
-                let msg = format!("The {} field must contain only letters and numbers.", name_str);
+                let msg = msg_for(format!("The {} field must contain only letters and numbers.", name_str));
                 inner.push(quote! {
                     if value.is_empty() || !value.chars().all(|c| c.is_alphanumeric()) {
                         let mut error = rf_validation::ext_validator::ValidationError::new("alpha_numeric");
@@ -1717,7 +1744,7 @@ fn dto_field_checks(
             // `@ starts_with("prefix")` parallels `@ regex`: prefix check inlined
             // exactly as rf_validation `StartsWithRule`. String fields only.
             FieldOverride::StartsWith(prefix) if is_string => {
-                let msg = format!("The {} field must start with '{}'.", name_str, prefix);
+                let msg = msg_for(format!("The {} field must start with '{}'.", name_str, prefix));
                 inner.push(quote! {
                     if !value.starts_with(#prefix) {
                         let mut error = rf_validation::ext_validator::ValidationError::new("starts_with");
@@ -1729,7 +1756,7 @@ fn dto_field_checks(
             // `@ ends_with("suffix")` parallels `@ starts_with`: suffix check
             // inlined exactly as rf_validation `EndsWithRule`. String fields only.
             FieldOverride::EndsWith(suffix) if is_string => {
-                let msg = format!("The {} field must end with '{}'.", name_str, suffix);
+                let msg = msg_for(format!("The {} field must end with '{}'.", name_str, suffix));
                 inner.push(quote! {
                     if !value.ends_with(#suffix) {
                         let mut error = rf_validation::ext_validator::ValidationError::new("ends_with");
@@ -1757,7 +1784,7 @@ fn dto_field_checks(
     } else {
         // Presence: a required, non-optional string must not be empty.
         let presence = if is_string {
-            let msg = format!("The {} field is required.", name_str);
+            let msg = msg_for(format!("The {} field is required.", name_str));
             quote! {
                 if self.#name.is_empty() {
                     let mut error = rf_validation::ext_validator::ValidationError::new("required");
