@@ -45,6 +45,7 @@ mod kw {
     syn::custom_keyword!(timestamps);
     syn::custom_keyword!(softDeletes);
     syn::custom_keyword!(validated);
+    syn::custom_keyword!(guarded);
     syn::custom_keyword!(scope);
     syn::custom_keyword!(email);
     syn::custom_keyword!(url);
@@ -443,6 +444,7 @@ enum ModelDef {
         timestamps: bool,
         soft_deletes: bool,
         validated: bool,
+        guarded: bool,
     },
     Simple {
         name: Ident,
@@ -475,8 +477,27 @@ impl Parse for ModelDef {
             let mut timestamps = true; // Default to true like Laravel
             let mut soft_deletes = false;
             let mut validated = false;
+            let mut guarded = false;
 
             while !content.is_empty() {
+                // Check for the `guarded` opt-in marker. When present, the
+                // DEFAULT `create()` path is flipped to mass-assignment
+                // enforcement: the macro emits an inherent
+                // `#name::create(data)` that runs `Self::fill_guarded(data)?`
+                // (rejecting any field not in MASS_ASSIGNABLE, naming it) then
+                // inserts through the real QueryBuilder path directly. Because
+                // `create!(Model, ...)` expands to the UFCS `Model::create(...)`
+                // and `User::create(...)` call sites resolve to the INHERENT
+                // method (inherent wins over the trait), this guards BOTH the
+                // `create!` macro and direct `Model::create` calls. Opt-in keeps
+                // every existing Model! user byte-for-byte unchanged.
+                if content.peek(kw::guarded) {
+                    content.parse::<kw::guarded>()?;
+                    guarded = true;
+                    let _ = content.parse::<Token![,]>();
+                    continue;
+                }
+
                 // Check for the `validated` opt-in marker. When present, the
                 // generated Create/Update DTOs also get a real
                 // `rf_validation::Validate` impl (drives the ValidatedJson
@@ -550,7 +571,7 @@ impl Parse for ModelDef {
                 let _ = content.parse::<Token![,]>();
             }
 
-            Ok(ModelDef::Full { name, table, fields, relationships, scopes, timestamps, soft_deletes, validated })
+            Ok(ModelDef::Full { name, table, fields, relationships, scopes, timestamps, soft_deletes, validated, guarded })
         }
     }
 }
@@ -559,8 +580,8 @@ pub fn simple_model_impl(input: TokenStream) -> TokenStream {
     let model = parse_macro_input!(input as ModelDef);
 
     match model {
-        ModelDef::Full { name, table, fields, relationships, scopes, timestamps, soft_deletes, validated } => {
-            generate_full_model(name, table, fields, relationships, scopes, timestamps, soft_deletes, validated)
+        ModelDef::Full { name, table, fields, relationships, scopes, timestamps, soft_deletes, validated, guarded } => {
+            generate_full_model(name, table, fields, relationships, scopes, timestamps, soft_deletes, validated, guarded)
         }
         ModelDef::Simple { name, fields } => {
             generate_simple_model(name, fields)
@@ -577,6 +598,7 @@ fn generate_full_model(
     timestamps: bool,
     soft_deletes: bool,
     validated: bool,
+    guarded: bool,
 ) -> TokenStream {
     let table_name = table.unwrap_or_else(|| {
         let s = name.to_string();
@@ -1358,6 +1380,50 @@ fn generate_full_model(
         }
     };
 
+    // ---- `guarded` marker: flip the DEFAULT create() to enforcement ----------
+    // With the `guarded` marker present the macro emits an INHERENT
+    // `#name::create(data)` alongside the model. Rust resolves `Type::method`
+    // by preferring inherent methods over trait methods, so this inherent
+    // `create` SHADOWS the permissive `rf_db_facade::Model::create` default for
+    // every `#name::create(...)` call site — including `create!(#name, ...)`,
+    // which expands to the UFCS `#name::create(...)` (see
+    // helpers::create_impl). It runs `Self::fill_guarded(data)?` (rejecting any
+    // field not in MASS_ASSIGNABLE, naming the offender) and then performs the
+    // SAME insert the trait default does, but by calling the real QueryBuilder
+    // path DIRECTLY (`rf_db_facade::QueryBuilder::new(TABLE).create(..)`) so it
+    // does NOT recurse into itself. The explicit trait-qualified call
+    // `<#name as rf_db_facade::Model>::create(..)` still reaches the permissive
+    // default for callers who deliberately want it (e.g. `create_guarded`'s
+    // internal insert). Without the marker this is EMPTY, so non-guarded models
+    // are byte-for-byte unchanged and keep the permissive trait `create`.
+    let guarded_create = if guarded {
+        quote! {
+            impl #name {
+                /// Mass-assignment-enforcing default create (Laravel's guarded
+                /// `$fillable`), emitted because this model carries the
+                /// `guarded` marker. Rejects any field not in
+                /// [`Self::MASS_ASSIGNABLE`] via [`Self::fill_guarded`] (naming
+                /// the offender, inserting NO row), then inserts exactly the
+                /// permitted fields through the real
+                /// `rf_db_facade::QueryBuilder` path directly (the SAME insert
+                /// the permissive `Model::create` default performs) — it does
+                /// NOT recurse into itself. This INHERENT method shadows the
+                /// permissive `Model::create` for `#name::create(...)` and for
+                /// `create!(#name, ...)` (which expands to that UFCS call). The
+                /// permissive default is still reachable via the explicit
+                /// `<#name as rf_db_facade::Model>::create(...)`.
+                pub async fn create<D: ::serde::Serialize>(
+                    data: D,
+                ) -> ::std::result::Result<::serde_json::Value, ::std::string::String> {
+                    let filtered = Self::fill_guarded(data)?;
+                    rf_db_facade::QueryBuilder::new(#table_name).create(filtered).await
+                }
+            }
+        }
+    } else {
+        quote! {}
+    };
+
     let expanded = quote! {
         #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
         pub struct #name {
@@ -1512,6 +1578,8 @@ fn generate_full_model(
         #with_builder
 
         #typed_read
+
+        #guarded_create
 
         #dto_defs
 
