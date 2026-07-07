@@ -506,3 +506,37 @@ Run 11 cleared **all four** Re-audit-3 shortlist items 1-4 AND landed the deferr
 - **Re-audit-3 #4 continued (stub-hunt round 9) — rf-nova CRUD trio completed.** `rf-nova` `create` (was hardcoded `Ok({"id":1})`, never inserted) and `destroy` (was `Ok(())` no-op) are now real sea-orm insert/delete, mirroring the run-10 `bulk_destroy` PK-resolution + ColumnType value-coercion pattern. The Nova CRUD helpers (create/destroy/bulk_destroy) are now all real. rf-route-facade `build_router` empty-router was checked and correctly left alone — it is the deliberately-superseded legacy facade (rf-routing is the real serving path).
 
 **Remaining after run 11 (Re-audit 4 material — a re-audit is due next run, 2 runs since Re-audit 3):** eager `hasMany`/`belongsToMany` field hydration + a `with(...)` fetch-time sugar (extend the run-11 belongsTo slice); further `@` DSL rules if wanted (regex with a pattern arg, custom messages); the two still-deferred stubs (rf-application `load_session` needs a Session entity + save counterpart; rf-api `readiness_check` needs a service-probe design). `Result`/`Option` hiding stays the documented language ceiling. Headline nudges up: **~86-87% real** — the flagship bare-`post.user` relation line is now genuinely real (belongsTo/hasOne), the `@` DSL is broad, and the live-backend proofs run in CI.
+
+---
+
+## Re-audit 4 (after architect run 11) — 2026-07-07
+
+_Fresh source-grounded pass (4 parallel Explore audits): pillars A+D (write-less / typed-DSL) graded, pillars B+C (hide-async / global-facades) graded, eager-hasMany + `@ regex` scoped, stub-hunt round 10. Graded against the four pillars: **write less code than Laravel · hide async/Result · global facades · typed DSLs.**_
+
+### Overall verdict — roughly **87% of the vision is genuinely real** (up a touch from run-11's ~86-87%)
+
+The four-pillar spine is now largely real. What Re-audit 4 confirms: the engine is real, the DX surface is broad, and the remaining gaps are **incremental completeness** (finish the relation-field family, broaden the `@` DSL, finish one CRUD module) plus **two by-design ceilings** and **two orphaned dead crates**. No fake surface masquerading as real on any reachable primary path.
+
+### Pillar grades (file:line evidence in the audit; summary here)
+
+| Pillar | Grade | What is REAL | What is PARTIAL / MISSING |
+|---|---|---|---|
+| **A — write less than Laravel** | 🟩 strong | ONE `Model!` decl → entity + Create/Update DTOs + inferred validation_rules + **belongsTo/hasOne populated relation FIELD + batch loader** (run 11); real CRUD macros; examples write ~30 handler lines for a real feature | `hasMany`/`belongsToMany` are **method-only** (no eager `Vec` field, no batch loader); no `with(...)` fetch-time sugar |
+| **B — hide async/Result** | 🟨 partial (by design) | `#[auto_await]` hides `.await` (name-list driven, documented); ambient `input()`/`file()`/`all()`/`has()` + path-params via real task-locals | **Result/Option hiding stays the documented language ceiling** — correctly NOT faked (would need one uniform error type + panic-vs-propagate semantics) |
+| **C — global facades** | 🟩 strong | DB/Cache/Mail/Storage/Auth/Queue/Event/Broadcast/Notifications/AI/Log/Route all REAL; every sync-over-async facade uses the deadlock-safe `AsyncBridge` (NO raw `block_on` anywhere) | `rf-session-facade` + `rf-config-facade` are MOCK **but both are ORPHANED dead code** (not workspace members, zero dependents, not in the prelude) → not worth wiring; skip or delete |
+| **D — typed DSLs** | 🟩 strong | `validate!{}` (types + modifiers + file/image + DB unique/exists); `@` DSL exposes email/url/uuid/ip + string min/max + numeric range; routing `get/post/resource!/build_router` real; belongsTo/hasOne relation decls real | `@` DSL still missing regex(pattern) + custom messages + between-length/starts/ends/alpha (all REAL in rf-validation, just unexposed); hasMany/belongsToMany relation decls method-only |
+
+### Findings this run
+
+- **Eager `hasMany` field hydration** — scoped as a CLEAN additive single-agent slice mirroring the run-11 belongsTo loader, but with inverse grouping: a `Vec`-of-child field (default empty) + a `load_<name>_for` batch loader running ONE `WHERE child_fk IN (parent ids)` query grouped per parent. No blocker. `belongsToMany` (pivot JOIN) is a later follow-up.
+- **`@ regex(pattern)`** — scoped CLEAN: a custom keyword + `FieldOverride::Regex(String)` + a parenthesized string-literal parser branch (like `@ range`) + a string-gated codegen arm calling the REAL `rf_validation::validators::regex::validate_regex(value, pattern)`. The regex crate is already a rf-validation dep; invalid patterns fall back to never-match. No blocker.
+- **stub-hunt round 10** — the rf-nova CRUD module is only HALF real: runs 10-11 fixed create/destroy/bulk_destroy, but `show` (`crud.rs:69` returns `NotFound("Not implemented")`) and `update` (`crud.rs:117` returns fake `{"id": id}`) are still stubs. Clean fix mirroring the real `create`. (Also found `rf-observability init_telemetry` logs-only — DEFERRED: real OpenTelemetry SDK wiring is external-infra + API-compat-fragile.)
+
+### Re-audit-4 shortlist (this run targets 1-4)
+
+1. **Eager `hasMany` as a populated `Vec` field + grouping batch loader** — finish the relation-field family (belongsTo/hasOne done; hasMany next). — pillar A/D.
+2. **`@ regex(pattern)` on the Model! `@` DSL** (reuse the real regex validator). — pillar D.
+3. **`Model::with_relations(rows, names)` one-call multi-relation hydration** — codegen a dispatcher over the generated per-relation `load_<name>_for` loaders so one call hydrates several relations, N+1-free; the ergonomic bridge toward Laravel `with(...)`. — pillar A.
+4. **Finish the rf-nova CRUD module** — real `show` + `update` (mirror the real `create`). — pillar: trust.
+
+Deferred (documented, not fake): `belongsToMany` pivot-field hydration; `@` custom messages + more string rules; the fetch-time chained `Post::with("x").get()` builder (needs QueryBuilder integration); orphaned `rf-session-facade`/`rf-config-facade` (delete-or-ignore, not wire); `init_telemetry` real OTel SDK; the two run-8/9 deferred stubs. `Result`/`Option` hiding stays the language ceiling.
