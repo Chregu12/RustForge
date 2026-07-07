@@ -453,6 +453,16 @@ fn generate_full_model(
         .map(|f| f.name.to_string())
         .collect();
 
+    // Mass-assignable (Laravel's `$fillable`): every DECLARED field, EXCLUDING
+    // the framework-managed `id`, timestamps, soft-delete column and relations
+    // (none of which are declared as plain fields). `hidden` fields such as
+    // `password` are legitimate INPUTS (mirroring the Create DTO, which also
+    // keeps them), so they stay mass-assignable — `hidden` only affects the
+    // model's serialization, not what may be submitted.
+    let mass_assignable: Vec<String> = fields.iter()
+        .map(|f| f.name.to_string())
+        .collect();
+
     // Infer validation rules from declared field types (convention over
     // configuration). Every declared field (including `hidden` ones like
     // passwords) contributes a `(name, type_keyword, required)` tuple.
@@ -1214,6 +1224,49 @@ fn generate_full_model(
             pub const TIMESTAMPS: bool = #timestamps;
             pub const SOFT_DELETES: bool = #soft_deletes;
 
+            /// The set of fields that may be mass-assigned (Laravel's
+            /// `$fillable`). By convention this is every DECLARED model field,
+            /// excluding the framework-managed `id`, timestamps, soft-delete
+            /// column and relations. Mass-assignment guarding is OPT-IN: the
+            /// permissive [`Self::create`] path is unchanged — call
+            /// [`Self::create_guarded`] / [`Self::fill_guarded`] to enforce it.
+            pub const MASS_ASSIGNABLE: &'static [&'static str] = &[#(#mass_assignable),*];
+
+            /// Filter arbitrary input down to the mass-assignable fields,
+            /// REJECTING any field that is not in [`Self::MASS_ASSIGNABLE`] with
+            /// a clear error naming the offending field (Laravel's strict
+            /// mass-assignment protection). Non-object input passes through
+            /// unchanged. This is the OPT-IN guard: the permissive
+            /// `Model::create` remains available and its behavior is unchanged.
+            pub fn fill_guarded<D: ::serde::Serialize>(
+                data: D,
+            ) -> ::std::result::Result<::serde_json::Value, ::std::string::String> {
+                let value = ::serde_json::to_value(data).map_err(|e| e.to_string())?;
+                if let ::serde_json::Value::Object(ref map) = value {
+                    for key in map.keys() {
+                        if !Self::MASS_ASSIGNABLE.contains(&key.as_str()) {
+                            return ::std::result::Result::Err(::std::format!(
+                                "mass-assignment denied on `{}`: field `{}` is not fillable (fillable: {:?})",
+                                #table_name, key, Self::MASS_ASSIGNABLE,
+                            ));
+                        }
+                    }
+                }
+                ::std::result::Result::Ok(value)
+            }
+
+            /// Guarded counterpart of [`Self::create`]: rejects mass-assignment
+            /// of any field not in [`Self::MASS_ASSIGNABLE`] (naming the
+            /// offender via [`Self::fill_guarded`]), otherwise inserts exactly
+            /// the permitted fields through the same real `Model::create` path.
+            /// The permissive `create` remains available and unchanged.
+            pub async fn create_guarded<D: ::serde::Serialize>(
+                data: D,
+            ) -> ::std::result::Result<::serde_json::Value, ::std::string::String> {
+                let filtered = Self::fill_guarded(data)?;
+                <Self as rf_db_facade::Model>::create(filtered).await
+            }
+
             /// Validation rules inferred from the declared field types.
             ///
             /// Each entry is `(field_name, type_keyword, required)`:
@@ -1324,6 +1377,13 @@ fn generate_simple_model(name: Ident, fields: Vec<InferredField>) -> TokenStream
 
     let hidden: Vec<String> = fields.iter()
         .filter(|f| f.hidden)
+        .map(|f| f.name.to_string())
+        .collect();
+
+    // Mass-assignable (Laravel's `$fillable`): every declared field. `hidden`
+    // fields are legitimate inputs, so they stay mass-assignable. See
+    // `generate_full_model` for the full rationale.
+    let mass_assignable: Vec<String> = fields.iter()
         .map(|f| f.name.to_string())
         .collect();
 
@@ -1486,6 +1546,43 @@ fn generate_simple_model(name: Ident, fields: Vec<InferredField>) -> TokenStream
         impl #name {
             pub const FILLABLE: &'static [&'static str] = &[#(#fillable),*];
             pub const HIDDEN: &'static [&'static str] = &[#(#hidden),*];
+
+            /// The set of fields that may be mass-assigned (Laravel's
+            /// `$fillable`) — every declared field. Guarding is OPT-IN via
+            /// [`Self::create_guarded`] / [`Self::fill_guarded`]; the permissive
+            /// `Model::create` path is unchanged. See `generate_full_model`.
+            pub const MASS_ASSIGNABLE: &'static [&'static str] = &[#(#mass_assignable),*];
+
+            /// Filter arbitrary input down to the mass-assignable fields,
+            /// REJECTING any field not in [`Self::MASS_ASSIGNABLE`] with a clear
+            /// error naming the offender. OPT-IN guard; non-object input passes
+            /// through unchanged. The permissive `Model::create` is unchanged.
+            pub fn fill_guarded<D: ::serde::Serialize>(
+                data: D,
+            ) -> ::std::result::Result<::serde_json::Value, ::std::string::String> {
+                let value = ::serde_json::to_value(data).map_err(|e| e.to_string())?;
+                if let ::serde_json::Value::Object(ref map) = value {
+                    for key in map.keys() {
+                        if !Self::MASS_ASSIGNABLE.contains(&key.as_str()) {
+                            return ::std::result::Result::Err(::std::format!(
+                                "mass-assignment denied on `{}`: field `{}` is not fillable (fillable: {:?})",
+                                #table_name, key, Self::MASS_ASSIGNABLE,
+                            ));
+                        }
+                    }
+                }
+                ::std::result::Result::Ok(value)
+            }
+
+            /// Guarded counterpart of `create`: rejects mass-assignment of any
+            /// field not in [`Self::MASS_ASSIGNABLE`], else inserts the
+            /// permitted fields through the real `Model::create` path.
+            pub async fn create_guarded<D: ::serde::Serialize>(
+                data: D,
+            ) -> ::std::result::Result<::serde_json::Value, ::std::string::String> {
+                let filtered = Self::fill_guarded(data)?;
+                <Self as rf_db_facade::Model>::create(filtered).await
+            }
 
             /// Validation rules inferred from the declared fields. In the simple
             /// syntax every field is a required `String`. Each entry is
