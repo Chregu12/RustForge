@@ -52,6 +52,7 @@ mod kw {
     syn::custom_keyword!(max);
     syn::custom_keyword!(min);
     syn::custom_keyword!(range);
+    syn::custom_keyword!(regex);
 }
 
 /// An explicit validation override attached to a field via the `@` DSL, e.g.
@@ -75,6 +76,9 @@ enum FieldOverride {
     /// `@ range(min, max)` — numeric value must satisfy `min <= value <= max`
     /// (numeric `iN`/`uN`/`fN` fields only). Bounds are stored as `f64`.
     Range(f64, f64),
+    /// `@ regex("pattern")` — value must match the given regex pattern
+    /// (String fields only). Reuses the real `rf_validation` regex validator.
+    Regex(String),
 }
 
 /// A field: `name: String`, `hidden password: String`, or with validation
@@ -142,6 +146,12 @@ impl Parse for SimpleField {
                     content.parse::<Token![,]>()?;
                     let max = parse_f64_bound(&content)?;
                     overrides.push(FieldOverride::Range(min, max));
+                } else if input.peek(kw::regex) {
+                    input.parse::<kw::regex>()?;
+                    let content;
+                    syn::parenthesized!(content in input);
+                    let lit: syn::LitStr = content.parse()?;
+                    overrides.push(FieldOverride::Regex(lit.value()));
                 } else if input.peek(kw::max) {
                     input.parse::<kw::max>()?;
                     let content;
@@ -1197,6 +1207,22 @@ fn dto_field_checks(
                     let __rf_range_value = *value as f64;
                     if __rf_range_value < #min || __rf_range_value > #max {
                         let mut error = rf_validation::ext_validator::ValidationError::new("range");
+                        error.message = ::std::option::Option::Some(::std::borrow::Cow::Borrowed(#msg));
+                        errors.add(#name_str, error);
+                    }
+                });
+            }
+            // `@ regex("pattern")` parallels `@ url`, reusing the real
+            // rf_validation regex validator. String fields only (`value` is
+            // `&String`). An invalid pattern falls back to never-match.
+            FieldOverride::Regex(pattern) if is_string => {
+                let msg = format!(
+                    "The {} field must match the pattern {}.",
+                    name_str, pattern
+                );
+                inner.push(quote! {
+                    if !rf_validation::validators::regex::validate_regex(value, #pattern) {
+                        let mut error = rf_validation::ext_validator::ValidationError::new("regex");
                         error.message = ::std::option::Option::Some(::std::borrow::Cow::Borrowed(#msg));
                         errors.add(#name_str, error);
                     }
