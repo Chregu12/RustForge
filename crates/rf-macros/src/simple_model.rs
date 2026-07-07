@@ -882,6 +882,7 @@ fn generate_full_model(
                 // GROUP the children into a map keyed by that FK, and assign each
                 // parent row its vector of children (empty vec when none).
                 let loader = syn::Ident::new(&format!("load_{}_for", method_name), method_name.span());
+                let loader_where = syn::Ident::new(&format!("load_{}_where", method_name), method_name.span());
                 let hasmany_fk = foreign_key.clone();
                 quote! {
                     /// Eagerly populate the `#method_name` list field on a whole
@@ -924,6 +925,52 @@ fn generate_full_model(
                         }
                         Ok(())
                     }
+
+                    /// Constrained sibling of `#loader` (`with_where`): same
+                    /// batched hasMany load, but the single `WHERE <fk> IN (...)`
+                    /// query gains a parametrized `AND <column> = <value>`, so
+                    /// each parent's `#method_name` Vec holds ONLY children
+                    /// matching that equality (still one batched query, no N+1).
+                    pub async fn #loader_where<V: ::std::convert::Into<::serde_json::Value>>(
+                        rows: &mut [Self],
+                        column: &str,
+                        value: V,
+                    ) -> ::std::result::Result<(), String> {
+                        use ::std::collections::HashMap;
+                        let value: ::serde_json::Value = value.into();
+                        let mut ids: Vec<i64> = Vec::new();
+                        for row in rows.iter() {
+                            if let Some(id) = row.id {
+                                if !ids.contains(&id) { ids.push(id); }
+                            }
+                        }
+                        if ids.is_empty() { return Ok(()); }
+                        let placeholders = ids.iter().map(|_| "?").collect::<Vec<_>>().join(", ");
+                        // SAME base SELECT + one extra parametrized equality; the
+                        // constraint value is bound as the trailing `?`.
+                        let sql = format!(
+                            "SELECT * FROM {} WHERE {} IN ({}) AND {} = ?",
+                            #related_table, #hasmany_fk, placeholders, column,
+                        );
+                        let mut bindings: Vec<::serde_json::Value> =
+                            ids.iter().map(|&i| ::serde_json::Value::from(i)).collect();
+                        bindings.push(value);
+                        let children = rf_db_facade::DB::select(&sql, &bindings)?;
+                        let mut by_key: HashMap<i64, Vec<#related_type>> = HashMap::new();
+                        for child in children {
+                            if let Some(k) = child.get(#hasmany_fk).and_then(|v| v.as_i64()) {
+                                let model: #related_type = ::serde_json::from_value(child)
+                                    .map_err(|e| e.to_string())?;
+                                by_key.entry(k).or_default().push(model);
+                            }
+                        }
+                        for row in rows.iter_mut() {
+                            row.#method_name = row.id
+                                .and_then(|id| by_key.get(&id).cloned())
+                                .unwrap_or_default();
+                        }
+                        Ok(())
+                    }
                 }
             }
             RelationType::HasOne => {
@@ -931,6 +978,7 @@ fn generate_full_model(
                 // eager `#method_name` field is populated by this batched loader:
                 // ONE `WHERE <fk> IN (parent ids)` query, grouped back by FK.
                 let loader = syn::Ident::new(&format!("load_{}_for", method_name), method_name.span());
+                let loader_where = syn::Ident::new(&format!("load_{}_where", method_name), method_name.span());
                 let hasone_fk = rel.foreign_key.clone()
                     .unwrap_or_else(|| format!("{}_id", model_name_lower));
                 quote! {
@@ -968,6 +1016,50 @@ fn generate_full_model(
                         }
                         Ok(())
                     }
+
+                    /// Constrained sibling of `#loader` (`with_where`): same
+                    /// batched hasOne load, but the `WHERE <fk> IN (...)` query
+                    /// gains a parametrized `AND <column> = <value>`, so each
+                    /// parent's `#method_name` is set ONLY from a matching child
+                    /// (still one batched query, no N+1).
+                    pub async fn #loader_where<V: ::std::convert::Into<::serde_json::Value>>(
+                        rows: &mut [Self],
+                        column: &str,
+                        value: V,
+                    ) -> ::std::result::Result<(), String> {
+                        use ::std::collections::HashMap;
+                        let value: ::serde_json::Value = value.into();
+                        let mut ids: Vec<i64> = Vec::new();
+                        for row in rows.iter() {
+                            if let Some(id) = row.id {
+                                if !ids.contains(&id) { ids.push(id); }
+                            }
+                        }
+                        if ids.is_empty() { return Ok(()); }
+                        let placeholders = ids.iter().map(|_| "?").collect::<Vec<_>>().join(", ");
+                        let sql = format!(
+                            "SELECT * FROM {} WHERE {} IN ({}) AND {} = ?",
+                            #related_table, #hasone_fk, placeholders, column,
+                        );
+                        let mut bindings: Vec<::serde_json::Value> =
+                            ids.iter().map(|&i| ::serde_json::Value::from(i)).collect();
+                        bindings.push(value);
+                        let children = rf_db_facade::DB::select(&sql, &bindings)?;
+                        let mut by_key: HashMap<i64, #related_type> = HashMap::new();
+                        for child in children {
+                            if let Some(k) = child.get(#hasone_fk).and_then(|v| v.as_i64()) {
+                                let model: #related_type = ::serde_json::from_value(child)
+                                    .map_err(|e| e.to_string())?;
+                                by_key.entry(k).or_insert(model);
+                            }
+                        }
+                        for row in rows.iter_mut() {
+                            if let Some(id) = row.id {
+                                row.#method_name = by_key.get(&id).cloned();
+                            }
+                        }
+                        Ok(())
+                    }
                 }
             }
             RelationType::BelongsTo => {
@@ -977,6 +1069,7 @@ fn generate_full_model(
                 // slice, run ONE `WHERE id IN (...)` query against the parent
                 // table, group by parent `id`, and assign each row's field.
                 let loader = syn::Ident::new(&format!("load_{}_for", method_name), method_name.span());
+                let loader_where = syn::Ident::new(&format!("load_{}_where", method_name), method_name.span());
                 let fk = rel.foreign_key.clone()
                     .unwrap_or_else(|| format!("{}_id", to_snake_case(&method_name.to_string())));
                 quote! {
@@ -1017,6 +1110,51 @@ fn generate_full_model(
                         }
                         Ok(())
                     }
+
+                    /// Constrained sibling of `#loader` (`with_where`): same
+                    /// batched belongsTo load, but the parent `WHERE id IN (...)`
+                    /// query gains a parametrized `AND <column> = <value>` on the
+                    /// parent table, so a row's `#method_name` resolves ONLY to a
+                    /// matching parent (still one batched query, no N+1).
+                    pub async fn #loader_where<V: ::std::convert::Into<::serde_json::Value>>(
+                        rows: &mut [Self],
+                        column: &str,
+                        value: V,
+                    ) -> ::std::result::Result<(), String> {
+                        use ::std::collections::HashMap;
+                        let value: ::serde_json::Value = value.into();
+                        let mut ids: Vec<i64> = Vec::new();
+                        for row in rows.iter() {
+                            let v = ::serde_json::to_value(&*row).map_err(|e| e.to_string())?;
+                            if let Some(fk) = v.get(#fk).and_then(|x| x.as_i64()) {
+                                if !ids.contains(&fk) { ids.push(fk); }
+                            }
+                        }
+                        if ids.is_empty() { return Ok(()); }
+                        let placeholders = ids.iter().map(|_| "?").collect::<Vec<_>>().join(", ");
+                        let sql = format!(
+                            "SELECT * FROM {} WHERE id IN ({}) AND {} = ?",
+                            #related_table, placeholders, column,
+                        );
+                        let mut bindings: Vec<::serde_json::Value> =
+                            ids.iter().map(|&i| ::serde_json::Value::from(i)).collect();
+                        bindings.push(value);
+                        let parents = rf_db_facade::DB::select(&sql, &bindings)?;
+                        let mut by_id: HashMap<i64, #related_type> = HashMap::new();
+                        for parent in parents {
+                            if let Some(id) = parent.get("id").and_then(|v| v.as_i64()) {
+                                let model: #related_type = ::serde_json::from_value(parent)
+                                    .map_err(|e| e.to_string())?;
+                                by_id.insert(id, model);
+                            }
+                        }
+                        for row in rows.iter_mut() {
+                            let v = ::serde_json::to_value(&*row).map_err(|e| e.to_string())?;
+                            let fk = v.get(#fk).and_then(|x| x.as_i64());
+                            row.#method_name = fk.and_then(|k| by_id.get(&k).cloned());
+                        }
+                        Ok(())
+                    }
                 }
             }
             RelationType::BelongsToMany => {
@@ -1031,6 +1169,7 @@ fn generate_full_model(
                 // related models by mapping its pivot related-ids through that
                 // index (empty vec when it has no pivot rows).
                 let loader = syn::Ident::new(&format!("load_{}_for", method_name), method_name.span());
+                let loader_where = syn::Ident::new(&format!("load_{}_where", method_name), method_name.span());
                 // Pivot table: explicit if given, else the two model names
                 // snake-cased, sorted, joined by `_` (Laravel convention).
                 let pivot_table = rel.pivot_table.clone()
@@ -1118,6 +1257,82 @@ fn generate_full_model(
                         }
                         Ok(())
                     }
+
+                    /// Constrained sibling of `#loader` (`with_where`): identical
+                    /// TWO-query pivot load, except the second query (related
+                    /// rows) gains a parametrized `AND <column> = <value>`. Only
+                    /// matching related rows are indexed, so each parent's
+                    /// `#method_name` Vec keeps ONLY related models satisfying the
+                    /// equality (still exactly two batched queries, no N+1).
+                    pub async fn #loader_where<V: ::std::convert::Into<::serde_json::Value>>(
+                        rows: &mut [Self],
+                        column: &str,
+                        value: V,
+                    ) -> ::std::result::Result<(), String> {
+                        use ::std::collections::HashMap;
+                        let value: ::serde_json::Value = value.into();
+                        let mut ids: Vec<i64> = Vec::new();
+                        for row in rows.iter() {
+                            if let Some(id) = row.id {
+                                if !ids.contains(&id) { ids.push(id); }
+                            }
+                        }
+                        if ids.is_empty() { return Ok(()); }
+                        // ---- Query 1: pivot rows (UNCHANGED from base loader) --
+                        let placeholders = ids.iter().map(|_| "?").collect::<Vec<_>>().join(", ");
+                        let sql = format!(
+                            "SELECT {}, {} FROM {} WHERE {} IN ({})",
+                            #self_fk, #related_fk, #pivot_table, #self_fk, placeholders
+                        );
+                        let bindings: Vec<::serde_json::Value> =
+                            ids.iter().map(|&i| ::serde_json::Value::from(i)).collect();
+                        let pivot_rows = rf_db_facade::DB::select(&sql, &bindings)?;
+                        let mut parent_to_related: HashMap<i64, Vec<i64>> = HashMap::new();
+                        let mut related_ids: Vec<i64> = Vec::new();
+                        for pr in pivot_rows {
+                            let p = pr.get(#self_fk).and_then(|v| v.as_i64());
+                            let r = pr.get(#related_fk).and_then(|v| v.as_i64());
+                            if let (Some(p), Some(r)) = (p, r) {
+                                parent_to_related.entry(p).or_default().push(r);
+                                if !related_ids.contains(&r) { related_ids.push(r); }
+                            }
+                        }
+                        if related_ids.is_empty() {
+                            for row in rows.iter_mut() { row.#method_name = Vec::new(); }
+                            return Ok(());
+                        }
+                        // ---- Query 2: related rows + the extra equality --------
+                        let placeholders2 = related_ids.iter().map(|_| "?").collect::<Vec<_>>().join(", ");
+                        let sql2 = format!(
+                            "SELECT * FROM {} WHERE id IN ({}) AND {} = ?",
+                            #related_table, placeholders2, column,
+                        );
+                        let mut bindings2: Vec<::serde_json::Value> =
+                            related_ids.iter().map(|&i| ::serde_json::Value::from(i)).collect();
+                        bindings2.push(value);
+                        let related_records = rf_db_facade::DB::select(&sql2, &bindings2)?;
+                        let mut by_id: HashMap<i64, #related_type> = HashMap::new();
+                        for rec in related_records {
+                            if let Some(id) = rec.get("id").and_then(|v| v.as_i64()) {
+                                let model: #related_type = ::serde_json::from_value(rec)
+                                    .map_err(|e| e.to_string())?;
+                                by_id.insert(id, model);
+                            }
+                        }
+                        // Related ids filtered out by the constraint simply miss
+                        // the index, so `filter_map` drops them per parent.
+                        for row in rows.iter_mut() {
+                            row.#method_name = row.id
+                                .and_then(|id| parent_to_related.get(&id))
+                                .map(|rids| {
+                                    rids.iter()
+                                        .filter_map(|rid| by_id.get(rid).cloned())
+                                        .collect::<Vec<#related_type>>()
+                                })
+                                .unwrap_or_default();
+                        }
+                        Ok(())
+                    }
                 }
             }
         }
@@ -1150,6 +1365,25 @@ fn generate_full_model(
                 Some(quote! {
                     #name_str => { Self::#loader(rows).await?; }
                 })
+            }
+        }
+    }).collect();
+
+    // ---- Constrained eager-load dispatch (`with_where`) ----------------------
+    // One match arm per declared relation, inlined into the fetch-time builder's
+    // `get()`: when a requested relation carries a `with_where` constraint, hand
+    // it to that relation's constrained `load_<name>_where` loader (the SAME
+    // batched query + `AND column = value`), so only matching children hydrate —
+    // still one batched query per relation, never N+1. Every relation family
+    // (belongsTo / hasOne / hasMany / belongsToMany) generates a `_where` loader,
+    // so all are dispatchable; the value is a `serde_json::Value` bound exactly
+    // like the base loader's `WHERE IN` params.
+    let with_where_arms: Vec<TokenStream2> = relationships.iter().map(|rel| {
+        let name_str = rel.name.to_string();
+        let loader_where = syn::Ident::new(&format!("load_{}_where", rel.name), rel.name.span());
+        quote! {
+            #name_str => {
+                #name::#loader_where(&mut rows, __rf_col.as_str(), __rf_val.clone()).await?;
             }
         }
     }).collect();
@@ -1299,6 +1533,16 @@ fn generate_full_model(
         pub struct #builder_name {
             query: rf_db_facade::QueryBuilder,
             relations: ::std::vec::Vec<::std::string::String>,
+            // Constrained eager loads (`with_where`): per-relation ONE equality
+            // constraint `(column, value)`. When a requested relation has an
+            // entry here, `get()` hydrates it with the constrained
+            // `load_<name>_where` loader (same batched `WHERE IN` query + an
+            // extra parametrized `AND column = value`) instead of the plain
+            // `load_<name>_for`. Empty by default -> identical to the old path.
+            constraints: ::std::collections::HashMap<
+                ::std::string::String,
+                (::std::string::String, ::serde_json::Value),
+            >,
         }
 
         impl #builder_name {
@@ -1355,6 +1599,28 @@ fn generate_full_model(
                 self
             }
 
+            /// Constrain a to-be-eager-loaded relation to children matching
+            /// `column = value` (Laravel's `with(['comments' => fn ($q) =>
+            /// $q->where('approved', true)])`). Records ONE equality constraint
+            /// for the named relation; at `get()` time that relation is hydrated
+            /// by its constrained `load_<name>_where` loader (the SAME batched
+            /// `WHERE <fk> IN (...)` query plus a parametrized `AND column =
+            /// value`), so only matching children land in the field — still one
+            /// batched query per relation, never N+1. Relations without a
+            /// constraint keep the plain unconstrained path. Calling this again
+            /// for the same relation replaces its constraint (one per relation
+            /// this slice; multiple/operators are a follow-up).
+            pub fn with_where<V: ::std::convert::Into<::serde_json::Value>>(
+                mut self,
+                relation: impl ::std::convert::Into<::std::string::String>,
+                column: impl ::std::convert::Into<::std::string::String>,
+                value: V,
+            ) -> Self {
+                self.constraints
+                    .insert(relation.into(), (column.into(), value.into()));
+                self
+            }
+
             /// Run the fetch and return typed rows with the requested relations
             /// eagerly populated. ONE `SELECT` (this builder's QueryBuilder) is
             /// deserialized into `Vec<#name>` (rows that fail to deserialize are
@@ -1363,16 +1629,36 @@ fn generate_full_model(
             /// K relations + 1 fetch = K+1 queries, never N+1. With no requested
             /// relations this is a plain typed fetch.
             pub async fn get(self) -> ::std::result::Result<::std::vec::Vec<#name>, String> {
-                let #builder_name { query, relations } = self;
+                let #builder_name { query, relations, constraints } = self;
                 let values = query.get().await?;
                 let mut rows: ::std::vec::Vec<#name> = values
                     .into_iter()
                     .filter_map(|v| ::serde_json::from_value(v).ok())
                     .collect();
-                if !relations.is_empty() {
-                    let names: ::std::vec::Vec<&str> =
-                        relations.iter().map(|s| s.as_str()).collect();
-                    #name::with_relations(&mut rows, &names).await?;
+                // Per-relation dispatch: a relation carrying a `with_where`
+                // constraint is hydrated by its constrained `load_<name>_where`
+                // loader (batched query + `AND column = value`); every other
+                // relation keeps the unchanged unconstrained path through the
+                // shared `with_relations` (which also handles nested `a.b`).
+                for __rf_rel in relations.iter() {
+                    match constraints.get(__rf_rel.as_str()) {
+                        ::std::option::Option::Some((__rf_col, __rf_val)) => {
+                            match __rf_rel.as_str() {
+                                #(#with_where_arms)*
+                                other => {
+                                    return ::std::result::Result::Err(::std::format!(
+                                        "with_where: unknown or non-eager relation `{}` on {}",
+                                        other,
+                                        #table_name,
+                                    ));
+                                }
+                            }
+                        }
+                        ::std::option::Option::None => {
+                            let __rf_one = [__rf_rel.as_str()];
+                            #name::with_relations(&mut rows, &__rf_one).await?;
+                        }
+                    }
                 }
                 ::std::result::Result::Ok(rows)
             }
@@ -1616,6 +1902,7 @@ fn generate_full_model(
                 #builder_name {
                     query: rf_db_facade::QueryBuilder::new(#table_name),
                     relations: names.iter().map(|s| s.to_string()).collect(),
+                    constraints: ::std::collections::HashMap::new(),
                 }
             }
 
