@@ -31,7 +31,7 @@ use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
 use syn::{
-    braced, parse::{Parse, ParseStream}, parse_macro_input,
+    braced, ext::IdentExt, parse::{Parse, ParseStream}, parse_macro_input,
     punctuated::Punctuated, Ident, Token, Type,
 };
 
@@ -45,6 +45,7 @@ mod kw {
     syn::custom_keyword!(timestamps);
     syn::custom_keyword!(softDeletes);
     syn::custom_keyword!(validated);
+    syn::custom_keyword!(scope);
     syn::custom_keyword!(email);
     syn::custom_keyword!(url);
     syn::custom_keyword!(uuid);
@@ -277,6 +278,143 @@ impl Relationship {
     }
 }
 
+/// A single chainable call inside a `scope` body, e.g. `where("status",
+/// "published")` or `limit(10)`. `method` is the DSL method name (parsed with
+/// `Ident::parse_any` so the Rust keyword `where` is accepted verbatim) and
+/// `args` are its literal arguments. Validated + lowered to a real
+/// `QueryBuilder` call in [`emit_scope_call`].
+struct ScopeCall {
+    method: Ident,
+    args: Vec<syn::Lit>,
+}
+
+/// A Laravel-style local query scope: `scope active: where("status",
+/// "published")` or a chain `scope recent: order_by("created_at", "DESC")
+/// limit(10)`. Each generates an inherent associated fn on the model (e.g.
+/// `Post::active()`) that builds the real `rf_db_facade::QueryBuilder` for the
+/// model's table, applies the declared call-chain, and returns it — so it
+/// composes with the existing chainable builder + `.get()`:
+/// `Post::active().r#where("user_id", 1).get().await`.
+struct Scope {
+    name: Ident,
+    calls: Vec<ScopeCall>,
+}
+
+impl Scope {
+    /// Parse a `scope <name>: <call> <call> ...` entry. Assumes the `scope`
+    /// keyword has NOT yet been consumed. The call-chain runs until a `,` or the
+    /// end of the model body.
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        input.parse::<kw::scope>()?;
+        let name: Ident = input.parse()?;
+        input.parse::<Token![:]>()?;
+
+        let mut calls = Vec::new();
+        loop {
+            if input.is_empty() || input.peek(Token![,]) {
+                break;
+            }
+            // `where` is a reserved keyword, so parse the method name with
+            // `parse_any` (accepts keywords as identifiers).
+            let method = Ident::parse_any(input)?;
+            let content;
+            syn::parenthesized!(content in input);
+            let args: Punctuated<syn::Lit, Token![,]> =
+                Punctuated::parse_terminated(&content)?;
+            calls.push(ScopeCall { method, args: args.into_iter().collect() });
+        }
+
+        if calls.is_empty() {
+            return Err(syn::Error::new(
+                name.span(),
+                format!("scope `{}` has an empty body; declare at least one call, e.g. `scope {}: where(\"col\", \"val\")`", name, name),
+            ));
+        }
+
+        Ok(Scope { name, calls })
+    }
+}
+
+/// Lower one [`ScopeCall`] to the matching real `rf_db_facade::QueryBuilder`
+/// chainable method call. ONLY the chainable methods that genuinely exist on
+/// `QueryBuilder` (verified in `crates/rf-orm/src/facade/query_builder.rs`) are
+/// allowed; an unknown method or a wrong argument count is a clean compile-time
+/// error at the offending call's span.
+fn emit_scope_call(call: &ScopeCall) -> syn::Result<TokenStream2> {
+    let method = call.method.to_string();
+    let args = &call.args;
+    let span = call.method.span();
+    let expect = |n: usize| -> syn::Result<()> {
+        if args.len() != n {
+            Err(syn::Error::new(
+                span,
+                format!("scope method `{}` expects {} argument(s), got {}", method, n, args.len()),
+            ))
+        } else {
+            Ok(())
+        }
+    };
+    let ts = match method.as_str() {
+        // `where("col", val)` -> the real `r#where` (2-arg equality).
+        "where" => { expect(2)?; let a = &args[0]; let b = &args[1]; quote! { .r#where(#a, #b) } }
+        // `filter("col", val)` -> alias of `r#where`.
+        "filter" => { expect(2)?; let a = &args[0]; let b = &args[1]; quote! { .filter(#a, #b) } }
+        // `where_eq("col", val)` -> alias of `r#where`.
+        "where_eq" => { expect(2)?; let a = &args[0]; let b = &args[1]; quote! { .where_eq(#a, #b) } }
+        // `where_op("col", "op", val)` -> custom operator.
+        "where_op" => { expect(3)?; let a = &args[0]; let b = &args[1]; let c = &args[2]; quote! { .where_op(#a, #b, #c) } }
+        // `where_like("col", "pattern")`.
+        "where_like" => { expect(2)?; let a = &args[0]; let b = &args[1]; quote! { .where_like(#a, #b) } }
+        // `where_null("col")` / `where_not_null("col")`.
+        "where_null" => { expect(1)?; let a = &args[0]; quote! { .where_null(#a) } }
+        "where_not_null" => { expect(1)?; let a = &args[0]; quote! { .where_not_null(#a) } }
+        // `order_by("col", "DIR")` + shorthands.
+        "order_by" => { expect(2)?; let a = &args[0]; let b = &args[1]; quote! { .order_by(#a, #b) } }
+        "order_by_asc" => { expect(1)?; let a = &args[0]; quote! { .order_by_asc(#a) } }
+        "order_by_desc" => { expect(1)?; let a = &args[0]; quote! { .order_by_desc(#a) } }
+        // `limit(N)` / `offset(N)` — usize literals.
+        "limit" => { expect(1)?; let a = &args[0]; quote! { .limit(#a) } }
+        "offset" => { expect(1)?; let a = &args[0]; quote! { .offset(#a) } }
+        other => {
+            return Err(syn::Error::new(
+                span,
+                format!(
+                    "unknown scope method `{}`. Allowed chainable methods: where, filter, where_eq, where_op, where_like, where_null, where_not_null, order_by, order_by_asc, order_by_desc, limit, offset",
+                    other
+                ),
+            ));
+        }
+    };
+    Ok(ts)
+}
+
+/// Build the inherent associated fns for all declared scopes. Each scope becomes
+/// a `pub fn <name>() -> rf_db_facade::QueryBuilder` that constructs the real
+/// builder for `table_name` and applies the declared call-chain, returning the
+/// builder so callers can keep chaining (`Post::active().r#where(..).get()`).
+fn build_scope_methods(scopes: &[Scope], table_name: &str) -> syn::Result<Vec<TokenStream2>> {
+    scopes.iter().map(|scope| {
+        let sname = &scope.name;
+        let sname_str = sname.to_string();
+        let calls: Vec<TokenStream2> = scope
+            .calls
+            .iter()
+            .map(emit_scope_call)
+            .collect::<syn::Result<Vec<_>>>()?;
+        let doc = format!(
+            "Local query scope `{}` (Laravel-style). Returns the real `rf_db_facade::QueryBuilder` for this model's table with the scope's declared constraints already applied, so it composes with further chained calls and `.get().await`.",
+            sname_str
+        );
+        Ok(quote! {
+            #[doc = #doc]
+            pub fn #sname() -> rf_db_facade::QueryBuilder {
+                rf_db_facade::QueryBuilder::new(#table_name)
+                    #(#calls)*
+            }
+        })
+    }).collect()
+}
+
 /// Simple field without type (defaults to String): `name, email, password`
 struct InferredField {
     hidden: bool,
@@ -301,6 +439,7 @@ enum ModelDef {
         table: Option<String>,
         fields: Vec<SimpleField>,
         relationships: Vec<Relationship>,
+        scopes: Vec<Scope>,
         timestamps: bool,
         soft_deletes: bool,
         validated: bool,
@@ -332,6 +471,7 @@ impl Parse for ModelDef {
             let mut table = None;
             let mut fields = Vec::new();
             let mut relationships = Vec::new();
+            let mut scopes = Vec::new();
             let mut timestamps = true; // Default to true like Laravel
             let mut soft_deletes = false;
             let mut validated = false;
@@ -345,6 +485,20 @@ impl Parse for ModelDef {
                 if content.peek(kw::validated) {
                     content.parse::<kw::validated>()?;
                     validated = true;
+                    let _ = content.parse::<Token![,]>();
+                    continue;
+                }
+
+                // Check for a `scope <name>: <call-chain>` declaration
+                // (Laravel-style local query scope). Each parsed `Scope` is
+                // lowered later into an inherent `Model::<name>()` fn returning
+                // the real QueryBuilder. Opt-in: models with no `scope` line are
+                // unchanged.
+                if content.peek(kw::scope) {
+                    scopes.push(Scope::parse(&content)?);
+                    if content.is_empty() {
+                        break;
+                    }
                     let _ = content.parse::<Token![,]>();
                     continue;
                 }
@@ -396,7 +550,7 @@ impl Parse for ModelDef {
                 let _ = content.parse::<Token![,]>();
             }
 
-            Ok(ModelDef::Full { name, table, fields, relationships, timestamps, soft_deletes, validated })
+            Ok(ModelDef::Full { name, table, fields, relationships, scopes, timestamps, soft_deletes, validated })
         }
     }
 }
@@ -405,8 +559,8 @@ pub fn simple_model_impl(input: TokenStream) -> TokenStream {
     let model = parse_macro_input!(input as ModelDef);
 
     match model {
-        ModelDef::Full { name, table, fields, relationships, timestamps, soft_deletes, validated } => {
-            generate_full_model(name, table, fields, relationships, timestamps, soft_deletes, validated)
+        ModelDef::Full { name, table, fields, relationships, scopes, timestamps, soft_deletes, validated } => {
+            generate_full_model(name, table, fields, relationships, scopes, timestamps, soft_deletes, validated)
         }
         ModelDef::Simple { name, fields } => {
             generate_simple_model(name, fields)
@@ -419,6 +573,7 @@ fn generate_full_model(
     table: Option<String>,
     fields: Vec<SimpleField>,
     relationships: Vec<Relationship>,
+    scopes: Vec<Scope>,
     timestamps: bool,
     soft_deletes: bool,
     validated: bool,
@@ -427,6 +582,17 @@ fn generate_full_model(
         let s = name.to_string();
         format!("{}s", to_snake_case(&s))
     });
+
+    // ---- Declarative local query scopes (Laravel local scopes) --------------
+    // Each `scope <name>: <chain>` declaration becomes an inherent
+    // `Model::<name>() -> rf_db_facade::QueryBuilder` that applies the declared
+    // constraints and returns the real builder, so it composes with the existing
+    // chainable methods + `.get()`. Unknown methods / bad arg counts are a clean
+    // compile error (surfaced here as a `compile_error!` in the caller's crate).
+    let scope_methods = match build_scope_methods(&scopes, &table_name) {
+        Ok(methods) => methods,
+        Err(e) => return e.to_compile_error().into(),
+    };
 
     let field_defs: Vec<TokenStream2> = fields.iter().map(|f| {
         let fname = &f.name;
@@ -1283,6 +1449,8 @@ fn generate_full_model(
             }
 
             #(#relationship_methods)*
+
+            #(#scope_methods)*
 
             /// Start a fetch-time chained eager-load builder (Laravel's
             /// `Model::with(...)`). Chain `where`/`filter`/`where_op`/`order_by`/
