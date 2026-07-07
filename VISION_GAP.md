@@ -558,3 +558,46 @@ Deferred (documented, not fake): `belongsToMany` pivot-field hydration; `@` cust
 - **rf-mail `MailQueue::push` — DONE (stub-hunt r11).** Was a silent no-op (built a `SendMailJob`, returned `Ok(())`, never enqueued). Verified no dependency cycle, swapped the optional dep to rf-queue behind the `queue` feature, made `SendMailJob` implement `rf_queue::Job` (its `handle()` delivers via the global Mail facade), and `push` now dispatches through the real `Jobs` facade over the shared AsyncBridge. Crate test asserts a real enqueue (queue size +1) + worker reserve-and-run drain — not a drop.
 
 **Verified:** `cargo check --workspace` exit 0; rf-macros + rf-validation 78 + rf-mail(--features queue) 3 tests green; probes eager_belongs_to_many / with_get_typed / validated_json_dto(21) / eager_has_many / eager_with_relations / crud_macros all green (no regression). Headline nudges to **~88-89% real** — the eager relation story is now Laravel-complete (all four kinds as populated fields + fetch-time `with().get()` returning typed hydrated rows), the `@` DSL is broad, and mail queueing actually enqueues. Remaining tail: `@` custom messages (parser redesign), the deferred stubs (load_session / readiness_check / init_telemetry — each needs infra or a design call), delete-or-ignore the two orphaned mock crates, and the `Result`/`Option` language ceiling.
+
+---
+
+## Re-audit 5 (after architect run 13) — 2026-07-07
+
+_Fresh source-grounded pass (3 parallel Explore audits): pillars A+D re-graded against current source, pillars B+C re-graded + a QUALITY/DX/production-readiness audit, stub-hunt round 12 + orphaned-crate delete-safety verification._
+
+### Overall verdict — the engine phase is essentially DONE; the inflection point has arrived
+
+Two honest, load-bearing findings this run:
+
+1. **Stub-hunt round 12 found NOTHING** genuinely broken among reachable public APIs. Across 12 rounds the hunt has now converged — every reachable fake-behavior surface that was findable has been made real or honestly deferred with a documented infra/design reason. The "engine before sugar / make it real" campaign that defined runs 1-13 is, for practical purposes, **complete**.
+
+2. **Pillars B (hide async) and C (global facades) grade A / A+** — `#[auto_await]` + ambient globals real and in use; every facade (DB/Cache/Mail/Storage/Auth/Queue/Event/Broadcast/Notifications/AI) real over the deadlock-safe `AsyncBridge`, no raw `block_on`, no regressions. **Pillars A (write-less) and D (typed DSL) are ~70-75% of full Laravel parity** — the relation story is Laravel-complete (all four eager kinds as populated fields + typed `with().get()`), `validate!` + the `@` DSL are broad, CRUD macros real. What remains for A/D is **ergonomic parity gaps, not fake engines**.
+
+**So the standing directive lands here honestly: the highest-leverage work now shifts from "build the engine" to "polish, prove, and clean up".** Not forced features — the remaining feature gaps are genuine but small and ergonomic. The next few runs should be a MIX of: a few real ergonomic-parity features + a real quality/DX/cleanup phase (dead-crate deletion, a canonical REST example, getting-started docs, core-crate smoke tests, warning cleanup).
+
+### Genuine remaining feature gaps (A/D — small, real, ergonomic)
+
+| Gap | Evidence | Value |
+|---|---|---|
+| `all()` returns `Vec<Value>`, not typed `Vec<Self>` | `rf-orm/src/facade/model.rs:109`; typed rows only via `with([]).get()` | Laravel devs expect `Model::all()` typed |
+| pagination needs `.query().paginate()` | `query_builder.rs:1655`; no `Model::paginate()` | ergonomic parity |
+| `@` DSL custom messages unsupported | `simple_model.rs` @ codegen auto-generates all messages; no `@ email("msg")` | the main DSL gap (needs a parser change) |
+| mass-assignment guard declared not enforced | `simple_model.rs:1116` `FILLABLE`/`HIDDEN` consts exist; `create()` accepts any field | data-safety nicety (behavior change — do carefully) |
+| more validators unexposed via `@` | lowercase/uppercase/digits/positive/negative exist in rf-validation | minor |
+
+Deferred-with-reason (unchanged): nested/dot eager loads `with("comments.author")`, constrained eager loads, query scopes (bigger designs); load_session (Session entity), readiness_check (service-probe design), init_telemetry (real OTel SDK). `Result`/`Option` hiding stays the language ceiling.
+
+### Quality / DX punch-list (the real focus now)
+
+- **Delete dead crates.** `rf-session-facade` + `rf-config-facade` verified safe to delete (not workspace members, ZERO references; root Cargo.toml already notes facades were merged). Six MORE orphans found with zero references: `rf-log-facade`, `rf-view-facade`, `rustforge-boost`, `rustforge-config-layer`, `rustforge-new`, `rustforge-starter-kits` — verify each independently and remove the clearly-dead ones.
+- **Canonical REST example missing.** 13 example crates exist; only `blog-slice` has tests. No example ties together a full REST resource (GET list, GET/:id, POST, PUT/:id, DELETE/:id) with status codes + `validate!` + relations via `with().get()`. This is the single most useful new example.
+- **Getting-started + feature-maturity matrix.** README is honest ("Work in Progress") but there is no map of "want X → use Y" / what is done vs partial. A short guide would raise perceived maturity to match the real ~88%.
+- **Core-crate smoke tests.** 116 sandbox probes carry the DX proof, but ~87% of crates have no in-crate unit tests; core facades (auth/cache/mail/orm/storage) have none. A few smoke tests per core crate = regression protection + reliability signal.
+- **Warning cleanup.** 11 `cargo check` warnings, all in peripheral crates (rf-tenancy, rf-command-events, rf-command-pipeline); core user-facing crates are clean.
+
+### Re-audit-5 shortlist (this run targets a BALANCED 4: 2 quality + 2 real ergonomic gaps)
+
+1. **Delete the verified dead crates** (session/config + the other confirmed orphans). — quality/cleanup.
+2. **Typed `Model::all()` → `Vec<Self>` + `Model::paginate(per_page, page)`** on the generated model. — pillar A ergonomic parity.
+3. **`@` DSL custom messages** (`@ email("msg")`) — the main DSL gap; a real but self-contained parser change. — pillar D.
+4. **Canonical `examples/rest-crud-resource`** (all 5 REST methods + status codes + `validate!` + `with().get()` relations + a `#[tokio::test]`). — quality/DX/docs.
