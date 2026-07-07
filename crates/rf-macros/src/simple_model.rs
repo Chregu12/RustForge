@@ -46,8 +46,10 @@ mod kw {
     syn::custom_keyword!(softDeletes);
     syn::custom_keyword!(validated);
     syn::custom_keyword!(email);
+    syn::custom_keyword!(url);
     syn::custom_keyword!(max);
     syn::custom_keyword!(min);
+    syn::custom_keyword!(range);
 }
 
 /// An explicit validation override attached to a field via the `@` DSL, e.g.
@@ -58,10 +60,15 @@ mod kw {
 enum FieldOverride {
     /// `@ email` — value must be a syntactically valid email address.
     Email,
+    /// `@ url` — value must be a syntactically valid URL (String fields only).
+    Url,
     /// `@ max(N)` — string length must be `<= N`.
     Max(usize),
     /// `@ min(N)` — string length must be `>= N`.
     Min(usize),
+    /// `@ range(min, max)` — numeric value must satisfy `min <= value <= max`
+    /// (numeric `iN`/`uN`/`fN` fields only). Bounds are stored as `f64`.
+    Range(f64, f64),
 }
 
 /// A field: `name: String`, `hidden password: String`, or with validation
@@ -71,6 +78,23 @@ struct SimpleField {
     name: Ident,
     ty: Type,
     overrides: Vec<FieldOverride>,
+}
+
+/// Parse a single numeric bound for `@ range(min, max)`, accepting an optional
+/// leading `-` and either an integer or float literal, normalised to `f64`.
+fn parse_f64_bound(input: ParseStream) -> syn::Result<f64> {
+    let negative = if input.peek(Token![-]) {
+        input.parse::<Token![-]>()?;
+        true
+    } else {
+        false
+    };
+    let value: f64 = if input.peek(syn::LitFloat) {
+        input.parse::<syn::LitFloat>()?.base10_parse()?
+    } else {
+        input.parse::<syn::LitInt>()?.base10_parse::<i64>()? as f64
+    };
+    Ok(if negative { -value } else { value })
 }
 
 impl Parse for SimpleField {
@@ -95,6 +119,17 @@ impl Parse for SimpleField {
                 if input.peek(kw::email) {
                     input.parse::<kw::email>()?;
                     overrides.push(FieldOverride::Email);
+                } else if input.peek(kw::url) {
+                    input.parse::<kw::url>()?;
+                    overrides.push(FieldOverride::Url);
+                } else if input.peek(kw::range) {
+                    input.parse::<kw::range>()?;
+                    let content;
+                    syn::parenthesized!(content in input);
+                    let min = parse_f64_bound(&content)?;
+                    content.parse::<Token![,]>()?;
+                    let max = parse_f64_bound(&content)?;
+                    overrides.push(FieldOverride::Range(min, max));
                 } else if input.peek(kw::max) {
                     input.parse::<kw::max>()?;
                     let content;
@@ -907,6 +942,7 @@ fn dto_field_checks(
 ) -> TokenStream2 {
     let name_str = name.to_string();
     let is_string = keyword == "string";
+    let is_numeric = keyword == "integer" || keyword == "numeric";
 
     // Checks that operate on a bound `value` (`&String` in scope).
     let mut inner: Vec<TokenStream2> = Vec::new();
@@ -944,8 +980,40 @@ fn dto_field_checks(
                     }
                 });
             }
-            // Overrides on non-string fields (e.g. numeric range) are not yet
-            // expressible here; the inferred type rule still applies via serde.
+            // `@ url` parallels `@ email`, reusing the real rf_validation url
+            // validator. Only meaningful on String fields (`value` is `&String`).
+            FieldOverride::Url if is_string => {
+                let msg = format!("The {} field must be a valid URL.", name_str);
+                inner.push(quote! {
+                    if !rf_validation::validators::url::validate_url(value) {
+                        let mut error = rf_validation::ext_validator::ValidationError::new("url");
+                        error.message = ::std::option::Option::Some(::std::borrow::Cow::Borrowed(#msg));
+                        errors.add(#name_str, error);
+                    }
+                });
+            }
+            // `@ range(min, max)` — numeric between check on `iN`/`uN`/`fN`
+            // fields. `value` is `&T`; cast the dereferenced numeric to `f64` and
+            // bound-check it (closes the run-9 numeric-range gap).
+            FieldOverride::Range(min, max) if is_numeric => {
+                let min = *min;
+                let max = *max;
+                let msg = format!(
+                    "The {} field must be between {} and {}.",
+                    name_str, min, max
+                );
+                inner.push(quote! {
+                    let __rf_range_value = *value as f64;
+                    if __rf_range_value < #min || __rf_range_value > #max {
+                        let mut error = rf_validation::ext_validator::ValidationError::new("range");
+                        error.message = ::std::option::Option::Some(::std::borrow::Cow::Borrowed(#msg));
+                        errors.add(#name_str, error);
+                    }
+                });
+            }
+            // Any override that does not apply to this field's kind (e.g. a
+            // string-only rule on a numeric field) is ignored; the inferred type
+            // rule still applies via serde.
             _ => {}
         }
     }
