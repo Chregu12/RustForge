@@ -1,0 +1,26 @@
+[package]
+name = "validated-signup"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+# `Model!` (re-exported as `rf::Model`) -> entity + Create/Update DTOs and,
+# when opted in with `validated`, a real `rf_validation::Validate` impl.
+rf = { path = "../../crates/rf" }
+# The generated struct does `impl rf_db_facade::Model for X`; hardcoded path.
+rf-db-facade = { path = "../../crates/rf-db-facade" }
+# The auto-validating `ValidatedJson` extractor + the `Validate` trait the
+# generated impl targets.
+rf-validation = { path = "../../crates/rf-validation" }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+chrono = { version = "0.4", features = ["serde", "clock"] }
+# `ValidatedJson` is a `FromRequest` built against axum 0.8, so the Router and
+# handler must be axum 0.8 to plug into the SAME extractor (rf-routing's own
+# `post`/`build_router` pin axum 0.7 and cannot host a 0.8 extractor).
+axum = "0.8"
+tokio = { version = "1.37", features = ["macros", "rt-multi-thread"] }
+
+[dev-dependencies]
+tower = { version = "0.5", features = ["util"] }

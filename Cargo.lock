@@ -12494,6 +12494,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "validated-signup"
+version = "0.1.0"
+dependencies = [
+ "axum 0.8.7",
+ "chrono",
+ "rf",
+ "rf-db-facade",
+ "rf-validation",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tower 0.5.2",
+]
+
+[[package]]
 name = "validator"
 version = "0.18.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
