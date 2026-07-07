@@ -33,8 +33,5 @@ anyhow = { workspace = true }
 # Logging
 tracing = { workspace = true }
 
-# Facade re-export
-rf-view-facade = { path = "../rf-view-facade" }
-
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt", "test-util"] }

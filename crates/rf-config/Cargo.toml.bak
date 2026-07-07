@@ -22,9 +22,6 @@ anyhow.workspace = true
 # Optional validation
 validator = { workspace = true, optional = true }
 
-# Facade re-export
-rf-config-facade = { path = "../rf-config-facade" }
-
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt"] }
 

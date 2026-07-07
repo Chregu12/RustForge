@@ -11,9 +11,6 @@ serde = { version = "1.0", features = ["derive"] }
 chrono = "0.4"
 uuid = { version = "1.0", features = ["v4"] }
 
-# Facade re-export
-rf-log-facade = { path = "../rf-log-facade" }
-
 [dev-dependencies]
 tokio = { version = "1.0", features = ["full"] }
 serde_json = "1.0"
