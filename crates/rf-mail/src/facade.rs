@@ -217,10 +217,110 @@ impl Mailer {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::{Address, MailBody, MailBuilder};
+
+    /// A minimal real `Mailable` used to exercise the facade's build path.
+    struct SmokeMail {
+        to: String,
+        subject: String,
+        body: String,
+    }
+
+    impl Mailable for SmokeMail {
+        fn build(&self) -> MailBuilder {
+            MailBuilder::new()
+                .from(Address::new("noreply@rustforge.test"))
+                .to(Address::new(&self.to))
+                .subject(&self.subject)
+                .text(&self.body)
+        }
+    }
 
     #[test]
     fn test_mail_to() {
         let mailer = Mail::to("test@example.com");
         assert_eq!(mailer.to, "test@example.com");
+    }
+
+    #[test]
+    fn test_facade_mailable_builds_expected_fields() {
+        // The facade delivers via `mailable.build().build()`; assert that path
+        // yields a Mail carrying exactly the fields the builder was given.
+        let mail = SmokeMail {
+            to: "user@example.com".into(),
+            subject: "Hello".into(),
+            body: "Body text".into(),
+        }
+        .build()
+        .build()
+        .expect("mailable should build a valid Mail");
+
+        assert_eq!(mail.to.len(), 1);
+        assert_eq!(mail.to[0].email, "user@example.com");
+        assert_eq!(mail.from.email, "noreply@rustforge.test");
+        assert_eq!(mail.subject, "Hello");
+        match &mail.body {
+            MailBody::Text(text) => assert_eq!(text, "Body text"),
+            other => panic!("expected text body, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn test_facade_html_and_text_produce_multipart_body() {
+        // Supplying both html and text should yield a multipart Both body.
+        let mail = MailBuilder::new()
+            .from(Address::new("noreply@rustforge.test"))
+            .to(Address::new("user@example.com"))
+            .subject("Multipart")
+            .html("<p>Hi</p>")
+            .text("Hi")
+            .build()
+            .expect("builder with html+text should succeed");
+
+        match &mail.body {
+            MailBody::Both { html, text } => {
+                assert_eq!(html, "<p>Hi</p>");
+                assert_eq!(text, "Hi");
+            }
+            other => panic!("expected multipart body, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn test_facade_mailbox_configuration_roundtrip() {
+        // `Mail::mailbox` reconfigures the default file transport; the path must
+        // round-trip through `Mail::mailbox_path`.
+        let dir = std::env::temp_dir().join(format!("rf-mail-facade-box-{}", uuid::Uuid::new_v4()));
+        Mail::mailbox(&dir);
+        assert_eq!(Mail::mailbox_path(), dir);
+    }
+
+    #[test]
+    fn test_facade_file_transport_writes_eml() {
+        // The default facade transport is the real on-disk FileMailer. Deliver a
+        // builder-produced Mail through it and assert a well-formed .eml lands on
+        // disk. Uses a unique temp dir so it never touches the repo and never
+        // races the process-global facade state.
+        let dir = std::env::temp_dir().join(format!("rf-mail-facade-eml-{}", uuid::Uuid::new_v4()));
+        let mailer = FileMailer::new(&dir);
+
+        let mail = MailBuilder::new()
+            .from(Address::new("noreply@rustforge.test"))
+            .to(Address::new("recipient@example.com"))
+            .subject("Smoke Subject")
+            .text("smoke body")
+            .build()
+            .expect("mail should build");
+
+        let path = mailer.deliver(&mail).expect("delivery should write a file");
+        assert!(path.exists(), "an .eml file should be written to disk");
+        assert_eq!(path.extension().and_then(|e| e.to_str()), Some("eml"));
+
+        let eml = std::fs::read_to_string(&path).expect("written .eml should be readable");
+        assert!(eml.contains("Subject: Smoke Subject"), "eml missing subject: {eml}");
+        assert!(eml.contains("recipient@example.com"), "eml missing recipient: {eml}");
+        assert!(eml.contains("smoke body"), "eml missing body: {eml}");
+
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }
