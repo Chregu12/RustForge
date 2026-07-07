@@ -53,6 +53,10 @@ mod kw {
     syn::custom_keyword!(min);
     syn::custom_keyword!(range);
     syn::custom_keyword!(regex);
+    syn::custom_keyword!(alpha);
+    syn::custom_keyword!(alphanumeric);
+    syn::custom_keyword!(starts_with);
+    syn::custom_keyword!(ends_with);
 }
 
 /// An explicit validation override attached to a field via the `@` DSL, e.g.
@@ -79,6 +83,18 @@ enum FieldOverride {
     /// `@ regex("pattern")` — value must match the given regex pattern
     /// (String fields only). Reuses the real `rf_validation` regex validator.
     Regex(String),
+    /// `@ alpha` — value must contain only alphabetic characters (String fields
+    /// only). Mirrors the real `rf_validation` `AlphaRule` semantics.
+    Alpha,
+    /// `@ alphanumeric` — value must contain only letters and digits (String
+    /// fields only). Mirrors the real `rf_validation` `AlphaNumericRule`.
+    AlphaNumeric,
+    /// `@ starts_with("prefix")` — value must start with the given prefix
+    /// (String fields only). Mirrors the real `rf_validation` `StartsWithRule`.
+    StartsWith(String),
+    /// `@ ends_with("suffix")` — value must end with the given suffix (String
+    /// fields only). Mirrors the real `rf_validation` `EndsWithRule`.
+    EndsWith(String),
 }
 
 /// A field: `name: String`, `hidden password: String`, or with validation
@@ -152,6 +168,24 @@ impl Parse for SimpleField {
                     syn::parenthesized!(content in input);
                     let lit: syn::LitStr = content.parse()?;
                     overrides.push(FieldOverride::Regex(lit.value()));
+                } else if input.peek(kw::alpha) {
+                    input.parse::<kw::alpha>()?;
+                    overrides.push(FieldOverride::Alpha);
+                } else if input.peek(kw::alphanumeric) {
+                    input.parse::<kw::alphanumeric>()?;
+                    overrides.push(FieldOverride::AlphaNumeric);
+                } else if input.peek(kw::starts_with) {
+                    input.parse::<kw::starts_with>()?;
+                    let content;
+                    syn::parenthesized!(content in input);
+                    let lit: syn::LitStr = content.parse()?;
+                    overrides.push(FieldOverride::StartsWith(lit.value()));
+                } else if input.peek(kw::ends_with) {
+                    input.parse::<kw::ends_with>()?;
+                    let content;
+                    syn::parenthesized!(content in input);
+                    let lit: syn::LitStr = content.parse()?;
+                    overrides.push(FieldOverride::EndsWith(lit.value()));
                 } else if input.peek(kw::max) {
                     input.parse::<kw::max>()?;
                     let content;
@@ -1504,6 +1538,55 @@ fn dto_field_checks(
                 inner.push(quote! {
                     if !rf_validation::validators::regex::validate_regex(value, #pattern) {
                         let mut error = rf_validation::ext_validator::ValidationError::new("regex");
+                        error.message = ::std::option::Option::Some(::std::borrow::Cow::Borrowed(#msg));
+                        errors.add(#name_str, error);
+                    }
+                });
+            }
+            // `@ alpha` parallels `@ url`: letters-only check inlined exactly as
+            // rf_validation `AlphaRule` (non-empty AND all chars alphabetic).
+            // String fields only (`value` is `&String`).
+            FieldOverride::Alpha if is_string => {
+                let msg = format!("The {} field must contain only letters.", name_str);
+                inner.push(quote! {
+                    if value.is_empty() || !value.chars().all(|c| c.is_alphabetic()) {
+                        let mut error = rf_validation::ext_validator::ValidationError::new("alpha");
+                        error.message = ::std::option::Option::Some(::std::borrow::Cow::Borrowed(#msg));
+                        errors.add(#name_str, error);
+                    }
+                });
+            }
+            // `@ alphanumeric` parallels `@ alpha`: letters+digits check inlined
+            // exactly as rf_validation `AlphaNumericRule`. String fields only.
+            FieldOverride::AlphaNumeric if is_string => {
+                let msg = format!("The {} field must contain only letters and numbers.", name_str);
+                inner.push(quote! {
+                    if value.is_empty() || !value.chars().all(|c| c.is_alphanumeric()) {
+                        let mut error = rf_validation::ext_validator::ValidationError::new("alpha_numeric");
+                        error.message = ::std::option::Option::Some(::std::borrow::Cow::Borrowed(#msg));
+                        errors.add(#name_str, error);
+                    }
+                });
+            }
+            // `@ starts_with("prefix")` parallels `@ regex`: prefix check inlined
+            // exactly as rf_validation `StartsWithRule`. String fields only.
+            FieldOverride::StartsWith(prefix) if is_string => {
+                let msg = format!("The {} field must start with '{}'.", name_str, prefix);
+                inner.push(quote! {
+                    if !value.starts_with(#prefix) {
+                        let mut error = rf_validation::ext_validator::ValidationError::new("starts_with");
+                        error.message = ::std::option::Option::Some(::std::borrow::Cow::Borrowed(#msg));
+                        errors.add(#name_str, error);
+                    }
+                });
+            }
+            // `@ ends_with("suffix")` parallels `@ starts_with`: suffix check
+            // inlined exactly as rf_validation `EndsWithRule`. String fields only.
+            FieldOverride::EndsWith(suffix) if is_string => {
+                let msg = format!("The {} field must end with '{}'.", name_str, suffix);
+                inner.push(quote! {
+                    if !value.ends_with(#suffix) {
+                        let mut error = rf_validation::ext_validator::ValidationError::new("ends_with");
                         error.message = ::std::option::Option::Some(::std::borrow::Cow::Borrowed(#msg));
                         errors.add(#name_str, error);
                     }
