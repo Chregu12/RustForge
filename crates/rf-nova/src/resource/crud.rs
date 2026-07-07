@@ -64,15 +64,32 @@ where
     Ok(PaginatedResponse { data, meta })
 }
 
-/// Show a single resource by ID
-/// Note: This is a placeholder - in production you would implement actual DB queries
+/// Show a single resource by its primary key.
+///
+/// Resolves the entity's primary-key column dynamically (mirroring
+/// `destroy`/`bulk_destroy`), coerces the incoming JSON `id` into a
+/// correctly-typed `sea_orm::Value`, fetches the matching row via a real
+/// `SELECT ... WHERE pk = ?`, and returns it as JSON. Returns `NotFound` when
+/// no row matches so callers can surface an honest 404.
 pub async fn show<E>(db: &DatabaseConnection, id: Value) -> ResourceResult<Value>
 where
     E: EntityTrait,
+    E::Model: Serialize,
 {
-    // This is a simplified placeholder
-    // In production, you'd implement actual DB query using the entity
-    Err(ResourceError::NotFound("Not implemented".to_string()))
+    let pk_column = <E::PrimaryKey as Iterable>::iter()
+        .next()
+        .ok_or_else(|| ResourceError::InvalidInput("Entity has no primary key column".to_string()))?
+        .into_column();
+    let col_type = pk_column.def().get_column_type().clone();
+    let pk_value = json_to_pk_value(&id, &col_type)?;
+
+    let model = E::find()
+        .filter(pk_column.eq(pk_value))
+        .one(db)
+        .await?
+        .ok_or_else(|| ResourceError::NotFound(format!("No resource found with id {id}")))?;
+
+    Ok(serde_json::to_value(&model)?)
 }
 
 /// Create a new resource.
@@ -112,8 +129,16 @@ where
     Ok(serde_json::to_value(&model)?)
 }
 
-/// Update an existing resource
-/// Note: This is a placeholder - in production you would implement actual DB update
+/// Update an existing resource by its primary key.
+///
+/// Fetches the row via a real `SELECT ... WHERE pk = ?` (returning `NotFound`
+/// when the id does not exist), turns it into an `E::ActiveModel`, applies each
+/// provided `data` field onto the active model — resolving keys to real entity
+/// columns and coercing JSON values by `ColumnType` via the same machinery
+/// `create` uses — issues a real `UPDATE`, and returns the persisted row as
+/// JSON. Primary-key columns and unknown keys in `data` are ignored so a
+/// payload cannot repoint or corrupt the row identity (Laravel-style
+/// mass-assignment).
 pub async fn update<E>(
     db: &DatabaseConnection,
     id: Value,
@@ -121,10 +146,41 @@ pub async fn update<E>(
 ) -> ResourceResult<Value>
 where
     E: EntityTrait,
+    E::Model: Serialize + IntoActiveModel<E::ActiveModel>,
+    E::ActiveModel: Send,
 {
-    // This is a simplified placeholder
-    // In production, you'd implement actual DB update
-    Ok(serde_json::json!({"id": id}))
+    let pk_column = <E::PrimaryKey as Iterable>::iter()
+        .next()
+        .ok_or_else(|| ResourceError::InvalidInput("Entity has no primary key column".to_string()))?
+        .into_column();
+    let col_type = pk_column.def().get_column_type().clone();
+    let pk_value = json_to_pk_value(&id, &col_type)?;
+
+    // Fetch the existing row first so a missing id is an honest NotFound rather
+    // than a silent no-op update.
+    let model = E::find()
+        .filter(pk_column.eq(pk_value))
+        .one(db)
+        .await?
+        .ok_or_else(|| ResourceError::NotFound(format!("No resource found with id {id}")))?;
+
+    let mut active = model.into_active_model();
+
+    for (key, json_value) in &data {
+        if let Some(column) = <E::Column as Iterable>::iter().find(|c| c.as_str() == key) {
+            // Never let a payload rewrite the primary key that identifies the row.
+            if column.as_str() == pk_column.as_str() {
+                continue;
+            }
+            let field_type = column.def().get_column_type().clone();
+            let value = json_to_column_value(json_value, &field_type)?;
+            active.set(column, value);
+        }
+        // Unknown keys are silently ignored (mass-assignment semantics).
+    }
+
+    let model = active.update(db).await?;
+    Ok(serde_json::to_value(&model)?)
 }
 
 /// Delete a resource by its primary key.
@@ -614,5 +670,120 @@ mod tests {
             .unwrap()
             .expect("row must exist");
         assert_eq!(fetched.label, "Alpha");
+    }
+
+    #[tokio::test]
+    async fn show_returns_the_real_row_by_id() {
+        let db = Database::connect("sqlite::memory:").await.unwrap();
+        seed_widgets(&db).await;
+
+        let row = show::<widget::Entity>(&db, serde_json::json!(3))
+            .await
+            .unwrap();
+        assert_eq!(row.get("id").and_then(|v| v.as_i64()), Some(3));
+        assert_eq!(row.get("name").and_then(|v| v.as_str()), Some("c"));
+    }
+
+    #[tokio::test]
+    async fn show_missing_id_is_not_found() {
+        let db = Database::connect("sqlite::memory:").await.unwrap();
+        seed_widgets(&db).await;
+
+        let err = show::<widget::Entity>(&db, serde_json::json!(999))
+            .await
+            .unwrap_err();
+        assert!(matches!(err, ResourceError::NotFound(_)));
+    }
+
+    #[tokio::test]
+    async fn show_works_with_string_primary_key() {
+        let db = Database::connect("sqlite::memory:").await.unwrap();
+        db.execute_unprepared("CREATE TABLE things (slug TEXT PRIMARY KEY, label TEXT NOT NULL)")
+            .await
+            .unwrap();
+        thing::ActiveModel {
+            slug: Set("k".to_string()),
+            label: Set("Kay".to_string()),
+        }
+        .insert(&db)
+        .await
+        .unwrap();
+
+        let row = show::<thing::Entity>(&db, serde_json::json!("k"))
+            .await
+            .unwrap();
+        assert_eq!(row.get("slug").and_then(|v| v.as_str()), Some("k"));
+        assert_eq!(row.get("label").and_then(|v| v.as_str()), Some("Kay"));
+    }
+
+    #[tokio::test]
+    async fn update_persists_changed_field_and_returns_real_row() {
+        let db = Database::connect("sqlite::memory:").await.unwrap();
+        seed_widgets(&db).await;
+
+        let mut data = HashMap::new();
+        data.insert("name".to_string(), serde_json::json!("renamed"));
+        // Unknown key must be ignored rather than error.
+        data.insert("nonexistent".to_string(), serde_json::json!("ignored"));
+
+        let updated = update::<widget::Entity>(&db, serde_json::json!(2), data)
+            .await
+            .unwrap();
+        assert_eq!(updated.get("id").and_then(|v| v.as_i64()), Some(2));
+        assert_eq!(updated.get("name").and_then(|v| v.as_str()), Some("renamed"));
+
+        // Prove it was actually persisted by reading it back from the DB.
+        let fetched = widget::Entity::find_by_id(2)
+            .one(&db)
+            .await
+            .unwrap()
+            .expect("row must still exist");
+        assert_eq!(fetched.name, "renamed");
+
+        // Sibling rows are untouched.
+        let other = widget::Entity::find_by_id(1).one(&db).await.unwrap().unwrap();
+        assert_eq!(other.name, "a");
+    }
+
+    #[tokio::test]
+    async fn update_ignores_primary_key_in_payload() {
+        let db = Database::connect("sqlite::memory:").await.unwrap();
+        seed_widgets(&db).await;
+
+        let mut data = HashMap::new();
+        // Attempt to repoint the row identity — must be ignored.
+        data.insert("id".to_string(), serde_json::json!(999));
+        data.insert("name".to_string(), serde_json::json!("safe"));
+
+        let updated = update::<widget::Entity>(&db, serde_json::json!(1), data)
+            .await
+            .unwrap();
+        assert_eq!(updated.get("id").and_then(|v| v.as_i64()), Some(1));
+        assert_eq!(updated.get("name").and_then(|v| v.as_str()), Some("safe"));
+
+        // No row with id 999 was created; original id 1 still carries the change.
+        assert!(widget::Entity::find_by_id(999)
+            .one(&db)
+            .await
+            .unwrap()
+            .is_none());
+        assert_eq!(
+            widget::Entity::find_by_id(1).one(&db).await.unwrap().unwrap().name,
+            "safe"
+        );
+    }
+
+    #[tokio::test]
+    async fn update_missing_id_is_not_found() {
+        let db = Database::connect("sqlite::memory:").await.unwrap();
+        seed_widgets(&db).await;
+
+        let mut data = HashMap::new();
+        data.insert("name".to_string(), serde_json::json!("nope"));
+
+        let err = update::<widget::Entity>(&db, serde_json::json!(999), data)
+            .await
+            .unwrap_err();
+        assert!(matches!(err, ResourceError::NotFound(_)));
     }
 }
