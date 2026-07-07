@@ -47,6 +47,8 @@ mod kw {
     syn::custom_keyword!(validated);
     syn::custom_keyword!(email);
     syn::custom_keyword!(url);
+    syn::custom_keyword!(uuid);
+    syn::custom_keyword!(ip);
     syn::custom_keyword!(max);
     syn::custom_keyword!(min);
     syn::custom_keyword!(range);
@@ -62,6 +64,10 @@ enum FieldOverride {
     Email,
     /// `@ url` — value must be a syntactically valid URL (String fields only).
     Url,
+    /// `@ uuid` — value must be a syntactically valid UUID (String fields only).
+    Uuid,
+    /// `@ ip` — value must be a valid IPv4 or IPv6 address (String fields only).
+    Ip,
     /// `@ max(N)` — string length must be `<= N`.
     Max(usize),
     /// `@ min(N)` — string length must be `>= N`.
@@ -122,6 +128,12 @@ impl Parse for SimpleField {
                 } else if input.peek(kw::url) {
                     input.parse::<kw::url>()?;
                     overrides.push(FieldOverride::Url);
+                } else if input.peek(kw::uuid) {
+                    input.parse::<kw::uuid>()?;
+                    overrides.push(FieldOverride::Uuid);
+                } else if input.peek(kw::ip) {
+                    input.parse::<kw::ip>()?;
+                    overrides.push(FieldOverride::Ip);
                 } else if input.peek(kw::range) {
                     input.parse::<kw::range>()?;
                     let content;
@@ -1088,6 +1100,30 @@ fn dto_field_checks(
                 inner.push(quote! {
                     if !rf_validation::validators::url::validate_url(value) {
                         let mut error = rf_validation::ext_validator::ValidationError::new("url");
+                        error.message = ::std::option::Option::Some(::std::borrow::Cow::Borrowed(#msg));
+                        errors.add(#name_str, error);
+                    }
+                });
+            }
+            // `@ uuid` parallels `@ url`, reusing the real rf_validation uuid
+            // validator. Only meaningful on String fields (`value` is `&String`).
+            FieldOverride::Uuid if is_string => {
+                let msg = format!("The {} field must be a valid UUID.", name_str);
+                inner.push(quote! {
+                    if !rf_validation::validators::uuid::validate_uuid(value) {
+                        let mut error = rf_validation::ext_validator::ValidationError::new("uuid");
+                        error.message = ::std::option::Option::Some(::std::borrow::Cow::Borrowed(#msg));
+                        errors.add(#name_str, error);
+                    }
+                });
+            }
+            // `@ ip` parallels `@ url`, reusing the real rf_validation ip
+            // validator (accepts IPv4 OR IPv6). String fields only.
+            FieldOverride::Ip if is_string => {
+                let msg = format!("The {} field must be a valid IP address.", name_str);
+                inner.push(quote! {
+                    if !rf_validation::validators::ip::validate_ip(value) {
+                        let mut error = rf_validation::ext_validator::ValidationError::new("ip");
                         error.message = ::std::option::Option::Some(::std::borrow::Cow::Borrowed(#msg));
                         errors.add(#name_str, error);
                     }
