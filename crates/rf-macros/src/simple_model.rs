@@ -784,6 +784,30 @@ fn generate_full_model(
         }
     }).collect();
 
+    // ---- One-call multi-relation eager hydration (Laravel `with(...)`) -------
+    // The macro knows EVERY declared relation name and its generated loader
+    // ident at expansion time, so `with_relations` is a plain compile-time match
+    // over the known names dispatching to the SAME per-relation batch loaders
+    // (`load_<name>_for`) proved elsewhere — hydrating K relations for N rows is
+    // K queries total (each loader runs its own ONE batched WHERE IN query),
+    // never N+1. Only relations that actually generate a field-populating loader
+    // (belongsTo / hasOne / hasMany) are dispatchable; `belongsToMany` stays
+    // method-only and is intentionally excluded (so it falls through to the
+    // unknown-name arm). Unknown / non-eager names are a clean error naming the
+    // offending relation, matching Laravel's "call to undefined relationship".
+    let with_relations_arms: Vec<TokenStream2> = relationships.iter().filter_map(|rel| {
+        match rel.rel_type {
+            RelationType::BelongsTo | RelationType::HasOne | RelationType::HasMany => {
+                let name_str = rel.name.to_string();
+                let loader = syn::Ident::new(&format!("load_{}_for", rel.name), rel.name.span());
+                Some(quote! {
+                    #name_str => { Self::#loader(rows).await?; }
+                })
+            }
+            RelationType::BelongsToMany => None,
+        }
+    }).collect();
+
     // Generate soft delete methods
     let soft_delete_methods = if soft_deletes {
         quote! {
@@ -875,6 +899,37 @@ fn generate_full_model(
             }
 
             #(#relationship_methods)*
+
+            /// Eagerly hydrate MANY relations on a whole slice with ONE call
+            /// (Laravel's `Model::with(...)`). For each requested name this
+            /// dispatches — via a compile-time match the macro emits over the
+            /// model's declared relations — to that relation's generated
+            /// `load_<name>_for` batch loader, so hydrating K relations for N
+            /// rows costs K batched queries total (each loader runs its own
+            /// single `WHERE ... IN (...)` query): never N+1. Only relations
+            /// with a generated field-populating loader (`belongsTo` / `hasOne`
+            /// / `hasMany`) are eager-loadable; `belongsToMany` stays
+            /// method-only. An unknown or non-eager name is a clean `Err`
+            /// naming it (like Laravel's undefined-relationship error) and no
+            /// queries are run past the offending name.
+            pub async fn with_relations(
+                rows: &mut [Self],
+                names: &[&str],
+            ) -> ::std::result::Result<(), String> {
+                for name in names {
+                    match *name {
+                        #(#with_relations_arms)*
+                        other => {
+                            return ::std::result::Result::Err(::std::format!(
+                                "with_relations: unknown or non-eager relation `{}` on {}",
+                                other,
+                                #table_name,
+                            ));
+                        }
+                    }
+                }
+                ::std::result::Result::Ok(())
+            }
 
             #soft_delete_methods
         }
