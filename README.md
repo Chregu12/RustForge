@@ -6,6 +6,8 @@ RustForge bringt bekannte Laravel-Patterns nach Rust. Das Ziel: eine vertraute A
 
 > **Status**: Work in Progress - Die Kernfunktionalität ist implementiert, aber das Projekt befindet sich noch in aktiver Entwicklung.
 
+> **Neu hier?** Der **[Getting-Started-Guide](docs/GETTING_STARTED.md)** zeigt in 5 Minuten, wie du mit den echten, ausgelieferten APIs ein erstes Feature baust — inklusive einer ehrlichen Feature-Maturity-Matrix (Done / Partial / Deferred).
+
 ```rust
 use rf::prelude::*;
 
@@ -187,6 +189,8 @@ let html = blade! {
 ---
 
 ## Dokumentation
+
+- **[Getting Started](docs/GETTING_STARTED.md)** - 5-Minuten-Quickstart + ehrliche Feature-Maturity-Matrix
 
 Weitere Dokumentation im [Wiki](https://github.com/Chregu12/RustForge/wiki):
 
