@@ -1,0 +1,18 @@
+# CI-only override layered on top of docker-compose.test.yml.
+#
+# Purpose: the rf-storage live S3 test (`s3::tests::test_s3_operations`) is
+# hard-coded to authenticate against MinIO with access_key/secret_key
+# "minioadmin"/"minioadmin". The base docker-compose.test.yml ships a
+# different root password (minioadmin123) which is fine for the console but
+# would make that live round-trip fail with an auth error in CI.
+#
+# This override aligns the MinIO root credentials to what the test expects so
+# the put/get/size/delete round-trip actually executes for real. It is applied
+# ONLY in CI via:
+#   docker compose -f docker-compose.test.yml -f docker-compose.ci.yml up -d
+# Local developers using scripts/test-env-up.sh keep the base file untouched.
+services:
+  minio:
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin

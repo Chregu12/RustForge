@@ -386,3 +386,96 @@ jobs:
           cargo test -p rf-jobs --lib || true
           cargo test -p rf-mail --lib || true
           cargo test -p rf-cache --lib || true
+
+  # ===========================================
+  # Live Backend Integration Tests
+  # ===========================================
+  #
+  # These are the graceful-skip LIVE integration tests. Each one probes its
+  # backend over TCP and SKIPS-AND-PASSES when the service is absent, and runs a
+  # real round-trip when it is present:
+  #
+  #   * rf-cache   pubsub::tests::test_pubsub_publish_subscribe_roundtrip
+  #                (needs the `redis-backend` feature + Redis on 6379)
+  #   * rf-mail    backends::smtp::tests::test_smtp_send_via_mailhog
+  #                (needs MailHog SMTP on 1025)
+  #   * rf-storage s3::tests::test_signed_url + s3::tests::test_s3_operations
+  #                (need MinIO S3 on 9000)
+  #
+  # Locally (and in every other CI job) no docker services are up, so these
+  # tests take the skip path and pass. THIS job is the only place the live
+  # paths are actually exercised: it stands up the real services from the
+  # committed docker-compose.test.yml, waits for the ports, then runs exactly
+  # those tests so the round-trips execute for real.
+  #
+  # It is deliberately a SEPARATE job with no `needs`/`needed-by` relationship
+  # to the build/test jobs, so a flaky service container cannot fail the main
+  # build.
+  live-backends:
+    name: "🔌 Live Backend Integration"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      # Bring up only the services these tests need. The CI override aligns
+      # MinIO's root credentials with the minioadmin/minioadmin the rf-storage
+      # test authenticates with (the base file ships minioadmin123).
+      - name: Start backend services
+        run: |
+          docker compose -f docker-compose.test.yml -f docker-compose.ci.yml \
+            up -d redis mailhog minio
+
+      # Wait on the raw TCP ports rather than the compose healthchecks: the
+      # MailHog / MinIO images do not all ship nc/curl, and the tests probe the
+      # ports directly anyway. If a port never opens we fail here (rather than
+      # silently letting the test skip and defeat the purpose of this job).
+      - name: Wait for service ports
+        run: |
+          for hostport in 127.0.0.1:6379 127.0.0.1:1025 127.0.0.1:9000; do
+            host=${hostport%:*}; port=${hostport#*:}
+            echo "Waiting for ${hostport} ..."
+            ok=""
+            for i in $(seq 1 60); do
+              if (echo > "/dev/tcp/${host}/${port}") 2>/dev/null; then
+                echo "  ${hostport} is up"; ok=1; break
+              fi
+              sleep 2
+            done
+            if [ -z "$ok" ]; then
+              echo "  TIMEOUT waiting for ${hostport}"; exit 1
+            fi
+          done
+
+      # test_s3_operations does a real put/get/delete against a bucket that must
+      # exist first. Create it with the MinIO client using the aligned creds.
+      - name: Create MinIO test bucket
+        run: |
+          docker run --rm --network host --entrypoint /bin/sh minio/mc -c '
+            for i in $(seq 1 30); do
+              mc alias set local http://127.0.0.1:9000 minioadmin minioadmin && break
+              sleep 2
+            done
+            mc mb --ignore-existing local/test-bucket
+          '
+
+      - name: rf-cache Redis Pub/Sub round-trip (live)
+        run: |
+          cargo test -p rf-cache --features redis-backend \
+            test_pubsub_publish_subscribe_roundtrip -- --nocapture
+
+      - name: rf-mail SMTP send via MailHog (live)
+        run: |
+          cargo test -p rf-mail \
+            test_smtp_send_via_mailhog -- --nocapture
+
+      - name: rf-storage S3 round-trip via MinIO (live)
+        run: |
+          cargo test -p rf-storage test_signed_url -- --nocapture
+          cargo test -p rf-storage test_s3_operations -- --nocapture
+
+      - name: Tear down backend services
+        if: always()
+        run: |
+          docker compose -f docker-compose.test.yml -f docker-compose.ci.yml down -v
