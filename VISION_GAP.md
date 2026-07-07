@@ -628,3 +628,37 @@ Deferred-with-reason (unchanged): nested/dot eager loads `with("comments.author"
 - **Canonical `examples/auth-paginated-search` — DONE.** New workspace-member example closing the flagged gap: an auth-checked search endpoint combining the real Auth facade + `where_like` search + `paginate`, with a `#[tokio::test]` asserting 401 without auth and the correctly filtered + paginated 200 with auth.
 
 **Verified:** `cargo check --workspace` exit 0, **0 warnings maintained**; rf-macros + auth-paginated-search(1) tests green; probes model_query_scopes / guarded_marker(7) / eager_nested_dot green + mass_assignment_guard / crud_macros / eager_with_relations / with_get_typed no regression. Headline **~90% real** — the eager-load + query-ergonomics surface is now close to full Laravel parity (all 4 relation kinds as fields, `with().get()` typed, nested dot loads, query scopes, typed all/paginate, opt-in + default mass-assignment guarding, custom validation messages). Remaining tail is genuinely small: constrained eager loads (needs additive per-relation loader variants), deeper query-scope arg types, the deferred infra/design stubs (load_session/readiness_check/init_telemetry), and the `Result`/`Option` language ceiling. Re-audit 6 due ~run 17.
+
+---
+
+## Re-audit 6 (after architect run 16) — 2026-07-07
+
+_Fresh source-grounded pass (2 parallel Explore audits): a full 4-pillar re-grade with an explicit diminishing-returns verdict, and a constrained-eager-loads scoping + final convergence sweep._
+
+### Verdict — the vision is SUBSTANTIALLY COMPLETE; remaining work is polish/dogfooding, not engine
+
+Two honest findings:
+
+1. **Convergence holds.** The final stub sweep found NO new fake public API. After 13 rounds the stub-hunt has stayed converged — there is no known reachable surface that promises real behavior and fakes it (outside the documented external-infra/design deferrals).
+
+2. **The four pillars grade REAL.** The independent re-grade: Pillar A (models/DTOs/relations/batch-loaders/scopes/mass-assignment) ~85%, Pillar B (auto_await + ambient globals) ~90%, Pillar C (facades over AsyncBridge, real SeaORM/lettre/S3/Redis/Anthropic engines, no raw block_on) ~70%, Pillar D (validate! + @ DSL + routing + relation/scope decls) ~80%. The engine is real; `Result`/`Option` hiding stays the one deliberate Rust ceiling.
+
+**Reconciling the % with the running ~90% headline:** the re-grade is stricter because it discounts capabilities that are *implemented + probe-tested but not shown in a shipped example* (the `@` DSL field validation, several facades end-to-end). That is a **dogfooding/example gap, not a fake engine** — the run-12 audit traced the facades as genuinely real over AsyncBridge with real drivers behind config (the default in-memory backend is by design, not a mock). So: ~90% real by capability; ~75% "demonstrated end-to-end in a shipped example." Both numbers are honest; they measure different things.
+
+### The one repeated, genuine gap: dogfooding
+
+Both audits independently land on the same real weakness: the flagship features exist and are probe-verified, but the *shipped examples* under-show them — specifically the Model! `@` field-validation DSL (via the `validated` marker + `ValidatedJson`) is exercised only in a sandbox probe, not in a committed example a reader browses. Closing this is a documentation/example task, the highest-value remaining work.
+
+### The one genuine remaining feature: constrained eager loads (scoped, additive)
+
+`Model::with(&["comments"]).with_where("comments","approved",true).get()` — load only matching children. Scoped as a CLEAN additive single-agent slice that changes NO existing signatures: add a `constraints` map + a `with_where(relation,column,value)` method on the run-13 `WithBuilder`, generate a second per-relation `load_<name>_where(rows, column, value)` loader alongside the untouched `load_<name>_for`, and inline the constrained-vs-plain dispatch inside `WithBuilder::get()` (leaving `with_relations` untouched for direct callers).
+
+### Everything else is marginal or deliberate
+
+- Deeper query-scope argument types (currently literal args) — marginal.
+- The deferred infra/design stubs — `load_session` (needs a Session entity), `readiness_check` (needs a service-probe design), `init_telemetry` (needs a real OTel SDK); each is external-infra/design, not a fake on a core path.
+- `Result`/`Option` hiding, top-level `class` keyword, lazy relation properties — documented Rust language ceilings, not bugs.
+
+### Recommendation — slow the cadence to on-demand
+
+The engine campaign is done and the ergonomics are near full Laravel parity. Further ~3h autonomous runs would increasingly invent marginal features to fill the loop, against the honesty bar. Recommendation: after run 17 closes the two genuine items (constrained eager loads + the `@`-DSL dogfooding example), **shift to a slower/on-demand cadence** — do real work when a concrete need, bug, or user request arises, not on a fixed timer. A periodic re-audit (~every several runs or on notable change) still makes sense.
