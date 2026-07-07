@@ -549,12 +549,41 @@ fn generate_full_model(
         quote! {}
     };
 
-    // Generate relationship methods
+    // ---- Eager singular-relation FIELDS (belongsTo / hasOne) -----------------
+    // The flagship vision line: `post.user` is a *populated struct field*, not a
+    // method call. For each singular `belongsTo`/`hasOne` relation we emit an
+    // `Option<Related>` field on the struct (skipped when `None` so JSON stays
+    // clean and `Default` stays derivable) plus a typed, N+1-free batch loader
+    // (`load_<name>_for`) generated further below alongside the plural accessors.
+    let model_name_lower = to_snake_case(&name.to_string());
+
+    let relation_field_defs: Vec<TokenStream2> = relationships.iter().filter_map(|rel| {
+        let field_name = &rel.name;
+        let related_type = &rel.related;
+        match rel.rel_type {
+            RelationType::BelongsTo | RelationType::HasOne => Some(quote! {
+                #[serde(default, skip_serializing_if = "Option::is_none")]
+                pub #field_name: ::std::option::Option<#related_type>
+            }),
+            _ => None,
+        }
+    }).collect();
+
+    let relation_field_defaults: Vec<TokenStream2> = relationships.iter().filter_map(|rel| {
+        let field_name = &rel.name;
+        match rel.rel_type {
+            RelationType::BelongsTo | RelationType::HasOne => Some(quote! {
+                #field_name: ::std::option::Option::None
+            }),
+            _ => None,
+        }
+    }).collect();
+
+    // Generate relationship methods (plural accessors) + singular batch loaders.
     let relationship_methods: Vec<TokenStream2> = relationships.iter().map(|rel| {
         let method_name = &rel.name;
         let related_type = &rel.related;
         let related_table = format!("{}s", to_snake_case(&related_type.to_string()));
-        let model_name_lower = to_snake_case(&name.to_string());
         let foreign_key = rel.foreign_key.clone()
             .unwrap_or_else(|| format!("{}_id", model_name_lower));
 
@@ -569,25 +598,95 @@ fn generate_full_model(
                 }
             }
             RelationType::HasOne => {
+                // hasOne: the FK lives on the CHILD row (`<this_model>_id`). The
+                // eager `#method_name` field is populated by this batched loader:
+                // ONE `WHERE <fk> IN (parent ids)` query, grouped back by FK.
+                let loader = syn::Ident::new(&format!("load_{}_for", method_name), method_name.span());
+                let hasone_fk = rel.foreign_key.clone()
+                    .unwrap_or_else(|| format!("{}_id", model_name_lower));
                 quote! {
-                    /// Get the related record (hasOne relationship)
-                    pub async fn #method_name(&self) -> Result<Option<serde_json::Value>, String> {
-                        rf_db_facade::QueryBuilder::new(#related_table)
-                            .r#where(#foreign_key, self.id.unwrap_or(0))
-                            .first()
-                            .await
+                    /// Eagerly populate the `#method_name` field on a whole slice
+                    /// with ONE batched query (no N+1). hasOne: matches children
+                    /// whose foreign key equals each parent's `id`.
+                    pub async fn #loader(rows: &mut [Self]) -> ::std::result::Result<(), String> {
+                        use ::std::collections::HashMap;
+                        let mut ids: Vec<i64> = Vec::new();
+                        for row in rows.iter() {
+                            if let Some(id) = row.id {
+                                if !ids.contains(&id) { ids.push(id); }
+                            }
+                        }
+                        if ids.is_empty() { return Ok(()); }
+                        // ONE raw parametrized query for the whole slice (real
+                        // rusqlite-backed manager): SELECT ... WHERE fk IN (?, ?, ...).
+                        let placeholders = ids.iter().map(|_| "?").collect::<Vec<_>>().join(", ");
+                        let sql = format!("SELECT * FROM {} WHERE {} IN ({})", #related_table, #hasone_fk, placeholders);
+                        let bindings: Vec<::serde_json::Value> =
+                            ids.iter().map(|&i| ::serde_json::Value::from(i)).collect();
+                        let children = rf_db_facade::DB::select(&sql, &bindings)?;
+                        let mut by_key: HashMap<i64, #related_type> = HashMap::new();
+                        for child in children {
+                            if let Some(k) = child.get(#hasone_fk).and_then(|v| v.as_i64()) {
+                                let model: #related_type = ::serde_json::from_value(child)
+                                    .map_err(|e| e.to_string())?;
+                                by_key.entry(k).or_insert(model);
+                            }
+                        }
+                        for row in rows.iter_mut() {
+                            if let Some(id) = row.id {
+                                row.#method_name = by_key.get(&id).cloned();
+                            }
+                        }
+                        Ok(())
                     }
                 }
             }
             RelationType::BelongsTo => {
-                let related_key = format!("{}_id", to_snake_case(&related_type.to_string()));
+                // belongsTo: the FK lives on SELF (`<relation_name>_id`, e.g.
+                // `post.user_id`). The eager `#method_name` field is populated by
+                // this batched loader: collect the distinct FK values across the
+                // slice, run ONE `WHERE id IN (...)` query against the parent
+                // table, group by parent `id`, and assign each row's field.
+                let loader = syn::Ident::new(&format!("load_{}_for", method_name), method_name.span());
+                let fk = rel.foreign_key.clone()
+                    .unwrap_or_else(|| format!("{}_id", to_snake_case(&method_name.to_string())));
                 quote! {
-                    /// Get the parent record (belongsTo relationship)
-                    pub async fn #method_name(&self) -> Result<Option<serde_json::Value>, String> {
-                        // Get the foreign key field value - assuming it's named {related}_id
-                        rf_db_facade::QueryBuilder::new(#related_table)
-                            .find(0) // Would need to get actual FK value
-                            .await
+                    /// Eagerly populate the `#method_name` field on a whole slice
+                    /// with ONE batched query (no N+1). belongsTo: reads each
+                    /// row's foreign key and resolves the parent by its `id`.
+                    pub async fn #loader(rows: &mut [Self]) -> ::std::result::Result<(), String> {
+                        use ::std::collections::HashMap;
+                        // Collect distinct FK values (read via serde so the loader
+                        // works whether the FK field is `i64` or `Option<i64>`).
+                        let mut ids: Vec<i64> = Vec::new();
+                        for row in rows.iter() {
+                            let v = ::serde_json::to_value(&*row).map_err(|e| e.to_string())?;
+                            if let Some(fk) = v.get(#fk).and_then(|x| x.as_i64()) {
+                                if !ids.contains(&fk) { ids.push(fk); }
+                            }
+                        }
+                        if ids.is_empty() { return Ok(()); }
+                        // ONE raw parametrized query for the whole slice (real
+                        // rusqlite-backed manager): SELECT ... WHERE id IN (?, ?, ...).
+                        let placeholders = ids.iter().map(|_| "?").collect::<Vec<_>>().join(", ");
+                        let sql = format!("SELECT * FROM {} WHERE id IN ({})", #related_table, placeholders);
+                        let bindings: Vec<::serde_json::Value> =
+                            ids.iter().map(|&i| ::serde_json::Value::from(i)).collect();
+                        let parents = rf_db_facade::DB::select(&sql, &bindings)?;
+                        let mut by_id: HashMap<i64, #related_type> = HashMap::new();
+                        for parent in parents {
+                            if let Some(id) = parent.get("id").and_then(|v| v.as_i64()) {
+                                let model: #related_type = ::serde_json::from_value(parent)
+                                    .map_err(|e| e.to_string())?;
+                                by_id.insert(id, model);
+                            }
+                        }
+                        for row in rows.iter_mut() {
+                            let v = ::serde_json::to_value(&*row).map_err(|e| e.to_string())?;
+                            let fk = v.get(#fk).and_then(|x| x.as_i64());
+                            row.#method_name = fk.and_then(|k| by_id.get(&k).cloned());
+                        }
+                        Ok(())
                     }
                 }
             }
@@ -657,6 +756,7 @@ fn generate_full_model(
         pub struct #name {
             pub id: Option<i64>,
             #(#field_defs,)*
+            #(#relation_field_defs,)*
             #timestamp_fields
             #soft_delete_field
         }
@@ -666,6 +766,7 @@ fn generate_full_model(
                 Self {
                     id: None,
                     #(#field_defaults,)*
+                    #(#relation_field_defaults,)*
                     #timestamp_defaults
                     #soft_delete_default
                 }
