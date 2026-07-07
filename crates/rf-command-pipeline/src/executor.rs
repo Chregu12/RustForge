@@ -1,3 +1,4 @@
+#![allow(dead_code)] // fields/methods retained for planned functionality, not read internally yet
 use async_trait::async_trait;
 
 /// Trait for executing commands in a pipeline

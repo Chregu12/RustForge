@@ -1,3 +1,4 @@
+#![allow(dead_code)] // demonstration code showcasing the framework API, not every item is exercised
 // Hello World - Minimal RustForge Phase 2 Application
 //
 // Demonstrates integration of:

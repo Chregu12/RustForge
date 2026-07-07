@@ -1,3 +1,4 @@
+#![allow(dead_code)] // fields/methods retained for planned functionality, not read internally yet
 //! HTTP routes for Horizon dashboard
 
 use crate::{metrics::JobHistoryEntry, Horizon};

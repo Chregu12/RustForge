@@ -1,3 +1,4 @@
+#![allow(dead_code)] // command scaffolding defined for upcoming subcommands, not all wired into the dispatcher yet
 //! Configuration commands
 
 use clap::Parser;

@@ -5,10 +5,9 @@
 use super::resource::{PaginatedResponse, PaginationMeta, ResourceError, ResourceQuery, ResourceResult};
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, IdenStatic, IntoActiveModel,
-    Iterable, ModelTrait, PaginatorTrait, PrimaryKeyToColumn, QueryFilter, QueryOrder, QuerySelect,
-    QueryTrait,
+    Iterable, PaginatorTrait, PrimaryKeyToColumn, QueryFilter,
 };
-use serde::{de::DeserializeOwned, Serialize};
+use serde::Serialize;
 use serde_json::Value;
 use std::collections::HashMap;
 
@@ -41,13 +40,13 @@ where
     }
 
     // Apply sorting
-    if let Some(sort_field) = &query.sort_by {
+    if let Some(_sort_field) = &query.sort_by {
         // Note: Sorting would need to be implemented based on the entity's columns
         // This is a placeholder for the actual implementation
     }
 
     // Apply filters
-    if let Some(filters) = &query.filters {
+    if let Some(_filters) = &query.filters {
         // Apply custom filters
         // This would be implemented based on the specific filter types
     }
@@ -368,7 +367,7 @@ pub enum ExportFormat {
 /// Export resources
 pub async fn export<E>(
     db: &DatabaseConnection,
-    query: ResourceQuery,
+    _query: ResourceQuery,
     format: ExportFormat,
 ) -> ResourceResult<String>
 where
@@ -376,7 +375,7 @@ where
     E::Model: Serialize + Send + Sync,
 {
     // Fetch all matching records (no pagination for export)
-    let mut select = E::find();
+    let select = E::find();
 
     // Apply filters similar to index()
     // ... (omitted for brevity)

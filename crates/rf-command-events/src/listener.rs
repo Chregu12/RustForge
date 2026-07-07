@@ -35,7 +35,10 @@ pub trait EventListener<E>: Send + Sync {
     }
 }
 
-/// Wrapper for function-based listeners
+/// Wrapper for function-based listeners.
+// Public convenience type for consumers registering closures as listeners; not
+// constructed inside the crate itself, hence dead_code is expected here.
+#[allow(dead_code)]
 pub struct FunctionListener<E, F>
 where
     F: Fn(&E) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + Send>> + Send + Sync,
@@ -46,6 +49,8 @@ where
     _phantom: std::marker::PhantomData<E>,
 }
 
+// Builder methods form the public API of FunctionListener (see note above).
+#[allow(dead_code)]
 impl<E, F> FunctionListener<E, F>
 where
     F: Fn(&E) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + Send>> + Send + Sync,

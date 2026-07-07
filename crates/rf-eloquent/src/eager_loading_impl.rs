@@ -3,11 +3,9 @@
 //! This module provides a working implementation of eager loading that prevents N+1 queries.
 //! It uses a value-based approach with JSON serialization to work around Rust's type system limitations.
 
-use async_trait::async_trait;
 use sea_orm::{
-    sea_query::Expr, ColumnTrait, DatabaseConnection, DbErr, EntityTrait, Iden, QueryFilter,
+    ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter,
 };
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt::Debug;
 
@@ -166,7 +164,7 @@ impl<'a> ConcreteEagerLoader<'a> {
         <PE as EntityTrait>::Column: ColumnTrait,
         PE::Model: sea_orm::ModelTrait,
     {
-        use sea_orm::{QueryFilter, QuerySelect};
+        use sea_orm::QueryFilter;
         use std::collections::HashMap;
 
         if parent_ids.is_empty() {

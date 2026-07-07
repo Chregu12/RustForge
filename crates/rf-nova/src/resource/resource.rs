@@ -4,7 +4,7 @@
 
 use super::field::{Field, FieldContext};
 use async_trait::async_trait;
-use sea_orm::{DatabaseConnection, EntityTrait, ModelTrait};
+use sea_orm::{EntityTrait, ModelTrait};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;

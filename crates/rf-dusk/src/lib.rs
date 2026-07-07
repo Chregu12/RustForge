@@ -53,13 +53,8 @@
 //! ```
 
 use async_trait::async_trait;
-use fantoccini::{Client, ClientBuilder, Locator};
-use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
-use std::sync::Arc;
-use std::time::Duration;
 use thiserror::Error;
-use tokio::sync::RwLock;
 
 pub mod assertions;
 pub mod browser;

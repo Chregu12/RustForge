@@ -1,5 +1,9 @@
 //! Passport facade providing Laravel-style static API for OAuth2
 
+// The facade methods intentionally use Laravel's camelCase names (e.g. `createToken`,
+// `tokensExpireIn`) as part of the public API, so relax the Rust naming lint here only.
+#![allow(non_snake_case)]
+
 use crate::facade::config::{GrantControl, PkceControl, TokenLifetimes};
 use crate::facade::manager::GLOBAL_PASSPORT;
 use chrono::Duration;

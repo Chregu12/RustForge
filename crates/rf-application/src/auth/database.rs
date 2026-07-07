@@ -1,3 +1,4 @@
+#![allow(dead_code)] // fields/methods retained for planned functionality, not read internally yet
 //! Database-backed authentication providers
 //!
 //! This module provides SeaORM-based implementations for user authentication

@@ -1,3 +1,4 @@
+#![allow(dead_code)] // internal macro-expansion helpers reserved for in-progress macro variants
 //! Laravel-like syntax macro for RustForge
 //!
 //! This macro allows you to write models in a syntax very close to Laravel PHP:

@@ -1,3 +1,4 @@
+#![allow(dead_code)] // fields/methods retained for planned functionality, not read internally yet
 //! Channel implementations
 
 use crate::{Event, EventHandler, MemberHandler, PresenceHandler, PresenceMember};

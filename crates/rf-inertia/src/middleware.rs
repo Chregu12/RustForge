@@ -4,7 +4,6 @@
 
 use crate::{config::InertiaConfig, props::SharedProps, response::InertiaResponse};
 use axum::{
-    body::Body,
     extract::Request,
     http::{header, HeaderValue, StatusCode},
     middleware::Next,
@@ -67,7 +66,7 @@ impl InertiaMiddleware {
         let mut response = next.run(req).await;
 
         // Add Inertia headers to response
-        if let Ok(headers) = response
+        if let Ok(_headers) = response
             .headers_mut()
             .try_insert("X-Inertia", HeaderValue::from_static("true"))
         {
@@ -142,7 +141,7 @@ where
         let inner = self.inner.clone();
         let mut inner = std::mem::replace(&mut self.inner, inner);
         let config = self.config.clone();
-        let shared_props = self.shared_props.clone();
+        let _shared_props = self.shared_props.clone();
 
         Box::pin(async move {
             // Check version mismatch for Inertia requests

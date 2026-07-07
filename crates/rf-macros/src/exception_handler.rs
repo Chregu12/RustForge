@@ -1,3 +1,4 @@
+#![allow(dead_code)] // internal macro-expansion helpers reserved for in-progress macro variants
 //! Exception Handler Macro - Laravel-style Exception Handling
 //!
 //! Define exception handlers with automatic error reporting and rendering:
@@ -44,8 +45,7 @@ use syn::{
     parse::{Parse, ParseStream},
     parse_macro_input,
     Ident, ItemFn, LitStr, Token,
-    punctuated::Punctuated,
-    braced, bracketed,
+    punctuated::Punctuated, bracketed,
 };
 
 /// Parsed exception handler definition

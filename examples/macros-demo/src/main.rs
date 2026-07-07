@@ -1,3 +1,4 @@
+#![allow(dead_code)] // demonstration code showcasing the framework API, not every item is exercised
 //! Macros Demo - Laravel-style Syntax in Rust
 //!
 //! This example demonstrates the new macro system:
@@ -5,7 +6,7 @@
 //! - rules! macro for validation
 //! - #[controller] attribute for controllers
 
-use rf_macros::{controller, function, rules};
+use rf_macros::controller;
 use rf_request::Request;
 use rf_response::{Response, ResponseBuilder};
 use serde::{Deserialize, Serialize};

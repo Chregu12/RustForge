@@ -1,3 +1,4 @@
+#![allow(dead_code)] // command scaffolding defined for upcoming subcommands, not all wired into the dispatcher yet
 use anyhow::{Context, Result};
 use colored::*;
 use fs_extra::dir::{self, CopyOptions};

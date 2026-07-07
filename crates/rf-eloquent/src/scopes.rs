@@ -53,11 +53,10 @@
 //! # }
 //! ```
 
-use async_trait::async_trait;
 use chrono::{DateTime, Duration, Utc};
 use once_cell::sync::Lazy;
 use sea_orm::{
-    ColumnTrait, Condition, DatabaseConnection, DbErr, EntityTrait, PaginatorTrait, QueryFilter,
+    ColumnTrait, Condition, DatabaseConnection, DbErr, EntityTrait, QueryFilter,
     QueryOrder, Select,
 };
 use std::any::{Any, TypeId};
@@ -262,7 +261,7 @@ where
 /// Trait for entities that support query scopes
 pub trait HasScopes: EntityTrait {
     /// Apply a named scope to the query
-    fn apply_scope(select: Select<Self>, scope_name: &str) -> ScopeResult<Select<Self>> {
+    fn apply_scope(_select: Select<Self>, scope_name: &str) -> ScopeResult<Select<Self>> {
         Err(ScopeError::NotFound(scope_name.to_string()))
     }
 

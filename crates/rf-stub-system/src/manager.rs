@@ -1,7 +1,8 @@
+#![allow(dead_code)] // fields/methods retained for planned functionality, not read internally yet
 use std::path::{Path, PathBuf};
 use std::collections::HashMap;
 use tokio::fs;
-use tracing::{debug, warn};
+use tracing::debug;
 use tera::{Tera, Context};
 
 use crate::error::{Result, StubError};

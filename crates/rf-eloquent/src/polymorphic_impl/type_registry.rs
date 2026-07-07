@@ -140,7 +140,7 @@ impl TypeResolver for TypeRegistry {
         resolver(id, db).await
     }
 
-    fn has_type(&self, type_name: &str) -> bool {
+    fn has_type(&self, _type_name: &str) -> bool {
         // Note: This is synchronous, so we can't use async read
         // In practice, this should be checked during registration
         // For now, we'll return true and let resolve handle the error

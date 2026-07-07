@@ -1,3 +1,4 @@
+#![allow(dead_code)] // demonstration code showcasing the framework API, not every item is exercised
 //! Laravel-style Models (Demo without actual DB connection)
 //!
 //! In a real application, you would use #[model] macro which requires:

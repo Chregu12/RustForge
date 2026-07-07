@@ -1,3 +1,4 @@
+#![allow(dead_code)] // utility helpers reserved for CLI commands, not all consumed yet
 //! Enhanced error handling and reporting
 //!
 //! This module provides beautiful, helpful error messages with suggestions,

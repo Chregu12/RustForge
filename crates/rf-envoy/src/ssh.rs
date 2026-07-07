@@ -1,8 +1,6 @@
 //! SSH connection handling using russh
 
 use crate::{EnvoyError, EnvoyResult, Server};
-use async_trait::async_trait;
-use std::sync::Arc;
 
 /// SSH session wrapper
 pub struct SshSession {

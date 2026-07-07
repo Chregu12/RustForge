@@ -1,3 +1,4 @@
+#![allow(dead_code)] // fields/methods retained for planned functionality, not read internally yet
 //! # Optimized Eager Loading
 //!
 //! High-performance eager loading implementation with advanced optimizations:
@@ -49,16 +50,15 @@
 //! # }
 //! ```
 
-use async_trait::async_trait;
 use dashmap::DashMap;
-use sea_orm::{ColumnTrait, DatabaseConnection, DbErr, EntityTrait, QueryFilter};
+use sea_orm::{DatabaseConnection, DbErr};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use thiserror::Error;
 use tokio::task::JoinSet;
 
-use crate::eager_loading::{EagerLoadError, EagerLoadResult, EagerLoadable, RelationshipLoader};
+use crate::eager_loading::{EagerLoadError, EagerLoadable};
 
 /// Optimized eager loading errors
 #[derive(Error, Debug)]
@@ -246,7 +246,7 @@ impl<'a> OptimizedEagerLoader<'a> {
         M: EagerLoadable + Send + Sync,
     {
         let start = std::time::Instant::now();
-        let mut models = Vec::new();
+        let models = Vec::new();
 
         // In a real implementation, this would:
         // 1. Load base models from database
@@ -329,7 +329,7 @@ impl<'a> OptimizedEagerLoader<'a> {
     /// Load relation in batches for large datasets
     async fn load_relation_batched<M, K>(
         &self,
-        models: &mut [M],
+        _models: &mut [M],
         relation_name: &str,
         parent_ids: Vec<K>,
     ) -> OptimizedResult<()>
@@ -347,7 +347,7 @@ impl<'a> OptimizedEagerLoader<'a> {
             batch_size
         );
 
-        for (i, chunk) in chunks.iter().enumerate() {
+        for (i, _chunk) in chunks.iter().enumerate() {
             // Load batch
             // Real implementation would execute query for this batch
             tracing::trace!("Loading batch {}/{}", i + 1, chunks.len());

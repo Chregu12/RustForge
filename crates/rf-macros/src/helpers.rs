@@ -314,7 +314,7 @@ impl Parse for DdArgs {
 /// Implements the dd! macro (dump and die) for debugging
 pub fn dd_impl(input: TokenStream) -> TokenStream {
     let args = parse_macro_input!(input as DdArgs);
-    let values = args.values.iter();
+    let _values = args.values.iter();
 
     let debug_stmts: Vec<TokenStream2> = args.values.iter().enumerate().map(|(i, v)| {
         let v_str = quote!(#v).to_string();
@@ -1738,7 +1738,7 @@ pub fn dispatch_impl(input: TokenStream) -> TokenStream {
 /// }
 /// ```
 pub fn job_impl(input: TokenStream) -> TokenStream {
-    use syn::{braced, token, Type};
+    use syn::{braced, Type};
 
     struct JobDefinition {
         name: Ident,

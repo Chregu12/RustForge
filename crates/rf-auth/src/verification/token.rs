@@ -2,7 +2,7 @@
 
 use crate::error::{AuthError, AuthResult};
 use async_trait::async_trait;
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
@@ -373,7 +373,7 @@ If you did not create an account, please ignore this email.
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chrono::Utc;
+    use chrono::{DateTime, Utc};
     use std::time::Duration;
 
     const TEST_SECRET: &str = "test-secret-key-must-be-32-chars-long";

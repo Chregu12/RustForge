@@ -150,7 +150,7 @@ impl<'a> DevErrorDisplay<'a> {
         // Try to read source file (simplified - in real impl would read actual file)
         // For demo purposes, show placeholder
         let line_num = loc.line;
-        let file = &loc.file;
+        let _file = &loc.file;
 
         // Show line numbers with context
         output.push_str(&format!(

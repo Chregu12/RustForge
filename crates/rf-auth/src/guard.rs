@@ -65,19 +65,19 @@ impl Guard {
 
     /// Login a user on this guard
     pub fn login<T: Serialize>(&self, user: T) -> Result<(), String> {
-        let mut manager = GLOBAL_AUTH.write().unwrap();
+        let manager = GLOBAL_AUTH.write().unwrap();
         manager.login(user)
     }
 
     /// Logout on this guard
     pub fn logout(&self) {
-        let mut manager = GLOBAL_AUTH.write().unwrap();
+        let manager = GLOBAL_AUTH.write().unwrap();
         manager.logout();
     }
 
     /// Attempt login on this guard
     pub fn attempt(&self, credentials: Value) -> Result<bool, String> {
-        let mut manager = GLOBAL_AUTH.write().unwrap();
+        let manager = GLOBAL_AUTH.write().unwrap();
         manager.attempt(credentials)
     }
 }

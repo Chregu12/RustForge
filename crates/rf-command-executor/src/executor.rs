@@ -179,7 +179,7 @@ impl CommandExecutor {
     ) -> ExecutionResult<CommandExecutionResult> {
         info!("Queueing command: {}", command_name);
 
-        let job = QueueJob {
+        let _job = QueueJob {
             name: command_name.to_string(),
             payload: serde_json::json!({
                 "args": args,

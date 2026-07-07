@@ -1,3 +1,4 @@
+#![allow(dead_code)] // utility helpers reserved for CLI commands, not all consumed yet
 //! Interactive prompts for the CLI
 //!
 //! This module provides rich, user-friendly interactive prompts for generating

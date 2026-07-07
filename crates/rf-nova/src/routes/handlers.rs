@@ -13,7 +13,7 @@ use axum::{
     response::IntoResponse,
     Json,
 };
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -41,9 +41,9 @@ pub async fn list_resources(
 
 /// Get resource index (paginated list)
 pub async fn index_resource(
-    State(nova): State<Arc<Nova>>,
-    Path(resource): Path<String>,
-    Query(params): Query<HashMap<String, String>>,
+    State(_nova): State<Arc<Nova>>,
+    Path(_resource): Path<String>,
+    Query(_params): Query<HashMap<String, String>>,
 ) -> Result<Json<ApiResponse<Value>>, StatusCode> {
     // This is a placeholder - actual implementation would query the database
     // based on the resource type
@@ -61,7 +61,7 @@ pub async fn index_resource(
 
 /// Show a single resource
 pub async fn show_resource(
-    State(nova): State<Arc<Nova>>,
+    State(_nova): State<Arc<Nova>>,
     Path((resource, id)): Path<(String, String)>,
 ) -> Result<Json<ApiResponse<Value>>, StatusCode> {
     // Placeholder implementation
@@ -73,9 +73,9 @@ pub async fn show_resource(
 
 /// Create a new resource
 pub async fn create_resource(
-    State(nova): State<Arc<Nova>>,
-    Path(resource): Path<String>,
-    Json(data): Json<HashMap<String, Value>>,
+    State(_nova): State<Arc<Nova>>,
+    Path(_resource): Path<String>,
+    Json(_data): Json<HashMap<String, Value>>,
 ) -> Result<Json<ApiResponse<Value>>, StatusCode> {
     // Placeholder implementation
     Ok(Json(ApiResponse::success_with_message(
@@ -86,9 +86,9 @@ pub async fn create_resource(
 
 /// Update an existing resource
 pub async fn update_resource(
-    State(nova): State<Arc<Nova>>,
-    Path((resource, id)): Path<(String, String)>,
-    Json(data): Json<HashMap<String, Value>>,
+    State(_nova): State<Arc<Nova>>,
+    Path((_resource, id)): Path<(String, String)>,
+    Json(_data): Json<HashMap<String, Value>>,
 ) -> Result<Json<ApiResponse<Value>>, StatusCode> {
     // Placeholder implementation
     Ok(Json(ApiResponse::success_with_message(
@@ -99,8 +99,8 @@ pub async fn update_resource(
 
 /// Delete a resource
 pub async fn delete_resource(
-    State(nova): State<Arc<Nova>>,
-    Path((resource, id)): Path<(String, String)>,
+    State(_nova): State<Arc<Nova>>,
+    Path((_resource, id)): Path<(String, String)>,
 ) -> Result<Json<ApiResponse<Value>>, StatusCode> {
     // Placeholder implementation
     Ok(Json(ApiResponse::success_with_message(
@@ -111,8 +111,8 @@ pub async fn delete_resource(
 
 /// Run an action on resources
 pub async fn run_action(
-    State(nova): State<Arc<Nova>>,
-    Path((resource, action)): Path<(String, String)>,
+    State(_nova): State<Arc<Nova>>,
+    Path((_resource, _action)): Path<(String, String)>,
     Json(payload): Json<ActionPayload>,
 ) -> Result<Json<ApiResponse<Value>>, StatusCode> {
     // Placeholder implementation
@@ -130,8 +130,8 @@ pub struct ActionPayload {
 
 /// Get filters for a resource
 pub async fn get_filters(
-    State(nova): State<Arc<Nova>>,
-    Path(resource): Path<String>,
+    State(_nova): State<Arc<Nova>>,
+    Path(_resource): Path<String>,
 ) -> Result<Json<ApiResponse<Vec<Value>>>, StatusCode> {
     // Placeholder implementation
     Ok(Json(ApiResponse::success(vec![])))
@@ -139,9 +139,9 @@ pub async fn get_filters(
 
 /// Get lens data for a resource
 pub async fn get_lens(
-    State(nova): State<Arc<Nova>>,
-    Path((resource, lens)): Path<(String, String)>,
-    Query(params): Query<HashMap<String, String>>,
+    State(_nova): State<Arc<Nova>>,
+    Path((_resource, _lens)): Path<(String, String)>,
+    Query(_params): Query<HashMap<String, String>>,
 ) -> Result<Json<ApiResponse<Value>>, StatusCode> {
     // Placeholder implementation
     Ok(Json(ApiResponse::success(serde_json::json!({
@@ -156,8 +156,8 @@ pub async fn get_lens(
 
 /// Export resources
 pub async fn export_resource(
-    State(nova): State<Arc<Nova>>,
-    Path(resource): Path<String>,
+    State(_nova): State<Arc<Nova>>,
+    Path(_resource): Path<String>,
     Query(params): Query<ExportParams>,
 ) -> Result<impl IntoResponse, StatusCode> {
     // Placeholder implementation
@@ -201,7 +201,7 @@ pub async fn list_dashboards(
 
 /// Get a specific dashboard
 pub async fn get_dashboard(
-    State(nova): State<Arc<Nova>>,
+    State(_nova): State<Arc<Nova>>,
     Path(dashboard): Path<String>,
 ) -> Result<Json<ApiResponse<Value>>, StatusCode> {
     // Placeholder implementation
@@ -213,8 +213,8 @@ pub async fn get_dashboard(
 
 /// Get value metric data
 pub async fn get_value_metric(
-    State(nova): State<Arc<Nova>>,
-    Path(metric): Path<String>,
+    State(_nova): State<Arc<Nova>>,
+    Path(_metric): Path<String>,
 ) -> Result<Json<ApiResponse<Value>>, StatusCode> {
     // Placeholder implementation
     Ok(Json(ApiResponse::success(serde_json::json!({
@@ -228,9 +228,9 @@ pub async fn get_value_metric(
 
 /// Get trend metric data
 pub async fn get_trend_metric(
-    State(nova): State<Arc<Nova>>,
-    Path(metric): Path<String>,
-    Query(params): Query<HashMap<String, String>>,
+    State(_nova): State<Arc<Nova>>,
+    Path(_metric): Path<String>,
+    Query(_params): Query<HashMap<String, String>>,
 ) -> Result<Json<ApiResponse<Value>>, StatusCode> {
     // Placeholder implementation
     Ok(Json(ApiResponse::success(serde_json::json!({
@@ -245,8 +245,8 @@ pub async fn get_trend_metric(
 
 /// Get partition metric data
 pub async fn get_partition_metric(
-    State(nova): State<Arc<Nova>>,
-    Path(metric): Path<String>,
+    State(_nova): State<Arc<Nova>>,
+    Path(_metric): Path<String>,
 ) -> Result<Json<ApiResponse<Value>>, StatusCode> {
     // Placeholder implementation
     Ok(Json(ApiResponse::success(serde_json::json!({
@@ -260,8 +260,8 @@ pub async fn get_partition_metric(
 
 /// Global search across all resources
 pub async fn global_search(
-    State(nova): State<Arc<Nova>>,
-    Query(params): Query<SearchParams>,
+    State(_nova): State<Arc<Nova>>,
+    Query(_params): Query<SearchParams>,
 ) -> Result<Json<ApiResponse<Value>>, StatusCode> {
     // Placeholder implementation
     Ok(Json(ApiResponse::success(serde_json::json!({

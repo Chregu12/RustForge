@@ -1,5 +1,9 @@
 //! Sanctum facade providing Laravel-style static API for token authentication
 
+// The facade methods intentionally use Laravel's camelCase names (e.g. `createToken`,
+// `tokenCan`) as part of the public API, so relax the Rust naming lint here only.
+#![allow(non_snake_case)]
+
 use crate::manager::GLOBAL_SANCTUM;
 use chrono::{DateTime, Utc};
 use rf_sanctum::{

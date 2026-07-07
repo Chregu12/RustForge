@@ -1,6 +1,7 @@
+#![allow(dead_code)] // fields/methods retained for planned functionality, not read internally yet
 //! Browser control and automation
 
-use crate::{DuskError, DuskResult, Element};
+use crate::{DuskError, DuskResult};
 use fantoccini::{Client, ClientBuilder, Locator};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;

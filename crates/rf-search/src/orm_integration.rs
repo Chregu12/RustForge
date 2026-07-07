@@ -57,8 +57,8 @@
 //! ```
 
 use crate::{
-    driver::{Result, SearchDriver, SearchError},
-    searchable::{SearchHit, SearchOptions, SearchResult, Searchable},
+    driver::{Result, SearchDriver},
+    searchable::{SearchOptions, SearchResult, Searchable},
 };
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};

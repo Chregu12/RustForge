@@ -34,7 +34,6 @@
 
 use async_trait::async_trait;
 use axum::{
-    extract::{FromRef, FromRequestParts},
     http::{header, request::Parts, StatusCode},
     response::{IntoResponse, Response},
 };
@@ -251,9 +250,13 @@ impl TenantResolver for InMemoryTenantResolver {
 /// Tenant layer for Axum
 #[derive(Clone)]
 pub struct TenantLayer {
+    // Read only by `identify`, reserved for the (currently removed) Axum extractor
+    // integration; retained so the layer stays constructible.
+    #[allow(dead_code)]
     identifier_type: TenantIdentifierType,
 }
 
+#[allow(dead_code)] // variant data consumed only by the not-yet-wired `identify` path
 #[derive(Clone)]
 enum TenantIdentifierType {
     Domain(DomainIdentifier),
@@ -280,6 +283,8 @@ impl TenantLayer {
         }
     }
 
+    // Reserved for the Axum extractor integration (see note below); not yet wired.
+    #[allow(dead_code)]
     async fn identify(&self, parts: &Parts) -> TenantResult<Tenant> {
         match &self.identifier_type {
             TenantIdentifierType::Domain(id) => id.identify(parts).await,

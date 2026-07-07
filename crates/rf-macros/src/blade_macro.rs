@@ -1,3 +1,4 @@
+#![allow(dead_code)] // internal macro-expansion helpers reserved for in-progress macro variants
 //! Blade-like Template Macros
 //!
 //! Write templates with Laravel Blade-style directives:
@@ -27,12 +28,11 @@
 //! ```
 
 use proc_macro::TokenStream;
-use proc_macro2::{TokenStream as TokenStream2, TokenTree, Delimiter, Spacing};
-use quote::{quote, format_ident};
+use proc_macro2::{TokenStream as TokenStream2, TokenTree, Delimiter};
+use quote::quote;
 use syn::{
     parse::{Parse, ParseStream},
-    parse_macro_input,
-    Expr, Ident, Token, LitStr,
+    parse_macro_input, LitStr,
 };
 
 /// Main blade template macro implementation

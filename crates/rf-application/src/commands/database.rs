@@ -186,7 +186,7 @@ impl FoundryCommand for MigrateCommand {
                 .with_message("Applying migrations")
                 .with_style(ProgressStyle::Bar);
 
-            for (idx, step) in plan.steps.iter().enumerate() {
+            for (idx, _step) in plan.steps.iter().enumerate() {
                 progress.set(idx);
                 // Simulate step execution for visual feedback
                 tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;

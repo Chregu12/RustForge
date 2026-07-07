@@ -1,3 +1,4 @@
+#![allow(dead_code)] // internal macro-expansion helpers reserved for in-progress macro variants
 //! FormRequest Macro - Laravel-style Form Validation
 //!
 //! Define form requests with automatic validation, just like Laravel:

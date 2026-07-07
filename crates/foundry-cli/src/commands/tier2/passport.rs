@@ -1,3 +1,4 @@
+#![allow(dead_code)] // command scaffolding defined for upcoming subcommands, not all wired into the dispatcher yet
 //! Passport (OAuth2 Server) commands
 //!
 //! Laravel Passport equivalent CLI commands for OAuth2 server management
@@ -19,8 +20,8 @@ impl PassportInstallCommand {
         println!("─────────────────────────────────────────");
 
         // Generate encryption keys
-        let private_key = Uuid::new_v4().to_string();
-        let public_key = Uuid::new_v4().to_string();
+        let _private_key = Uuid::new_v4().to_string();
+        let _public_key = Uuid::new_v4().to_string();
 
         println!("✓ Generated encryption keys");
         println!("✓ Created oauth_clients table");
@@ -118,8 +119,8 @@ impl PassportKeysCommand {
             println!("⚠️  Force regeneration enabled - existing keys will be replaced");
         }
 
-        let private_key = Uuid::new_v4().to_string();
-        let public_key = Uuid::new_v4().to_string();
+        let _private_key = Uuid::new_v4().to_string();
+        let _public_key = Uuid::new_v4().to_string();
 
         println!("✓ Generated new encryption keys");
         println!("✓ Saved keys to storage/oauth-private.key");

@@ -1,4 +1,4 @@
-use crate::commands::TinkerCommand;
+#![allow(dead_code)] // command scaffolding defined for upcoming subcommands, not all wired into the dispatcher yet
 use async_trait::async_trait;
 use chrono::Utc;
 use rf_domain::{CommandDescriptor, CommandKind};

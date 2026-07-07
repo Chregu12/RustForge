@@ -1,7 +1,6 @@
 //! Reusable browser test components
 
 use crate::{Browser, DuskResult};
-use async_trait::async_trait;
 
 /// Modal component helper
 pub struct Modal {

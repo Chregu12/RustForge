@@ -103,6 +103,9 @@ pub trait TransactionExt {
     /// # Ok(())
     /// # }
     /// ```
+    // Intentional async trait method; callers only use it through the concrete impl,
+    // so the missing auto-trait bounds this lint warns about are not a concern here.
+    #[allow(async_fn_in_trait)]
     async fn transaction<F, T, Fut>(&self, f: F) -> Result<T, DbErr>
     where
         F: FnOnce(&DatabaseTransaction) -> Fut,
@@ -201,6 +204,8 @@ impl IsolationLevel {
 /// Extension for setting transaction isolation level
 pub trait IsolationLevelExt {
     /// Set the isolation level for the next transaction
+    // Intentional async trait method; used only via the concrete impl (see note above).
+    #[allow(async_fn_in_trait)]
     async fn set_isolation_level(&self, level: IsolationLevel) -> Result<(), DbErr>;
 }
 

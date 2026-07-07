@@ -1,12 +1,10 @@
 //! OAuth2 Middleware for scope verification
 
-use crate::{scopes::ScopeChecker, server::OAuth2Server, token::AccessToken, OAuth2Error};
+use crate::{server::OAuth2Server, token::AccessToken, OAuth2Error};
 use axum::{
-    body::Body,
     extract::Request,
-    http::StatusCode,
     middleware::Next,
-    response::{IntoResponse, Response},
+    response::Response,
 };
 use std::future::Future;
 use std::pin::Pin;

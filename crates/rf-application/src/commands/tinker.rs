@@ -1,3 +1,4 @@
+#![allow(dead_code)] // fields/methods retained for planned functionality, not read internally yet
 use async_trait::async_trait;
 use rustyline::DefaultEditor;
 use sea_orm::{ConnectionTrait, Database, DatabaseConnection};

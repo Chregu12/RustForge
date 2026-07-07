@@ -9,8 +9,6 @@ mod progress;
 
 use anyhow::Result;
 use clap::{CommandFactory, Parser, Subcommand};
-use clap_complete::Shell;
-use colored::*;
 
 #[derive(Parser)]
 #[command(name = "forge")]

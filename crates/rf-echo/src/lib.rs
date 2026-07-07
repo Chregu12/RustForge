@@ -66,7 +66,6 @@
 //! - **Private Channels**: Require authentication, prefixed with `private-`
 //! - **Presence Channels**: Like private, but track online users, prefixed with `presence-`
 
-use async_trait::async_trait;
 use dashmap::DashMap;
 use futures::stream::{SplitSink, SplitStream};
 use futures::{SinkExt, StreamExt};
@@ -75,7 +74,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use thiserror::Error;
 use tokio::net::TcpStream;
-use tokio::sync::{broadcast, mpsc, RwLock};
+use tokio::sync::{broadcast, RwLock};
 use tokio_tungstenite::{connect_async, tungstenite::Message, MaybeTlsStream, WebSocketStream};
 
 pub mod auth;
@@ -261,7 +260,7 @@ impl Echo {
         mut read: SplitStream<WebSocketStream<MaybeTlsStream<TcpStream>>>,
         event_tx: broadcast::Sender<Event>,
         socket_id: Arc<RwLock<Option<String>>>,
-        channels: Arc<DashMap<String, Arc<Channel>>>,
+        _channels: Arc<DashMap<String, Arc<Channel>>>,
     ) {
         while let Some(msg) = read.next().await {
             match msg {

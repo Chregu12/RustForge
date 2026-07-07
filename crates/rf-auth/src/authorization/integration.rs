@@ -4,7 +4,6 @@
 //! the extractors are provided as structures but not fully implemented with FromRequest/FromRequestParts.
 //! Use middleware instead for full authorization functionality.
 
-use super::error::AuthorizationError;
 use std::marker::PhantomData;
 
 /// Extractor that ensures a user passes a gate

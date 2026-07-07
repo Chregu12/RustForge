@@ -1,9 +1,10 @@
+#![allow(dead_code)] // fields/methods retained for planned functionality, not read internally yet
 //! Socialite manager for provider registration and management
 //!
 //! This module provides a centralized manager for OAuth2 providers,
 //! similar to Laravel's Socialite facade.
 
-use crate::config::{ProviderConfig, SocialiteConfig};
+use crate::config::SocialiteConfig;
 use crate::driver::{Driver, DriverBuilder, SocialiteError};
 use crate::providers::Provider;
 use crate::state::StateManager;

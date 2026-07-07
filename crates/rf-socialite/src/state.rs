@@ -1,3 +1,4 @@
+#![allow(dead_code)] // fields/methods retained for planned functionality, not read internally yet
 //! State management for CSRF protection in OAuth2 flows
 //!
 //! The state parameter is used to prevent CSRF attacks by ensuring that

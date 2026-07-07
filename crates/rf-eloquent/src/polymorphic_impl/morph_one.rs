@@ -34,11 +34,8 @@
 //! ```
 
 use super::polymorphic::{PolymorphicError, PolymorphicResult};
-use async_trait::async_trait;
 use sea_orm::{
-    sea_query::{Expr, SimpleExpr},
-    ColumnTrait, Condition, DatabaseConnection, DbErr, EntityTrait, FromQueryResult,
-    PaginatorTrait, QueryFilter, Selector,
+    ColumnTrait, Condition, DatabaseConnection, EntityTrait, FromQueryResult, QueryFilter,
 };
 use std::marker::PhantomData;
 
@@ -159,7 +156,7 @@ where
     pub async fn get<E>(
         &self,
         db: &DatabaseConnection,
-        entity: E,
+        _entity: E,
         type_column: E::Column,
         id_column: E::Column,
     ) -> PolymorphicResult<Option<T>>
@@ -210,7 +207,7 @@ where
     pub async fn exists<E>(
         &self,
         db: &DatabaseConnection,
-        entity: E,
+        _entity: E,
         type_column: E::Column,
         id_column: E::Column,
     ) -> PolymorphicResult<bool>

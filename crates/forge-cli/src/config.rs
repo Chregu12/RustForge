@@ -1,3 +1,4 @@
+#![allow(dead_code)] // utility helpers reserved for CLI commands, not all consumed yet
 //! CLI configuration from .forge.toml
 //!
 //! This module handles reading and parsing .forge.toml configuration files

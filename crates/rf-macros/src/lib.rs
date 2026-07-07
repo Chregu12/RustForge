@@ -496,6 +496,8 @@ pub fn laravel(input: TokenStream) -> TokenStream {
 /// - `impl Model` with table name
 /// - `FILLABLE` and `HIDDEN` constants
 /// - `Default` implementation
+// Intentionally PascalCase so the macro reads as `Model! { ... }` (public API).
+#[allow(non_snake_case)]
 #[proc_macro]
 pub fn Model(input: TokenStream) -> TokenStream {
     simple_model::simple_model_impl(input)

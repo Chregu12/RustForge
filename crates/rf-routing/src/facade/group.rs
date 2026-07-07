@@ -247,7 +247,7 @@ impl RouteGroupFacade {
     }
 
     /// Apply group configuration to a route builder.
-    fn apply_group_config(&self, mut builder: FacadeRouteBuilder) -> FacadeRouteBuilder {
+    fn apply_group_config(&self, builder: FacadeRouteBuilder) -> FacadeRouteBuilder {
         // Get the route first
         let mut route = builder.into_route();
 

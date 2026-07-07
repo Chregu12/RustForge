@@ -1,14 +1,13 @@
+#![allow(dead_code)] // fields/methods retained for planned functionality, not read internally yet
 //! Versioned Router Builder
 //!
 //! Allows defining different route handlers per API version
 
 use crate::versioning::{ApiVersion, VersionConfig, VersionError};
 use axum::{
-    body::Body,
     extract::Request,
     http::StatusCode,
     response::{IntoResponse, Response},
-    routing::MethodRouter,
     Router,
 };
 use std::collections::HashMap;
@@ -114,7 +113,7 @@ struct VersionedRouterState {
     config: VersionConfig,
 }
 
-async fn versioned_handler(version: Result<ApiVersion, VersionError>, req: Request) -> Response {
+async fn versioned_handler(version: Result<ApiVersion, VersionError>, _req: Request) -> Response {
     match version {
         Ok(v) => {
             // Route to appropriate version handler

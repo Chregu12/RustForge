@@ -1,3 +1,4 @@
+#![allow(dead_code)] // fields/methods retained for planned functionality, not read internally yet
 //! Parser for struct and field attributes
 //!
 //! This module extracts validation information from derive input.

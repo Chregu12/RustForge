@@ -5,7 +5,7 @@
 
 use crate::validator::{Rule, RuleResult};
 use async_trait::async_trait;
-use sea_orm::{ColumnTrait, ConnectionTrait, DatabaseConnection, DbErr, EntityTrait};
+use sea_orm::{ConnectionTrait, DatabaseConnection, DbErr};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::marker::PhantomData;
@@ -345,7 +345,7 @@ impl Rule for SimpleExistsRule {
         validate_sql_identifier(&self.column)?;
 
         // Extract value and build query
-        use sea_orm::{DbBackend, Statement, TryGetable};
+        use sea_orm::{DbBackend, Statement};
 
         // Detect database backend
         let backend = self.db.get_database_backend();
@@ -480,7 +480,7 @@ impl Rule for SimpleUniqueRule {
         validate_sql_identifier(&self.id_column)?;
 
         // Extract value and build query
-        use sea_orm::{DbBackend, Statement, TryGetable};
+        use sea_orm::{DbBackend, Statement};
 
         // Detect database backend
         let backend = self.db.get_database_backend();
@@ -490,7 +490,7 @@ impl Rule for SimpleUniqueRule {
             DbBackend::Sqlite => ("?", "?"),
         };
 
-        let (query, mut values) = match value {
+        let (query, values) = match value {
             Value::String(s) => {
                 let mut q = format!(
                     "SELECT COUNT(*) as count FROM {} WHERE {} = {}",

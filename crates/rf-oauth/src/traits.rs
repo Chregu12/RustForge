@@ -38,7 +38,7 @@ pub trait OAuthProvider: Send + Sync {
     async fn get_user(&self, token: &str) -> crate::Result<OAuthUser>;
 
     /// Refresh access token using refresh token (if supported)
-    async fn refresh_token(&self, refresh_token: &str) -> crate::Result<OAuthTokens> {
+    async fn refresh_token(&self, _refresh_token: &str) -> crate::Result<OAuthTokens> {
         Err(crate::OAuthError::RefreshError(
             "Token refresh not supported by this provider".to_string(),
         ))

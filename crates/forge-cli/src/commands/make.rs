@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::Result;
 use colored::*;
 use handlebars::Handlebars;
 use inflector::Inflector;

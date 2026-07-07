@@ -47,37 +47,37 @@ impl TestClient {
     }
 
     /// Make a GET request
-    pub fn get(&self, uri: impl AsRef<str>) -> RequestBuilder {
+    pub fn get(&self, uri: impl AsRef<str>) -> RequestBuilder<'_> {
         RequestBuilder::new(self, "GET", uri.as_ref())
     }
 
     /// Make a POST request
-    pub fn post(&self, uri: impl AsRef<str>) -> RequestBuilder {
+    pub fn post(&self, uri: impl AsRef<str>) -> RequestBuilder<'_> {
         RequestBuilder::new(self, "POST", uri.as_ref())
     }
 
     /// Make a PUT request
-    pub fn put(&self, uri: impl AsRef<str>) -> RequestBuilder {
+    pub fn put(&self, uri: impl AsRef<str>) -> RequestBuilder<'_> {
         RequestBuilder::new(self, "PUT", uri.as_ref())
     }
 
     /// Make a PATCH request
-    pub fn patch(&self, uri: impl AsRef<str>) -> RequestBuilder {
+    pub fn patch(&self, uri: impl AsRef<str>) -> RequestBuilder<'_> {
         RequestBuilder::new(self, "PATCH", uri.as_ref())
     }
 
     /// Make a DELETE request
-    pub fn delete(&self, uri: impl AsRef<str>) -> RequestBuilder {
+    pub fn delete(&self, uri: impl AsRef<str>) -> RequestBuilder<'_> {
         RequestBuilder::new(self, "DELETE", uri.as_ref())
     }
 
     /// Make a HEAD request
-    pub fn head(&self, uri: impl AsRef<str>) -> RequestBuilder {
+    pub fn head(&self, uri: impl AsRef<str>) -> RequestBuilder<'_> {
         RequestBuilder::new(self, "HEAD", uri.as_ref())
     }
 
     /// Make an OPTIONS request
-    pub fn options(&self, uri: impl AsRef<str>) -> RequestBuilder {
+    pub fn options(&self, uri: impl AsRef<str>) -> RequestBuilder<'_> {
         RequestBuilder::new(self, "OPTIONS", uri.as_ref())
     }
 }

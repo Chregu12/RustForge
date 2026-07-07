@@ -1,3 +1,4 @@
+#![allow(dead_code)] // demonstration code showcasing the framework API, not every item is exercised
 // User entity
 
 use chrono::{DateTime, Utc};

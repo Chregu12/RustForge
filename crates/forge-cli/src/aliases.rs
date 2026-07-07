@@ -1,3 +1,4 @@
+#![allow(dead_code)] // utility helpers reserved for CLI commands, not all consumed yet
 //! Command aliases system
 //!
 //! This module provides short aliases for common commands and support for

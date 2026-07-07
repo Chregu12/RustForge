@@ -1,3 +1,4 @@
+#![allow(dead_code)] // command scaffolding defined for upcoming subcommands, not all wired into the dispatcher yet
 //! Auth Scaffolding commands
 //!
 //! Laravel Breeze/Jetstream equivalent CLI commands for authentication scaffolding

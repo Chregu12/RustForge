@@ -7,7 +7,6 @@ use axum::{
     Json,
 };
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 
 /// Inertia response structure (Inertia 2 compatible)
 #[derive(Debug, Clone, Serialize, Deserialize)]

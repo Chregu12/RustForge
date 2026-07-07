@@ -1,3 +1,4 @@
+#![allow(dead_code)] // internal macro-expansion helpers reserved for in-progress macro variants
 //! The `rustforge!` block macro - Ultimate Laravel-like experience
 //!
 //! Write Rust exactly like Laravel PHP - no imports, no .await, just code!

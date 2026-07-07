@@ -6,7 +6,6 @@
 use axum::response::{IntoResponse, Redirect, Response};
 use axum::http::{StatusCode, header};
 use std::collections::HashMap;
-use serde::Serialize;
 use once_cell::sync::Lazy;
 use parking_lot::RwLock;
 

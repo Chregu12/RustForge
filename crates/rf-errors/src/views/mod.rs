@@ -2,7 +2,6 @@
 //!
 //! Provides customizable error pages for different HTTP status codes.
 
-use crate::context::ErrorContext;
 use crate::error::RustForgeError;
 use std::collections::HashMap;
 
@@ -49,7 +48,7 @@ impl ErrorPages {
 
     /// Render default error page
     fn render_default_page(&self, error: &RustForgeError) -> String {
-        let status_code = error.status_code();
+        let _status_code = error.status_code();
         let is_dev = self.environment == "development" || self.environment == "local";
 
         if is_dev {

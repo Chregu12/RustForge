@@ -1,3 +1,4 @@
+#![allow(dead_code)] // fields/methods retained for planned functionality, not read internally yet
 //! # MorphTo Relationship
 //!
 //! Defines a polymorphic belongs-to relationship where a model can belong to
@@ -38,11 +39,7 @@
 
 use super::polymorphic::{PolymorphicError, PolymorphicResult};
 use super::type_registry::{TypeResolver, GLOBAL_TYPE_REGISTRY};
-use async_trait::async_trait;
-use sea_orm::{
-    sea_query::{Expr, SimpleExpr},
-    ColumnTrait, DatabaseConnection, DbErr, EntityTrait, FromQueryResult, QueryFilter,
-};
+use sea_orm::DatabaseConnection;
 use std::any::Any;
 use std::marker::PhantomData;
 use std::sync::Arc;

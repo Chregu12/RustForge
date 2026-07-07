@@ -151,7 +151,7 @@ impl Auth {
     /// assert!(Auth::check());
     /// ```
     pub fn login<T: Serialize>(user: T) -> Result<(), String> {
-        let mut manager = GLOBAL_AUTH.write().unwrap();
+        let manager = GLOBAL_AUTH.write().unwrap();
         manager.login(user)
     }
 
@@ -170,7 +170,7 @@ impl Auth {
             "id": id,
         });
 
-        let mut manager = GLOBAL_AUTH.write().unwrap();
+        let manager = GLOBAL_AUTH.write().unwrap();
         manager.login_with_remember(user, remember)
     }
 
@@ -185,7 +185,7 @@ impl Auth {
     /// assert!(Auth::guest());
     /// ```
     pub fn logout() {
-        let mut manager = GLOBAL_AUTH.write().unwrap();
+        let manager = GLOBAL_AUTH.write().unwrap();
         manager.logout();
     }
 
@@ -207,7 +207,7 @@ impl Auth {
     /// }
     /// ```
     pub fn attempt(credentials: Value) -> Result<bool, String> {
-        let mut manager = GLOBAL_AUTH.write().unwrap();
+        let manager = GLOBAL_AUTH.write().unwrap();
         manager.attempt(credentials)
     }
 
@@ -215,7 +215,7 @@ impl Auth {
     /// uses to look up and verify credentials. Until one is set, `attempt` fails
     /// closed and authenticates no one.
     pub fn set_provider(provider: std::sync::Arc<dyn crate::UserProvider>) {
-        let mut manager = GLOBAL_AUTH.write().unwrap();
+        let manager = GLOBAL_AUTH.write().unwrap();
         manager.set_provider(provider);
     }
 
@@ -301,7 +301,7 @@ impl Auth {
 
     /// Set the default guard
     pub fn set_default_guard(guard: String) {
-        let mut manager = GLOBAL_AUTH.write().unwrap();
+        let manager = GLOBAL_AUTH.write().unwrap();
         manager.set_guard(guard);
     }
 

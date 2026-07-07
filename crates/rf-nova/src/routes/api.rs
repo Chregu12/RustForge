@@ -3,7 +3,6 @@
 //! Standard JSON response formats.
 
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 
 /// Standard API response
 #[derive(Debug, Clone, Serialize, Deserialize)]

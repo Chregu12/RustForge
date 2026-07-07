@@ -1,3 +1,4 @@
+#![allow(dead_code)] // command scaffolding defined for upcoming subcommands, not all wired into the dispatcher yet
 //! Export commands (PDF, Excel, CSV)
 
 use async_trait::async_trait;

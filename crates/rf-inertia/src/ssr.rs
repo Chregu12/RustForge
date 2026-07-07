@@ -1,3 +1,4 @@
+#![allow(dead_code)] // fields/methods retained for planned functionality, not read internally yet
 //! # Server-Side Rendering (SSR) for Inertia.js
 //!
 //! This module enables server-side rendering of Inertia.js pages by forwarding

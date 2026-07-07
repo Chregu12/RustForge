@@ -1,3 +1,4 @@
+#![allow(dead_code)] // utility helpers reserved for CLI commands, not all consumed yet
 //! Progress indicators for long-running operations
 //!
 //! This module provides progress bars, spinners, and multi-progress for

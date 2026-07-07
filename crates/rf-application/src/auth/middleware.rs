@@ -185,7 +185,7 @@ where
     }
 
     fn call(&mut self, request: Request) -> Self::Future {
-        let jwt_service = self.jwt_service.clone();
+        let _jwt_service = self.jwt_service.clone();
         let future = self.inner.call(request);
 
         Box::pin(async move {

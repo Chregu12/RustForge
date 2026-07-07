@@ -1,3 +1,4 @@
+#![allow(dead_code)] // fields/methods retained for planned functionality, not read internally yet
 //! # Eager Loading System
 //!
 //! Prevents N+1 query problems by loading related models in advance.
@@ -30,7 +31,7 @@
 
 use async_trait::async_trait;
 use dashmap::DashMap;
-use sea_orm::{DatabaseConnection, DbErr, EntityTrait, ModelTrait};
+use sea_orm::{DatabaseConnection, DbErr, ModelTrait};
 use serde::{Deserialize, Serialize};
 use std::any::Any;
 use std::sync::Arc;
