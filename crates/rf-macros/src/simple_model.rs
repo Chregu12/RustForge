@@ -1086,6 +1086,85 @@ fn generate_full_model(
         }
     };
 
+    // ---- Typed read fns: all_typed() + paginate() (Laravel parity) ----------
+    // The trait `rf_db_facade::Model::all()` returns `Vec<serde_json::Value>`
+    // and pagination requires chaining `Model::query().paginate()`. These two
+    // inherent fns close that ergonomic gap: they fetch via the SAME real
+    // `rf_db_facade::QueryBuilder` and deserialize Values into the concrete
+    // `Self` using the exact proven `filter_map(serde_json::from_value)` pattern
+    // from the `with(...).get()` builder above.
+    //
+    // Naming: the typed all-fetch is `all_typed` (NOT `all`) on purpose —
+    // an inherent `all` would SHADOW the `Model` trait's `all()`, silently
+    // changing what `#name::all()` resolves to (from `Vec<Value>` to
+    // `Vec<Self>`) and breaking existing callers. `paginate` is collision-free
+    // (the trait has no `paginate`).
+    let page_name = syn::Ident::new(&format!("{}Page", name), name.span());
+    let typed_read = quote! {
+        /// A page of TYPED `#name` rows plus the real pagination metadata the
+        /// `rf_db_facade::QueryBuilder::paginate` engine computed (`total`,
+        /// `per_page`, `current_page`, `last_page`). Generated companion to
+        /// [`#name::paginate`].
+        #[derive(Debug, Clone)]
+        pub struct #page_name {
+            /// The typed rows for this page (already deserialized into `#name`).
+            pub data: ::std::vec::Vec<#name>,
+            /// Total rows matching the query across ALL pages.
+            pub total: usize,
+            /// Rows per page (as requested, clamped to >= 1 by the engine).
+            pub per_page: usize,
+            /// 1-based current page number.
+            pub current_page: usize,
+            /// Index of the last page (`ceil(total / per_page)`).
+            pub last_page: usize,
+        }
+
+        impl #name {
+            /// Fetch EVERY row of this model's table as a TYPED `Vec<Self>`
+            /// (Laravel's `Model::all()`, but concrete rows instead of the
+            /// trait's `Vec<serde_json::Value>`). Runs ONE `SELECT *` through the
+            /// real `rf_db_facade::QueryBuilder` then deserializes each `Value`
+            /// into `Self` (rows that fail to deserialize are skipped, mirroring
+            /// the `with(...).get()` builder). Named `all_typed` so it does NOT
+            /// shadow the `Model` trait's `all()`.
+            pub async fn all_typed() -> ::std::result::Result<::std::vec::Vec<#name>, String> {
+                let values = rf_db_facade::QueryBuilder::new(#table_name).get().await?;
+                ::std::result::Result::Ok(
+                    values
+                        .into_iter()
+                        .filter_map(|v| ::serde_json::from_value(v).ok())
+                        .collect(),
+                )
+            }
+
+            /// Paginate this model's table into a page of TYPED rows (Laravel's
+            /// `Model::paginate($perPage, $page)` — no `query()` chaining needed).
+            /// Delegates to the real `rf_db_facade::QueryBuilder::paginate`, which
+            /// runs the limited/offset fetch AND a `COUNT(*)`, then deserializes
+            /// the page's `Value` items into `Self` (undeserializable rows
+            /// skipped, mirroring `all_typed`/`with(...).get()`) while preserving
+            /// the engine's real `total` / `per_page` / `current_page` /
+            /// `last_page` metadata. `page` is 1-based.
+            pub async fn paginate(per_page: usize, page: usize) -> ::std::result::Result<#page_name, String> {
+                let result = rf_db_facade::QueryBuilder::new(#table_name)
+                    .paginate(per_page, page)
+                    .await?;
+                let data: ::std::vec::Vec<#name> = result
+                    .data
+                    .into_iter()
+                    .filter_map(|v| ::serde_json::from_value(v).ok())
+                    .collect();
+                ::std::result::Result::Ok(#page_name {
+                    data,
+                    total: result.total,
+                    per_page: result.per_page,
+                    current_page: result.current_page,
+                    last_page: result.last_page,
+                })
+            }
+        }
+    };
+
     let expanded = quote! {
         #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
         pub struct #name {
@@ -1194,6 +1273,8 @@ fn generate_full_model(
 
         #with_builder
 
+        #typed_read
+
         #dto_defs
 
         #dto_validate_impls
@@ -1298,6 +1379,69 @@ fn generate_simple_model(name: Ident, fields: Vec<InferredField>) -> TokenStream
         }
     };
 
+    // ---- Typed read fns: all_typed() + paginate() (see generate_full_model) --
+    // Same Laravel-parity typed read fns for the simple `Model!(Name: a, b)`
+    // syntax: `all_typed()` returns a typed `Vec<Self>` and `paginate()` returns
+    // a page of typed rows with real metadata, both via the real QueryBuilder +
+    // the proven `filter_map(serde_json::from_value)` deserialize.
+    let page_name = syn::Ident::new(&format!("{}Page", name), name.span());
+    let typed_read = quote! {
+        /// A page of TYPED `#name` rows plus the real pagination metadata from
+        /// `rf_db_facade::QueryBuilder::paginate`. Generated companion to
+        /// [`#name::paginate`].
+        #[derive(Debug, Clone)]
+        pub struct #page_name {
+            /// The typed rows for this page (deserialized into `#name`).
+            pub data: ::std::vec::Vec<#name>,
+            /// Total rows matching the query across ALL pages.
+            pub total: usize,
+            /// Rows per page (as requested, clamped to >= 1 by the engine).
+            pub per_page: usize,
+            /// 1-based current page number.
+            pub current_page: usize,
+            /// Index of the last page (`ceil(total / per_page)`).
+            pub last_page: usize,
+        }
+
+        impl #name {
+            /// Fetch EVERY row as a TYPED `Vec<Self>` (Laravel's `Model::all()`,
+            /// but concrete rows instead of the trait's `Vec<serde_json::Value>`).
+            /// Named `all_typed` so it does NOT shadow the `Model` trait `all()`.
+            pub async fn all_typed() -> ::std::result::Result<::std::vec::Vec<#name>, String> {
+                let values = rf_db_facade::QueryBuilder::new(#table_name).get().await?;
+                ::std::result::Result::Ok(
+                    values
+                        .into_iter()
+                        .filter_map(|v| ::serde_json::from_value(v).ok())
+                        .collect(),
+                )
+            }
+
+            /// Paginate into a page of TYPED rows (Laravel's `Model::paginate`).
+            /// Delegates to the real `rf_db_facade::QueryBuilder::paginate`,
+            /// deserializes the page items into `Self`, and preserves the real
+            /// `total` / `per_page` / `current_page` / `last_page`. `page` is
+            /// 1-based.
+            pub async fn paginate(per_page: usize, page: usize) -> ::std::result::Result<#page_name, String> {
+                let result = rf_db_facade::QueryBuilder::new(#table_name)
+                    .paginate(per_page, page)
+                    .await?;
+                let data: ::std::vec::Vec<#name> = result
+                    .data
+                    .into_iter()
+                    .filter_map(|v| ::serde_json::from_value(v).ok())
+                    .collect();
+                ::std::result::Result::Ok(#page_name {
+                    data,
+                    total: result.total,
+                    per_page: result.per_page,
+                    current_page: result.current_page,
+                    last_page: result.last_page,
+                })
+            }
+        }
+    };
+
     let expanded = quote! {
         #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
         pub struct #name {
@@ -1338,6 +1482,8 @@ fn generate_simple_model(name: Ident, fields: Vec<InferredField>) -> TokenStream
                 Self::VALIDATION_RULES
             }
         }
+
+        #typed_read
 
         #dto_defs
     };
