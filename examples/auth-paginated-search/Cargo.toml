@@ -1,0 +1,21 @@
+[package]
+name = "auth-paginated-search"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+# The whole app is written against the `rf` umbrella + an async runtime.
+rf = { path = "../../crates/rf" }
+# rf-auth is used directly for its real per-request `auth_scope` middleware,
+# which gives every request an isolated authentication scope.
+rf-auth = { path = "../../crates/rf-auth" }
+# axum 0.7 to match rf-routing's Router / the rf HTTP stack; `StatusCode`
+# used for the 200/401 codes comes from `axum::http`.
+axum = "0.7"
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[dev-dependencies]
+tower = { version = "0.5", features = ["util"] }

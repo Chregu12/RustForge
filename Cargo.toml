@@ -110,6 +110,7 @@ members = [
     "examples/facades-demo",
     "examples/blog-slice",
     "examples/rest-crud-resource",
+    "examples/auth-paginated-search",
     "examples/phase12-blog",
     "examples/realtime-chat",
     # Benchmarks

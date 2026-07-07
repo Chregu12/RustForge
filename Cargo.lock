@@ -710,6 +710,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "auth-paginated-search"
+version = "0.1.0"
+dependencies = [
+ "axum 0.7.9",
+ "rf",
+ "rf-auth",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tower 0.5.2",
+]
+
+[[package]]
 name = "auto-future"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
