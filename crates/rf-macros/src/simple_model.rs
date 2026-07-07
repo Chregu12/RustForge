@@ -591,11 +591,16 @@ fn generate_full_model(
             // vec, `serde(default)` so it deserializes from rows lacking the key
             // AND keeps `Default` derivable). Populated by the `load_<name>_for`
             // grouping batch loader emitted below.
-            RelationType::HasMany => Some(quote! {
+            // Eager MANY-to-many relation FIELD: a populated `Vec<Related>`
+            // hydrated THROUGH the pivot table by `load_<name>_for` (below).
+            // Same shape as hasMany (default empty vec, `serde(default)` so it
+            // deserializes from rows lacking the key AND keeps `Default`
+            // derivable) — the difference is purely how it is loaded (via the
+            // pivot), not how it is stored.
+            RelationType::HasMany | RelationType::BelongsToMany => Some(quote! {
                 #[serde(default)]
                 pub #field_name: ::std::vec::Vec<#related_type>
             }),
-            _ => None,
         }
     }).collect();
 
@@ -605,10 +610,9 @@ fn generate_full_model(
             RelationType::BelongsTo | RelationType::HasOne => Some(quote! {
                 #field_name: ::std::option::Option::None
             }),
-            RelationType::HasMany => Some(quote! {
+            RelationType::HasMany | RelationType::BelongsToMany => Some(quote! {
                 #field_name: ::std::vec::Vec::new()
             }),
-            _ => None,
         }
     }).collect();
 
@@ -767,17 +771,103 @@ fn generate_full_model(
                 }
             }
             RelationType::BelongsToMany => {
+                // belongsToMany: the link lives in a PIVOT table (e.g. `post_tag`)
+                // carrying a self FK + a related FK. The eager `#method_name` Vec
+                // field is populated by this batched loader with exactly TWO
+                // queries (no N+1): (1) SELECT <self_fk>, <related_fk> FROM
+                // <pivot> WHERE <self_fk> IN (parent ids) — collecting the
+                // distinct related ids and a per-parent map of related ids; then
+                // (2) SELECT * FROM <related_table> WHERE id IN (related ids),
+                // indexed by id; finally each parent is assigned its Vec of
+                // related models by mapping its pivot related-ids through that
+                // index (empty vec when it has no pivot rows).
+                let loader = syn::Ident::new(&format!("load_{}_for", method_name), method_name.span());
+                // Pivot table: explicit if given, else the two model names
+                // snake-cased, sorted, joined by `_` (Laravel convention).
                 let pivot_table = rel.pivot_table.clone()
                     .unwrap_or_else(|| {
                         let mut names = vec![model_name_lower.clone(), to_snake_case(&related_type.to_string())];
                         names.sort();
                         names.join("_")
                     });
+                // Pivot FK columns by convention: self side = <parent>_id,
+                // related side = <related>_id.
+                let self_fk = format!("{}_id", model_name_lower);
+                let related_fk = format!("{}_id", to_snake_case(&related_type.to_string()));
                 quote! {
-                    /// Get all related records via pivot table (belongsToMany relationship)
-                    pub fn #method_name(&self) -> rf_db_facade::QueryBuilder {
-                        // In real implementation, this would do a JOIN through pivot table
-                        rf_db_facade::QueryBuilder::new(#related_table)
+                    /// Eagerly populate the `#method_name` list field on a whole
+                    /// slice THROUGH the pivot table with exactly TWO batched
+                    /// queries (no N+1): first the pivot rows for all parents,
+                    /// then the related rows for all collected related ids.
+                    pub async fn #loader(rows: &mut [Self]) -> ::std::result::Result<(), String> {
+                        use ::std::collections::HashMap;
+                        // Distinct parent ids across the slice.
+                        let mut ids: Vec<i64> = Vec::new();
+                        for row in rows.iter() {
+                            if let Some(id) = row.id {
+                                if !ids.contains(&id) { ids.push(id); }
+                            }
+                        }
+                        if ids.is_empty() { return Ok(()); }
+                        // ---- Query 1: pivot rows for the whole slice ---------
+                        // SELECT <self_fk>, <related_fk> FROM <pivot>
+                        //   WHERE <self_fk> IN (?, ?, ...)
+                        let placeholders = ids.iter().map(|_| "?").collect::<Vec<_>>().join(", ");
+                        let sql = format!(
+                            "SELECT {}, {} FROM {} WHERE {} IN ({})",
+                            #self_fk, #related_fk, #pivot_table, #self_fk, placeholders
+                        );
+                        let bindings: Vec<::serde_json::Value> =
+                            ids.iter().map(|&i| ::serde_json::Value::from(i)).collect();
+                        let pivot_rows = rf_db_facade::DB::select(&sql, &bindings)?;
+                        // Per-parent list of related ids + the distinct related ids.
+                        let mut parent_to_related: HashMap<i64, Vec<i64>> = HashMap::new();
+                        let mut related_ids: Vec<i64> = Vec::new();
+                        for pr in pivot_rows {
+                            let p = pr.get(#self_fk).and_then(|v| v.as_i64());
+                            let r = pr.get(#related_fk).and_then(|v| v.as_i64());
+                            if let (Some(p), Some(r)) = (p, r) {
+                                parent_to_related.entry(p).or_default().push(r);
+                                if !related_ids.contains(&r) { related_ids.push(r); }
+                            }
+                        }
+                        // No links at all -> every parent gets an empty vec.
+                        if related_ids.is_empty() {
+                            for row in rows.iter_mut() { row.#method_name = Vec::new(); }
+                            return Ok(());
+                        }
+                        // ---- Query 2: related rows for all collected ids -----
+                        // SELECT * FROM <related_table> WHERE id IN (?, ?, ...)
+                        let placeholders2 = related_ids.iter().map(|_| "?").collect::<Vec<_>>().join(", ");
+                        let sql2 = format!(
+                            "SELECT * FROM {} WHERE id IN ({})",
+                            #related_table, placeholders2
+                        );
+                        let bindings2: Vec<::serde_json::Value> =
+                            related_ids.iter().map(|&i| ::serde_json::Value::from(i)).collect();
+                        let related_records = rf_db_facade::DB::select(&sql2, &bindings2)?;
+                        // Index related models by id.
+                        let mut by_id: HashMap<i64, #related_type> = HashMap::new();
+                        for rec in related_records {
+                            if let Some(id) = rec.get("id").and_then(|v| v.as_i64()) {
+                                let model: #related_type = ::serde_json::from_value(rec)
+                                    .map_err(|e| e.to_string())?;
+                                by_id.insert(id, model);
+                            }
+                        }
+                        // Assign each parent its vec of related models (mapping
+                        // its pivot related-ids through the index; empty when none).
+                        for row in rows.iter_mut() {
+                            row.#method_name = row.id
+                                .and_then(|id| parent_to_related.get(&id))
+                                .map(|rids| {
+                                    rids.iter()
+                                        .filter_map(|rid| by_id.get(rid).cloned())
+                                        .collect::<Vec<#related_type>>()
+                                })
+                                .unwrap_or_default();
+                        }
+                        Ok(())
                     }
                 }
             }
@@ -789,22 +879,29 @@ fn generate_full_model(
     // ident at expansion time, so `with_relations` is a plain compile-time match
     // over the known names dispatching to the SAME per-relation batch loaders
     // (`load_<name>_for`) proved elsewhere — hydrating K relations for N rows is
-    // K queries total (each loader runs its own ONE batched WHERE IN query),
-    // never N+1. Only relations that actually generate a field-populating loader
-    // (belongsTo / hasOne / hasMany) are dispatchable; `belongsToMany` stays
-    // method-only and is intentionally excluded (so it falls through to the
-    // unknown-name arm). Unknown / non-eager names are a clean error naming the
-    // offending relation, matching Laravel's "call to undefined relationship".
+    // a bounded number of batched queries total (each direct-FK loader runs ONE
+    // `WHERE IN` query, the belongsToMany loader runs TWO through the pivot),
+    // never N+1. Every declared relation family (belongsTo / hasOne / hasMany /
+    // belongsToMany) generates a field-populating loader, so all are
+    // dispatchable. Unknown names are a clean error naming the offending
+    // relation, matching Laravel's "call to undefined relationship".
     let with_relations_arms: Vec<TokenStream2> = relationships.iter().filter_map(|rel| {
         match rel.rel_type {
-            RelationType::BelongsTo | RelationType::HasOne | RelationType::HasMany => {
+            // Every eager relation FAMILY now generates a field-populating
+            // `load_<name>_for` batch loader (belongsTo / hasOne / hasMany
+            // direct-FK, belongsToMany through the pivot), so all four are
+            // dispatchable here — each still costs its own batched queries, never
+            // N+1.
+            RelationType::BelongsTo
+            | RelationType::HasOne
+            | RelationType::HasMany
+            | RelationType::BelongsToMany => {
                 let name_str = rel.name.to_string();
                 let loader = syn::Ident::new(&format!("load_{}_for", rel.name), rel.name.span());
                 Some(quote! {
                     #name_str => { Self::#loader(rows).await?; }
                 })
             }
-            RelationType::BelongsToMany => None,
         }
     }).collect();
 
@@ -905,13 +1002,13 @@ fn generate_full_model(
             /// dispatches — via a compile-time match the macro emits over the
             /// model's declared relations — to that relation's generated
             /// `load_<name>_for` batch loader, so hydrating K relations for N
-            /// rows costs K batched queries total (each loader runs its own
-            /// single `WHERE ... IN (...)` query): never N+1. Only relations
-            /// with a generated field-populating loader (`belongsTo` / `hasOne`
-            /// / `hasMany`) are eager-loadable; `belongsToMany` stays
-            /// method-only. An unknown or non-eager name is a clean `Err`
-            /// naming it (like Laravel's undefined-relationship error) and no
-            /// queries are run past the offending name.
+            /// rows costs a bounded number of batched queries total (direct-FK
+            /// loaders run one `WHERE ... IN (...)` query each; `belongsToMany`
+            /// runs two through the pivot): never N+1. Every declared relation
+            /// family (`belongsTo` / `hasOne` / `hasMany` / `belongsToMany`) is
+            /// eager-loadable. An unknown name is a clean `Err` naming it (like
+            /// Laravel's undefined-relationship error) and no queries are run
+            /// past the offending name.
             pub async fn with_relations(
                 rows: &mut [Self],
                 names: &[&str],
