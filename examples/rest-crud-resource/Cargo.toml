@@ -1,0 +1,18 @@
+[package]
+name = "rest-crud-resource"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+# The whole app is written against the `rf` umbrella + an async runtime.
+rf = { path = "../../crates/rf" }
+# axum 0.7 to match rf-routing's Router / the rf HTTP stack; `StatusCode`
+# used for the 201/204/404/422 codes comes from `axum::http`.
+axum = "0.7"
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[dev-dependencies]
+tower = { version = "0.5", features = ["util"] }

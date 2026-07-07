@@ -109,6 +109,7 @@ members = [
     "examples/laravel-syntax-simple",
     "examples/facades-demo",
     "examples/blog-slice",
+    "examples/rest-crud-resource",
     "examples/phase12-blog",
     "examples/realtime-chat",
     # Benchmarks
