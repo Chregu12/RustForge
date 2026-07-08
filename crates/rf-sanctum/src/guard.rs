@@ -7,7 +7,6 @@ use crate::{
     config::SanctumConfig, repository::TokenRepository, LoadFromToken,
     PersonalAccessToken, SanctumError,
 };
-use async_trait::async_trait;
 use axum::{
     extract::FromRequestParts,
     http::request::Parts,
@@ -90,7 +89,6 @@ impl<T> SanctumGuard<T> {
     }
 }
 
-#[async_trait]
 impl<T, S> FromRequestParts<S> for SanctumGuard<T>
 where
     T: LoadFromToken + 'static,

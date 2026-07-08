@@ -27,7 +27,7 @@ use rf_routing::HttpMethod;
 ///     .middleware("auth");
 ///
 /// // Route with multiple middleware
-/// Route::put("/users/:id", "UserController@update")
+/// Route::put("/users/{id}", "UserController@update")
 ///     .name("users.update")
 ///     .middleware("auth")
 ///     .middleware("validate");
@@ -71,7 +71,7 @@ impl Route {
     /// ```rust,no_run
     /// use rf_route_facade::Route;
     ///
-    /// Route::put("/users/:id", "UserController@update")
+    /// Route::put("/users/{id}", "UserController@update")
     ///     .name("users.update");
     /// ```
     pub fn put(path: impl Into<String>, _handler: impl Into<String>) -> FacadeRouteBuilder {
@@ -85,7 +85,7 @@ impl Route {
     /// ```rust,no_run
     /// use rf_route_facade::Route;
     ///
-    /// Route::patch("/users/:id", "UserController@patch")
+    /// Route::patch("/users/{id}", "UserController@patch")
     ///     .name("users.patch");
     /// ```
     pub fn patch(path: impl Into<String>, _handler: impl Into<String>) -> FacadeRouteBuilder {
@@ -99,7 +99,7 @@ impl Route {
     /// ```rust,no_run
     /// use rf_route_facade::Route;
     ///
-    /// Route::delete("/users/:id", "UserController@destroy")
+    /// Route::delete("/users/{id}", "UserController@destroy")
     ///     .name("users.destroy")
     ///     .middleware("auth");
     /// ```
@@ -190,10 +190,10 @@ impl Route {
     /// - GET /resource - index
     /// - GET /resource/create - create
     /// - POST /resource - store
-    /// - GET /resource/:id - show
-    /// - GET /resource/:id/edit - edit
-    /// - PUT/PATCH /resource/:id - update
-    /// - DELETE /resource/:id - destroy
+    /// - GET /resource/{id} - show
+    /// - GET /resource/{id}/edit - edit
+    /// - PUT/PATCH /resource/{id} - update
+    /// - DELETE /resource/{id} - destroy
     ///
     /// # Examples
     ///
@@ -218,21 +218,21 @@ impl Route {
             .name(format!("{}.store", resource));
 
         // Show
-        Self::get(format!("/{}/:id", resource), "show".to_string())
+        Self::get(format!("/{}/{{id}}", resource), "show".to_string())
             .name(format!("{}.show", resource));
 
         // Edit
-        Self::get(format!("/{}/:id/edit", resource), "edit".to_string())
+        Self::get(format!("/{}/{{id}}/edit", resource), "edit".to_string())
             .name(format!("{}.edit", resource));
 
         // Update
-        Self::put(format!("/{}/:id", resource), "update".to_string())
+        Self::put(format!("/{}/{{id}}", resource), "update".to_string())
             .name(format!("{}.update", resource));
-        Self::patch(format!("/{}/:id", resource), "update".to_string())
+        Self::patch(format!("/{}/{{id}}", resource), "update".to_string())
             .name(format!("{}.update.patch", resource));
 
         // Destroy
-        Self::delete(format!("/{}/:id", resource), "destroy".to_string())
+        Self::delete(format!("/{}/{{id}}", resource), "destroy".to_string())
             .name(format!("{}.destroy", resource));
     }
 
@@ -241,9 +241,9 @@ impl Route {
     /// This generates routes for API usage (no HTML forms):
     /// - GET /resource - index
     /// - POST /resource - store
-    /// - GET /resource/:id - show
-    /// - PUT/PATCH /resource/:id - update
-    /// - DELETE /resource/:id - destroy
+    /// - GET /resource/{id} - show
+    /// - PUT/PATCH /resource/{id} - update
+    /// - DELETE /resource/{id} - destroy
     ///
     /// # Examples
     ///
@@ -264,17 +264,17 @@ impl Route {
             .name(format!("{}.store", resource));
 
         // Show
-        Self::get(format!("/{}/:id", resource), "show".to_string())
+        Self::get(format!("/{}/{{id}}", resource), "show".to_string())
             .name(format!("{}.show", resource));
 
         // Update
-        Self::put(format!("/{}/:id", resource), "update".to_string())
+        Self::put(format!("/{}/{{id}}", resource), "update".to_string())
             .name(format!("{}.update", resource));
-        Self::patch(format!("/{}/:id", resource), "update".to_string())
+        Self::patch(format!("/{}/{{id}}", resource), "update".to_string())
             .name(format!("{}.update.patch", resource));
 
         // Destroy
-        Self::delete(format!("/{}/:id", resource), "destroy".to_string())
+        Self::delete(format!("/{}/{{id}}", resource), "destroy".to_string())
             .name(format!("{}.destroy", resource));
     }
 
@@ -337,8 +337,8 @@ impl Route {
     /// // Use this:
     /// Route::middleware(&["auth"])
     ///     .add(Route::post("/posts", "PostController@store"))
-    ///     .add(Route::put("/posts/:id", "PostController@update"))
-    ///     .add(Route::delete("/posts/:id", "PostController@destroy"));
+    ///     .add(Route::put("/posts/{id}", "PostController@update"))
+    ///     .add(Route::delete("/posts/{id}", "PostController@destroy"));
     /// ```
     pub fn middleware(middleware: &[&str]) -> MiddlewareGroupBuilder {
         MiddlewareGroupBuilder::new(middleware)
@@ -353,7 +353,7 @@ impl Route {
     ///
     /// Route::protected()
     ///     .add(Route::post("/posts", "PostController@store"))
-    ///     .add(Route::delete("/posts/:id", "PostController@destroy"));
+    ///     .add(Route::delete("/posts/{id}", "PostController@destroy"));
     /// ```
     pub fn protected() -> MiddlewareGroupBuilder {
         MiddlewareGroupBuilder::new(&["auth"])
@@ -430,7 +430,7 @@ impl MiddlewareGroupBuilder {
     ///
     /// Route::middleware(&["auth"]).add_all(vec![
     ///     Route::post("/posts", "PostController@store"),
-    ///     Route::put("/posts/:id", "PostController@update"),
+    ///     Route::put("/posts/{id}", "PostController@update"),
     /// ]);
     /// ```
     pub fn add_all(mut self, routes: Vec<FacadeRouteBuilder>) -> Self {
@@ -467,7 +467,7 @@ mod tests {
 
     #[test]
     fn test_route_put() {
-        let builder = Route::put("/users/:id", "handler".to_string());
+        let builder = Route::put("/users/{id}", "handler".to_string());
         let route = builder.into_route();
 
         assert_eq!(route.methods[0], HttpMethod::Put);
@@ -475,7 +475,7 @@ mod tests {
 
     #[test]
     fn test_route_patch() {
-        let builder = Route::patch("/users/:id", "handler".to_string());
+        let builder = Route::patch("/users/{id}", "handler".to_string());
         let route = builder.into_route();
 
         assert_eq!(route.methods[0], HttpMethod::Patch);
@@ -483,7 +483,7 @@ mod tests {
 
     #[test]
     fn test_route_delete() {
-        let builder = Route::delete("/users/:id", "handler".to_string());
+        let builder = Route::delete("/users/{id}", "handler".to_string());
         let route = builder.into_route();
 
         assert_eq!(route.methods[0], HttpMethod::Delete);

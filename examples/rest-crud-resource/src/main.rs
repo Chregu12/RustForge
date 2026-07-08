@@ -21,9 +21,9 @@
 //! Run it:  `cargo run -p rest-crud-resource`  (serves on http://127.0.0.1:3001)
 //!   POST   /articles        {"title":"Hello","body":"World","author_id":1}
 //!   GET    /articles
-//!   GET    /articles/:id
-//!   PUT    /articles/:id     {"title":"Edited","body":"Changed","author_id":1}
-//!   DELETE /articles/:id
+//!   GET    /articles/{id}
+//!   PUT    /articles/{id}     {"title":"Edited","body":"Changed","author_id":1}
+//!   DELETE /articles/{id}
 use axum::http::StatusCode;
 use rf::prelude::*;
 
@@ -53,7 +53,7 @@ async fn index() -> impl axum::response::IntoResponse {
     }
 }
 
-/// GET /articles/:id — show one article (200) or 404 if it does not exist. The
+/// GET /articles/{id} — show one article (200) or 404 if it does not exist. The
 /// `:id` path param reaches this argument-less handler via `input::<i64>("id")`.
 async fn show() -> impl axum::response::IntoResponse {
     let id: i64 = match input("id") {
@@ -86,7 +86,7 @@ async fn store() -> impl axum::response::IntoResponse {
     }
 }
 
-/// PUT /articles/:id — validate, then update an existing row (200 with the
+/// PUT /articles/{id} — validate, then update an existing row (200 with the
 /// changed row), 404 if the id does not exist, 422 if validation fails.
 async fn update() -> impl axum::response::IntoResponse {
     let id: i64 = match input("id") {
@@ -119,7 +119,7 @@ async fn update() -> impl axum::response::IntoResponse {
     }
 }
 
-/// DELETE /articles/:id — destroy the row (204 No Content) or 404 if missing.
+/// DELETE /articles/{id} — destroy the row (204 No Content) or 404 if missing.
 async fn destroy() -> impl axum::response::IntoResponse {
     let id: i64 = match input("id") {
         Some(id) => id,
@@ -151,9 +151,9 @@ fn migrate() {
 fn build_app() -> axum::Router {
     get("/articles", index);
     post("/articles", store);
-    get("/articles/:id", show);
-    put("/articles/:id", update);
-    delete("/articles/:id", destroy);
+    get("/articles/{id}", show);
+    put("/articles/{id}", update);
+    delete("/articles/{id}", destroy);
     rf::global_router()
         .build_router()
         .layer(axum::middleware::from_fn(rf::web::capture_request))

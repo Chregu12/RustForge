@@ -23,8 +23,8 @@ rand = "0.8"
 sea-orm = { version = "1.1", features = ["sqlx-postgres", "runtime-tokio-rustls", "macros"] }
 
 # HTTP
-axum = "0.7"
-axum-extra = { version = "0.9", features = ["cookie"] }
+axum = "0.8"
+axum-extra = { version = "0.10", features = ["cookie"] }
 http = "1.0"
 
 # Time

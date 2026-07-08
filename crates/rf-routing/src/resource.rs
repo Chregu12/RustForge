@@ -82,7 +82,7 @@ impl ResourceRouter {
     /// use rf_routing::ResourceRouter;
     ///
     /// let resource = ResourceRouter::new("comments").shallow();
-    /// // Generates: /comments/:id instead of /posts/:post_id/comments/:id
+    /// // Generates: /comments/{id} instead of /posts/{post_id}/comments/{id}
     /// ```
     pub fn shallow(mut self) -> Self {
         self.shallow = true;
@@ -198,30 +198,30 @@ impl ResourceRouter {
                 ControllerAction::Store => base_path.clone(),
                 ControllerAction::Show => {
                     if self.shallow && parent_path.is_some() {
-                        format!("/{}/:id", self.name)
+                        format!("/{}/{{id}}", self.name)
                     } else {
-                        format!("{}/:id", base_path)
+                        format!("{}/{{id}}", base_path)
                     }
                 }
                 ControllerAction::Edit => {
                     if self.shallow && parent_path.is_some() {
-                        format!("/{}/:id/edit", self.name)
+                        format!("/{}/{{id}}/edit", self.name)
                     } else {
-                        format!("{}/:id/edit", base_path)
+                        format!("{}/{{id}}/edit", base_path)
                     }
                 }
                 ControllerAction::Update => {
                     if self.shallow && parent_path.is_some() {
-                        format!("/{}/:id", self.name)
+                        format!("/{}/{{id}}", self.name)
                     } else {
-                        format!("{}/:id", base_path)
+                        format!("{}/{{id}}", base_path)
                     }
                 }
                 ControllerAction::Destroy => {
                     if self.shallow && parent_path.is_some() {
-                        format!("/{}/:id", self.name)
+                        format!("/{}/{{id}}", self.name)
                     } else {
-                        format!("{}/:id", base_path)
+                        format!("{}/{{id}}", base_path)
                     }
                 }
             };
@@ -398,31 +398,31 @@ mod tests {
             .iter()
             .find(|(a, _)| *a == ControllerAction::Show)
             .map(|(_, p)| p);
-        assert_eq!(show_path, Some(&"/posts/:id".to_string()));
+        assert_eq!(show_path, Some(&"/posts/{id}".to_string()));
     }
 
     #[test]
     fn test_resource_router_paths_nested() {
         let resource = ResourceRouter::new("comments");
-        let paths = resource.paths(Some("/posts/:post_id"));
+        let paths = resource.paths(Some("/posts/{post_id}"));
 
         let index_path = paths
             .iter()
             .find(|(a, _)| *a == ControllerAction::Index)
             .map(|(_, p)| p);
-        assert_eq!(index_path, Some(&"/posts/:post_id/comments".to_string()));
+        assert_eq!(index_path, Some(&"/posts/{post_id}/comments".to_string()));
     }
 
     #[test]
     fn test_resource_router_paths_shallow() {
         let resource = ResourceRouter::new("comments").shallow();
-        let paths = resource.paths(Some("/posts/:post_id"));
+        let paths = resource.paths(Some("/posts/{post_id}"));
 
         let show_path = paths
             .iter()
             .find(|(a, _)| *a == ControllerAction::Show)
             .map(|(_, p)| p);
-        assert_eq!(show_path, Some(&"/comments/:id".to_string()));
+        assert_eq!(show_path, Some(&"/comments/{id}".to_string()));
     }
 
     #[test]

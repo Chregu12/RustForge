@@ -6,7 +6,6 @@
 //! parts — so handler-side `request.get(..)` / `request.file(..)` are real.
 
 use crate::{error::RequestError, upload::UploadedFile, Request};
-use async_trait::async_trait;
 use axum::{
     body::Body,
     extract::{FromRequest, Multipart, Request as AxumRequest},
@@ -151,7 +150,6 @@ where
     }
 }
 
-#[async_trait]
 impl<S> FromRequest<S> for Request
 where
     S: Send + Sync,

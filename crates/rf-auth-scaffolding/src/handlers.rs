@@ -84,7 +84,7 @@ pub fn auth_routes() -> Router<Arc<AuthState>> {
             "/password/reset",
             get(show_reset_password).post(reset_password),
         )
-        .route("/email/verify/:token", get(verify_email))
+        .route("/email/verify/{token}", get(verify_email))
 }
 
 /// Show login page

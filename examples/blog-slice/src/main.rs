@@ -8,7 +8,7 @@
 //! Run it:  `cargo run -p blog-slice`  (serves on http://127.0.0.1:3000)
 //!   POST /posts       {"title":"Hello","body":"World"}
 //!   GET  /posts
-//!   GET  /posts/:id    (the `:id` path param reaches the handler via `input`)
+//!   GET  /posts/{id}    (the `:id` path param reaches the handler via `input`)
 use rf::prelude::*;
 
 // A model backed by the real (SQLite) DB.
@@ -38,7 +38,7 @@ async fn list_posts() -> impl axum::response::IntoResponse {
     }
 }
 
-/// GET /posts/:id — show a single post. The `:id` path param is available to the
+/// GET /posts/{id} — show a single post. The `:id` path param is available to the
 /// implicit-request globals (no `Request` argument, no explicit `Path` extractor).
 async fn show_post() -> impl axum::response::IntoResponse {
     let id: i64 = match input("id") {
@@ -56,7 +56,7 @@ async fn show_post() -> impl axum::response::IntoResponse {
 fn build_app() -> axum::Router {
     post("/posts", create_post);
     get("/posts", list_posts);
-    get("/posts/:id", show_post);
+    get("/posts/{id}", show_post);
     rf::global_router()
         .build_router()
         .layer(axum::middleware::from_fn(rf::web::capture_request))
@@ -108,7 +108,7 @@ mod tests {
         let created_id = v["id"].as_i64().unwrap();
         assert!(created_id >= 1);
 
-        // GET /posts/:id -> the `:id` path param reaches the argument-less handler
+        // GET /posts/{id} -> the `:id` path param reaches the argument-less handler
         // via the implicit-request globals (`input::<i64>("id")`), and it returns
         // the very row we just created.
         let out = call(
@@ -135,7 +135,7 @@ mod tests {
         assert_eq!(list.len(), 1);
         assert_eq!(list[0]["body"], "World");
 
-        // GET /posts/:id for a missing row -> the path param is really read and
+        // GET /posts/{id} for a missing row -> the path param is really read and
         // resolved to "not found" (same app instance; the global router is
         // process-wide, so we can't call build_app() twice in another test).
         let out = call(

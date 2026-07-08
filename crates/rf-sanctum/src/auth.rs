@@ -26,7 +26,6 @@ pub trait LoadFromToken: Send + Sync + Sized {
     ) -> Result<Self, SanctumError>;
 }
 
-#[async_trait]
 impl<T, S> FromRequestParts<S> for SanctumAuth<T>
 where
     T: LoadFromToken + 'static,

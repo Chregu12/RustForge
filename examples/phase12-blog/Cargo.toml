@@ -12,8 +12,8 @@ path = "src/main.rs"
 # The whole example is written against the `rf` umbrella + an async runtime,
 # using ONLY the high-level primitives (no bare axum handlers).
 rf = { path = "../../crates/rf" }
-# axum 0.7 to match rf-routing's Router; serde is needed by the Model! derive.
-axum = "0.7"
+# axum 0.8 to match rf-routing's Router; serde is needed by the Model! derive.
+axum = "0.8"
 tokio = { version = "1", features = ["full"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

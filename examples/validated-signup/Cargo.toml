@@ -16,9 +16,9 @@ rf-validation = { path = "../../crates/rf-validation" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 chrono = { version = "0.4", features = ["serde", "clock"] }
-# `ValidatedJson` is a `FromRequest` built against axum 0.8, so the Router and
-# handler must be axum 0.8 to plug into the SAME extractor (rf-routing's own
-# `post`/`build_router` pin axum 0.7 and cannot host a 0.8 extractor).
+# `ValidatedJson` is a `FromRequest` built against axum 0.8. The framework's own
+# HTTP stack (rf-routing's `post`/`build_router`) is now aligned on axum 0.8 too,
+# so this extractor plugs directly into rf::post — no raw-axum workaround needed.
 axum = "0.8"
 tokio = { version = "1.37", features = ["macros", "rt-multi-thread"] }
 

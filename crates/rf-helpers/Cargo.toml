@@ -23,7 +23,7 @@ dirs = "5.0"
 
 # HTTP
 http = "1.0"
-axum = "0.7"
+axum = "0.8"
 
 # Serialization
 serde = "1.0"

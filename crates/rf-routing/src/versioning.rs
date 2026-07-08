@@ -110,7 +110,6 @@ pub fn extract_from_header(version: &str) -> Option<u32> {
     version.parse::<u32>().ok()
 }
 
-#[async_trait::async_trait]
 impl<S> FromRequestParts<S> for ApiVersion
 where
     S: Send + Sync,

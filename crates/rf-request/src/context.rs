@@ -12,6 +12,7 @@ use axum::{
     http::StatusCode,
     middleware::Next,
     response::{IntoResponse, Response},
+    RequestPartsExt,
 };
 use serde::de::DeserializeOwned;
 use serde_json::Value;
@@ -116,14 +117,17 @@ fn path_param_value(raw: &str) -> Value {
     Value::String(raw.to_string())
 }
 
-pub async fn capture_path_params(
-    // `Option`: axum's `RawPathParams` *rejects* on a route with no params
-    // (e.g. `/posts`), so extract it optionally to make this layer safe on every
-    // route rather than only parameterised ones.
-    params: Option<RawPathParams>,
-    req: AxumRequest,
-    next: Next,
-) -> Response {
+pub async fn capture_path_params(req: AxumRequest, next: Next) -> Response {
+    // axum 0.8 dropped the `Option<RawPathParams>` extractor form (an optional
+    // extractor now needs `OptionalFromRequestParts`, which `RawPathParams` does
+    // not implement), while a bare `RawPathParams` *rejects* on a route with no
+    // params (e.g. `/posts`). So split the request, try to extract the params, and
+    // treat a rejection as "no params" — keeping this layer safe on every route,
+    // parameterised or not.
+    let (mut parts, body) = req.into_parts();
+    let params = parts.extract::<RawPathParams>().await.ok();
+    let req = AxumRequest::from_parts(parts, body);
+
     // Start from the context set by `capture_request` (or an empty one).
     let (mut fields, files) =
         with_ctx(|c| (c.fields.clone(), c.files.clone())).unwrap_or_default();
@@ -185,7 +189,7 @@ mod tests {
         use axum::{body::Body, http::Request, routing::get, Router};
         use tower::ServiceExt;
 
-        // A handler with NO arguments reads the matched `:id` via the globals.
+        // A handler with NO arguments reads the matched `{id}` via the globals.
         async fn show() -> String {
             let id: i64 = input("id").expect("id present as i64");
             let extra: String = input("q").unwrap_or_default();
@@ -193,7 +197,7 @@ mod tests {
         }
 
         let app = Router::new().route(
-            "/posts/:id",
+            "/posts/{id}",
             get(show).route_layer(axum::middleware::from_fn(capture_path_params)),
         );
 

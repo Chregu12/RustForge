@@ -22,7 +22,7 @@
 //!   (serves on http://127.0.0.1:3000)
 //!   GET  /                 HTML index (rendered via `view`)
 //!   GET  /posts            JSON list
-//!   GET  /posts/:id        JSON single post (`:id` reaches the handler via `input`)
+//!   GET  /posts/{id}        JSON single post (`:id` reaches the handler via `input`)
 //!   POST /posts            {"title":"Hello","content":"World"} -> validate + persist
 //!   POST /media/upload     multipart `image=@file` -> parsed via the `file` global
 use rf::prelude::*;
@@ -47,7 +47,7 @@ async fn list_posts() -> impl axum::response::IntoResponse {
     }
 }
 
-/// GET /posts/:id — show a single post as JSON. The `:id` path param is read via
+/// GET /posts/{id} — show a single post as JSON. The `:id` path param is read via
 /// the implicit-request `input` global (no `Request` argument, no `Path`
 /// extractor threaded through the handler).
 async fn show_post() -> impl axum::response::IntoResponse {
@@ -99,7 +99,7 @@ async fn upload_media() -> impl axum::response::IntoResponse {
 fn build_app() -> axum::Router {
     get("/", home);
     get("/posts", list_posts);
-    get("/posts/:id", show_post);
+    get("/posts/{id}", show_post);
     post("/posts", create_post);
     post("/media/upload", upload_media);
     rf::global_router()
@@ -160,7 +160,7 @@ mod tests {
         let created_id = v["id"].as_i64().unwrap();
         assert!(created_id >= 1);
 
-        // GET /posts/:id — the `:id` path param reaches the argument-less handler
+        // GET /posts/{id} — the `:id` path param reaches the argument-less handler
         // through `input::<i64>("id")` and returns the very row we just created.
         let (_, out) = call(
             &app,

@@ -104,11 +104,11 @@ fn test_routes() {
     Route::post("/users", "UserController@store");
     println!("   ✅ POST /users registered");
 
-    Route::put("/users/:id", "UserController@update");
-    println!("   ✅ PUT /users/:id registered");
+    Route::put("/users/{id}", "UserController@update");
+    println!("   ✅ PUT /users/{{id}} registered");
 
-    Route::delete("/users/:id", "UserController@destroy");
-    println!("   ✅ DELETE /users/:id registered");
+    Route::delete("/users/{id}", "UserController@destroy");
+    println!("   ✅ DELETE /users/{{id}} registered");
 
     // Named routes
     Route::get("/dashboard", "DashboardController@index")

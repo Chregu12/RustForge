@@ -22,13 +22,13 @@ pub enum ControllerAction {
     Create,
     /// Store new resource (POST /resource)
     Store,
-    /// Show a resource (GET /resource/:id)
+    /// Show a resource (GET /resource/{id})
     Show,
-    /// Show edit form (GET /resource/:id/edit)
+    /// Show edit form (GET /resource/{id}/edit)
     Edit,
-    /// Update a resource (PUT/PATCH /resource/:id)
+    /// Update a resource (PUT/PATCH /resource/{id})
     Update,
-    /// Delete a resource (DELETE /resource/:id)
+    /// Delete a resource (DELETE /resource/{id})
     Destroy,
 }
 
@@ -49,10 +49,10 @@ impl ControllerAction {
             Self::Index => format!("/{}", resource),
             Self::Create => format!("/{}/create", resource),
             Self::Store => format!("/{}", resource),
-            Self::Show => format!("/{}/:id", resource),
-            Self::Edit => format!("/{}/:id/edit", resource),
-            Self::Update => format!("/{}/:id", resource),
-            Self::Destroy => format!("/{}/:id", resource),
+            Self::Show => format!("/{}/{{id}}", resource),
+            Self::Edit => format!("/{}/{{id}}/edit", resource),
+            Self::Update => format!("/{}/{{id}}", resource),
+            Self::Destroy => format!("/{}/{{id}}", resource),
         }
     }
 
@@ -320,8 +320,8 @@ mod tests {
     fn test_controller_action_path() {
         assert_eq!(ControllerAction::Index.path("users"), "/users");
         assert_eq!(ControllerAction::Create.path("users"), "/users/create");
-        assert_eq!(ControllerAction::Show.path("users"), "/users/:id");
-        assert_eq!(ControllerAction::Edit.path("users"), "/users/:id/edit");
+        assert_eq!(ControllerAction::Show.path("users"), "/users/{id}");
+        assert_eq!(ControllerAction::Edit.path("users"), "/users/{id}/edit");
     }
 
     #[test]

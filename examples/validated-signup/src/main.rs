@@ -24,16 +24,13 @@
 //!   POST /signup {"username":"ada42","email":"ada@example.com",
 //!                 "password":"hunter2!","zipcode":"12345"}
 //!
-//! NOTE: this example uses axum 0.8 directly (like the probe) rather than rf's
-//! `post`/`build_router`, because `ValidatedJson` is a `FromRequest` built
-//! against axum 0.8 while rf-routing pins axum 0.7; the two Handler traits are
-//! not interchangeable. The validation itself is 100% the real framework path.
-use axum::{
-    http::StatusCode,
-    response::IntoResponse,
-    routing::post,
-    Json, Router,
-};
+//! NOTE: the route is hosted by the FRAMEWORK's own router — `rf::post` +
+//! `rf::global_router().build_router()` — not raw axum. The framework HTTP stack
+//! is now aligned on axum 0.8, the same version `ValidatedJson` is built against,
+//! so the auto-validating `FromRequest` extractor plugs straight into `rf::post`.
+//! This proves `ValidatedJson` works end-to-end THROUGH the framework routing.
+use axum::{http::StatusCode, response::IntoResponse, Json};
+use rf::prelude::*; // rf's `post` + `global_router().build_router()`
 use rf::Model; // Model! proc-macro (entity + DTOs + opt-in Validate impl)
 use rf_db_facade::Model as ModelTrait; // trait so the generated struct type-checks
 use rf_validation::ValidatedJson; // the REAL auto-validating extractor
@@ -65,10 +62,15 @@ async fn signup(ValidatedJson(user): ValidatedJson<CreateUser>) -> impl IntoResp
     )
 }
 
-/// Wire the one POST route and return the served router (axum 0.8, matching the
-/// `ValidatedJson` extractor).
-fn build_app() -> Router {
-    Router::new().route("/signup", post(signup))
+/// Wire the one POST route through the FRAMEWORK router and return the served
+/// axum 0.8 app. `rf::post` registers the `ValidatedJson`-taking handler on the
+/// global router; `build_router` turns it into a real, servable `axum::Router`.
+fn build_app() -> axum::Router {
+    // Reset first so repeated `build_app()` calls (e.g. across test cases) don't
+    // stack duplicate registrations on the process-global router.
+    rf::global_router().clear();
+    post("/signup", signup);
+    rf::global_router().build_router()
 }
 
 #[tokio::main]

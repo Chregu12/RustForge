@@ -23,8 +23,8 @@ hex = "0.4"
 sea-orm = { version = "1.1", features = ["sqlx-postgres", "runtime-tokio-rustls", "macros"] }
 
 # HTTP
-axum = "0.7"
-axum-extra = { version = "0.9", features = ["typed-header"] }
+axum = "0.8"
+axum-extra = { version = "0.10", features = ["typed-header"] }
 http = "1.0"
 headers = "0.4"
 

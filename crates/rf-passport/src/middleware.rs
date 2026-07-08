@@ -1,7 +1,6 @@
 //! Passport middleware and extractors for Axum
 
 use crate::{errors::PassportError, token::TokenRepository};
-use async_trait::async_trait;
 use axum::{
     extract::FromRequestParts,
     http::{request::Parts, StatusCode},
@@ -30,7 +29,6 @@ pub struct DatabaseExtension(pub Arc<DatabaseConnection>);
 /// ```
 pub struct PassportAuth(pub Option<i64>, pub crate::token::OAuthAccessToken);
 
-#[async_trait]
 impl<S> FromRequestParts<S> for PassportAuth
 where
     S: Send + Sync,

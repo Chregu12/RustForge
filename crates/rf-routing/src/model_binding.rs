@@ -115,7 +115,6 @@ pub trait Bindable: Sized + Send + Sync {
 /// ```
 pub struct ModelBinding<T>(pub T);
 
-#[async_trait]
 impl<T, S> FromRequestParts<S> for ModelBinding<T>
 where
     T: Bindable + 'static,

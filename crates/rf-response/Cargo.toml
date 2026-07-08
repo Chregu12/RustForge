@@ -6,11 +6,11 @@ license.workspace = true
 authors.workspace = true
 
 [dependencies]
-# Pin axum 0.7 to match the framework's HTTP stack (rf-routing, rf-request,
+# Pin axum 0.8 to match the framework's HTTP stack (rf-routing, rf-request,
 # rf-global-helpers). Handlers routed by rf-routing can only return the
 # `Response`/`ResponseBuilder` surface if its `IntoResponse` is the same axum
-# version as the router; the 0.8 workspace default made that surface unusable.
-axum = "0.7"
+# version as the router; the whole stack is aligned on 0.8.
+axum = "0.8"
 # Prefer the real Tera engine (full expression evaluation, filters, richer
 # control flow) when `rf_view::ViewEngine` has been initialized; falls back to
 # the built-in file renderer below when it has not, so zero-config still works.

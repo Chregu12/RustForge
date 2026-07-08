@@ -19,7 +19,7 @@
 ///     GET "/" => home_handler,
 ///     GET "/users" => users_index,
 ///     POST "/users" => users_store,
-///     GET "/users/:id" => users_show,
+///     GET "/users/{id}" => users_show,
 /// };
 /// ```
 #[macro_export]
@@ -201,10 +201,10 @@ macro_rules! nested_group {
 /// | `index`   | `GET    {prefix}`          |
 /// | `create`  | `GET    {prefix}/create`   |
 /// | `store`   | `POST   {prefix}`          |
-/// | `show`    | `GET    {prefix}/:id`      |
-/// | `edit`    | `GET    {prefix}/:id/edit` |
-/// | `update`  | `PUT`+`PATCH {prefix}/:id` |
-/// | `destroy` | `DELETE {prefix}/:id`      |
+/// | `show`    | `GET    {prefix}/{id}`      |
+/// | `edit`    | `GET    {prefix}/{id}/edit` |
+/// | `update`  | `PUT`+`PATCH {prefix}/{id}` |
+/// | `destroy` | `DELETE {prefix}/{id}`      |
 ///
 /// ```rust,ignore
 /// use rf_routing::resource;
@@ -232,17 +232,17 @@ macro_rules! resource {
         $crate::post($prefix, <$controller>::store);
     };
     (@action $prefix:expr, $controller:path, show) => {
-        $crate::get(::std::format!("{}/:id", $prefix), <$controller>::show);
+        $crate::get(::std::format!("{}/{{id}}", $prefix), <$controller>::show);
     };
     (@action $prefix:expr, $controller:path, edit) => {
-        $crate::get(::std::format!("{}/:id/edit", $prefix), <$controller>::edit);
+        $crate::get(::std::format!("{}/{{id}}/edit", $prefix), <$controller>::edit);
     };
     (@action $prefix:expr, $controller:path, update) => {
-        $crate::put(::std::format!("{}/:id", $prefix), <$controller>::update);
-        $crate::patch(::std::format!("{}/:id", $prefix), <$controller>::update);
+        $crate::put(::std::format!("{}/{{id}}", $prefix), <$controller>::update);
+        $crate::patch(::std::format!("{}/{{id}}", $prefix), <$controller>::update);
     };
     (@action $prefix:expr, $controller:path, destroy) => {
-        $crate::delete(::std::format!("{}/:id", $prefix), <$controller>::destroy);
+        $crate::delete(::std::format!("{}/{{id}}", $prefix), <$controller>::destroy);
     };
 
     // --- metadata builder forms (return a `ResourceRouter`) -----------------
