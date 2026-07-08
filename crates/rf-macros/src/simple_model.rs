@@ -1648,6 +1648,19 @@ fn generate_full_model(
                 self
             }
 
+            /// Alias for [`Self::where`] with the SAME name the DB::table
+            /// `QueryBuilder` uses (`where_eq`) — one consistent equality-filter
+            /// name across both builders, no `r#` escape needed. Delegates to
+            /// the inner QueryBuilder identically to `r#where`.
+            pub fn where_eq<V: ::std::convert::Into<serde_json::Value>>(
+                mut self,
+                column: impl ::std::convert::Into<::std::string::String>,
+                value: V,
+            ) -> Self {
+                self.query = self.query.where_eq(column, value);
+                self
+            }
+
             /// Add a `column <op> value` filter (delegates to the inner QueryBuilder).
             pub fn where_op<V: ::std::convert::Into<serde_json::Value>>(
                 mut self,
