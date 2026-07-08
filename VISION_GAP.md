@@ -718,3 +718,15 @@ After Re-audit 6 concluded the vision was "substantially complete (~90%)", a use
 ### Honest standing verdict
 
 The framework's ENGINE is real and now its most common composition edges work too — but "substantially complete / done" was premature. The lesson: **a real app is the only honest audit.** The best next hardening step is to SHIP the TaskFlow app as a workspace-member example driving these exact edges (bidirectional relations, coexisting body+globals, FK override, verifying auth, structured 422) so they stay fixed. Remaining known-smaller items from the same build (documented, not yet fixed): default 404/405 have empty bodies (no JSON envelope), no `RefreshDatabase`-style per-test DB isolation, `where_like` does not escape LIKE wildcards, handlers are still 3-4× longer than Laravel (the visible `Result`/`?` ceiling), and `r#where` vs `where_eq` naming is inconsistent. None are blockers; all are honest friction a real app hits.
+
+### Follow-up — the smaller real-app friction is now fixed too (commits `e21eba6b`…`788544b1`)
+
+Four of the documented smaller friction items from the TaskFlow build, all additive/backward-compatible:
+- **Default JSON 404/405.** `build_router` now installs framework default fallbacks emitting the JSON error envelope (`{"error","message"}`, `application/json`) for unmatched paths and wrong methods; an app can still override with its own `.fallback()`.
+- **LIKE-wildcard escaping.** New `escape_like()` + `QueryBuilder::where_like_escaped()` (`… LIKE ? ESCAPE '\'`) so a search term with `%`/`_`/empty is treated literally instead of matching all rows; `where_like` unchanged (raw pattern).
+- **Consistent `where_eq`.** The Model eager builder now also exposes `where_eq` (matching `QueryBuilder`), so one escape-free name works on both builders; `r#where` still works.
+- **`DB::refresh()`** for RefreshDatabase-style per-test isolation (resets the global DB state so rows do not leak across tests).
+
+**Verified:** `cargo check --workspace` exit 0 (no new warnings); rf-routing 8 / rf-orm 178 / rf-macros 147 tests green; 4 new probes (default_json_404_405, like_escape_fix, where_eq_consistent, db_refresh_isolation) + routing/scope/eager/crud regressions all green.
+
+Still honestly open (documented, non-blocking, from the same build): handlers are 3-4× longer than Laravel (the visible `Result`/`?` language ceiling — a boundary, not a bug); a minor auth-order edge (a `ValidatedJson` body handler validates before the auth check, so a guest with an invalid body gets 422 before 401); and the feature-gated deprecation warnings (redis-backend `get_async_connection`). The framework is materially stronger than before this session: a real app now builds cleanly, the six real bugs + the blocker are fixed and guarded by the shipped `examples/taskflow`, and the common friction is smoothed.
