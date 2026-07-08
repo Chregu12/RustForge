@@ -44,21 +44,26 @@ use tracing::info;
 
 /// Initialize complete observability stack
 pub async fn init_observability(config: ObservabilityConfig) -> Result<()> {
-    // 1. Initialize structured logging
-    init_logging(&config.log_level, config.log_json)?;
-
-    info!("Initializing observability system...");
-
-    // 2. Initialize OpenTelemetry if enabled
+    // 1. Initialize tracing.
+    //
+    // When OpenTelemetry is enabled, `init_telemetry` installs a combined
+    // subscriber (console formatting + OTLP span export), so it fully owns the
+    // global tracing subscriber. Otherwise fall back to plain structured logging.
+    // Only one global subscriber may be installed per process, so these paths
+    // are mutually exclusive.
     if config.otel.enabled {
         init_telemetry(&config.otel)?;
         info!(
             "OpenTelemetry initialized with endpoint: {}",
             config.otel.endpoint
         );
+    } else {
+        init_logging(&config.log_level, config.log_json)?;
     }
 
-    // 3. Metrics are automatically initialized via lazy_static
+    info!("Initializing observability system...");
+
+    // 2. Metrics are automatically initialized via lazy_static
     info!("Prometheus metrics initialized on /metrics endpoint");
 
     info!("Observability system ready");
