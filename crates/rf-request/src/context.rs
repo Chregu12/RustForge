@@ -74,8 +74,11 @@ where
 /// Middleware that parses the incoming request once and exposes it to the global
 /// helpers ([`input`]/[`has`]/[`file`]/[`all`]) for the duration of the handler.
 ///
-/// Because it drains the body while parsing, handlers behind this middleware use
-/// the global helpers (or the parsed context) rather than a second body extractor.
+/// It buffers the body to parse the globals, then re-inserts the JSON/urlencoded
+/// bytes on the downstream request — so a handler behind this middleware can use
+/// BOTH the global helpers AND a second body extractor (axum `Json`,
+/// `ValidatedJson`) reading the same body. (Multipart bodies are drained
+/// field-by-field and not re-inserted; multipart handlers use the globals/context.)
 ///
 /// ```ignore
 /// use axum::{Router, routing::post, middleware};

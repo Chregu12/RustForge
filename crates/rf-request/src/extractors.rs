@@ -28,10 +28,15 @@ fn merge_urlencoded(fields: &mut HashMap<String, Value>, input: &str) {
     }
 }
 
-/// Parse an incoming request into `(fields, files, drained_inner_request)`.
+/// Parse an incoming request into `(fields, files, rebuilt_inner_request)`.
 ///
 /// Shared by the [`Request`] extractor and the `capture_request` middleware, so
 /// both populate identical fields/files from JSON, query, form and multipart.
+///
+/// The returned inner request is rebuilt with its original headers/method/uri/
+/// extensions. For JSON and urlencoded bodies the buffered bytes are re-inserted
+/// as the body, so a downstream body extractor still sees the real body; the
+/// multipart path is drained and rebuilt with an empty body.
 pub async fn parse_request<S>(
     req: AxumRequest,
     state: &S,
@@ -69,6 +74,13 @@ where
 
         let mut files: HashMap<String, UploadedFile> = HashMap::new();
 
+        // Bytes buffered off the body so we can RE-INSERT them as the downstream
+        // request body — letting a later body extractor (axum `Json`,
+        // `ValidatedJson`) read the SAME body that `capture_request` already
+        // parsed for the globals. `None` means "rebuild with an empty body" (the
+        // multipart / no-body cases below). `Bytes` clones are cheap (refcounted).
+        let mut buffered_body: Option<axum::body::Bytes> = None;
+
         // 2. Body, by content type (body values override query on key collision).
         if content_type.contains("application/json") {
             let bytes = axum::body::to_bytes(body, MAX_BODY_SIZE)
@@ -90,12 +102,14 @@ where
                     }
                 }
             }
+            buffered_body = Some(bytes);
         } else if content_type.contains("application/x-www-form-urlencoded") {
             let bytes = axum::body::to_bytes(body, MAX_BODY_SIZE)
                 .await
                 .map_err(|e| RequestError::InvalidBody(e.to_string()))?;
             let text = String::from_utf8_lossy(&bytes);
             merge_urlencoded(&mut fields, &text);
+            buffered_body = Some(bytes);
         } else if content_type.contains("multipart/form-data") {
             // Hand the (parts, body) to axum's Multipart extractor.
             let req = AxumRequest::from_parts(parts, body);
@@ -136,13 +150,23 @@ where
         }
         // Any other content type: no body fields (query params still apply).
 
-        // Rebuild a lightweight inner request (headers/method/uri preserved, body drained).
+        // Rebuild the inner request (headers/method/uri/extensions preserved). For
+        // JSON and urlencoded bodies we RE-INSERT the buffered bytes so a
+        // downstream body extractor (axum `Json`, `ValidatedJson`) can still read
+        // the body — the two flagship body-reading primitives coexist on one
+        // router. The multipart path is drained field-by-field by axum's
+        // `Multipart` and cannot be losslessly reconstructed here, so it keeps an
+        // empty downstream body (multipart handlers use the parsed globals/context).
+        let downstream_body = match buffered_body {
+            Some(bytes) => Body::from(bytes),
+            None => Body::empty(),
+        };
         let mut builder = HttpRequest::builder().method(method).uri(uri).version(version);
         if let Some(dst) = builder.headers_mut() {
             *dst = headers;
         }
         let mut http_req = builder
-            .body(Body::empty())
+            .body(downstream_body)
             .map_err(|e| RequestError::InvalidBody(e.to_string()))?;
         *http_req.extensions_mut() = extensions;
 
