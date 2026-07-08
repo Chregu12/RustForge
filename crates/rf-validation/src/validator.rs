@@ -167,14 +167,24 @@ impl Validator {
                     Ok(_) => continue,
                     Err(default_message) => {
                         // Check for custom message
-                        let message_key = format!("{}.{}", field, rule.name());
+                        let rule_name = rule.name();
+                        let message_key = format!("{}.{}", field, rule_name);
                         let message = self
                             .custom_messages
                             .get(&message_key)
                             .cloned()
                             .unwrap_or(default_message);
 
-                        errors.add(field, FieldError::new(rule.name(), message));
+                        errors.add(field, FieldError::new(rule_name, message));
+
+                        // A failing presence check is the ROOT cause for this
+                        // field: an empty/missing value trivially fails length
+                        // (min) and format rules too, which would restate the
+                        // same problem. Short-circuit so `required` is the only
+                        // error surfaced for the field.
+                        if rule_name == "required" {
+                            break;
+                        }
                     }
                 }
             }

@@ -89,8 +89,18 @@ pub async fn capture_request(req: AxumRequest, next: Next) -> Response {
             let ctx = Arc::new(RequestContext { fields, files });
             with_request_context(ctx, next.run(inner)).await
         }
-        // Malformed body (e.g. invalid JSON): reject with 400 instead of proceeding.
-        Err(e) => (StatusCode::BAD_REQUEST, e.to_string()).into_response(),
+        // Malformed body (e.g. invalid JSON): reject with a stable JSON error
+        // envelope (application/json) instead of a text/plain string that would
+        // leak the underlying serde parser internals (byte/line/column). The
+        // shape mirrors the rest of the framework's JSON error responses.
+        Err(_) => (
+            StatusCode::BAD_REQUEST,
+            axum::Json(serde_json::json!({
+                "error": "Invalid request body",
+                "message": "The request body could not be parsed.",
+            })),
+        )
+            .into_response(),
     }
 }
 

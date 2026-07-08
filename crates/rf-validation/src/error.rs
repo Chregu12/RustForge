@@ -137,17 +137,20 @@ impl From<validator::ValidationErrors> for ValidationErrors {
     }
 }
 
-/// Convert ValidationErrors to AppError for HTTP responses
+/// Convert ValidationErrors to AppError for HTTP responses.
+///
+/// Renders a real 422 (Unprocessable Entity) with a STRUCTURED per-field errors
+/// map (`{ "field": [{ "code", "message" }, ..] }`) — the same body shape the
+/// `ValidatedJson` extractor produces — rather than a 400 with the structure
+/// flattened into a single stringly-typed message.
 impl From<ValidationErrors> for AppError {
     fn from(errors: ValidationErrors) -> Self {
-        // validator crate has a ValidationErrors type, but we can't use it directly
-        // since we've converted to our own type. We'll use BadRequest for now.
+        let errors_json = serde_json::to_value(errors.field_errors())
+            .unwrap_or_else(|_| serde_json::Value::Object(Default::default()));
 
-        // Serialize to JSON for the error message
-        let json = serde_json::to_string_pretty(&errors)
-            .unwrap_or_else(|_| "Validation failed".to_string());
-
-        AppError::BadRequest { message: json }
+        AppError::ValidationFailed {
+            errors: errors_json,
+        }
     }
 }
 

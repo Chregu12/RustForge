@@ -35,6 +35,19 @@ pub enum AppError {
     #[cfg(feature = "validation")]
     Validation(#[from] validator::ValidationErrors),
 
+    /// Structured validation failure (422 Unprocessable Entity)
+    ///
+    /// Carries a per-field errors map (field name -> list of `{code, message}`)
+    /// so the HTTP response mirrors the `ValidatedJson` extractor's 422 body
+    /// instead of stringifying the structure into a flat message. This is the
+    /// target of the `From<rf_validation::ValidationErrors>` conversion, which
+    /// cannot use the external `validator` crate's type above.
+    #[error("Validation failed")]
+    ValidationFailed {
+        /// Per-field errors map (`{ "field": [{ "code", "message" }, ..] }`).
+        errors: serde_json::Value,
+    },
+
     /// Resource not found (404)
     #[error("Resource not found: {resource}")]
     NotFound { resource: String },
@@ -108,6 +121,18 @@ impl AppError {
                 }
 
                 problem
+            }
+
+            Self::ValidationFailed { errors } => {
+                ProblemDetails::new(
+                    422,
+                    "Validation Failed",
+                    "One or more fields failed validation",
+                )
+                .with_trace_id(ctx.trace_id())
+                .with_instance(ctx.path())
+                .with_type_uri("validation-failed")
+                .with_extension("errors", errors.clone())
             }
 
             Self::NotFound { resource } => ProblemDetails::new(404, "Not Found", resource)
@@ -197,6 +222,7 @@ impl AppError {
         match self {
             #[cfg(feature = "validation")]
             Self::Validation(_) => 422,
+            Self::ValidationFailed { .. } => 422,
             Self::NotFound { .. } => 404,
             Self::Unauthorized => 401,
             Self::Forbidden { .. } => 403,
