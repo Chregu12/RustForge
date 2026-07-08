@@ -465,6 +465,12 @@ jobs:
           cargo test -p rf-cache --features redis-backend \
             test_pubsub_publish_subscribe_roundtrip -- --nocapture
 
+      # The SMTP test targets MailHog at 127.0.0.1:1025 by default, which is
+      # correct on this Linux runner (mailhog binds 1025 above). It also honors
+      # RF_SMTP_TEST_ADDR (host:port) as an override — set it for LOCAL runs on
+      # hosts where 1025 is squatted by an unrelated process (e.g. macOS
+      # FinderSync), e.g. RF_SMTP_TEST_ADDR=127.0.0.1:2025. No override is
+      # needed here, so we keep the default.
       - name: rf-mail SMTP send via MailHog (live)
         run: |
           cargo test -p rf-mail \

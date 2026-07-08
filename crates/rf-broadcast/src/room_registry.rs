@@ -141,3 +141,117 @@ impl RoomRegistry {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde::Serialize;
+    use tokio::sync::mpsc;
+
+    fn text_of(msg: Message) -> String {
+        match msg {
+            Message::Text(t) => t.to_string(),
+            other => panic!("expected text message, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn join_tracks_room_size_and_active_rooms() {
+        let registry = RoomRegistry::new();
+        assert_eq!(registry.active_rooms(), 0);
+
+        let (tx1, _rx1) = mpsc::unbounded_channel();
+        let (tx2, _rx2) = mpsc::unbounded_channel();
+        let id1 = registry.join("room-a", tx1);
+        let id2 = registry.join("room-a", tx2);
+
+        assert_ne!(id1, id2, "each connection gets a unique id");
+        assert_eq!(registry.room_size("room-a"), 2);
+        assert_eq!(registry.active_rooms(), 1);
+        assert_eq!(registry.room_size("missing"), 0);
+    }
+
+    #[test]
+    fn leave_prunes_empty_rooms() {
+        let registry = RoomRegistry::new();
+        let (tx1, _rx1) = mpsc::unbounded_channel();
+        let (tx2, _rx2) = mpsc::unbounded_channel();
+        let id1 = registry.join("room-a", tx1);
+        let id2 = registry.join("room-a", tx2);
+
+        registry.leave("room-a", id1);
+        assert_eq!(registry.room_size("room-a"), 1);
+        assert_eq!(registry.active_rooms(), 1);
+
+        registry.leave("room-a", id2);
+        assert_eq!(registry.room_size("room-a"), 0);
+        assert_eq!(registry.active_rooms(), 0, "empty room is removed");
+    }
+
+    #[test]
+    fn broadcast_delivers_to_every_connection() {
+        let registry = RoomRegistry::new();
+        let (tx1, mut rx1) = mpsc::unbounded_channel();
+        let (tx2, mut rx2) = mpsc::unbounded_channel();
+        registry.join("room-a", tx1);
+        registry.join("room-a", tx2);
+
+        registry.broadcast("room-a", "hello");
+
+        assert_eq!(text_of(rx1.try_recv().unwrap()), "hello");
+        assert_eq!(text_of(rx2.try_recv().unwrap()), "hello");
+        // Broadcasting to an unknown room is a no-op (must not panic).
+        registry.broadcast("nope", "ignored");
+    }
+
+    #[test]
+    fn broadcast_prunes_dead_connections() {
+        let registry = RoomRegistry::new();
+        let (tx_live, mut rx_live) = mpsc::unbounded_channel();
+        let (tx_dead, rx_dead) = mpsc::unbounded_channel();
+        registry.join("room-a", tx_live);
+        registry.join("room-a", tx_dead);
+        assert_eq!(registry.room_size("room-a"), 2);
+
+        drop(rx_dead); // closing the receiver makes that sender fail.
+        registry.broadcast("room-a", "ping");
+
+        // The live connection still receives, the dead one is pruned.
+        assert_eq!(text_of(rx_live.try_recv().unwrap()), "ping");
+        assert_eq!(registry.room_size("room-a"), 1);
+    }
+
+    #[test]
+    fn broadcast_json_serializes_payload() {
+        #[derive(Serialize)]
+        struct Payload<'a> {
+            kind: &'a str,
+            round: u32,
+        }
+
+        let registry = RoomRegistry::new();
+        let (tx, mut rx) = mpsc::unbounded_channel();
+        registry.join("session-1", tx);
+
+        registry
+            .broadcast_json("session-1", &Payload { kind: "ROUND_STARTED", round: 3 })
+            .expect("serialisation succeeds");
+
+        let received = text_of(rx.try_recv().unwrap());
+        assert_eq!(received, r#"{"kind":"ROUND_STARTED","round":3}"#);
+    }
+
+    #[test]
+    fn send_to_targets_a_single_connection() {
+        let registry = RoomRegistry::new();
+        let (tx1, mut rx1) = mpsc::unbounded_channel();
+        let (tx2, mut rx2) = mpsc::unbounded_channel();
+        let id1 = registry.join("room-a", tx1);
+        registry.join("room-a", tx2);
+
+        registry.send_to("room-a", id1, Message::Text("just-you".to_string().into()));
+
+        assert_eq!(text_of(rx1.try_recv().unwrap()), "just-you");
+        assert!(rx2.try_recv().is_err(), "other connection receives nothing");
+    }
+}
