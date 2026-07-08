@@ -27,6 +27,15 @@ pub trait UserProvider: Send + Sync {
     /// Look up the stored user record by its login identifier (not the password).
     fn retrieve_by_credentials(&self, credentials: &Value) -> Option<Value>;
 
+    /// Look up a stored user record by its primary id. Used by the *verifying*
+    /// [`AuthManager::login_using_id_verified`] path to confirm the id resolves to a
+    /// real user before establishing the identity. The default implementation
+    /// delegates to [`retrieve_by_credentials`](Self::retrieve_by_credentials) with
+    /// `{"id": id}`; override it if your store keys users differently.
+    fn retrieve_by_id(&self, id: u64) -> Option<Value> {
+        self.retrieve_by_credentials(&serde_json::json!({ "id": id }))
+    }
+
     /// Name of the field in the returned record holding the (hashed) password.
     fn password_field(&self) -> &str {
         "password"
@@ -176,6 +185,38 @@ impl AuthManager {
         self.login(user)?;
         with_state(|s| s.via_remember = remember);
         Ok(())
+    }
+
+    /// **Verifying** login-by-id: only establishes the identity if `id` resolves to
+    /// a real user via the active [`UserProvider`].
+    ///
+    /// Unlike the trusting facade `Auth::login_using_id` (which fabricates
+    /// `{"id": id}` for any integer), this looks the user up through
+    /// [`UserProvider::retrieve_by_id`] first. Returns `Ok(true)` and logs the user
+    /// in (password field stripped) when the id matches a stored user; `Ok(false)`
+    /// when no provider is configured or no user has that id — a phantom id is never
+    /// authorized.
+    pub fn login_using_id_verified(&self, id: u64, remember: bool) -> Result<bool, String> {
+        let provider = match self.active_provider() {
+            Some(p) => p,
+            None => return Ok(false),
+        };
+
+        let record = match provider.retrieve_by_id(id) {
+            Some(r) => r,
+            None => return Ok(false),
+        };
+
+        // Never keep the password hash in the session state.
+        let mut user = record;
+        if let Some(obj) = user.as_object_mut() {
+            obj.remove(provider.password_field());
+        }
+        with_state(|s| {
+            s.current_user = Some(user);
+            s.via_remember = remember;
+        });
+        Ok(true)
     }
 
     /// Logout the current scope's user.
@@ -366,6 +407,56 @@ mod tests {
             assert!(!m
                 .attempt(serde_json::json!({"email": "ghost@example.com", "password": "secret"}))
                 .unwrap());
+            assert!(!m.check());
+        });
+    }
+
+    /// Provider that only knows a single user with id 1 (id-keyed lookup).
+    struct IdProvider;
+    impl UserProvider for IdProvider {
+        fn retrieve_by_credentials(&self, _credentials: &Value) -> Option<Value> {
+            None
+        }
+        fn retrieve_by_id(&self, id: u64) -> Option<Value> {
+            if id == 1 {
+                Some(serde_json::json!({
+                    "id": 1,
+                    "name": "Real User",
+                    "password": "irrelevant-hash",
+                }))
+            } else {
+                None
+            }
+        }
+    }
+
+    #[test]
+    fn test_login_using_id_verified_rejects_phantom_and_accepts_real() {
+        // A5 regression: the verifying path must reject an id for a non-existent
+        // user while accepting a real one — no phantom authorization.
+        with_auth_scope_sync(|| {
+            let m = AuthManager;
+            m.set_provider(Arc::new(IdProvider));
+
+            // Phantom id -> rejected, no session established.
+            assert!(!m.login_using_id_verified(999, false).unwrap());
+            assert!(!m.check());
+
+            // Real id -> accepted, logged in, password stripped.
+            assert!(m.login_using_id_verified(1, true).unwrap());
+            assert!(m.check());
+            assert_eq!(m.id(), Some(1));
+            assert!(m.via_remember());
+            assert!(m.user::<Value>().unwrap().get("password").is_none());
+        });
+    }
+
+    #[test]
+    fn test_login_using_id_verified_fails_closed_without_provider() {
+        with_auth_scope_sync(|| {
+            let m = AuthManager;
+            // No provider configured -> even a plausible id is not authorized.
+            assert!(!m.login_using_id_verified(1, false).unwrap());
             assert!(!m.check());
         });
     }

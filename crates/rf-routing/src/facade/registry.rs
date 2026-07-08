@@ -4,6 +4,7 @@
 //! from anywhere in the application.
 
 use axum::handler::Handler;
+use axum::http::Method;
 use axum::routing::MethodRouter;
 use axum::Router;
 use once_cell::sync::Lazy;
@@ -30,11 +31,14 @@ pub struct GlobalRouter {
     groups: RwLock<Vec<String>>,
     /// Middleware registry
     middleware: RwLock<HashMap<String, Vec<String>>>,
-    /// Real, executable Axum handlers keyed by path. Each entry accumulates the
-    /// method routes (GET/POST/...) registered for that path, so
-    /// [`build_router`](Self::build_router) can produce a router that actually
+    /// Real, executable Axum handlers keyed by path, then by HTTP method. Each
+    /// per-method entry is a single-method [`MethodRouter`]; keying by method lets a
+    /// later registration of the *same* method+path **overwrite** the previous one
+    /// idempotently instead of panicking with axum's "Overlapping method route".
+    /// [`build_router`](Self::build_router) merges each path's per-method routers
+    /// (which are, by construction, non-overlapping) into a router that actually
     /// serves traffic.
-    handlers: RwLock<HashMap<String, MethodRouter<()>>>,
+    handlers: RwLock<HashMap<String, HashMap<Method, MethodRouter<()>>>>,
 }
 
 impl std::fmt::Debug for GlobalRouter {
@@ -58,15 +62,21 @@ impl GlobalRouter {
         }
     }
 
-    /// Register a real Axum handler for `path`, folding it into that path's
-    /// method router via `add` (e.g. `|mr| mr.get(handler)`).
-    fn upsert_handler<F>(&self, path: String, add: F)
-    where
-        F: FnOnce(MethodRouter<()>) -> MethodRouter<()>,
-    {
+    /// Register a real Axum handler for `path`+`method` as a single-method
+    /// [`MethodRouter`].
+    ///
+    /// Registering the same `method`+`path` twice **overwrites** the previous
+    /// handler (last registration wins) instead of panicking with axum's
+    /// "Overlapping method route" — route collisions are recoverable, not fatal.
+    /// Distinct methods on the same path are kept side by side and merged in
+    /// [`build_router`](Self::build_router). `global_router().clear()` is the
+    /// supported way to reset the registry before rebuilding.
+    fn upsert_handler(&self, path: String, method: Method, method_router: MethodRouter<()>) {
         let mut handlers = self.handlers.write();
-        let existing = handlers.remove(&path).unwrap_or_default();
-        handlers.insert(path, add(existing));
+        handlers
+            .entry(path)
+            .or_default()
+            .insert(method, method_router);
     }
 
     /// Register a `GET` handler that will actually serve `path`.
@@ -75,7 +85,7 @@ impl GlobalRouter {
         H: Handler<T, ()>,
         T: 'static,
     {
-        self.upsert_handler(path.into(), move |mr| mr.get(handler));
+        self.upsert_handler(path.into(), Method::GET, axum::routing::get(handler));
     }
 
     /// Register a `POST` handler that will actually serve `path`.
@@ -84,7 +94,7 @@ impl GlobalRouter {
         H: Handler<T, ()>,
         T: 'static,
     {
-        self.upsert_handler(path.into(), move |mr| mr.post(handler));
+        self.upsert_handler(path.into(), Method::POST, axum::routing::post(handler));
     }
 
     /// Register a `PUT` handler that will actually serve `path`.
@@ -93,7 +103,7 @@ impl GlobalRouter {
         H: Handler<T, ()>,
         T: 'static,
     {
-        self.upsert_handler(path.into(), move |mr| mr.put(handler));
+        self.upsert_handler(path.into(), Method::PUT, axum::routing::put(handler));
     }
 
     /// Register a `PATCH` handler that will actually serve `path`.
@@ -102,7 +112,7 @@ impl GlobalRouter {
         H: Handler<T, ()>,
         T: 'static,
     {
-        self.upsert_handler(path.into(), move |mr| mr.patch(handler));
+        self.upsert_handler(path.into(), Method::PATCH, axum::routing::patch(handler));
     }
 
     /// Register a `DELETE` handler that will actually serve `path`.
@@ -111,7 +121,7 @@ impl GlobalRouter {
         H: Handler<T, ()>,
         T: 'static,
     {
-        self.upsert_handler(path.into(), move |mr| mr.delete(handler));
+        self.upsert_handler(path.into(), Method::DELETE, axum::routing::delete(handler));
     }
 
     /// Register a new route.
@@ -201,9 +211,14 @@ impl GlobalRouter {
     /// arguments can therefore read `input::<i64>("id")` for `/posts/:id`.
     pub fn build_router(&self) -> Router {
         let mut router = Router::new();
-        for (path, method_router) in self.handlers.read().iter() {
+        for (path, methods) in self.handlers.read().iter() {
+            // Merge this path's per-method routers. They are non-overlapping by
+            // construction (one entry per HTTP method), so `merge` never panics.
+            let mut method_router = MethodRouter::new();
+            for mr in methods.values() {
+                method_router = method_router.merge(mr.clone());
+            }
             let method_router = method_router
-                .clone()
                 .route_layer(axum::middleware::from_fn(rf_request::capture_path_params));
             router = router.route(path, method_router);
         }
@@ -382,6 +397,31 @@ mod tests {
 
         assert_eq!(router.routes().len(), 0);
         assert_eq!(router.groups.read().len(), 0);
+    }
+
+    #[test]
+    fn test_overlapping_method_route_does_not_panic() {
+        // A4 regression: registering the same method+path twice must NOT panic
+        // (previously axum's "Overlapping method route" aborted the process), and
+        // building the router afterwards must also succeed.
+        async fn v1() -> &'static str {
+            "v1"
+        }
+        async fn v2() -> &'static str {
+            "v2"
+        }
+
+        let router = GlobalRouter::new();
+        router.add_get("/dup", v1);
+        router.add_get("/dup", v2); // same method+path -> overwrite, no panic
+        router.add_post("/dup", v1); // distinct method on same path -> coexists
+
+        // Only one path entry, holding two distinct methods.
+        assert_eq!(router.handlers.read().len(), 1);
+        assert_eq!(router.handlers.read()["/dup"].len(), 2);
+
+        // Building the served router must not panic.
+        let _app = router.build_router();
     }
 
     #[test]

@@ -155,7 +155,13 @@ impl Auth {
         manager.login(user)
     }
 
-    /// Login a user with remember me
+    /// Login by id, **trusting the caller**.
+    ///
+    /// This fabricates an identity `{"id": id}` and logs it in *without* checking
+    /// that the id belongs to a real user. Use it only when the id has already been
+    /// validated (e.g. freshly decoded from a signed token you issued). For a bearer
+    /// / user-supplied id, prefer [`login_using_id_verified`](Self::login_using_id_verified),
+    /// which rejects phantom ids.
     ///
     /// # Examples
     ///
@@ -172,6 +178,24 @@ impl Auth {
 
         let manager = GLOBAL_AUTH.write().unwrap();
         manager.login_with_remember(user, remember)
+    }
+
+    /// **Verifying** login by id: only logs in if `id` resolves to a real user via
+    /// the configured [`UserProvider`](crate::UserProvider).
+    ///
+    /// Unlike [`login_using_id`](Self::login_using_id), this does not trust the
+    /// caller: it looks the user up through
+    /// [`UserProvider::retrieve_by_id`](crate::UserProvider::retrieve_by_id) and
+    /// returns `Ok(true)` only when a stored user has that id (logging them in with
+    /// the password field stripped). It returns `Ok(false)` when no provider is
+    /// configured or no such user exists — so a bearer/id for a non-existent user is
+    /// rejected instead of authorizing a phantom user.
+    ///
+    /// Register the provider once at startup with
+    /// [`set_provider`](Self::set_provider).
+    pub fn login_using_id_verified(id: u64, remember: bool) -> Result<bool, String> {
+        let manager = GLOBAL_AUTH.write().unwrap();
+        manager.login_using_id_verified(id, remember)
     }
 
     /// Logout the currently authenticated user
