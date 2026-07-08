@@ -1,0 +1,26 @@
+[package]
+name = "taskflow"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+# The whole app is written against the `rf` umbrella (prelude) + an async runtime.
+rf = { path = "../../crates/rf" }
+# `rf_auth::auth_manager::with_auth_scope` (the per-request auth scope primitive)
+# and the `UserProvider` trait backing the VERIFYING `login_using_id_verified`
+# path are used directly, so `rf-auth` is a direct dependency.
+rf-auth = { path = "../../crates/rf-auth" }
+# The auto-validating `ValidatedJson` extractor + the `Validate` trait the
+# generated Create DTOs target.
+rf-validation = { path = "../../crates/rf-validation" }
+# axum 0.8 matches the framework HTTP stack (rf-routing's Router + the axum 0.8
+# `ValidatedJson` extractor), so both plug into ONE `build_router` with no
+# version split. `StatusCode` for the 201/200/204/404/422/401 codes lives here.
+axum = "0.8"
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[dev-dependencies]
+tower = { version = "0.5", features = ["util"] }

@@ -114,6 +114,7 @@ members = [
     "examples/auth-paginated-search",
     "examples/phase12-blog",
     "examples/realtime-chat",
+    "examples/taskflow",
     # Benchmarks
     "benchmarks",
     # Legacy CLI (kept as foundry-cli)
