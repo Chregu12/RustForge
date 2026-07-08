@@ -6,8 +6,46 @@ use crate::facade::db_manager::GLOBAL_DB;
 use serde::Serialize;
 use serde_json::Value;
 
+/// Escape character used for `LIKE ... ESCAPE` clauses built by
+/// [`escape_like`] and [`QueryBuilder::where_like_escaped`].
+const LIKE_ESCAPE_CHAR: char = '\\';
+
+/// Escape LIKE wildcard metacharacters in `input` so it can be matched
+/// literally inside a `LIKE ... ESCAPE '\'` pattern.
+///
+/// The SQL `LIKE` operator treats `%` (any sequence) and `_` (any single
+/// character) as wildcards. When a user-supplied search term is placed inside a
+/// `LIKE` pattern, those characters — plus the escape character `\` itself —
+/// must be escaped so they are matched literally. This helper prefixes each of
+/// `\`, `%` and `_` with a backslash; pair it with an `ESCAPE '\'` clause (as
+/// [`QueryBuilder::where_like_escaped`] does).
+///
+/// # Examples
+///
+/// ```rust
+/// use rf_orm::escape_like;
+///
+/// assert_eq!(escape_like("50%"), "50\\%");
+/// assert_eq!(escape_like("a_b"), "a\\_b");
+/// assert_eq!(escape_like("plain"), "plain");
+/// ```
+pub fn escape_like(input: &str) -> String {
+    let mut out = String::with_capacity(input.len());
+    for ch in input.chars() {
+        if ch == LIKE_ESCAPE_CHAR || ch == '%' || ch == '_' {
+            out.push(LIKE_ESCAPE_CHAR);
+        }
+        out.push(ch);
+    }
+    out
+}
+
 /// Render a single `column op value` condition, appending the value (if any) to
 /// `bindings` as a `?` placeholder. `NULL` values become `IS`/`IS NOT NULL`.
+///
+/// The pseudo-operators `LIKE ESCAPE` / `NOT LIKE ESCAPE` render a
+/// `column LIKE ? ESCAPE '\'` clause so that wildcards escaped by
+/// [`escape_like`] are matched literally.
 fn push_condition(out: &mut String, column: &str, op: &str, value: &Value, bindings: &mut Vec<Value>) {
     if value.is_null() {
         let op = if op == "IS NOT" || op == "!=" || op == "<>" {
@@ -16,6 +54,10 @@ fn push_condition(out: &mut String, column: &str, op: &str, value: &Value, bindi
             "IS"
         };
         out.push_str(&format!("{} {} NULL", column, op));
+    } else if op == "LIKE ESCAPE" || op == "NOT LIKE ESCAPE" {
+        bindings.push(value.clone());
+        let like_op = if op == "NOT LIKE ESCAPE" { "NOT LIKE" } else { "LIKE" };
+        out.push_str(&format!("{} {} ? ESCAPE '{}'", column, like_op, LIKE_ESCAPE_CHAR));
     } else {
         bindings.push(value.clone());
         out.push_str(&format!("{} {} ?", column, op));
@@ -223,10 +265,57 @@ impl QueryBuilder {
         self
     }
 
-    /// Where column is like a pattern
+    /// Where column is like a **raw** LIKE pattern.
+    ///
+    /// The pattern is passed through verbatim, so `%` and `_` act as wildcards.
+    /// This is intentional for callers that build their own patterns. When the
+    /// pattern comes from user input, prefer [`where_like_escaped`](Self::where_like_escaped),
+    /// which treats the term as a literal substring (a user term of `%` or `_`,
+    /// or an empty term, will otherwise match far more rows than intended).
     pub fn where_like(mut self, column: impl Into<String>, pattern: impl Into<String>) -> Self {
         self.wheres.push((column.into(), "LIKE".to_string(), Value::String(pattern.into())));
         self
+    }
+
+    /// Where column contains `term` as a literal substring (wildcard-safe).
+    ///
+    /// Unlike [`where_like`](Self::where_like), the user-supplied `term` is
+    /// escaped with [`escape_like`] and matched via `LIKE '%term%' ESCAPE '\'`,
+    /// so any `%` or `_` in `term` is treated literally rather than as a
+    /// wildcard. An **empty** `term` matches no rows (instead of matching every
+    /// row, which a naive `%%` pattern would do).
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use rf_orm::DB;
+    ///
+    /// async fn example(user_input: &str) {
+    ///     // Safe search: a `%` in `user_input` is matched literally.
+    ///     let tasks = DB::table("tasks")
+    ///         .where_like_escaped("title", user_input)
+    ///         .get().await.unwrap();
+    /// }
+    /// ```
+    pub fn where_like_escaped(mut self, column: impl Into<String>, term: impl AsRef<str>) -> Self {
+        let term = term.as_ref();
+        if term.is_empty() {
+            // An empty term would build the `%%` pattern, which matches every
+            // row. Emit an always-false predicate so an empty search matches
+            // nothing instead of leaking the whole table.
+            self.wheres.push(("1".to_string(), "=".to_string(), Value::from(0)));
+            return self;
+        }
+        let pattern = format!("%{}%", escape_like(term));
+        self.wheres.push((column.into(), "LIKE ESCAPE".to_string(), Value::String(pattern)));
+        self
+    }
+
+    /// Laravel-style whereLikeEscaped (camelCase alias for
+    /// [`where_like_escaped`](Self::where_like_escaped)).
+    #[allow(non_snake_case)]
+    pub fn whereLikeEscaped(self, column: impl Into<String>, term: impl AsRef<str>) -> Self {
+        self.where_like_escaped(column, term)
     }
 
     /// Set limit
@@ -1822,6 +1911,78 @@ mod tests {
         assert_eq!(QueryBuilder::new("qb_count").count().await.unwrap(), 0);
         crate::DB::insert("INSERT INTO qb_count (id) VALUES (1), (2), (3)", &[]).unwrap();
         assert_eq!(QueryBuilder::new("qb_count").count().await.unwrap(), 3);
+    }
+
+    #[test]
+    fn test_escape_like_escapes_metacharacters() {
+        assert_eq!(escape_like("50%"), "50\\%");
+        assert_eq!(escape_like("a_b"), "a\\_b");
+        assert_eq!(escape_like("back\\slash"), "back\\\\slash");
+        assert_eq!(escape_like("plain text"), "plain text");
+        assert_eq!(escape_like(""), "");
+    }
+
+    #[test]
+    fn test_where_like_escaped_builds_escape_clause() {
+        let (sql, bindings) = QueryBuilder::new("tasks")
+            .where_like_escaped("title", "50%")
+            .build_select_sql();
+        assert!(
+            sql.contains("title LIKE ? ESCAPE '\\'"),
+            "expected ESCAPE clause, got: {sql}"
+        );
+        assert_eq!(bindings, vec![Value::String("%50\\%%".to_string())]);
+    }
+
+    #[test]
+    fn test_where_like_escaped_empty_term_matches_nothing() {
+        let (sql, bindings) = QueryBuilder::new("tasks")
+            .where_like_escaped("title", "")
+            .build_select_sql();
+        assert!(sql.contains("WHERE 1 = ?"), "expected always-false clause, got: {sql}");
+        assert_eq!(bindings, vec![Value::from(0)]);
+    }
+
+    #[tokio::test]
+    async fn test_where_like_escaped_real_sqlite() {
+        crate::DB::statement(
+            "CREATE TABLE IF NOT EXISTS qb_like (id INTEGER PRIMARY KEY, title TEXT)",
+        )
+        .unwrap();
+        crate::DB::statement("DELETE FROM qb_like").unwrap();
+        for title in ["Write report", "50% off sale", "snake_case docs", "Read book"] {
+            crate::DB::insert(
+                "INSERT INTO qb_like (title) VALUES (?)",
+                &[serde_json::json!(title)],
+            )
+            .unwrap();
+        }
+
+        // Plain term: only real substring match.
+        let hits = QueryBuilder::new("qb_like")
+            .where_like_escaped("title", "report")
+            .get()
+            .await
+            .unwrap();
+        assert_eq!(hits.len(), 1);
+        assert_eq!(hits[0]["title"], serde_json::json!("Write report"));
+
+        // Literal `%` matches only the row that actually contains `%`.
+        let percent = QueryBuilder::new("qb_like")
+            .where_like_escaped("title", "%")
+            .get()
+            .await
+            .unwrap();
+        assert_eq!(percent.len(), 1);
+        assert_eq!(percent[0]["title"], serde_json::json!("50% off sale"));
+
+        // Empty term matches nothing (not the whole table).
+        let empty = QueryBuilder::new("qb_like")
+            .where_like_escaped("title", "")
+            .get()
+            .await
+            .unwrap();
+        assert_eq!(empty.len(), 0);
     }
 
     #[tokio::test]

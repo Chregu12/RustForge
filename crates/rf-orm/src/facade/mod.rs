@@ -8,7 +8,7 @@ pub mod query_builder;
 pub use db::DB;
 pub use db_manager::{DBManager, GLOBAL_DB};
 pub use model::Model;
-pub use query_builder::{LazyCollection, PaginatedResult, QueryBuilder};
+pub use query_builder::{escape_like, LazyCollection, PaginatedResult, QueryBuilder};
 
 use serde::Serialize;
 use serde_json::Value;

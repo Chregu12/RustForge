@@ -188,7 +188,7 @@ pub use facade::{
     db::DB,
     db_manager::{DBManager, GLOBAL_DB},
     model::Model as ModelFacade,
-    query_builder::{LazyCollection, PaginatedResult, QueryBuilder as QueryBuilderFacade},
+    query_builder::{escape_like, LazyCollection, PaginatedResult, QueryBuilder as QueryBuilderFacade},
 };
 pub use events::{EventObserver, ModelEvent, ModelEvents};
 pub use manager::DatabaseManager;
