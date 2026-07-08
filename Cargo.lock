@@ -7434,6 +7434,7 @@ dependencies = [
  "prometheus",
  "rf-application",
  "rf-domain",
+ "rf-orm",
  "rf-plugins",
  "rf-storage",
  "rustc-hash 1.1.0",

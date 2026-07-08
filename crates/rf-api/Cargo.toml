@@ -17,6 +17,7 @@ tokio.workspace = true
 bytes = "1.0"
 chrono.workspace = true
 rf-application = { path = "../rf-application" }
+rf-orm = { path = "../rf-orm" }
 rf-plugins = { path = "../rf-plugins" }
 rf-domain = { path = "../rf-domain" }
 rf-storage = { path = "../rf-storage" }
