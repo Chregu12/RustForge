@@ -265,46 +265,216 @@ impl DatabaseSessionStore {
         Self { db, ttl }
     }
 
-    /// Create a session in the database
-    pub async fn create_session(&self, session: &Session) -> Result<(), AuthError> {
-        // Serialize session data to JSON
-        let _payload = serde_json::to_string(&session.data)
-            .map_err(|e| AuthError::Internal(format!("Failed to serialize session: {}", e)))?;
+    /// Ensure the `sessions` table exists (create-on-demand).
+    ///
+    /// This keeps the store usable without a separate migration system. The
+    /// schema uses portable column types (TEXT/INTEGER) understood by SQLite,
+    /// Postgres and MySQL. Timestamps are stored as RFC3339 strings so the
+    /// round-trip is backend-independent.
+    async fn ensure_table(&self) -> Result<(), AuthError> {
+        use sea_orm::{ConnectionTrait, Statement};
 
-        // Insert into database
-        // In production, use SeaORM entities
+        let backend = self.db.get_database_backend();
+        let sql = "CREATE TABLE IF NOT EXISTS sessions (\
+             id TEXT PRIMARY KEY, \
+             user_id BIGINT, \
+             payload TEXT NOT NULL, \
+             created_at TEXT NOT NULL, \
+             last_activity TEXT NOT NULL, \
+             expires_at TEXT NOT NULL\
+         )";
+
+        self.db
+            .execute(Statement::from_string(backend, sql.to_string()))
+            .await
+            .map_err(|e| AuthError::Internal(format!("Failed to ensure sessions table: {}", e)))?;
         Ok(())
     }
 
-    /// Load a session from the database
-    pub async fn load_session(&self, _session_id: &str) -> Result<Option<Session>, AuthError> {
-        // In production, use SeaORM entities
-        // Example:
-        // let db_session = Sessions::find_by_id(session_id)
-        //     .one(&*self.db)
-        //     .await
-        //     .map_err(|e| AuthError::Internal(e.to_string()))?;
+    /// Persist a session (insert or update by id).
+    async fn upsert_session(&self, session: &Session) -> Result<(), AuthError> {
+        use sea_orm::{ConnectionTrait, DbBackend, Statement, Value};
 
-        Ok(None)
+        self.ensure_table().await?;
+
+        let payload = serde_json::to_string(&session.data)
+            .map_err(|e| AuthError::Internal(format!("Failed to serialize session: {}", e)))?;
+
+        let backend = self.db.get_database_backend();
+        let (p1, p2, p3, p4, p5, p6) = match backend {
+            DbBackend::Postgres => ("$1", "$2", "$3", "$4", "$5", "$6"),
+            _ => ("?", "?", "?", "?", "?", "?"),
+        };
+
+        // ON CONFLICT upsert is supported by both SQLite and Postgres, which are
+        // the backends this framework targets for auth today.
+        let sql = format!(
+            "INSERT INTO sessions \
+             (id, user_id, payload, created_at, last_activity, expires_at) \
+             VALUES ({p1}, {p2}, {p3}, {p4}, {p5}, {p6}) \
+             ON CONFLICT(id) DO UPDATE SET \
+             user_id = excluded.user_id, \
+             payload = excluded.payload, \
+             last_activity = excluded.last_activity, \
+             expires_at = excluded.expires_at"
+        );
+
+        self.db
+            .execute(Statement::from_sql_and_values(
+                backend,
+                &sql,
+                [
+                    Value::String(Some(Box::new(session.id.clone()))),
+                    Value::BigInt(session.user_id),
+                    Value::String(Some(Box::new(payload))),
+                    Value::String(Some(Box::new(session.created_at.to_rfc3339()))),
+                    Value::String(Some(Box::new(session.last_activity.to_rfc3339()))),
+                    Value::String(Some(Box::new(session.expires_at.to_rfc3339()))),
+                ],
+            ))
+            .await
+            .map_err(|e| AuthError::Internal(format!("Failed to persist session: {}", e)))?;
+        Ok(())
+    }
+
+    /// Create a session in the database
+    pub async fn create_session(&self, session: &Session) -> Result<(), AuthError> {
+        self.upsert_session(session).await
+    }
+
+    /// Load a session from the database.
+    ///
+    /// Returns `None` when the session does not exist or has expired (an
+    /// expired session is also purged as a side effect).
+    pub async fn load_session(&self, session_id: &str) -> Result<Option<Session>, AuthError> {
+        use sea_orm::{ConnectionTrait, DbBackend, Statement, Value};
+
+        self.ensure_table().await?;
+
+        let backend = self.db.get_database_backend();
+        let placeholder = match backend {
+            DbBackend::Postgres => "$1",
+            _ => "?",
+        };
+
+        let sql = format!(
+            "SELECT id, user_id, payload, created_at, last_activity, expires_at \
+             FROM sessions WHERE id = {placeholder} LIMIT 1"
+        );
+
+        let result = self
+            .db
+            .query_one(Statement::from_sql_and_values(
+                backend,
+                &sql,
+                [Value::String(Some(Box::new(session_id.to_string())))],
+            ))
+            .await
+            .map_err(|e| AuthError::Internal(format!("Database error: {}", e)))?;
+
+        let row = match result {
+            None => return Ok(None),
+            Some(row) => row,
+        };
+
+        let id: String = row
+            .try_get("", "id")
+            .map_err(|e| AuthError::Internal(format!("Column error: {}", e)))?;
+        let user_id: Option<i64> = row.try_get("", "user_id").unwrap_or(None);
+        let payload: String = row
+            .try_get("", "payload")
+            .map_err(|e| AuthError::Internal(format!("Column error: {}", e)))?;
+        let created_at_raw: String = row
+            .try_get("", "created_at")
+            .map_err(|e| AuthError::Internal(format!("Column error: {}", e)))?;
+        let last_activity_raw: String = row
+            .try_get("", "last_activity")
+            .map_err(|e| AuthError::Internal(format!("Column error: {}", e)))?;
+        let expires_at_raw: String = row
+            .try_get("", "expires_at")
+            .map_err(|e| AuthError::Internal(format!("Column error: {}", e)))?;
+
+        let parse_ts = |raw: &str| -> Result<DateTime<Utc>, AuthError> {
+            DateTime::parse_from_rfc3339(raw)
+                .map(|dt| dt.with_timezone(&Utc))
+                .map_err(|e| AuthError::Internal(format!("Invalid timestamp: {}", e)))
+        };
+
+        let data = serde_json::from_str(&payload)
+            .map_err(|e| AuthError::Internal(format!("Failed to deserialize session: {}", e)))?;
+
+        let session = Session {
+            id,
+            user_id,
+            data,
+            created_at: parse_ts(&created_at_raw)?,
+            last_activity: parse_ts(&last_activity_raw)?,
+            expires_at: parse_ts(&expires_at_raw)?,
+        };
+
+        if session.is_expired() {
+            // Purge the stale row so it does not linger.
+            let _ = self.delete_session(session_id).await;
+            return Ok(None);
+        }
+
+        Ok(Some(session))
     }
 
     /// Update a session in the database
-    pub async fn update_session(&self, _session: &Session) -> Result<(), AuthError> {
-        // In production, use SeaORM entities
-        Ok(())
+    pub async fn update_session(&self, session: &Session) -> Result<(), AuthError> {
+        self.upsert_session(session).await
     }
 
     /// Delete a session from the database
-    pub async fn delete_session(&self, _session_id: &str) -> Result<(), AuthError> {
-        // In production, use SeaORM entities
+    pub async fn delete_session(&self, session_id: &str) -> Result<(), AuthError> {
+        use sea_orm::{ConnectionTrait, DbBackend, Statement, Value};
+
+        self.ensure_table().await?;
+
+        let backend = self.db.get_database_backend();
+        let placeholder = match backend {
+            DbBackend::Postgres => "$1",
+            _ => "?",
+        };
+
+        let sql = format!("DELETE FROM sessions WHERE id = {placeholder}");
+
+        self.db
+            .execute(Statement::from_sql_and_values(
+                backend,
+                &sql,
+                [Value::String(Some(Box::new(session_id.to_string())))],
+            ))
+            .await
+            .map_err(|e| AuthError::Internal(format!("Failed to delete session: {}", e)))?;
         Ok(())
     }
 
-    /// Clean up expired sessions
+    /// Clean up expired sessions, returning the number of rows removed.
     pub async fn cleanup_expired_sessions(&self) -> Result<u64, AuthError> {
-        // Delete all sessions where expires_at < now
-        // In production, use SeaORM entities
-        Ok(0)
+        use sea_orm::{ConnectionTrait, DbBackend, Statement, Value};
+
+        self.ensure_table().await?;
+
+        let backend = self.db.get_database_backend();
+        let placeholder = match backend {
+            DbBackend::Postgres => "$1",
+            _ => "?",
+        };
+
+        let sql = format!("DELETE FROM sessions WHERE expires_at < {placeholder}");
+
+        let result = self
+            .db
+            .execute(Statement::from_sql_and_values(
+                backend,
+                &sql,
+                [Value::String(Some(Box::new(Utc::now().to_rfc3339())))],
+            ))
+            .await
+            .map_err(|e| AuthError::Internal(format!("Failed to clean up sessions: {}", e)))?;
+        Ok(result.rows_affected())
     }
 }
 
@@ -404,5 +574,120 @@ mod tests {
             ..user.clone()
         };
         assert!(!unverified_user.is_active());
+    }
+
+    async fn memory_store(ttl: Duration) -> DatabaseSessionStore {
+        use sea_orm::{ConnectOptions, Database};
+
+        // A single pooled connection keeps every statement on the same
+        // in-memory database for the lifetime of the test.
+        let mut opts = ConnectOptions::new("sqlite::memory:".to_string());
+        opts.max_connections(1);
+        let db = Database::connect(opts)
+            .await
+            .expect("connect in-memory sqlite");
+        DatabaseSessionStore::new(Arc::new(db), ttl)
+    }
+
+    #[tokio::test]
+    async fn database_session_save_and_load_roundtrip() {
+        let store = memory_store(Duration::hours(1)).await;
+
+        let mut session = Session::new("sess-roundtrip", std::time::Duration::from_secs(3600));
+        session.user_id = Some(42);
+        session.put("theme", "dark");
+        session.put("locale", "de");
+
+        store
+            .create_session(&session)
+            .await
+            .expect("persist session");
+
+        let loaded = store
+            .load_session("sess-roundtrip")
+            .await
+            .expect("load ok")
+            .expect("session present");
+
+        assert_eq!(loaded.id, "sess-roundtrip");
+        assert_eq!(loaded.user_id, Some(42));
+        assert_eq!(loaded.get("theme").as_deref(), Some("dark"));
+        assert_eq!(loaded.get("locale").as_deref(), Some("de"));
+        assert_eq!(loaded.data, session.data);
+    }
+
+    #[tokio::test]
+    async fn database_session_missing_returns_none() {
+        let store = memory_store(Duration::hours(1)).await;
+        let loaded = store.load_session("does-not-exist").await.expect("load ok");
+        assert!(loaded.is_none());
+    }
+
+    #[tokio::test]
+    async fn database_session_update_overwrites() {
+        let store = memory_store(Duration::hours(1)).await;
+
+        let mut session = Session::new("sess-update", std::time::Duration::from_secs(3600));
+        session.put("count", "1");
+        store.create_session(&session).await.expect("create");
+
+        session.put("count", "2");
+        session.user_id = Some(7);
+        store.update_session(&session).await.expect("update");
+
+        let loaded = store
+            .load_session("sess-update")
+            .await
+            .expect("load ok")
+            .expect("present");
+        assert_eq!(loaded.get("count").as_deref(), Some("2"));
+        assert_eq!(loaded.user_id, Some(7));
+    }
+
+    #[tokio::test]
+    async fn database_session_expired_returns_none() {
+        let store = memory_store(Duration::hours(1)).await;
+
+        // Build a session that already expired an hour ago.
+        let mut session = Session::new("sess-expired", std::time::Duration::from_secs(3600));
+        session.expires_at = Utc::now() - Duration::hours(1);
+        store.create_session(&session).await.expect("create");
+
+        let loaded = store.load_session("sess-expired").await.expect("load ok");
+        assert!(loaded.is_none(), "expired session must not load");
+    }
+
+    #[tokio::test]
+    async fn database_session_delete_then_load_none() {
+        let store = memory_store(Duration::hours(1)).await;
+
+        let session = Session::new("sess-delete", std::time::Duration::from_secs(3600));
+        store.create_session(&session).await.expect("create");
+        assert!(store
+            .load_session("sess-delete")
+            .await
+            .expect("load ok")
+            .is_some());
+
+        store.delete_session("sess-delete").await.expect("delete");
+        let loaded = store.load_session("sess-delete").await.expect("load ok");
+        assert!(loaded.is_none());
+    }
+
+    #[tokio::test]
+    async fn database_session_cleanup_removes_expired() {
+        let store = memory_store(Duration::hours(1)).await;
+
+        let live = Session::new("live", std::time::Duration::from_secs(3600));
+        store.create_session(&live).await.expect("create live");
+
+        let mut dead = Session::new("dead", std::time::Duration::from_secs(3600));
+        dead.expires_at = Utc::now() - Duration::hours(2);
+        store.create_session(&dead).await.expect("create dead");
+
+        let removed = store.cleanup_expired_sessions().await.expect("cleanup");
+        assert_eq!(removed, 1);
+        assert!(store.load_session("live").await.expect("load").is_some());
+        assert!(store.load_session("dead").await.expect("load").is_none());
     }
 }
