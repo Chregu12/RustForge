@@ -156,6 +156,58 @@ impl DBManager {
         self.connection = connection;
     }
 
+    /// Drop every user-defined table in the current database, returning it to an
+    /// empty schema.
+    ///
+    /// This is the RustForge equivalent of Laravel's `RefreshDatabase`. Because
+    /// the `DB` facade is backed by a single process-global connection
+    /// ([`GLOBAL_DB`]), tables and rows created by one test remain visible to the
+    /// next, which breaks count-based assertions when tests run together. Calling
+    /// this at the top of a test yields a guaranteed-empty database.
+    ///
+    /// # Isolation guarantee
+    ///
+    /// This performs a **full schema reset** (table-clear), not a transaction
+    /// rollback: it `DROP`s all user tables, so both their rows *and* their
+    /// definitions are removed. The caller is then responsible for (re)creating
+    /// the tables it needs (e.g. via `statement("CREATE TABLE ...")`). SQLite's
+    /// internal `sqlite_*` tables are left untouched. Running it on an
+    /// already-empty database is a harmless no-op.
+    pub fn refresh(&mut self) -> Result<(), String> {
+        // Collect the table names first so the immutable borrow from `select` is
+        // released before we execute the DROP statements.
+        let names: Vec<String> = self
+            .select(
+                "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'",
+                &[],
+            )?
+            .into_iter()
+            .filter_map(|row| {
+                row.get("name")
+                    .and_then(Value::as_str)
+                    .map(str::to_string)
+            })
+            .collect();
+
+        if names.is_empty() {
+            return Ok(());
+        }
+
+        // Disable FK enforcement during the drop so foreign-key relationships
+        // between tables don't block dropping them in an arbitrary order.
+        let mut sql = String::from("PRAGMA foreign_keys = OFF;\n");
+        for name in &names {
+            // Quote and escape identifiers so unusual table names are handled.
+            sql.push_str(&format!(
+                "DROP TABLE IF EXISTS \"{}\";\n",
+                name.replace('"', "\"\"")
+            ));
+        }
+        sql.push_str("PRAGMA foreign_keys = ON;\n");
+        self.conn.execute_batch(&sql).map_err(|e| e.to_string())?;
+        Ok(())
+    }
+
     /// Begin a transaction on the underlying connection.
     pub fn begin_transaction(&mut self) -> Result<(), String> {
         self.conn.execute_batch("BEGIN").map_err(|e| e.to_string())
@@ -257,6 +309,40 @@ mod tests {
             .unwrap();
         m.rollback().unwrap();
         assert_eq!(m.select("SELECT id FROM users", &[]).unwrap().len(), 0);
+    }
+
+    #[test]
+    fn test_refresh_drops_all_user_tables() {
+        let mut m = seeded();
+        m.insert("INSERT INTO users (name) VALUES (?)", &[serde_json::json!("x")])
+            .unwrap();
+        m.statement("CREATE TABLE posts (id INTEGER PRIMARY KEY, body TEXT)")
+            .unwrap();
+        assert_eq!(m.select("SELECT id FROM users", &[]).unwrap().len(), 1);
+
+        m.refresh().unwrap();
+
+        // Both tables are gone (full schema reset), not just emptied.
+        assert!(m.select("SELECT id FROM users", &[]).is_err());
+        assert!(m.select("SELECT id FROM posts", &[]).is_err());
+        // Refreshing an already-empty database is a harmless no-op.
+        m.refresh().unwrap();
+    }
+
+    #[test]
+    fn test_refresh_gives_two_blocks_clean_state() {
+        let mut m = DBManager::new();
+        // Block A
+        m.refresh().unwrap();
+        m.statement("CREATE TABLE t (id INTEGER PRIMARY KEY)").unwrap();
+        m.insert("INSERT INTO t DEFAULT VALUES", &[]).unwrap();
+        m.insert("INSERT INTO t DEFAULT VALUES", &[]).unwrap();
+        assert_eq!(m.select("SELECT id FROM t", &[]).unwrap().len(), 2);
+        // Block B must not see block A's rows.
+        m.refresh().unwrap();
+        m.statement("CREATE TABLE t (id INTEGER PRIMARY KEY)").unwrap();
+        m.insert("INSERT INTO t DEFAULT VALUES", &[]).unwrap();
+        assert_eq!(m.select("SELECT id FROM t", &[]).unwrap().len(), 1);
     }
 
     #[test]

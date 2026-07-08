@@ -147,6 +147,38 @@ impl DB {
         QueryBuilder::new(name)
     }
 
+    /// Reset the database to an empty schema for per-test isolation.
+    ///
+    /// The `DB` facade is backed by a single process-global SQLite connection, so
+    /// tables and rows created by one test stay visible to the next. This is the
+    /// RustForge equivalent of Laravel's `RefreshDatabase`: call it at the top of
+    /// a `#[tokio::test]` so the test starts from a guaranteed-empty database.
+    ///
+    /// # Isolation guarantee
+    ///
+    /// This performs a **full schema reset** (table-clear), not a transaction
+    /// rollback: every user table is `DROP`ped, so both its rows and its
+    /// definition are gone. The test is then responsible for (re)creating the
+    /// tables it needs. Running it on an already-empty database is a no-op.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use rf_orm::DB;
+    ///
+    /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// // At the top of a test: start from a clean database.
+    /// DB::refresh()?;
+    /// DB::statement("CREATE TABLE tasks (id INTEGER PRIMARY KEY, title TEXT)")?;
+    /// // ... the test now sees only its own rows.
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn refresh() -> Result<(), String> {
+        let mut manager = GLOBAL_DB.lock().unwrap();
+        manager.refresh()
+    }
+
     /// Begin a database transaction
     ///
     /// # Examples
