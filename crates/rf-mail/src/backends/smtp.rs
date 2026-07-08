@@ -228,10 +228,23 @@ mod tests {
     /// MailHog is down, and sends a real message when it is up. Bring the
     /// service up with `scripts/test-env-up.sh` (mailhog SMTP on 1025 / HTTP UI
     /// on 8025 in `docker-compose.test.yml`).
+    /// SMTP host:port the live test targets. Defaults to MailHog's 127.0.0.1:1025,
+    /// but is overridable via `RF_SMTP_TEST_ADDR` so the test is runnable on a host
+    /// where 1025 is squatted by an unrelated process (e.g. macOS FinderSync) or
+    /// where the sink listens elsewhere.
+    fn smtp_test_addr() -> (String, u16) {
+        let raw = std::env::var("RF_SMTP_TEST_ADDR").unwrap_or_else(|_| "127.0.0.1:1025".to_string());
+        match raw.rsplit_once(':') {
+            Some((h, p)) => (h.to_string(), p.parse().unwrap_or(1025)),
+            None => (raw, 1025),
+        }
+    }
+
     async fn mailhog_available() -> bool {
         use tokio::io::AsyncReadExt;
 
-        let Ok(mut stream) = tokio::net::TcpStream::connect("127.0.0.1:1025").await else {
+        let (host, port) = smtp_test_addr();
+        let Ok(mut stream) = tokio::net::TcpStream::connect((host.as_str(), port)).await else {
             return false;
         };
         // A bare TCP probe (as used for S3/MinIO on 9000) can false-positive on
@@ -267,8 +280,9 @@ mod tests {
         // `relay` used by `SmtpMailer::new`. Everything downstream — the real
         // `convert_to_lettre` message construction and `SmtpMailer::send` over a
         // live lettre SMTP connection — is exercised exactly as in production.
-        let transport = AsyncSmtpTransport::<Tokio1Executor>::builder_dangerous("127.0.0.1")
-            .port(1025)
+        let (host, port) = smtp_test_addr();
+        let transport = AsyncSmtpTransport::<Tokio1Executor>::builder_dangerous(&host)
+            .port(port)
             .build();
         let mailer = SmtpMailer { transport };
 
