@@ -906,14 +906,14 @@ fn generate_full_model(
                         // rejects. SELECT ... WHERE <child_fk> IN (?, ?, ...).
                         let placeholders = ids.iter().map(|_| "?").collect::<Vec<_>>().join(", ");
                         let sql = format!("SELECT * FROM {} WHERE {} IN ({})", #related_table, #hasmany_fk, placeholders);
-                        let bindings: Vec<::serde_json::Value> =
-                            ids.iter().map(|&i| ::serde_json::Value::from(i)).collect();
+                        let bindings: Vec<serde_json::Value> =
+                            ids.iter().map(|&i| serde_json::Value::from(i)).collect();
                         let children = rf_db_facade::DB::select(&sql, &bindings)?;
                         // Group children by their foreign key value.
                         let mut by_key: HashMap<i64, Vec<#related_type>> = HashMap::new();
                         for child in children {
                             if let Some(k) = child.get(#hasmany_fk).and_then(|v| v.as_i64()) {
-                                let model: #related_type = ::serde_json::from_value(child)
+                                let model: #related_type = serde_json::from_value(child)
                                     .map_err(|e| e.to_string())?;
                                 by_key.entry(k).or_default().push(model);
                             }
@@ -931,13 +931,13 @@ fn generate_full_model(
                     /// query gains a parametrized `AND <column> = <value>`, so
                     /// each parent's `#method_name` Vec holds ONLY children
                     /// matching that equality (still one batched query, no N+1).
-                    pub async fn #loader_where<V: ::std::convert::Into<::serde_json::Value>>(
+                    pub async fn #loader_where<V: ::std::convert::Into<serde_json::Value>>(
                         rows: &mut [Self],
                         column: &str,
                         value: V,
                     ) -> ::std::result::Result<(), String> {
                         use ::std::collections::HashMap;
-                        let value: ::serde_json::Value = value.into();
+                        let value: serde_json::Value = value.into();
                         let mut ids: Vec<i64> = Vec::new();
                         for row in rows.iter() {
                             if let Some(id) = row.id {
@@ -952,14 +952,14 @@ fn generate_full_model(
                             "SELECT * FROM {} WHERE {} IN ({}) AND {} = ?",
                             #related_table, #hasmany_fk, placeholders, column,
                         );
-                        let mut bindings: Vec<::serde_json::Value> =
-                            ids.iter().map(|&i| ::serde_json::Value::from(i)).collect();
+                        let mut bindings: Vec<serde_json::Value> =
+                            ids.iter().map(|&i| serde_json::Value::from(i)).collect();
                         bindings.push(value);
                         let children = rf_db_facade::DB::select(&sql, &bindings)?;
                         let mut by_key: HashMap<i64, Vec<#related_type>> = HashMap::new();
                         for child in children {
                             if let Some(k) = child.get(#hasmany_fk).and_then(|v| v.as_i64()) {
-                                let model: #related_type = ::serde_json::from_value(child)
+                                let model: #related_type = serde_json::from_value(child)
                                     .map_err(|e| e.to_string())?;
                                 by_key.entry(k).or_default().push(model);
                             }
@@ -998,13 +998,13 @@ fn generate_full_model(
                         // rusqlite-backed manager): SELECT ... WHERE fk IN (?, ?, ...).
                         let placeholders = ids.iter().map(|_| "?").collect::<Vec<_>>().join(", ");
                         let sql = format!("SELECT * FROM {} WHERE {} IN ({})", #related_table, #hasone_fk, placeholders);
-                        let bindings: Vec<::serde_json::Value> =
-                            ids.iter().map(|&i| ::serde_json::Value::from(i)).collect();
+                        let bindings: Vec<serde_json::Value> =
+                            ids.iter().map(|&i| serde_json::Value::from(i)).collect();
                         let children = rf_db_facade::DB::select(&sql, &bindings)?;
                         let mut by_key: HashMap<i64, #related_type> = HashMap::new();
                         for child in children {
                             if let Some(k) = child.get(#hasone_fk).and_then(|v| v.as_i64()) {
-                                let model: #related_type = ::serde_json::from_value(child)
+                                let model: #related_type = serde_json::from_value(child)
                                     .map_err(|e| e.to_string())?;
                                 by_key.entry(k).or_insert(model);
                             }
@@ -1022,13 +1022,13 @@ fn generate_full_model(
                     /// gains a parametrized `AND <column> = <value>`, so each
                     /// parent's `#method_name` is set ONLY from a matching child
                     /// (still one batched query, no N+1).
-                    pub async fn #loader_where<V: ::std::convert::Into<::serde_json::Value>>(
+                    pub async fn #loader_where<V: ::std::convert::Into<serde_json::Value>>(
                         rows: &mut [Self],
                         column: &str,
                         value: V,
                     ) -> ::std::result::Result<(), String> {
                         use ::std::collections::HashMap;
-                        let value: ::serde_json::Value = value.into();
+                        let value: serde_json::Value = value.into();
                         let mut ids: Vec<i64> = Vec::new();
                         for row in rows.iter() {
                             if let Some(id) = row.id {
@@ -1041,14 +1041,14 @@ fn generate_full_model(
                             "SELECT * FROM {} WHERE {} IN ({}) AND {} = ?",
                             #related_table, #hasone_fk, placeholders, column,
                         );
-                        let mut bindings: Vec<::serde_json::Value> =
-                            ids.iter().map(|&i| ::serde_json::Value::from(i)).collect();
+                        let mut bindings: Vec<serde_json::Value> =
+                            ids.iter().map(|&i| serde_json::Value::from(i)).collect();
                         bindings.push(value);
                         let children = rf_db_facade::DB::select(&sql, &bindings)?;
                         let mut by_key: HashMap<i64, #related_type> = HashMap::new();
                         for child in children {
                             if let Some(k) = child.get(#hasone_fk).and_then(|v| v.as_i64()) {
-                                let model: #related_type = ::serde_json::from_value(child)
+                                let model: #related_type = serde_json::from_value(child)
                                     .map_err(|e| e.to_string())?;
                                 by_key.entry(k).or_insert(model);
                             }
@@ -1082,7 +1082,7 @@ fn generate_full_model(
                         // works whether the FK field is `i64` or `Option<i64>`).
                         let mut ids: Vec<i64> = Vec::new();
                         for row in rows.iter() {
-                            let v = ::serde_json::to_value(&*row).map_err(|e| e.to_string())?;
+                            let v = serde_json::to_value(&*row).map_err(|e| e.to_string())?;
                             if let Some(fk) = v.get(#fk).and_then(|x| x.as_i64()) {
                                 if !ids.contains(&fk) { ids.push(fk); }
                             }
@@ -1092,19 +1092,19 @@ fn generate_full_model(
                         // rusqlite-backed manager): SELECT ... WHERE id IN (?, ?, ...).
                         let placeholders = ids.iter().map(|_| "?").collect::<Vec<_>>().join(", ");
                         let sql = format!("SELECT * FROM {} WHERE id IN ({})", #related_table, placeholders);
-                        let bindings: Vec<::serde_json::Value> =
-                            ids.iter().map(|&i| ::serde_json::Value::from(i)).collect();
+                        let bindings: Vec<serde_json::Value> =
+                            ids.iter().map(|&i| serde_json::Value::from(i)).collect();
                         let parents = rf_db_facade::DB::select(&sql, &bindings)?;
                         let mut by_id: HashMap<i64, #related_type> = HashMap::new();
                         for parent in parents {
                             if let Some(id) = parent.get("id").and_then(|v| v.as_i64()) {
-                                let model: #related_type = ::serde_json::from_value(parent)
+                                let model: #related_type = serde_json::from_value(parent)
                                     .map_err(|e| e.to_string())?;
                                 by_id.insert(id, model);
                             }
                         }
                         for row in rows.iter_mut() {
-                            let v = ::serde_json::to_value(&*row).map_err(|e| e.to_string())?;
+                            let v = serde_json::to_value(&*row).map_err(|e| e.to_string())?;
                             let fk = v.get(#fk).and_then(|x| x.as_i64());
                             row.#method_name = fk.and_then(|k| by_id.get(&k).cloned());
                         }
@@ -1116,16 +1116,16 @@ fn generate_full_model(
                     /// query gains a parametrized `AND <column> = <value>` on the
                     /// parent table, so a row's `#method_name` resolves ONLY to a
                     /// matching parent (still one batched query, no N+1).
-                    pub async fn #loader_where<V: ::std::convert::Into<::serde_json::Value>>(
+                    pub async fn #loader_where<V: ::std::convert::Into<serde_json::Value>>(
                         rows: &mut [Self],
                         column: &str,
                         value: V,
                     ) -> ::std::result::Result<(), String> {
                         use ::std::collections::HashMap;
-                        let value: ::serde_json::Value = value.into();
+                        let value: serde_json::Value = value.into();
                         let mut ids: Vec<i64> = Vec::new();
                         for row in rows.iter() {
-                            let v = ::serde_json::to_value(&*row).map_err(|e| e.to_string())?;
+                            let v = serde_json::to_value(&*row).map_err(|e| e.to_string())?;
                             if let Some(fk) = v.get(#fk).and_then(|x| x.as_i64()) {
                                 if !ids.contains(&fk) { ids.push(fk); }
                             }
@@ -1136,20 +1136,20 @@ fn generate_full_model(
                             "SELECT * FROM {} WHERE id IN ({}) AND {} = ?",
                             #related_table, placeholders, column,
                         );
-                        let mut bindings: Vec<::serde_json::Value> =
-                            ids.iter().map(|&i| ::serde_json::Value::from(i)).collect();
+                        let mut bindings: Vec<serde_json::Value> =
+                            ids.iter().map(|&i| serde_json::Value::from(i)).collect();
                         bindings.push(value);
                         let parents = rf_db_facade::DB::select(&sql, &bindings)?;
                         let mut by_id: HashMap<i64, #related_type> = HashMap::new();
                         for parent in parents {
                             if let Some(id) = parent.get("id").and_then(|v| v.as_i64()) {
-                                let model: #related_type = ::serde_json::from_value(parent)
+                                let model: #related_type = serde_json::from_value(parent)
                                     .map_err(|e| e.to_string())?;
                                 by_id.insert(id, model);
                             }
                         }
                         for row in rows.iter_mut() {
-                            let v = ::serde_json::to_value(&*row).map_err(|e| e.to_string())?;
+                            let v = serde_json::to_value(&*row).map_err(|e| e.to_string())?;
                             let fk = v.get(#fk).and_then(|x| x.as_i64());
                             row.#method_name = fk.and_then(|k| by_id.get(&k).cloned());
                         }
@@ -1205,8 +1205,8 @@ fn generate_full_model(
                             "SELECT {}, {} FROM {} WHERE {} IN ({})",
                             #self_fk, #related_fk, #pivot_table, #self_fk, placeholders
                         );
-                        let bindings: Vec<::serde_json::Value> =
-                            ids.iter().map(|&i| ::serde_json::Value::from(i)).collect();
+                        let bindings: Vec<serde_json::Value> =
+                            ids.iter().map(|&i| serde_json::Value::from(i)).collect();
                         let pivot_rows = rf_db_facade::DB::select(&sql, &bindings)?;
                         // Per-parent list of related ids + the distinct related ids.
                         let mut parent_to_related: HashMap<i64, Vec<i64>> = HashMap::new();
@@ -1231,14 +1231,14 @@ fn generate_full_model(
                             "SELECT * FROM {} WHERE id IN ({})",
                             #related_table, placeholders2
                         );
-                        let bindings2: Vec<::serde_json::Value> =
-                            related_ids.iter().map(|&i| ::serde_json::Value::from(i)).collect();
+                        let bindings2: Vec<serde_json::Value> =
+                            related_ids.iter().map(|&i| serde_json::Value::from(i)).collect();
                         let related_records = rf_db_facade::DB::select(&sql2, &bindings2)?;
                         // Index related models by id.
                         let mut by_id: HashMap<i64, #related_type> = HashMap::new();
                         for rec in related_records {
                             if let Some(id) = rec.get("id").and_then(|v| v.as_i64()) {
-                                let model: #related_type = ::serde_json::from_value(rec)
+                                let model: #related_type = serde_json::from_value(rec)
                                     .map_err(|e| e.to_string())?;
                                 by_id.insert(id, model);
                             }
@@ -1264,13 +1264,13 @@ fn generate_full_model(
                     /// matching related rows are indexed, so each parent's
                     /// `#method_name` Vec keeps ONLY related models satisfying the
                     /// equality (still exactly two batched queries, no N+1).
-                    pub async fn #loader_where<V: ::std::convert::Into<::serde_json::Value>>(
+                    pub async fn #loader_where<V: ::std::convert::Into<serde_json::Value>>(
                         rows: &mut [Self],
                         column: &str,
                         value: V,
                     ) -> ::std::result::Result<(), String> {
                         use ::std::collections::HashMap;
-                        let value: ::serde_json::Value = value.into();
+                        let value: serde_json::Value = value.into();
                         let mut ids: Vec<i64> = Vec::new();
                         for row in rows.iter() {
                             if let Some(id) = row.id {
@@ -1284,8 +1284,8 @@ fn generate_full_model(
                             "SELECT {}, {} FROM {} WHERE {} IN ({})",
                             #self_fk, #related_fk, #pivot_table, #self_fk, placeholders
                         );
-                        let bindings: Vec<::serde_json::Value> =
-                            ids.iter().map(|&i| ::serde_json::Value::from(i)).collect();
+                        let bindings: Vec<serde_json::Value> =
+                            ids.iter().map(|&i| serde_json::Value::from(i)).collect();
                         let pivot_rows = rf_db_facade::DB::select(&sql, &bindings)?;
                         let mut parent_to_related: HashMap<i64, Vec<i64>> = HashMap::new();
                         let mut related_ids: Vec<i64> = Vec::new();
@@ -1307,14 +1307,14 @@ fn generate_full_model(
                             "SELECT * FROM {} WHERE id IN ({}) AND {} = ?",
                             #related_table, placeholders2, column,
                         );
-                        let mut bindings2: Vec<::serde_json::Value> =
-                            related_ids.iter().map(|&i| ::serde_json::Value::from(i)).collect();
+                        let mut bindings2: Vec<serde_json::Value> =
+                            related_ids.iter().map(|&i| serde_json::Value::from(i)).collect();
                         bindings2.push(value);
                         let related_records = rf_db_facade::DB::select(&sql2, &bindings2)?;
                         let mut by_id: HashMap<i64, #related_type> = HashMap::new();
                         for rec in related_records {
                             if let Some(id) = rec.get("id").and_then(|v| v.as_i64()) {
-                                let model: #related_type = ::serde_json::from_value(rec)
+                                let model: #related_type = serde_json::from_value(rec)
                                     .map_err(|e| e.to_string())?;
                                 by_id.insert(id, model);
                             }
@@ -1541,13 +1541,13 @@ fn generate_full_model(
             // `load_<name>_for`. Empty by default -> identical to the old path.
             constraints: ::std::collections::HashMap<
                 ::std::string::String,
-                (::std::string::String, ::serde_json::Value),
+                (::std::string::String, serde_json::Value),
             >,
         }
 
         impl #builder_name {
             /// Add a `column = value` filter (delegates to the inner QueryBuilder).
-            pub fn r#where<V: ::std::convert::Into<::serde_json::Value>>(
+            pub fn r#where<V: ::std::convert::Into<serde_json::Value>>(
                 mut self,
                 column: impl ::std::convert::Into<::std::string::String>,
                 value: V,
@@ -1557,7 +1557,7 @@ fn generate_full_model(
             }
 
             /// Alias for [`Self::where`] (delegates to the inner QueryBuilder).
-            pub fn filter<V: ::std::convert::Into<::serde_json::Value>>(
+            pub fn filter<V: ::std::convert::Into<serde_json::Value>>(
                 mut self,
                 column: impl ::std::convert::Into<::std::string::String>,
                 value: V,
@@ -1567,7 +1567,7 @@ fn generate_full_model(
             }
 
             /// Add a `column <op> value` filter (delegates to the inner QueryBuilder).
-            pub fn where_op<V: ::std::convert::Into<::serde_json::Value>>(
+            pub fn where_op<V: ::std::convert::Into<serde_json::Value>>(
                 mut self,
                 column: impl ::std::convert::Into<::std::string::String>,
                 operator: impl ::std::convert::Into<::std::string::String>,
@@ -1610,7 +1610,7 @@ fn generate_full_model(
             /// constraint keep the plain unconstrained path. Calling this again
             /// for the same relation replaces its constraint (one per relation
             /// this slice; multiple/operators are a follow-up).
-            pub fn with_where<V: ::std::convert::Into<::serde_json::Value>>(
+            pub fn with_where<V: ::std::convert::Into<serde_json::Value>>(
                 mut self,
                 relation: impl ::std::convert::Into<::std::string::String>,
                 column: impl ::std::convert::Into<::std::string::String>,
@@ -1633,7 +1633,7 @@ fn generate_full_model(
                 let values = query.get().await?;
                 let mut rows: ::std::vec::Vec<#name> = values
                     .into_iter()
-                    .filter_map(|v| ::serde_json::from_value(v).ok())
+                    .filter_map(|v| serde_json::from_value(v).ok())
                     .collect();
                 // Per-relation dispatch: a relation carrying a `with_where`
                 // constraint is hydrated by its constrained `load_<name>_where`
@@ -1711,7 +1711,7 @@ fn generate_full_model(
                 ::std::result::Result::Ok(
                     values
                         .into_iter()
-                        .filter_map(|v| ::serde_json::from_value(v).ok())
+                        .filter_map(|v| serde_json::from_value(v).ok())
                         .collect(),
                 )
             }
@@ -1731,7 +1731,7 @@ fn generate_full_model(
                 let data: ::std::vec::Vec<#name> = result
                     .data
                     .into_iter()
-                    .filter_map(|v| ::serde_json::from_value(v).ok())
+                    .filter_map(|v| serde_json::from_value(v).ok())
                     .collect();
                 ::std::result::Result::Ok(#page_name {
                     data,
@@ -1778,7 +1778,7 @@ fn generate_full_model(
                 /// `<#name as rf_db_facade::Model>::create(...)`.
                 pub async fn create<D: ::serde::Serialize>(
                     data: D,
-                ) -> ::std::result::Result<::serde_json::Value, ::std::string::String> {
+                ) -> ::std::result::Result<serde_json::Value, ::std::string::String> {
                     let filtered = Self::fill_guarded(data)?;
                     rf_db_facade::QueryBuilder::new(#table_name).create(filtered).await
                 }
@@ -1836,9 +1836,9 @@ fn generate_full_model(
             /// `Model::create` remains available and its behavior is unchanged.
             pub fn fill_guarded<D: ::serde::Serialize>(
                 data: D,
-            ) -> ::std::result::Result<::serde_json::Value, ::std::string::String> {
-                let value = ::serde_json::to_value(data).map_err(|e| e.to_string())?;
-                if let ::serde_json::Value::Object(ref map) = value {
+            ) -> ::std::result::Result<serde_json::Value, ::std::string::String> {
+                let value = serde_json::to_value(data).map_err(|e| e.to_string())?;
+                if let serde_json::Value::Object(ref map) = value {
                     for key in map.keys() {
                         if !Self::MASS_ASSIGNABLE.contains(&key.as_str()) {
                             return ::std::result::Result::Err(::std::format!(
@@ -1858,7 +1858,7 @@ fn generate_full_model(
             /// The permissive `create` remains available and unchanged.
             pub async fn create_guarded<D: ::serde::Serialize>(
                 data: D,
-            ) -> ::std::result::Result<::serde_json::Value, ::std::string::String> {
+            ) -> ::std::result::Result<serde_json::Value, ::std::string::String> {
                 let filtered = Self::fill_guarded(data)?;
                 <Self as rf_db_facade::Model>::create(filtered).await
             }
@@ -2110,7 +2110,7 @@ fn generate_simple_model(name: Ident, fields: Vec<InferredField>) -> TokenStream
                 ::std::result::Result::Ok(
                     values
                         .into_iter()
-                        .filter_map(|v| ::serde_json::from_value(v).ok())
+                        .filter_map(|v| serde_json::from_value(v).ok())
                         .collect(),
                 )
             }
@@ -2127,7 +2127,7 @@ fn generate_simple_model(name: Ident, fields: Vec<InferredField>) -> TokenStream
                 let data: ::std::vec::Vec<#name> = result
                     .data
                     .into_iter()
-                    .filter_map(|v| ::serde_json::from_value(v).ok())
+                    .filter_map(|v| serde_json::from_value(v).ok())
                     .collect();
                 ::std::result::Result::Ok(#page_name {
                     data,
@@ -2180,9 +2180,9 @@ fn generate_simple_model(name: Ident, fields: Vec<InferredField>) -> TokenStream
             /// through unchanged. The permissive `Model::create` is unchanged.
             pub fn fill_guarded<D: ::serde::Serialize>(
                 data: D,
-            ) -> ::std::result::Result<::serde_json::Value, ::std::string::String> {
-                let value = ::serde_json::to_value(data).map_err(|e| e.to_string())?;
-                if let ::serde_json::Value::Object(ref map) = value {
+            ) -> ::std::result::Result<serde_json::Value, ::std::string::String> {
+                let value = serde_json::to_value(data).map_err(|e| e.to_string())?;
+                if let serde_json::Value::Object(ref map) = value {
                     for key in map.keys() {
                         if !Self::MASS_ASSIGNABLE.contains(&key.as_str()) {
                             return ::std::result::Result::Err(::std::format!(
@@ -2200,7 +2200,7 @@ fn generate_simple_model(name: Ident, fields: Vec<InferredField>) -> TokenStream
             /// permitted fields through the real `Model::create` path.
             pub async fn create_guarded<D: ::serde::Serialize>(
                 data: D,
-            ) -> ::std::result::Result<::serde_json::Value, ::std::string::String> {
+            ) -> ::std::result::Result<serde_json::Value, ::std::string::String> {
                 let filtered = Self::fill_guarded(data)?;
                 <Self as rf_db_facade::Model>::create(filtered).await
             }
