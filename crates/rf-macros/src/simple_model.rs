@@ -1444,17 +1444,16 @@ fn generate_full_model(
                 // (2) collect the hydrated children into one flat vec.
                 let mut children: ::std::vec::Vec<#child> = ::std::vec::Vec::new();
                 for row in rows.iter() { #collect_stmt }
-                // (3) hydrate the remaining path on the CHILD type (boxed so the
-                // mutual `with_relations` recursion is a finite, sized future).
-                // The one-element name slice is bound to a `let` so it outlives
-                // the boxed future that borrows it.
+                // (3) hydrate the remaining path on the CHILD type. The child's
+                // `with_relations` now itself returns a CONCRETE boxed
+                // `Pin<Box<dyn Future + Send>>` (see its definition), so the
+                // mutual `with_relations` recursion is already a finite, sized,
+                // NAMED type — no extra boxing needed here, and the opaque-type
+                // inference cycle that a bidirectional model graph would
+                // otherwise form (E0391) never arises. The one-element name
+                // slice is bound to a `let` so it outlives the future.
                 let rest_names = [rest];
-                let fut: ::std::pin::Pin<::std::boxed::Box<
-                    dyn ::std::future::Future<
-                        Output = ::std::result::Result<(), ::std::string::String>
-                    > + ::std::marker::Send,
-                >> = ::std::boxed::Box::pin(#child::with_relations(&mut children, &rest_names));
-                fut.await?;
+                #child::with_relations(&mut children, &rest_names).await?;
                 // (4) regroup the hydrated children back by their own id.
                 let mut by_id: ::std::collections::HashMap<i64, #child> =
                     ::std::collections::HashMap::new();
@@ -1918,10 +1917,29 @@ fn generate_full_model(
             /// eager-loadable. An unknown name is a clean `Err` naming it (like
             /// Laravel's undefined-relationship error) and no queries are run
             /// past the offending name.
-            pub async fn with_relations(
-                rows: &mut [Self],
-                names: &[&str],
-            ) -> ::std::result::Result<(), String> {
+            ///
+            /// The return type is a CONCRETE boxed future (`Pin<Box<dyn Future +
+            /// Send>>`) rather than an `async fn`'s opaque `impl Future`. This is
+            /// load-bearing: the nested dot-notation arm re-enters a CHILD
+            /// model's `with_relations`, so two models each declaring a relation
+            /// back to the other (the canonical Laravel bidirectional pattern,
+            /// e.g. `Project hasMany tasks: Task` + `Task belongsTo project:
+            /// Project`) would make their opaque `impl Future` return types
+            /// mutually reference one another — an inference cycle rustc rejects
+            /// with E0391 ("cycle detected when computing type of opaque
+            /// `with_relations::{opaque#0}`"). Boxing gives the future a named,
+            /// sized type so the cycle no longer forms. Behavior is identical to
+            /// the old `async fn` for every caller (it is still awaited the same
+            /// way); only the return type is now nameable.
+            pub fn with_relations<'__rf_wr>(
+                rows: &'__rf_wr mut [Self],
+                names: &'__rf_wr [&str],
+            ) -> ::std::pin::Pin<::std::boxed::Box<
+                dyn ::std::future::Future<
+                    Output = ::std::result::Result<(), ::std::string::String>,
+                > + ::std::marker::Send + '__rf_wr,
+            >> {
+                ::std::boxed::Box::pin(async move {
                 for name in names {
                     // Nested dot-notation path (`a.b`): dispatch the FIRST
                     // segment to a nested arm that loads `a`, then re-enters the
@@ -1955,6 +1973,7 @@ fn generate_full_model(
                     }
                 }
                 ::std::result::Result::Ok(())
+                })
             }
 
             #soft_delete_methods
