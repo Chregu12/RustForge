@@ -4,7 +4,8 @@
 //! from anywhere in the application.
 
 use axum::handler::Handler;
-use axum::http::Method;
+use axum::http::{Method, StatusCode};
+use axum::response::{IntoResponse, Response as AxumResponse};
 use axum::routing::MethodRouter;
 use axum::Router;
 use once_cell::sync::Lazy;
@@ -209,6 +210,21 @@ impl GlobalRouter {
     /// is populated by then — unlike the outer `capture_request` layer, which runs
     /// before matching and only sees query/body/multipart. A handler with no
     /// arguments can therefore read `input::<i64>("id")` for `/posts/:id`.
+    ///
+    /// # Framework default 404 / 405 responses
+    ///
+    /// The built router carries two framework **default** fallbacks so that
+    /// unmatched traffic is answered with the same JSON `{"error","message"}`
+    /// envelope the framework uses everywhere else, instead of raw axum's
+    /// empty-body / no-content-type defaults:
+    ///
+    /// * an **unmatched path** yields a JSON `404` ([`not_found_fallback`]);
+    /// * a **wrong HTTP method** on a known path yields a JSON `405`
+    ///   ([`method_not_allowed_fallback`]).
+    ///
+    /// Both are *defaults*: an application can still call `.fallback(...)` on the
+    /// returned [`Router`] to install its own 404 handler (it replaces the
+    /// default), so apps that already register a fallback are unaffected.
     pub fn build_router(&self) -> Router {
         let mut router = Router::new();
         for (path, methods) in self.handlers.read().iter() {
@@ -218,12 +234,46 @@ impl GlobalRouter {
             for mr in methods.values() {
                 method_router = method_router.merge(mr.clone());
             }
+            // Framework DEFAULT: a request whose method is not registered on this
+            // matched path falls through to a JSON 405 envelope instead of axum's
+            // empty-body 405.
             let method_router = method_router
+                .fallback(method_not_allowed_fallback)
                 .route_layer(axum::middleware::from_fn(rf_request::capture_path_params));
             router = router.route(path, method_router);
         }
-        router
+        // Framework DEFAULT: unmatched paths get a JSON 404 envelope. Overridable
+        // by an app calling `.fallback(...)` on the returned router (last wins).
+        router.fallback(not_found_fallback)
     }
+}
+
+/// Framework default fallback for unmatched paths: a JSON `404` carrying the
+/// framework's `{"error","message"}` error envelope with
+/// `content-type: application/json`.
+async fn not_found_fallback() -> AxumResponse {
+    (
+        StatusCode::NOT_FOUND,
+        axum::Json(serde_json::json!({
+            "error": "not_found",
+            "message": "The requested resource was not found.",
+        })),
+    )
+        .into_response()
+}
+
+/// Framework default fallback for a wrong HTTP method on a matched path: a JSON
+/// `405` carrying the framework's `{"error","message"}` error envelope with
+/// `content-type: application/json`.
+async fn method_not_allowed_fallback() -> AxumResponse {
+    (
+        StatusCode::METHOD_NOT_ALLOWED,
+        axum::Json(serde_json::json!({
+            "error": "method_not_allowed",
+            "message": "The HTTP method is not allowed for this resource.",
+        })),
+    )
+        .into_response()
 }
 
 impl Default for GlobalRouter {
@@ -422,6 +472,58 @@ mod tests {
 
         // Building the served router must not panic.
         let _app = router.build_router();
+    }
+
+    #[tokio::test]
+    async fn test_default_json_404_and_405_fallbacks() {
+        use axum::body::{to_bytes, Body};
+        use axum::http::Request;
+        use tower::ServiceExt;
+
+        async fn home() -> &'static str {
+            "home"
+        }
+
+        let router = GlobalRouter::new();
+        router.add_get("/", home);
+        let app = router.build_router();
+
+        // Unmatched path -> JSON 404 envelope.
+        let resp = app
+            .clone()
+            .oneshot(Request::builder().uri("/nope").body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+        assert_eq!(
+            resp.headers().get("content-type").unwrap(),
+            "application/json"
+        );
+        let bytes = to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+        let body: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+        assert_eq!(body["error"], "not_found");
+        assert!(body["message"].is_string());
+
+        // Wrong method on a known path -> JSON 405 envelope.
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::METHOD_NOT_ALLOWED);
+        assert_eq!(
+            resp.headers().get("content-type").unwrap(),
+            "application/json"
+        );
+        let bytes = to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+        let body: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+        assert_eq!(body["error"], "method_not_allowed");
+        assert!(body["message"].is_string());
     }
 
     #[test]
