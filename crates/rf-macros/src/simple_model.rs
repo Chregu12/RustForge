@@ -42,6 +42,7 @@ mod kw {
     syn::custom_keyword!(hasOne);
     syn::custom_keyword!(belongsTo);
     syn::custom_keyword!(belongsToMany);
+    syn::custom_keyword!(foreign_key);
     syn::custom_keyword!(timestamps);
     syn::custom_keyword!(softDeletes);
     syn::custom_keyword!(validated);
@@ -268,11 +269,28 @@ impl Relationship {
             input.parse::<Token![:]>()?;
             let related: Ident = input.parse()?;
 
+            // Optional foreign-key override: `belongsTo assignee: User
+            // (foreign_key = "assignee_id")`. Lets a relation whose real FK
+            // column is NOT the name-derived default (`<model>_id` for
+            // hasMany/hasOne, `<relation>_id` for belongsTo) name that column
+            // explicitly; the loaders below prefer this override over the
+            // convention when it is present. Absent -> `None` (unchanged
+            // name-derived default).
+            let mut foreign_key = None;
+            if input.peek(syn::token::Paren) {
+                let content;
+                syn::parenthesized!(content in input);
+                content.parse::<kw::foreign_key>()?;
+                content.parse::<Token![=]>()?;
+                let lit: syn::LitStr = content.parse()?;
+                foreign_key = Some(lit.value());
+            }
+
             Ok(Relationship {
                 rel_type,
                 name,
                 related,
-                foreign_key: None,
+                foreign_key,
                 pivot_table: None,
             })
         })())
@@ -1465,6 +1483,71 @@ fn generate_full_model(
         }
     }).collect();
 
+    // ---- Constrained nested dot-notation eager loads -------------------------
+    // Same one-level nesting as `nested_arms`, but the FIRST segment is loaded
+    // through its CONSTRAINED `load_<name>_where` loader so a `with_where` on the
+    // first-level relation applies even when the request is a nested `a.b`
+    // (Laravel `with('a.b')->whereHas`-style intent). Steps (2)-(4) are identical
+    // to the unconstrained nested path: collect the (now constrained) children,
+    // hydrate the remaining path `b` on the CHILD type, regroup by child id.
+    // Constraining DEEPER segments (`b`) stays a documented follow-up; the first
+    // segment's constraint is what these arms guarantee.
+    let nested_where_arms: Vec<TokenStream2> = relationships.iter().map(|rel| {
+        let name_str = rel.name.to_string();
+        let field_name = &rel.name;
+        let child = &rel.related;
+        let loader_where = syn::Ident::new(&format!("load_{}_where", rel.name), rel.name.span());
+        let (collect_stmt, regroup_stmt) = match rel.rel_type {
+            RelationType::HasMany | RelationType::BelongsToMany => (
+                quote! { for c in row.#field_name.iter() { children.push(c.clone()); } },
+                quote! {
+                    for c in row.#field_name.iter_mut() {
+                        if let ::std::option::Option::Some(cid) = c.id {
+                            if let ::std::option::Option::Some(h) = by_id.get(&cid) {
+                                *c = h.clone();
+                            }
+                        }
+                    }
+                },
+            ),
+            RelationType::BelongsTo | RelationType::HasOne => (
+                quote! {
+                    if let ::std::option::Option::Some(c) = row.#field_name.as_ref() {
+                        children.push(c.clone());
+                    }
+                },
+                quote! {
+                    if let ::std::option::Option::Some(c) = row.#field_name.as_mut() {
+                        if let ::std::option::Option::Some(cid) = c.id {
+                            if let ::std::option::Option::Some(h) = by_id.get(&cid) {
+                                *c = h.clone();
+                            }
+                        }
+                    }
+                },
+            ),
+        };
+        quote! {
+            #name_str => {
+                // (1) load the FIRST segment CONSTRAINED so `with_where` applies.
+                #name::#loader_where(&mut rows, __rf_col.as_str(), __rf_val.clone()).await?;
+                // (2) collect the (constrained) hydrated children into one vec.
+                let mut children: ::std::vec::Vec<#child> = ::std::vec::Vec::new();
+                for row in rows.iter() { #collect_stmt }
+                // (3) hydrate the remaining path on the CHILD type.
+                let rest_names = [__rf_rest];
+                #child::with_relations(&mut children, &rest_names).await?;
+                // (4) regroup the hydrated children back by their own id.
+                let mut by_id: ::std::collections::HashMap<i64, #child> =
+                    ::std::collections::HashMap::new();
+                for c in children {
+                    if let ::std::option::Option::Some(cid) = c.id { by_id.insert(cid, c); }
+                }
+                for row in rows.iter_mut() { #regroup_stmt }
+            }
+        }
+    }).collect();
+
     // Generate soft delete methods
     let soft_delete_methods = if soft_deletes {
         quote! {
@@ -1640,16 +1723,45 @@ fn generate_full_model(
                 // relation keeps the unchanged unconstrained path through the
                 // shared `with_relations` (which also handles nested `a.b`).
                 for __rf_rel in relations.iter() {
-                    match constraints.get(__rf_rel.as_str()) {
+                    // A `with_where` constraint is keyed by the relation name it
+                    // was recorded against. For a nested request (`a.b`) the
+                    // constraint targets the FIRST segment (`a`), so look it up by
+                    // that segment; a plain request looks up the whole name.
+                    let (__rf_first, __rf_rest) = match __rf_rel.split_once('.') {
+                        ::std::option::Option::Some((__rf_a, __rf_b)) => {
+                            (__rf_a, ::std::option::Option::Some(__rf_b))
+                        }
+                        ::std::option::Option::None => (__rf_rel.as_str(), ::std::option::Option::None),
+                    };
+                    match constraints.get(__rf_first) {
                         ::std::option::Option::Some((__rf_col, __rf_val)) => {
-                            match __rf_rel.as_str() {
-                                #(#with_where_arms)*
-                                other => {
-                                    return ::std::result::Result::Err(::std::format!(
-                                        "with_where: unknown or non-eager relation `{}` on {}",
-                                        other,
-                                        #table_name,
-                                    ));
+                            match __rf_rest {
+                                // Constrained nested `a.b`: load `a` constrained,
+                                // then hydrate the rest on the child type.
+                                ::std::option::Option::Some(__rf_rest) => {
+                                    match __rf_first {
+                                        #(#nested_where_arms)*
+                                        other => {
+                                            return ::std::result::Result::Err(::std::format!(
+                                                "with_where: unknown or non-eager relation `{}` on {}",
+                                                other,
+                                                #table_name,
+                                            ));
+                                        }
+                                    }
+                                }
+                                // Constrained plain relation.
+                                ::std::option::Option::None => {
+                                    match __rf_first {
+                                        #(#with_where_arms)*
+                                        other => {
+                                            return ::std::result::Result::Err(::std::format!(
+                                                "with_where: unknown or non-eager relation `{}` on {}",
+                                                other,
+                                                #table_name,
+                                            ));
+                                        }
+                                    }
                                 }
                             }
                         }
