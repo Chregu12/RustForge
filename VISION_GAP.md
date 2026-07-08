@@ -675,3 +675,24 @@ This is a genuine framework inconsistency (not a fake): the `ValidatedJson` auto
 ### Cadence — shifting to on-demand
 
 With the engine done, ergonomics at near Laravel parity, docs/tests/warnings clean, and only the (scoped) axum-alignment fix + external-infra/design stubs + the Result/Option ceiling remaining, the fixed ~3h autonomous cadence has reached diminishing returns. Future runs move to a **slower/on-demand** rhythm: the next scheduled check is spaced further out, and the substantive next work item (the axum alignment) should be tackled deliberately rather than to fill a timer.
+
+---
+
+## Run 18 result — the axum 0.7/0.8 split is CLOSED (commit `34cffeaa`)
+
+The single genuine remaining core-path item from Re-audit 6 is fixed. Two Explore audits scoped it first (Direction A — bump the HTTP stack UP to axum 0.8 — is the smaller, correct fix; Direction B, downgrading ValidatedJson, is a dead-end that would require rewriting the extractor and still not fix the Handler mismatch). One agent then did the ATOMIC migration (intermediate states do not compile, so it was one all-or-nothing change with revert-on-failure) and it landed fully green.
+
+**What changed (45 files, +215/−234):**
+- **Version bump axum 0.7 → 0.8** across all 18 framework HTTP crates (rf-routing/rf-request/rf-response + rf-admin/rf-auth-scaffolding/rf-global-helpers/rf-helpers/rf-inertia/rf-metrics/rf-oauth-server/rf-passport/rf-route-facade/rf-sanctum/rf-sse/rf-storage/rf-swagger/rf-upload/rf-view) + 5 examples; axum-extra 0.9 → 0.10 in rf-passport/rf-sanctum (TypedHeader/cookie).
+- **Dropped `#[async_trait]`** from the now-native-async axum `FromRequest`/`FromRequestParts` impls (rf-request, rf-routing, rf-passport, rf-sanctum); kept it on the framework's own non-axum traits.
+- **Route param syntax `:id` → `{id}`** (axum 0.8 matchit) across rf-routing (resource/controller/macros/facade) + rf-route-facade/rf-admin/rf-auth-scaffolding + all example route strings, handling the `format!` `{{id}}` vs `.route()` `{id}` distinction.
+- **Real break fixed:** axum 0.8 removed the `Option<RawPathParams>` extractor form — `capture_path_params` rewritten to `(req, next)` + `RequestPartsExt::extract().ok()`. rf-response needed no code change (its IntoResponse surface was already 0.8-compatible — so the original 0.7 pin was over-cautious).
+- **Payoff proven:** `examples/validated-signup` now hosts `ValidatedJson<CreateUser>` through `rf::post` + `rf::global_router().build_router()` (the raw-axum workaround is gone); its test still asserts 201/422 with the custom `@ message`. The flagship "typed DTO auto-validates inside a framework-routed handler" is now real end-to-end.
+
+**Verified (independently):** `cargo check --workspace` exit 0, **0 warnings**; example tests blog-slice / rest-crud-resource / auth-paginated-search / phase12-blog / validated-signup all pass; rf-routing (145+58) / rf-request (23) / rf-route-facade (41+145) / rf-passport / rf-sanctum pass; routing + crud + validation sandbox probes green through the 0.8 stack. Confirmed the migration commit did NOT touch the pre-existing `model_macros_facade` probe issue.
+
+**Minor pre-existing follow-up (not a blocker, out of scope this run):** the `Model!` macro emits crate-root `::serde_json` paths (~59 sites), so a consumer that lacks a direct `serde_json` dep fails (the gitignored `model_macros_facade` probe deliberately exercises this). A future ergonomic fix would re-export serde_json through the rf prelude and have the macro emit that path. Small, and unrelated to any core promise.
+
+### State after run 18
+
+With the axum split closed, there is **no known genuine high-value item left on a core path**. Remaining is: the external-infra/design deferrals (load_session needs a Session entity, readiness_check needs a service-probe design, init_telemetry needs a real OTel SDK — each honest, none on a core promise), the `Model!` `::serde_json` ergonomic nit above, and the documented Rust language ceilings (Result/Option hiding, top-level `class`, lazy relation properties). The four-pillar vision is realized; the framework is coherent (single axum version across the HTTP stack), warning-clean, documented, tested, and example-backed. **The autonomous build loop has reached its natural end — further timer-driven runs would only invent marginal work. Recommendation: pause the loop and resume on concrete user request or a real bug report.**
