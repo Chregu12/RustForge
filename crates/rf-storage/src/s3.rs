@@ -135,7 +135,10 @@ impl Storage for S3Storage {
             .send()
             .await
             .map_err(|e| {
-                if e.to_string().contains("NoSuchKey") {
+                // Detect a missing key via the TYPED service error, not the Display
+                // string: the aws-sdk renders a 404 as just "service error", so string
+                // matching silently misclassifies not-found as a generic Other error.
+                if e.as_service_error().map(|se| se.is_no_such_key()).unwrap_or(false) {
                     StorageError::FileNotFound(path.to_string())
                 } else {
                     StorageError::Other(e.to_string())
@@ -180,7 +183,9 @@ impl Storage for S3Storage {
         {
             Ok(_) => Ok(true),
             Err(e) => {
-                if e.to_string().contains("NotFound") {
+                // head_object on a missing key returns a typed NotFound; the Display
+                // string is just "service error", so match the service error instead.
+                if e.as_service_error().map(|se| se.is_not_found()).unwrap_or(false) {
                     Ok(false)
                 } else {
                     Err(StorageError::Other(e.to_string()))
@@ -198,7 +203,9 @@ impl Storage for S3Storage {
             .send()
             .await
             .map_err(|e| {
-                if e.to_string().contains("NotFound") {
+                // Typed not-found detection (see get/exists): the Display string is
+                // just "service error" for a 404, so string matching would misfire.
+                if e.as_service_error().map(|se| se.is_not_found()).unwrap_or(false) {
                     StorageError::FileNotFound(path.to_string())
                 } else {
                     StorageError::Other(e.to_string())
