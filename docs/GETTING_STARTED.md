@@ -282,7 +282,7 @@ primary path, probe/CI-verified. **Partial** = real but with a documented gap.
 | Live backends — Redis / SMTP / S3 | 🟨 Partial | Bridges are real and proven; the live round-trip tests **graceful-skip** unless you bring services up (`docker compose -f docker-compose.test.yml up`). |
 | Blade-style views — `view(name, data)` / `blade!` | 🟨 Partial | Real render with `{{ var }}` interpolation and `@if`/`@foreach`; not the full Blade feature set. |
 | Auth / RBAC | 🟨 Partial | Per-request auth state (an earlier cross-request global was fixed), JWT/session guards, and gates/policies exist; not exhaustively audited end-to-end. |
-| Nested / constrained eager loads + query scopes | 🟥 Deferred | `with("comments.author")`, constrained eager loads, and query scopes are bigger designs, not yet built. |
+| Nested / constrained eager loads + query scopes | ✅ Done | One-level nested dot-paths (`with(&["comments.author"])`), constrained eager loads (`.with_where(relation, col, val)`), and Laravel-style local query scopes (a `scope name: …` line generates `Model::name() -> QueryBuilder`) all ship as generated code and pass tests. One documented edge: a nested `a.b` combined with `with_where` constrains only the first segment (`a`) — see Known limitations. |
 | Mass-assignment guard | 🟥 Deferred | `FILLABLE`/`HIDDEN` consts are declared but `create()` is not yet gated on them (behavior change, done carefully). |
 | `Result` / `Option` hiding | 🟥 Deferred | A documented **language ceiling**: `.await` is hidden via `#[auto_await]`, but `?` / `Result` / `Option` stay visible (hiding them needs one uniform error type). |
 | Peripheral stubs — `load_session` / `readiness_check` / `init_telemetry` | 🟥 Deferred | Each needs external infra or a design decision; left honestly stubbed rather than faked. |
@@ -306,9 +306,18 @@ Read these before you build — they are the real ceilings, stated plainly:
   real, but their tests skip gracefully unless you start the services from
   `docker-compose.test.yml`. Offline `cargo test` is green because those paths
   no-op, not because they are fake.
-- **Eager loading is single-level.** `with("author")` and multiple top-level
-  relations work; nested dot-paths (`with("comments.author")`), constrained
-  eager loads, and query scopes are deferred.
+- **Eager loading is deep-but-bounded.** Top-level relations (`with(&["author"])`),
+  one-level nested dot-paths (`with(&["comments.author"])`), constrained eager
+  loads (`.with_where("comments", "approved", true)`), and Laravel-style local
+  query scopes (`Post::active()`, returning the real `QueryBuilder` to keep
+  chaining) all ship and are N+1-free (one batched query per relation). The real
+  sharp edges: (1) combining a nested `a.b` with `.with_where(...)` applies the
+  constraint to the **first** segment (`a`) only — constraining the deeper
+  segment (`b`) is a documented follow-up; (2) `with_where` records one equality
+  constraint per relation (repeating it replaces the prior one; multiple
+  constraints and operators are a follow-up); and (3) nesting is one level deep
+  per arm, with deeper paths (`a.b.c`) handled by re-entering the child model's
+  own loaders.
 - **Not yet 1.0-stable across the board.** The engine phase is essentially done
   (~89% of the vision), but several peripheral crates carry warnings or stubs and
   most core crates still lack in-crate unit tests. The two examples above are the
