@@ -60,5 +60,5 @@ pub use csrf::{
 pub use middleware::{compression_layer, cors_layer, timeout_layer, tracing_layer, CorsConfig};
 pub use router::RouterBuilder;
 pub use session::{Session, SessionConfig, SessionDriver, SessionMiddleware};
-pub use session_facade::{SessionFacade, GLOBAL_SESSION};
+pub use session_facade::{session_scope, SessionFacade};
 pub use versioning::{ApiVersion, VersionedRouter};
