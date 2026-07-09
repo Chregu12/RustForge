@@ -75,8 +75,9 @@ pub use async_graphql::{
 pub use async_graphql_axum::{GraphQLRequest, GraphQLResponse, GraphQLSubscription};
 
 use axum::{
-    extract::State,
-    response::{Html, IntoResponse},
+    extract::{FromRequest, Request as AxumRequest, State},
+    http::request::Parts,
+    response::{Html, IntoResponse, Response},
     routing::{get, post},
     Router,
 };
@@ -130,6 +131,122 @@ where
     S: SubscriptionType + 'static,
 {
     schema.execute(req.into_inner()).await.into()
+}
+
+/// Create a GraphQL router that threads per-request context into schema execution.
+///
+/// The plain [`graphql_router`] calls `schema.execute(req)` with **no** `.data(..)`
+/// injection, which means the guards shipped in [`crate::auth`] ([`AuthGuard`],
+/// [`RoleGuard`], and [`get_auth_user`]) are unreachable: nothing ever inserts the
+/// [`AuthUser`] they read out of `ctx.data`. This variant fixes that.
+///
+/// `context_fn` is invoked for every request with the incoming HTTP request's
+/// `Parts` (headers, extensions, uri, method). Return `Some(user)` to make an
+/// [`AuthUser`] available in the GraphQL [`Context`] via `ctx.data::<AuthUser>()`,
+/// or `None` for an unauthenticated request (the guards then reject it with a
+/// GraphQL error instead of authorizing it). The request's `HeaderMap` is always
+/// injected too, so resolvers can read request globals via `ctx.data::<HeaderMap>()`.
+///
+/// # Wiring the framework's authenticated user
+///
+/// Upstream `rf-auth` middleware (e.g. `auth_middleware` / `auth_layer`) inserts the
+/// verified `Claims` into the request extensions. Map those into an
+/// [`AuthUser`] in `context_fn`:
+///
+/// ```no_run
+/// use rf_graphql::*;
+/// use async_graphql::*;
+///
+/// struct QueryRoot;
+///
+/// #[Object]
+/// impl QueryRoot {
+///     #[graphql(guard = "AuthGuard")]
+///     async fn me(&self, ctx: &Context<'_>) -> Result<String> {
+///         Ok(get_auth_user(ctx)?.username.clone())
+///     }
+/// }
+///
+/// # async fn example() {
+/// let schema = Schema::build(QueryRoot, EmptyMutation, EmptySubscription).finish();
+///
+/// // Read whatever your auth middleware placed in the request and build an AuthUser.
+/// let app = graphql_router_with_context(schema, |parts| {
+///     let bearer = parts
+///         .headers
+///         .get(axum::http::header::AUTHORIZATION)?
+///         .to_str()
+///         .ok()?
+///         .strip_prefix("Bearer ")?
+///         .trim()
+///         .parse::<i64>()
+///         .ok()?;
+///     Some(AuthUser {
+///         id: bearer,
+///         username: format!("user-{bearer}"),
+///         roles: vec!["user".into()],
+///     })
+/// });
+/// # let _ = app;
+/// # }
+/// ```
+pub fn graphql_router_with_context<Q, M, S, F>(schema: Schema<Q, M, S>, context_fn: F) -> Router
+where
+    Q: ObjectType + 'static,
+    M: ObjectType + 'static,
+    S: SubscriptionType + 'static,
+    F: Fn(&Parts) -> Option<AuthUser> + Send + Sync + 'static,
+{
+    let state = (Arc::new(schema), Arc::new(context_fn));
+
+    Router::new()
+        .route(
+            "/graphql",
+            post(graphql_handler_with_context::<Q, M, S, F>),
+        )
+        .with_state(state)
+}
+
+/// GraphQL handler that injects per-request auth (and headers) into `ctx.data`.
+async fn graphql_handler_with_context<Q, M, S, F>(
+    State((schema, context_fn)): State<(Arc<Schema<Q, M, S>>, Arc<F>)>,
+    request: AxumRequest,
+) -> Response
+where
+    Q: ObjectType + 'static,
+    M: ObjectType + 'static,
+    S: SubscriptionType + 'static,
+    F: Fn(&Parts) -> Option<AuthUser> + Send + Sync + 'static,
+{
+    // Split the request so we can inspect headers/extensions before the body is
+    // consumed by the GraphQL parser, then reassemble it for GraphQLRequest.
+    let (parts, body) = request.into_parts();
+    let auth_user = context_fn(&parts);
+    let headers = parts.headers.clone();
+    let request = AxumRequest::from_parts(parts, body);
+
+    let mut gql_request =
+        match GraphQLRequest::<async_graphql_axum::rejection::GraphQLRejection>::from_request(
+            request,
+            &(),
+        )
+        .await
+        {
+            Ok(req) => req.into_inner(),
+            // Malformed GraphQL request: return the parser's own response, never panic.
+            Err(rejection) => return rejection.into_response(),
+        };
+
+    // Request globals: headers are always available to resolvers.
+    gql_request = gql_request.data(headers);
+    // The load-bearing injection: make the framework's authenticated user reachable
+    // so AuthGuard / RoleGuard / get_auth_user actually work.
+    if let Some(user) = auth_user {
+        gql_request = gql_request.data(user);
+    }
+
+    let response: GraphQLResponse = schema.execute(gql_request).await.into();
+    response.into_response()
 }
 
 /// Create a GraphQL playground router
@@ -418,6 +535,105 @@ mod tests {
         let data = result.data.into_json().unwrap();
         assert_eq!(data["user"]["id"], "1");
         assert_eq!(data["user"]["name"], "Test User");
+    }
+
+    /// Regression: `graphql_router_with_context` must populate `ctx.data::<AuthUser>()`
+    /// so the shipped `AuthGuard` authorizes an authenticated request and rejects an
+    /// unauthenticated one with a GraphQL error (never a panic). Before this router
+    /// existed, `graphql_router` executed the schema with no `.data(..)`, so the guard
+    /// was unreachable and every guarded field failed as "Unauthorized".
+    #[tokio::test]
+    async fn test_context_router_injects_auth_user() {
+        use crate::auth::{get_auth_user, AuthGuard, AuthUser};
+        use axum::{body::Body, http::Request as HttpRequest};
+        use tower::ServiceExt;
+
+        struct GuardedQuery;
+
+        #[Object]
+        impl GuardedQuery {
+            #[graphql(guard = "AuthGuard")]
+            async fn me(&self, ctx: &Context<'_>) -> Result<String> {
+                Ok(get_auth_user(ctx)?.username.clone())
+            }
+        }
+
+        let schema = Schema::build(GuardedQuery, EmptyMutation, EmptySubscription).finish();
+
+        // context_fn: a `Bearer <id>` header authenticates; anything else is a guest.
+        let app = graphql_router_with_context(schema, |parts| {
+            let id = parts
+                .headers
+                .get(axum::http::header::AUTHORIZATION)?
+                .to_str()
+                .ok()?
+                .strip_prefix("Bearer ")?
+                .trim()
+                .parse::<i64>()
+                .ok()?;
+            Some(AuthUser {
+                id,
+                username: format!("user-{id}"),
+                roles: vec!["user".into()],
+            })
+        });
+
+        let query = r#"{"query":"{ me }"}"#;
+
+        // Authenticated request: guard passes, resolver returns the username.
+        let resp = app
+            .clone()
+            .oneshot(
+                HttpRequest::builder()
+                    .method("POST")
+                    .uri("/graphql")
+                    .header("content-type", "application/json")
+                    .header("Authorization", "Bearer 7")
+                    .body(Body::from(query))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        let body = axum::body::to_bytes(resp.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(
+            json["data"]["me"], "user-7",
+            "authenticated request should reach the guarded resolver: {json}"
+        );
+        assert!(
+            json.get("errors").is_none(),
+            "no errors expected for authenticated request: {json}"
+        );
+
+        // Unauthenticated request: guard rejects with a GraphQL error, no panic.
+        let resp = app
+            .oneshot(
+                HttpRequest::builder()
+                    .method("POST")
+                    .uri("/graphql")
+                    .header("content-type", "application/json")
+                    .body(Body::from(query))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        let body = axum::body::to_bytes(resp.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert!(
+            json["data"]["me"].is_null(),
+            "guarded field must not resolve for a guest: {json}"
+        );
+        assert!(
+            json["errors"][0]["message"]
+                .as_str()
+                .unwrap_or_default()
+                .contains("Unauthorized"),
+            "guest should get an Unauthorized GraphQL error: {json}"
+        );
     }
 
     #[tokio::test]
