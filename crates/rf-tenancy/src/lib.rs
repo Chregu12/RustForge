@@ -440,6 +440,36 @@ impl TenantResolver for InMemoryTenantResolver {
 ///
 /// When identification fails (missing/unknown tenant) the request is rejected
 /// with the [`TenantError`] response before the handler runs.
+///
+/// # Middleware stacking order with axum
+///
+/// Axum's `.layer()` applies layers in **inside-out** order: the LAST `.layer()`
+/// call in source code becomes the OUTERMOST middleware (runs first on each
+/// request). To have `TenantLayer` run BEFORE session handling (so handlers can
+/// read the current tenant while still inside a session scope), add
+/// `TenantLayer` AFTER `session_scope` in source:
+///
+/// ```ignore
+/// // Requires: rf-tenancy + rf-web (or rf) in your app crate.
+/// use axum::{Router, routing::get, middleware};
+/// use rf_tenancy::{InMemoryTenantResolver, TenantLayer};
+/// use rf_web::session_scope;
+///
+/// async fn handler() {}
+///
+/// async fn build() -> Router {
+///     let resolver = InMemoryTenantResolver::new();
+///     // Execution order: TenantLayer -> session_scope -> handler
+///     Router::new()
+///         .route("/", get(handler))
+///         .layer(middleware::from_fn(session_scope)) // added first -> runs second
+///         .layer(TenantLayer::by_header("X-Tenant-Id", resolver)) // added last -> runs first
+/// }
+/// ```
+///
+/// If you need session data during tenant resolution (e.g. a DB-backed resolver
+/// that reads a user from the session), reverse the order: add `TenantLayer`
+/// first and `session_scope` last so `session_scope` runs outermost.
 #[derive(Clone)]
 pub struct TenantLayer {
     identifier: Arc<dyn TenantIdentifier>,

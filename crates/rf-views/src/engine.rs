@@ -24,9 +24,38 @@ pub struct ViewEngine {
 }
 
 impl ViewEngine {
-    /// Create a new view engine with the given views path
+    /// Create a new view engine with the given views path.
+    ///
+    /// The default template extension is **`.tera`** (e.g. `views/home.tera`).
+    /// If your templates use the `.html` extension — which is what the umbrella
+    /// `rf::view()` / `rf_response::view()` helper expects — use
+    /// [`ViewEngine::html`] instead.
     pub fn new(views_path: &str) -> ViewResult<Self> {
         let config = ViewConfig::new(views_path);
+        Self::with_config(config)
+    }
+
+    /// Create a new view engine that expects **`.html`** templates.
+    ///
+    /// Use this constructor when your views directory contains `.html` files
+    /// (e.g. `resources/views/home.html`) so the engine is consistent with the
+    /// umbrella `rf::view("home", data)` / `rf_response::view` helper, which
+    /// also resolves `.html` (and `.blade.html`) files.
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// use rf_views::ViewEngine;
+    ///
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let engine = ViewEngine::html("resources/views")?;
+    /// // Finds resources/views/home.html, resources/views/layouts/app.html, etc.
+    /// let html = engine.render_with_data("home", serde_json::json!({ "title": "Hi" }))?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn html(views_path: &str) -> ViewResult<Self> {
+        let config = ViewConfig::new(views_path).extension("html");
         Self::with_config(config)
     }
 

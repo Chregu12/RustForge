@@ -20,6 +20,9 @@ pub struct ViewConfig {
 }
 
 impl Default for ViewConfig {
+    /// The default extension is **`.tera`**.  Call `.extension("html")` (or use
+    /// [`ViewEngine::html`](crate::engine::ViewEngine::html)) when your templates
+    /// use the `.html` extension that the umbrella `rf::view()` helper expects.
     fn default() -> Self {
         Self {
             views_path: PathBuf::from("resources/views"),
@@ -32,7 +35,12 @@ impl Default for ViewConfig {
 }
 
 impl ViewConfig {
-    /// Create a new view configuration
+    /// Create a new view configuration.
+    ///
+    /// The default template extension is `.tera`.  To use `.html` templates
+    /// (consistent with the `rf::view()` / `rf_response::view` helper) call
+    /// `.extension("html")` on the returned config, or use
+    /// [`ViewEngine::html`](crate::engine::ViewEngine::html) directly.
     pub fn new(views_path: impl Into<PathBuf>) -> Self {
         Self {
             views_path: views_path.into(),

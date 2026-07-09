@@ -48,6 +48,17 @@ pub use rf_web::SessionFacade as Session;
 pub use rf_config::Config;
 pub use rf_view::ViewFacade as View;
 
+// Ambient request globals (behind the `capture_request` middleware):
+// callable as `rf::input("field")`, `rf::file("upload")`, `rf::has("field")`,
+// `rf::all()` — same items the prelude exposes, now also at the crate root so
+// an `rf::` qualified call compiles without a glob import.
+pub use rf_request::{all, file, has, input};
+
+// Session helpers at the crate root for rf::session_scope / rf::in_session_scope
+// symmetry with rf_web:: qualified usage.  session_scope is the per-request axum
+// middleware fn; in_session_scope() returns true when called inside one.
+pub use rf_web::{in_session_scope, session_scope};
+
 // Helpers
 pub use rf_global_helpers::Hash;
 pub use rf_global_helpers::redirect;
