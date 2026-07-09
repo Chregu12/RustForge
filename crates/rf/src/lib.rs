@@ -193,6 +193,20 @@ pub mod prelude {
     pub use rf_response::Response;
     pub use rf_errors::{RustForgeError, Result};
 
+    // Terse `?`-based handler path (the honest, first-class Result story).
+    //
+    // A handler can now be written as an argument-less `async fn` returning
+    // `AppResult<impl IntoResponse>` and use `?` on every fallible step:
+    //   - `validate! {..}?`     -> `From<ValidationErrors>` renders a 422
+    //   - `create!(Model, ..)?` -> `From<String>` (ORM error) renders a 500
+    //   - `find!(Model, id).or_404()?` -> `OrNotFound` renders a 404
+    // `AppError` already implements `axum::IntoResponse` (via `rf-core`'s `axum`
+    // feature, enabled below), so the error variant of the returned `Result`
+    // maps itself to the correct HTTP status + framework JSON envelope with NO
+    // hand-written `match`/`.status()`. This does NOT hide `Result`/`Option`
+    // (a language ceiling) — it makes the idiomatic `?` path ergonomic.
+    pub use rf_core::{AppError, AppResult, OrNotFound};
+
     // New packages (Phase 22)
     pub use rf_pest::Pest;
     pub use rf_cashier::Cashier;

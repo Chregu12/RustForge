@@ -25,7 +25,10 @@ rf-helpers = { path = "../rf-helpers" }
 rf-macros = { path = "../rf-macros" }
 
 # Core
-rf-core = { path = "../rf-core" }
+# `axum` feature: pulls in rf-core's `impl IntoResponse for AppError`, so a
+# handler returning `AppResult<impl IntoResponse>` (the terse `?` path re-exported
+# through `rf::prelude`) has its error variant render the correct HTTP status.
+rf-core = { path = "../rf-core", features = ["axum"] }
 rf-web = { path = "../rf-web" }
 rf-config = { path = "../rf-config" }
 rf-routing = { path = "../rf-routing" }

@@ -235,9 +235,60 @@ impl AppError {
     }
 }
 
+/// Convert a plain `String` error into an `AppError`.
+///
+/// The framework's ORM/DB layer (and the `create!`/`update!`/`find!`/`delete!`
+/// macros that build on it) return their failures as `Result<_, String>`. This
+/// conversion lets those calls propagate with `?` inside a handler that returns
+/// `Result<_, AppError>` (aka `AppResult<_>`): a DB/string error becomes a
+/// generic `500 Internal Server Error` (the honest default for an opaque backend
+/// failure — the message is logged, not leaked, by `Internal`'s problem-details
+/// rendering). This is what makes the terse `let row = create!(..)?;` path
+/// first-class without hand-written `match`/`.status()` branches.
+impl From<String> for AppError {
+    fn from(message: String) -> Self {
+        AppError::Internal(anyhow::anyhow!(message))
+    }
+}
+
+/// `&str` counterpart of the `From<String>` conversion above, so string-slice
+/// errors (`?` on a `Result<_, &str>`) also flow into a `500`.
+impl From<&str> for AppError {
+    fn from(message: &str) -> Self {
+        AppError::Internal(anyhow::anyhow!(message.to_string()))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_string_error_maps_to_internal_500() {
+        let error: AppError = "database connection refused".to_string().into();
+        assert_eq!(error.status_code(), 500);
+        assert!(matches!(error, AppError::Internal(_)));
+    }
+
+    #[test]
+    fn test_str_error_maps_to_internal_500() {
+        let error: AppError = AppError::from("boom");
+        assert_eq!(error.status_code(), 500);
+    }
+
+    #[test]
+    fn test_string_error_propagates_with_question_mark() {
+        // Mirrors a handler body: a `Result<_, String>` (what create!/find!
+        // return) propagates via `?` into an `AppResult<_>` with no manual map.
+        fn handler() -> crate::AppResult<i32> {
+            let db_call: std::result::Result<i32, String> =
+                Err("row not inserted".to_string());
+            let value = db_call?;
+            Ok(value)
+        }
+        let err = handler().unwrap_err();
+        assert_eq!(err.status_code(), 500);
+    }
 
     #[test]
     fn test_not_found_status_code() {

@@ -15,4 +15,4 @@
 //! ```
 
 pub use crate::context::{Environment, RequestContext};
-pub use crate::error::{AppError, AppResult, ProblemDetails};
+pub use crate::error::{AppError, AppResult, OrNotFound, ProblemDetails};

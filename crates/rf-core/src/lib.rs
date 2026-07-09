@@ -41,4 +41,4 @@ pub mod axum_support;
 
 // Re-exports for convenience
 pub use context::{Environment, RequestContext};
-pub use error::{AppError, AppResult, ProblemDetails};
+pub use error::{AppError, AppResult, OrNotFound, ProblemDetails};
