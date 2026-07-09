@@ -5,14 +5,20 @@ use crate::{Mail, MailError, Mailer};
 #[cfg(feature = "queue")]
 use async_trait::async_trait;
 #[cfg(feature = "queue")]
-use rf_queue::{set_default_queue, Job, Jobs, Queue, QueueError, Worker};
+use rf_queue::{dispatch, Job, Jobs, Queue, QueueError, Worker};
 #[cfg(feature = "queue")]
 use serde::{Deserialize, Serialize};
 #[cfg(feature = "queue")]
 use std::sync::Arc;
 
 #[cfg(feature = "queue")]
-/// Mail queue for background sending
+/// Mail queue for background sending.
+///
+/// Fully self-contained: both [`push`](MailQueue::push) and
+/// [`process`](MailQueue::process) operate on the `Arc<dyn Queue>` injected at
+/// construction. No process-global [`rf_queue::DEFAULT_QUEUE`] is mutated, so
+/// **multiple `MailQueue` instances can coexist concurrently** without racing
+/// each other (e.g. in parallel tests or multi-tenant setups).
 pub struct MailQueue {
     queue: Arc<dyn Queue>,
     mailer: Arc<dyn Mailer>,
@@ -20,41 +26,46 @@ pub struct MailQueue {
 
 #[cfg(feature = "queue")]
 impl MailQueue {
-    /// Create a new mail queue.
+    /// Create a new, self-contained mail queue.
     ///
-    /// **Self-consistency guarantee**: this constructor immediately installs
-    /// `queue` as the process-global default queue (via
-    /// [`rf_queue::set_default_queue`]). Because the static
-    /// [`MailQueue::push`] dispatches to that same global, callers do NOT
-    /// need a separate `rf_queue::set_default_queue` wiring step — push and
-    /// process share one queue out of the box.
+    /// No global state is touched. The injected `queue` is used exclusively
+    /// by this instance's [`push`](Self::push) and [`process`](Self::process)
+    /// methods — safe to call from multiple concurrent instances without races.
     pub fn new(queue: Arc<dyn Queue>, mailer: Arc<dyn Mailer>) -> Self {
-        // Sync the process-global default queue with this instance's queue so
-        // that the static MailQueue::push (Jobs::dispatch -> global) and
-        // MailQueue::process (drains self.queue) always target the SAME
-        // backend, eliminating silent-loss when the caller never calls
-        // set_default_queue explicitly.
-        set_default_queue(Arc::clone(&queue));
         Self { queue, mailer }
     }
 
-    /// Push a mail to the queue for background delivery.
+    /// Push a mail onto **this instance's queue** for background delivery.
     ///
-    /// Wraps the message in a [`SendMailJob`] and dispatches it onto the
-    /// process-global default queue through the `rf_queue` [`Jobs`] facade.
+    /// Enqueues a [`SendMailJob`] directly onto `self.queue` via
+    /// [`rf_queue::dispatch`] — no process-global state is read or written.
+    /// This means push and [`process`](Self::process) always target the
+    /// **same** backend (the queue passed to [`new`](Self::new)), making the
+    /// pair race-free under concurrent instantiation.
     ///
-    /// **No external wiring required**: [`MailQueue::new`] installs the
-    /// injected queue as the process-global default, so calls to `push` and
-    /// calls to [`MailQueue::process`] always drain the **same** queue — no
-    /// separate [`rf_queue::set_default_queue`] call is needed at the call
-    /// site. If you do call `set_default_queue` after `new`, ensure it points
-    /// at the same queue instance to avoid silent divergence.
+    /// For convenience dispatch onto the process-global default queue (e.g.
+    /// from [`Mailable::queue`](crate::Mailable::queue)), see
+    /// [`push_global`](Self::push_global).
+    pub async fn push(&self, mail: Mail) -> Result<(), MailError> {
+        dispatch(Arc::clone(&self.queue), SendMailJob { mail })
+            .map_err(|e| MailError::SendFailed(format!("failed to enqueue mail job: {e}")))?;
+        Ok(())
+    }
+
+    /// Dispatch a mail onto the **process-global** default queue.
     ///
-    /// The job is driven over the shared deadlock-safe async bridge, so this
-    /// is safe to call from inside or outside an ambient Tokio runtime.
-    pub async fn push(mail: Mail) -> Result<(), MailError> {
-        let job = SendMailJob { mail };
-        Jobs::dispatch(job)
+    /// This is the shared, handle-free path used by
+    /// [`Mailable::queue`](crate::Mailable::queue) and
+    /// [`MailableAsync::queue`](crate::MailableAsync::queue), which have no
+    /// `MailQueue` instance to call the instance method on. The caller is
+    /// responsible for configuring the global queue via
+    /// [`rf_queue::set_default_queue`] / [`rf_queue::Jobs::set_queue`] before
+    /// using this method, otherwise messages land on the default in-memory queue.
+    ///
+    /// When you *do* have a `MailQueue` instance, prefer the instance
+    /// [`push`](Self::push) method — it is self-contained and race-free.
+    pub async fn push_global(mail: Mail) -> Result<(), MailError> {
+        Jobs::dispatch(SendMailJob { mail })
             .map_err(|e| MailError::SendFailed(format!("failed to enqueue mail job: {e}")))?;
         Ok(())
     }
@@ -100,14 +111,22 @@ pub struct SendMailJob {
 #[cfg(feature = "queue")]
 #[async_trait]
 impl Job for SendMailJob {
+    /// Deliver this job through the **process-global** mail transport chain.
+    ///
+    /// This method is invoked when a [`Worker`] is set up with
+    /// [`Worker::register::<SendMailJob>()`] — the type-erased global dispatch
+    /// path. It routes through [`crate::facade::deliver_mail`]:
+    /// mail-fake recorder (if active) ➜ configured SMTP ➜ the default
+    /// `.eml`-on-disk [`FileMailer`](crate::FileMailer).
+    ///
+    /// **Instance path** (`MailQueue::process`): when you use
+    /// [`MailQueue::process`], the worker is given a closure handler that
+    /// delivers through the *injected* [`Mailer`](crate::Mailer) instead of
+    /// calling this `handle` method — so the two paths are consistent as long
+    /// as the injected mailer and the global facade are configured to the same
+    /// transport.
     async fn handle(&self) -> Result<(), QueueError> {
-        tracing::info!(subject = %self.mail.subject, "Processing SendMailJob");
-
-        // Deliver through the SAME real transport chain as a synchronous
-        // `Mail::send`: mail-fake recorder ➜ configured SMTP ➜ the default
-        // `.eml`-on-disk `FileMailer`. This is what makes a queued email actually
-        // reach a real transport (a real `.eml` on disk / real SMTP) instead of
-        // vanishing into the in-memory `MemoryMailer`.
+        tracing::info!(subject = %self.mail.subject, "Processing SendMailJob via global facade");
         crate::facade::deliver_mail(self.mail.clone())
             .map_err(|e| QueueError::JobFailed(e.to_string()))
     }
@@ -131,7 +150,15 @@ pub struct MailQueue;
 
 #[cfg(not(feature = "queue"))]
 impl MailQueue {
-    pub async fn push(_mail: crate::Mail) -> Result<(), crate::MailError> {
+    /// Stub: instance push (feature disabled).
+    pub async fn push(&self, _mail: crate::Mail) -> Result<(), crate::MailError> {
+        Err(crate::MailError::ConfigError(
+            "Queue feature not enabled. Enable the 'queue' feature to use mail queuing.".into(),
+        ))
+    }
+
+    /// Stub: global push (feature disabled).
+    pub async fn push_global(_mail: crate::Mail) -> Result<(), crate::MailError> {
         Err(crate::MailError::ConfigError(
             "Queue feature not enabled. Enable the 'queue' feature to use mail queuing.".into(),
         ))
@@ -146,7 +173,9 @@ mod tests {
 
     fn sample_mail() -> Mail {
         Mail {
-            id: "test".into(),
+            // Unique id per call so concurrent deliveries never produce the
+            // same filename (FileMailer uses {timestamp}-{id}.eml).
+            id: uuid::Uuid::new_v4().to_string(),
             to: vec![Address::new("test@example.com")],
             cc: vec![],
             bcc: vec![],
@@ -220,20 +249,21 @@ mod tests {
     async fn test_push_actually_enqueues() {
         use rf_queue::{MemoryQueue, Queue};
 
-        // Point the global default queue at a fresh in-memory backend.
+        // Use instance push: directly onto a fresh in-memory queue, no globals.
         let queue: Arc<dyn Queue> = Arc::new(MemoryQueue::new());
-        rf_queue::set_default_queue(Arc::clone(&queue));
+        let mailer: Arc<dyn Mailer> = Arc::new(crate::MemoryMailer::new());
+        let mail_queue = MailQueue::new(Arc::clone(&queue), mailer);
 
         let before = queue.size("mail").await.unwrap();
 
-        // Real dispatch: this must land a job on the queue, not silently drop it.
-        MailQueue::push(sample_mail()).await.unwrap();
+        // Instance push: enqueues onto self.queue, not the global default.
+        mail_queue.push(sample_mail()).await.unwrap();
 
         let after = queue.size("mail").await.unwrap();
         assert_eq!(
             after,
             before + 1,
-            "MailQueue::push must enqueue a SendMailJob onto the real queue"
+            "MailQueue::push must enqueue a SendMailJob onto self.queue (not the global)"
         );
 
         // And a worker can reserve + run it (proving the payload round-trips).
@@ -248,14 +278,11 @@ mod tests {
         );
     }
 
-    /// Proves the core invariant fixed in this pass: MailQueue::push and
-    /// MailQueue::process are SELF-CONSISTENT with NO external set_default_queue
-    /// wiring. Before the fix, push dispatched to the process-global DEFAULT_QUEUE
-    /// while process drained self.queue — silent loss when they diverged.
-    ///
-    /// After the fix, MailQueue::new installs self.queue as the process-global,
-    /// so push (which targets the global) and process (which drains self.queue)
-    /// share ONE queue. No separate set_default_queue call is needed.
+    /// Proves the core self-consistency invariant: MailQueue::push (instance) and
+    /// MailQueue::process both operate on self.queue — no global set_default_queue
+    /// wiring is needed or used. Before the fix, push dispatched to the
+    /// process-global DEFAULT_QUEUE while process drained self.queue, causing
+    /// silent loss when they diverged under concurrent instantiation.
     #[tokio::test]
     async fn test_push_process_self_consistent_no_external_wiring() {
         use crate::FileMailer;
@@ -267,22 +294,22 @@ mod tests {
         let queue: Arc<dyn Queue> = Arc::new(MemoryQueue::new());
         let mailer: Arc<dyn Mailer> = Arc::new(FileMailer::new(&dir));
 
-        // Create MailQueue — new() syncs the global default queue to `queue`.
-        // Critically: we do NOT call rf_queue::set_default_queue here; it must
-        // not be required.
+        // Create MailQueue — new() does NOT touch the global default queue.
+        // No set_default_queue call is needed or made anywhere here.
         let mail_queue = MailQueue::new(Arc::clone(&queue), mailer);
 
         let before = queue.size("mail").await.unwrap();
 
-        // Push via the static API (dispatches to the global = self.queue).
-        MailQueue::push(sample_mail()).await.unwrap();
+        // Instance push: lands on self.queue (not the global), safe with no
+        // external wiring.
+        mail_queue.push(sample_mail()).await.unwrap();
 
         let after = queue.size("mail").await.unwrap();
         assert_eq!(
             after,
             before + 1,
-            "push must land on self.queue without external set_default_queue wiring \
-             (left=after right=before+1; was 0=1 before fix — silent loss)"
+            "instance push must land on self.queue without any global set_default_queue \
+             wiring (0 jobs after push = still broken)"
         );
 
         // Process drains self.queue (the same queue push landed on) and delivers
@@ -298,11 +325,82 @@ mod tests {
             emls.len(),
             1,
             "process() must deliver exactly one .eml via the injected mailer \
-             (0 means the queued mail was silently lost)"
+             (0 = queued mail silently lost; >1 = cross-contamination)"
         );
         let body = std::fs::read_to_string(emls[0].path()).unwrap();
         assert!(body.contains("Test"), "eml must carry the mail subject: {body}");
 
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// Regression: multiple MailQueue instances operating CONCURRENTLY must NEVER
+    /// contaminate each other's queues. Before the fix, MailQueue::new called
+    /// set_default_queue and push dispatched to the process-global — so the last
+    /// new() winner owned everyone's pushes. This test fails under default cargo
+    /// test parallelism without the fix, and passes after.
+    #[tokio::test]
+    async fn test_parallel_push_no_race() {
+        use crate::FileMailer;
+        use rf_queue::{MemoryQueue, Queue};
+        use std::sync::Arc;
+
+        const INSTANCES: usize = 4;
+        const MAILS_PER_INSTANCE: usize = 3;
+
+        // Spawn N concurrent tasks each owning a fully independent MailQueue
+        // (separate queue + separate mailbox dir). They all run in parallel
+        // inside one Tokio runtime — same parallelism as default cargo test.
+        let handles: Vec<_> = (0..INSTANCES)
+            .map(|i| {
+                tokio::spawn(async move {
+                    let dir = std::env::temp_dir().join(format!(
+                        "rf-mail-parallel-{i}-{}",
+                        uuid::Uuid::new_v4()
+                    ));
+                    let queue: Arc<dyn Queue> = Arc::new(MemoryQueue::new());
+                    let mailer: Arc<dyn Mailer> = Arc::new(FileMailer::new(&dir));
+                    let mq = MailQueue::new(Arc::clone(&queue), Arc::clone(&mailer));
+
+                    // Push MAILS_PER_INSTANCE mails onto THIS instance's queue.
+                    for _ in 0..MAILS_PER_INSTANCE {
+                        mq.push(sample_mail()).await.expect("instance push must not fail");
+                    }
+
+                    // Verify the queue holds exactly the right count before draining.
+                    let queued = queue.size("mail").await.unwrap();
+                    assert_eq!(
+                        queued, MAILS_PER_INSTANCE,
+                        "instance {i}: queue must hold exactly {MAILS_PER_INSTANCE} jobs \
+                         after push (got {queued}) — cross-instance contamination or loss"
+                    );
+
+                    // Process drains self.queue through the injected mailer.
+                    mq.process().await.expect("process must drain without error");
+
+                    // Count .eml files produced by the injected FileMailer.
+                    let count = std::fs::read_dir(&dir)
+                        .map(|rd| {
+                            rd.filter_map(|e| e.ok())
+                                .filter(|e| {
+                                    e.path().extension().and_then(|x| x.to_str()) == Some("eml")
+                                })
+                                .count()
+                        })
+                        .unwrap_or(0);
+
+                    let _ = std::fs::remove_dir_all(&dir);
+                    (i, count)
+                })
+            })
+            .collect();
+
+        for handle in handles {
+            let (i, count) = handle.await.expect("parallel task must not panic");
+            assert_eq!(
+                count, MAILS_PER_INSTANCE,
+                "instance {i}: expected {MAILS_PER_INSTANCE} .eml files, got {count} — \
+                 push/process divergence or cross-instance contamination detected"
+            );
+        }
     }
 }

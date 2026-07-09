@@ -72,9 +72,15 @@ pub trait Mailable: Send + Sync {
         }
     }
 
-    /// Queue the email for background sending
+    /// Queue the email for background sending onto the **process-global** queue.
     ///
-    /// This requires the `queue` feature to be enabled.
+    /// This requires the `queue` feature to be enabled. Since this is a trait
+    /// method with no `MailQueue` instance, it dispatches via
+    /// [`MailQueue::push_global`](crate::queue::MailQueue::push_global) — the
+    /// caller must configure the global queue with
+    /// [`rf_queue::set_default_queue`] / [`rf_queue::Jobs::set_queue`] before
+    /// calling this. When you have a `MailQueue` instance, prefer
+    /// `mail_queue.push(mail).await`.
     ///
     /// # Errors
     ///
@@ -83,7 +89,7 @@ pub trait Mailable: Send + Sync {
     fn queue(&self) -> impl std::future::Future<Output = Result<(), MailError>> + Send {
         async move {
             let mail = self.build().build()?;
-            crate::queue::MailQueue::push(mail).await?;
+            crate::queue::MailQueue::push_global(mail).await?;
             Ok(())
         }
     }
@@ -132,11 +138,14 @@ pub trait MailableAsync: Send + Sync {
         mailer.send(message.into()).await
     }
 
-    /// Queue the email for background sending
+    /// Queue the email for background sending onto the **process-global** queue.
+    ///
+    /// Dispatches via [`MailQueue::push_global`](crate::queue::MailQueue::push_global).
+    /// The caller must configure the global queue before using this.
     #[cfg(feature = "queue")]
     async fn queue(&self) -> Result<(), MailError> {
         let mail = self.build().await?;
-        crate::queue::MailQueue::push(mail).await
+        crate::queue::MailQueue::push_global(mail).await
     }
 }
 
