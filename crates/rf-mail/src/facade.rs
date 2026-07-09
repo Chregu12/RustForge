@@ -242,7 +242,12 @@ fn deliver<M: Mailable>(mailable: M, to_override: Option<&str>) -> MailResult<()
 /// chain: mail-fake recorder (if enabled) ➜ configured SMTP ➜ the default
 /// `.eml`-on-disk [`FileMailer`]. Shared by the [`Mailable`] path ([`deliver`])
 /// and the convenience one-liners ([`Mail::raw`] / [`DraftMail::send`]).
-fn deliver_mail(mail: MailMessage) -> MailResult<()> {
+///
+/// Exposed publicly so the background queue worker ([`crate::queue::SendMailJob`])
+/// delivers a queued message through the **exact same** real transport as a
+/// synchronous `Mail::send` — a queued email lands as a real `.eml` (or over the
+/// configured SMTP), never swallowed by the in-memory [`crate::MemoryMailer`].
+pub fn deliver_mail(mail: MailMessage) -> MailResult<()> {
     if let Some(fake) = crate::testing::get_fake() {
         fake.record(mail);
         return Ok(());

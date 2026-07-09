@@ -95,7 +95,7 @@ mod mailer;
 pub mod markdown;
 mod message;
 pub mod queue;
-mod templates;
+pub mod templates;
 pub mod testing;
 
 // Legacy compatibility (commented out to avoid re-export error)

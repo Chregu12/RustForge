@@ -5,6 +5,32 @@ use crate::{Channel, Notifiable, Notification, NotificationError, NotificationRe
 use std::collections::HashMap;
 use std::sync::Arc;
 
+/// Per-channel outcome of delivering one notification across its `via()` channels.
+///
+/// Produced by [`Notifier::send_report`]. Unlike a single `Result`, this records
+/// what actually happened on **every** channel, so one down channel (e.g. a Slack
+/// webhook that is unreachable) does not hide the fact that the database row and
+/// the email were still delivered.
+#[derive(Debug, Default)]
+pub struct DeliveryReport {
+    /// Channels that accepted the notification.
+    pub delivered: Vec<Channel>,
+    /// Channels that failed, paired with the error message describing why.
+    pub failed: Vec<(Channel, String)>,
+}
+
+impl DeliveryReport {
+    /// `true` when every channel delivered successfully.
+    pub fn is_success(&self) -> bool {
+        self.failed.is_empty()
+    }
+
+    /// Total number of channels attempted.
+    pub fn attempted(&self) -> usize {
+        self.delivered.len() + self.failed.len()
+    }
+}
+
 /// Central notification dispatcher that manages all channels
 pub struct Notifier {
     channels: HashMap<Channel, Arc<dyn NotificationChannel>>,
@@ -28,27 +54,73 @@ impl Notifier {
         self
     }
 
-    /// Send notification to a notifiable entity
+    /// Send a notification to a notifiable entity across all of its channels.
+    ///
+    /// Attempts **every** channel returned by [`Notification::via`] and delivers
+    /// each independently: one failing channel (a down Slack webhook, a missing
+    /// handler) no longer aborts the rest, so a later `via()` entry such as the
+    /// database row or the email still goes out. The returned `Result` is an
+    /// aggregate — `Ok(())` when every channel delivered, otherwise `Err`
+    /// naming exactly which channels failed and why. Use [`Notifier::send_report`]
+    /// for the full per-channel [`DeliveryReport`].
+    ///
+    /// Note on queuing: [`Notification::should_queue`] is currently advisory only
+    /// — this dispatcher always delivers synchronously (see the trait docs for
+    /// why a queued-notification path is not yet wired).
     pub async fn send(
         &self,
         notification: &dyn Notification,
         notifiable: &dyn Notifiable,
     ) -> NotificationResult<()> {
-        let channels = notification.via();
+        let report = self.send_report(notification, notifiable).await;
 
-        // Send to all channels sequentially
-        for channel in channels {
-            if let Some(handler) = self.channels.get(&channel) {
-                handler.send(notification, notifiable).await?;
-            } else {
-                return Err(NotificationError::RoutingError(format!(
-                    "No handler registered for channel: {:?}",
-                    channel
-                )));
+        if report.is_success() {
+            Ok(())
+        } else {
+            let detail = report
+                .failed
+                .iter()
+                .map(|(channel, err)| format!("{channel:?}: {err}"))
+                .collect::<Vec<_>>()
+                .join("; ");
+            Err(NotificationError::ChannelError(format!(
+                "{} of {} channel(s) failed: {}",
+                report.failed.len(),
+                report.attempted(),
+                detail
+            )))
+        }
+    }
+
+    /// Deliver a notification across every channel and return a per-channel
+    /// [`DeliveryReport`], never aborting early.
+    ///
+    /// This is the aggregate primitive behind [`Notifier::send`]: it walks every
+    /// channel from [`Notification::via`], attempts delivery on each, and records
+    /// the outcome (delivered vs. failed-with-reason). A missing handler or a
+    /// channel that returns an error is captured in `failed` — the loop continues
+    /// so healthy channels still deliver.
+    pub async fn send_report(
+        &self,
+        notification: &dyn Notification,
+        notifiable: &dyn Notifiable,
+    ) -> DeliveryReport {
+        let mut report = DeliveryReport::default();
+
+        for channel in notification.via() {
+            match self.channels.get(&channel) {
+                Some(handler) => match handler.send(notification, notifiable).await {
+                    Ok(()) => report.delivered.push(channel),
+                    Err(err) => report.failed.push((channel, err.to_string())),
+                },
+                None => {
+                    let reason = format!("No handler registered for channel: {channel:?}");
+                    report.failed.push((channel, reason));
+                }
             }
         }
 
-        Ok(())
+        report
     }
 
     /// Check if a channel is registered
@@ -203,6 +275,68 @@ mod tests {
         let notification = TestNotification;
         let result = notifier.send(&notification, &user).await;
         assert!(result.is_ok());
+    }
+
+    // A channel that always fails, to prove one down channel does not abort the
+    // rest of the delivery.
+    struct FailingChannel;
+    #[async_trait]
+    impl NotificationChannel for FailingChannel {
+        async fn send(
+            &self,
+            _notification: &dyn Notification,
+            _notifiable: &dyn Notifiable,
+        ) -> NotificationResult<()> {
+            Err(NotificationError::ChannelError("simulated down channel".into()))
+        }
+    }
+
+    // A channel that records every delivery it accepts.
+    struct RecordingChannel {
+        hits: Arc<std::sync::Mutex<usize>>,
+    }
+    #[async_trait]
+    impl NotificationChannel for RecordingChannel {
+        async fn send(
+            &self,
+            _notification: &dyn Notification,
+            _notifiable: &dyn Notifiable,
+        ) -> NotificationResult<()> {
+            *self.hits.lock().unwrap() += 1;
+            Ok(())
+        }
+    }
+
+    #[tokio::test]
+    async fn test_failing_channel_does_not_abort_healthy_channel() {
+        // Mail channel fails, Database channel is healthy. The old behavior
+        // aborted on the first error so the DB row never landed; the aggregate
+        // behavior must still deliver the healthy channel.
+        let hits = Arc::new(std::sync::Mutex::new(0usize));
+        let mut notifier = Notifier::new();
+        notifier.register_channel(Channel::Mail, Arc::new(FailingChannel));
+        notifier.register_channel(
+            Channel::Database,
+            Arc::new(RecordingChannel { hits: Arc::clone(&hits) }),
+        );
+
+        let user = TestUser {
+            email: "user@example.com".to_string(),
+        };
+
+        // send() reports failure in aggregate...
+        let result = notifier.send(&TestNotification, &user).await;
+        assert!(result.is_err(), "aggregate result should report the failed channel");
+        // ...but the healthy Database channel still delivered.
+        assert_eq!(*hits.lock().unwrap(), 1, "healthy channel must still deliver");
+
+        // The per-channel report names exactly what happened.
+        let report = notifier.send_report(&TestNotification, &user).await;
+        assert_eq!(report.delivered, vec![Channel::Database]);
+        assert_eq!(report.failed.len(), 1);
+        assert_eq!(report.failed[0].0, Channel::Mail);
+        assert!(!report.is_success());
+        assert_eq!(report.attempted(), 2);
     }
 
     #[tokio::test]

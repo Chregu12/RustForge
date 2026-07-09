@@ -140,7 +140,16 @@ pub trait Notification: Send + Sync {
         None
     }
 
-    /// Should this notification be queued?
+    /// Whether this notification prefers background (queued) delivery.
+    ///
+    /// NOTE: This is currently an **advisory flag only**. [`Notifier::send`]
+    /// always delivers synchronously regardless of this value — there is no
+    /// queued-notification worker wired yet. Notifications are dispatched as
+    /// `&dyn Notification` trait objects, which are not serializable across a
+    /// queue boundary without a type registry, so a real `ShouldQueue` path is a
+    /// larger build that is deliberately not implemented here. Returning `true`
+    /// does not change delivery behavior today; callers who need background
+    /// delivery should enqueue their own job (e.g. via `rf_queue`).
     fn should_queue(&self) -> bool {
         false
     }

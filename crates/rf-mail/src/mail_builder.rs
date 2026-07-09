@@ -132,12 +132,16 @@ impl MailBuilder {
     /// # }
     /// ```
     pub fn view(mut self, template: &str, data: impl Serialize) -> Result<Self, MailError> {
-        if self.template_engine.is_none() {
-            self.template_engine = Some(TemplateEngine::new());
-        }
-
-        let engine = self.template_engine.as_ref().unwrap();
-        let rendered = engine.render(template, &data)?;
+        // Render against the per-builder engine if one was explicitly supplied
+        // via `with_template_engine`; otherwise resolve the template from the
+        // process-global shared engine (see `templates::register_template`) so a
+        // named template registered at boot is actually found — rather than
+        // spinning up a fresh empty engine that can only report "Template not
+        // found".
+        let rendered = match self.template_engine.as_ref() {
+            Some(engine) => engine.render(template, &data)?,
+            None => crate::templates::render_global(template, &data)?,
+        };
 
         self.html = Some(rendered);
         Ok(self)
@@ -150,22 +154,27 @@ impl MailBuilder {
         layout: &str,
         data: impl Serialize,
     ) -> Result<Self, MailError> {
-        if self.template_engine.is_none() {
-            self.template_engine = Some(TemplateEngine::new());
-        }
-
-        let engine = self.template_engine.as_ref().unwrap();
+        // Resolve both the inner template and the layout the same way `view`
+        // does: from a per-builder engine when set, else the process-global
+        // shared engine.
+        let render = |name: &str, value: &serde_json::Value| -> Result<String, MailError> {
+            match self.template_engine.as_ref() {
+                Some(engine) => engine.render(name, value),
+                None => crate::templates::render_global(name, value),
+            }
+        };
 
         // First render the template
-        let content = engine.render(template, &data)?;
+        let data_value = serde_json::to_value(&data)?;
+        let content = render(template, &data_value)?;
 
         // Then render the layout with the content
-        let mut layout_data = serde_json::to_value(&data)?;
+        let mut layout_data = data_value;
         if let Some(obj) = layout_data.as_object_mut() {
             obj.insert("content".to_string(), serde_json::Value::String(content));
         }
 
-        let rendered = engine.render(layout, &layout_data)?;
+        let rendered = render(layout, &layout_data)?;
         self.html = Some(rendered);
 
         Ok(self)
@@ -394,6 +403,53 @@ mod tests {
             .unwrap();
 
         assert_eq!(mail.to.len(), 2);
+    }
+
+    #[test]
+    fn test_view_renders_from_shared_global_engine() {
+        // A template registered into the process-global shared engine must be
+        // resolvable by `MailBuilder::view` — no per-builder engine required.
+        // Previously `view` spun up a fresh empty engine and always errored with
+        // "Template not found". Use a uniquely-named template so this never
+        // collides with other tests sharing the global engine.
+        crate::templates::register_template(
+            "mail_builder_shared_probe",
+            "<h1>Hi, {{name}}!</h1>",
+        )
+        .expect("register into shared engine");
+
+        let mail = MailBuilder::new()
+            .from(Address::new("noreply@example.com"))
+            .to(Address::new("user@example.com"))
+            .subject("Welcome")
+            .view("mail_builder_shared_probe", serde_json::json!({ "name": "Bob" }))
+            .expect("view must resolve the shared template")
+            .build()
+            .expect("mail builds");
+
+        assert_eq!(mail.html(), Some("<h1>Hi, Bob!</h1>"));
+    }
+
+    #[test]
+    fn test_view_with_explicit_engine_still_used() {
+        // An engine explicitly supplied via with_template_engine takes precedence
+        // over the shared global engine.
+        let mut engine = TemplateEngine::new();
+        engine
+            .register_template("local_only", "local:{{v}}")
+            .unwrap();
+
+        let mail = MailBuilder::new()
+            .from(Address::new("noreply@example.com"))
+            .to(Address::new("user@example.com"))
+            .subject("X")
+            .with_template_engine(engine)
+            .view("local_only", serde_json::json!({ "v": 42 }))
+            .expect("explicit engine resolves its own template")
+            .build()
+            .unwrap();
+
+        assert_eq!(mail.html(), Some("local:42"));
     }
 
     #[test]

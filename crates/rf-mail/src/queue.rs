@@ -42,19 +42,30 @@ impl MailQueue {
 
     /// Process queued emails by draining this queue with a worker.
     ///
-    /// Reserves and runs every currently-pending [`SendMailJob`] on this
-    /// queue's backend, delivering each message via [`SendMailJob::handle`].
+    /// Reserves and runs every currently-pending [`SendMailJob`] on this queue's
+    /// backend, delivering each message through **this queue's configured
+    /// `mailer`** (the [`Mailer`] passed to [`MailQueue::new`]) — the injected
+    /// transport is used for real, not just held. Register a real
+    /// [`FileMailer`](crate::FileMailer)/SMTP mailer and every drained message is
+    /// delivered through it.
     pub async fn process(&self) -> Result<(), MailError> {
+        let mailer = Arc::clone(&self.mailer);
         let worker = Worker::new(Arc::clone(&self.queue))
             .queues(vec!["mail".to_string()])
-            .register::<SendMailJob>();
+            .handle::<SendMailJob>(move |job| {
+                let mailer = Arc::clone(&mailer);
+                Box::pin(async move {
+                    mailer
+                        .send(job.mail)
+                        .await
+                        .map_err(|e| QueueError::JobFailed(e.to_string()))
+                })
+            });
         while worker
             .work_once()
             .await
             .map_err(|e| MailError::SendFailed(e.to_string()))?
         {}
-        // Touch the configured mailer so this queue's transport stays wired in.
-        let _ = &self.mailer;
         Ok(())
     }
 }
@@ -71,20 +82,14 @@ pub struct SendMailJob {
 #[async_trait]
 impl Job for SendMailJob {
     async fn handle(&self) -> Result<(), QueueError> {
-        // Deliver through the process-global mailer used by the `Mail` facade.
-        // `MemoryMailer` is `Clone` (it shares its backing store via `Arc`), so
-        // we clone the handle out of the lock and release the guard before the
-        // `.await` — no lock is held across the await point.
-        let mailer = crate::GLOBAL_MAILER
-            .read()
-            .map_err(|e| QueueError::JobFailed(format!("mailer lock poisoned: {e}")))?
-            .clone();
-
         tracing::info!(subject = %self.mail.subject, "Processing SendMailJob");
 
-        mailer
-            .send(self.mail.clone())
-            .await
+        // Deliver through the SAME real transport chain as a synchronous
+        // `Mail::send`: mail-fake recorder ➜ configured SMTP ➜ the default
+        // `.eml`-on-disk `FileMailer`. This is what makes a queued email actually
+        // reach a real transport (a real `.eml` on disk / real SMTP) instead of
+        // vanishing into the in-memory `MemoryMailer`.
+        crate::facade::deliver_mail(self.mail.clone())
             .map_err(|e| QueueError::JobFailed(e.to_string()))
     }
 
@@ -154,6 +159,42 @@ mod tests {
         // Should be deserializable
         let deserialized: SendMailJob = serde_json::from_str(&json).unwrap();
         assert_eq!(deserialized.mail.subject, "Test");
+    }
+
+    #[tokio::test]
+    async fn test_process_delivers_via_injected_mailer_to_eml() {
+        use crate::FileMailer;
+        use rf_queue::{dispatch, MemoryQueue, Queue};
+
+        // Fresh, local queue + a real FileMailer pointed at a unique temp dir —
+        // no process-global state, so this never races other tests.
+        let dir = std::env::temp_dir().join(format!("rf-mail-queue-eml-{}", uuid::Uuid::new_v4()));
+        let queue: Arc<dyn Queue> = Arc::new(MemoryQueue::new());
+        dispatch(Arc::clone(&queue), SendMailJob { mail: sample_mail() })
+            .expect("enqueue SendMailJob");
+
+        let mailer: Arc<dyn Mailer> = Arc::new(FileMailer::new(&dir));
+        MailQueue::new(Arc::clone(&queue), mailer)
+            .process()
+            .await
+            .expect("process drains the mail queue");
+
+        // The queued mail must land as a REAL .eml via the INJECTED mailer, not
+        // vanish into the in-memory MemoryMailer.
+        let emls: Vec<_> = std::fs::read_dir(&dir)
+            .expect("mailbox dir exists")
+            .filter_map(|e| e.ok())
+            .filter(|e| e.path().extension().and_then(|x| x.to_str()) == Some("eml"))
+            .collect();
+        assert_eq!(
+            emls.len(),
+            1,
+            "queued mail must produce exactly one .eml via the injected mailer"
+        );
+        let body = std::fs::read_to_string(emls[0].path()).unwrap();
+        assert!(body.contains("Test"), "eml should carry the subject: {body}");
+
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[tokio::test]
