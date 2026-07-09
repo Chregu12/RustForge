@@ -89,6 +89,47 @@ where
     CURRENT_TENANT.scope(Arc::new(tenant), fut).await
 }
 
+/// Spawn a new Tokio task that carries the current tenant scope into the task.
+///
+/// # Background-task footgun
+///
+/// Tokio task-locals are **not** inherited by spawned tasks: calling
+/// `tokio::spawn` from inside a tenant scope means `Tenant::current_id()`
+/// returns `None` inside the new task even though the caller has a tenant.
+/// Use `spawn_with_tenant` whenever a background task needs the current tenant.
+///
+/// ```rust,no_run
+/// use rf_tenancy::{spawn_with_tenant, Tenant, with_current_tenant};
+///
+/// # #[tokio::main]
+/// # async fn main() {
+/// with_current_tenant(Tenant::new("acme", "Acme"), async {
+///     // Tenant is carried into the spawned task.
+///     let handle = spawn_with_tenant(async {
+///         Tenant::current_id() // Some("acme")
+///     });
+///     assert_eq!(handle.await.unwrap().as_deref(), Some("acme"));
+///
+///     // Plain tokio::spawn LOSES the task-local — Tenant::current_id()
+///     // returns None inside the spawned task. Use spawn_with_tenant instead.
+/// })
+/// .await;
+/// # }
+/// ```
+pub fn spawn_with_tenant<F, T>(fut: F) -> tokio::task::JoinHandle<T>
+where
+    F: Future<Output = T> + Send + 'static,
+    T: Send + 'static,
+{
+    let tenant = Tenant::current();
+    tokio::spawn(async move {
+        match tenant {
+            Some(t) => with_current_tenant(t, fut).await,
+            None => fut.await,
+        }
+    })
+}
+
 /// Tenant errors
 #[derive(Debug, Error)]
 pub enum TenantError {
@@ -112,7 +153,7 @@ impl IntoResponse for TenantError {
             TenantError::InvalidIdentifier(_) => (StatusCode::BAD_REQUEST, self.to_string()),
             TenantError::CrossTenantAccess => (StatusCode::FORBIDDEN, self.to_string()),
             TenantError::IdentificationFailed(_) => {
-                (StatusCode::INTERNAL_SERVER_ERROR, self.to_string())
+                (StatusCode::BAD_REQUEST, self.to_string())
             }
         };
 
@@ -179,6 +220,12 @@ impl Tenant {
     ///
     /// Handy for scoping a query, e.g.
     /// `DB::table("posts").where_eq("tenant_id", Tenant::current_id()?)`.
+    ///
+    /// # Note on spawned tasks
+    ///
+    /// Task-locals are **not** inherited by `tokio::spawn` — this returns `None`
+    /// inside a plain `tokio::spawn` even when the spawning task has a tenant.
+    /// Use [`spawn_with_tenant`] to carry the current tenant into a background task.
     pub fn current_id() -> Option<String> {
         CURRENT_TENANT.try_with(|t| t.id.clone()).ok()
     }
@@ -689,6 +736,102 @@ mod tests {
             guard_tenant(&row),
             Err(TenantError::IdentificationFailed(_))
         ));
+    }
+
+    // --- Bug-fix: IdentificationFailed must be 400, not 500 ---
+
+    #[tokio::test]
+    async fn test_identification_failed_is_bad_request() {
+        // A missing tenant header is a CLIENT error: must be 400, not 500.
+        let err = TenantError::IdentificationFailed("Header 'X-Tenant-Id' not found".to_string());
+        let response = err.into_response();
+        assert_eq!(
+            response.status(),
+            StatusCode::BAD_REQUEST,
+            "IdentificationFailed (missing header) must map to 400 Bad Request, not 500"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_missing_tenant_header_via_layer_returns_400() {
+        use axum::{body::Body, routing::get, Router};
+        use tower::ServiceExt;
+
+        let resolver = InMemoryTenantResolver::new();
+        resolver.add_tenant(Tenant::new("t1", "One")).await;
+
+        let app = Router::new()
+            .route("/", get(|| async { "ok" }))
+            .layer(TenantLayer::by_header("X-Tenant-Id", resolver));
+
+        // Request with NO X-Tenant-Id header → 400 (IdentificationFailed), NOT 500.
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .uri("/")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(
+            resp.status(),
+            StatusCode::BAD_REQUEST,
+            "missing tenant header must return 400, not 500"
+        );
+    }
+
+    // --- Bug-fix: spawn_with_tenant carries the task-local into spawned tasks ---
+
+    #[tokio::test]
+    async fn test_plain_spawn_loses_tenant_task_local() {
+        // Document the footgun: plain tokio::spawn does NOT inherit task-locals.
+        let (tx, rx) = tokio::sync::oneshot::channel();
+        with_current_tenant(Tenant::new("acme", "Acme"), async {
+            tokio::spawn(async move {
+                // task-local is NOT inherited — Tenant::current_id() returns None.
+                let _ = tx.send(Tenant::current_id());
+            })
+            .await
+            .unwrap();
+        })
+        .await;
+        let id = rx.await.unwrap();
+        assert!(
+            id.is_none(),
+            "plain tokio::spawn must lose the task-local (documented footgun)"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_spawn_with_tenant_carries_current_tenant() {
+        use crate::spawn_with_tenant;
+
+        with_current_tenant(Tenant::new("acme", "Acme"), async {
+            // spawn_with_tenant re-establishes the tenant scope inside the task.
+            let handle = spawn_with_tenant(async { Tenant::current_id() });
+            let id = handle.await.unwrap();
+            assert_eq!(
+                id.as_deref(),
+                Some("acme"),
+                "spawn_with_tenant must carry the current tenant into the spawned task"
+            );
+        })
+        .await;
+    }
+
+    #[tokio::test]
+    async fn test_spawn_with_tenant_no_current_tenant_does_not_panic() {
+        use crate::spawn_with_tenant;
+
+        // Outside any tenant scope, spawn_with_tenant should still work (no tenant).
+        let handle = spawn_with_tenant(async { Tenant::current_id() });
+        let id = handle.await.unwrap();
+        assert!(
+            id.is_none(),
+            "spawn_with_tenant outside a scope carries no tenant (None)"
+        );
     }
 
     #[tokio::test]
