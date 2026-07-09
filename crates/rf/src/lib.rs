@@ -198,7 +198,18 @@ pub mod prelude {
 
     // Core Types
     pub use rf_response::Response;
-    pub use rf_errors::{RustForgeError, Result};
+    // Export the framework error type, but NOT the bare one-parameter
+    // `rf_errors::Result<T>` alias: glob-imported through `use rf::prelude::*`
+    // it SHADOWED std's two-parameter `Result<T, E>`, so any real
+    // `Result<T, SomeOtherError>` (e.g. a `rf_queue` Job's
+    // `handle() -> Result<(), QueueError>`, or a `.map_err(..)?` with a foreign
+    // error) failed to compile with a misleading E0107/E0308/E0277 that never
+    // mentioned the shadow (the MediaFlow #1 blocker). Bare `Result` in app
+    // code now means `std::result::Result` again. The one-parameter rf alias is
+    // still available under a distinct, non-shadowing name for those who want
+    // it (or use `rf_core::AppResult` / `rf::services::errors::Result`).
+    pub use rf_errors::RustForgeError;
+    pub use rf_errors::Result as RfResult;
 
     // Terse `?`-based handler path (the honest, first-class Result story).
     //
