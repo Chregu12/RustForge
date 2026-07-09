@@ -242,6 +242,32 @@ pub fn websocket_router(broadcaster: Arc<MemoryBroadcaster>) -> Router {
         .with_state(state)
 }
 
+/// Create a WebSocket router bound to the **process-global default**
+/// broadcaster (see [`crate::default_broadcaster`]).
+///
+/// This is the zero-wiring counterpart to [`websocket_router`]: the server and
+/// any code that publishes through the [`Broadcast`](crate::Broadcast) facade —
+/// including a background job dispatched anywhere in the process — share one
+/// broadcaster automatically, so a job's `Broadcast::event(..)` is delivered to
+/// clients connected here without threading an `Arc`.
+///
+/// ```no_run
+/// use rf_broadcast::{websocket_router_default, Broadcast};
+/// use serde_json::json;
+///
+/// # async fn example() {
+/// // Mount the socket server on the global default broadcaster.
+/// let app = websocket_router_default();
+///
+/// // Anywhere else (e.g. inside a Job::handle), publish with no handle:
+/// let _ = Broadcast::event("orders", "order.created", json!({ "id": 1 }));
+/// # let _ = app;
+/// # }
+/// ```
+pub fn websocket_router_default() -> Router {
+    websocket_router(crate::default_broadcaster())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

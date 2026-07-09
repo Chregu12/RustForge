@@ -40,6 +40,10 @@ pub use rf_events::EventFacade as Event;
 pub use rf_storage::StorageFacade as Storage;
 pub use rf_logging::Log;
 pub use rf_mail::MailFacade as Mail;
+// Process-global broadcasting facade: `Broadcast::event(channel, name, data)`
+// (and `Broadcast::to(..).event(..).with(..)`) publish over the global default
+// broadcaster with no `Arc` threaded — callable from inside a background job.
+pub use rf_broadcast::Broadcast;
 pub use rf_web::SessionFacade as Session;
 pub use rf_config::Config;
 pub use rf_view::ViewFacade as View;
@@ -127,6 +131,11 @@ pub mod prelude {
     pub use rf_storage::StorageFacade as Storage;
     pub use rf_logging::Log;
     pub use rf_mail::MailFacade as Mail;
+    // Process-global broadcasting facade (handle-free, job-safe): mirrors the
+    // Cache/Mail/Event facades. `Broadcast::event(channel, name, data)` publishes
+    // over the global default broadcaster that `websocket_router_default()`
+    // serves, so a background job can broadcast with no `Arc` threaded.
+    pub use rf_broadcast::Broadcast;
     pub use rf_web::SessionFacade as Session;
     pub use rf_config::Config;
     pub use rf_view::ViewFacade as View;

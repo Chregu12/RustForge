@@ -102,6 +102,7 @@ members = [
     "examples/database-demo",
     "examples/auth-demo",
     "examples/jobs-demo",
+    "examples/jobs-offline",
     "examples/mail-demo",
     "examples/scaffold-demo",
     "examples/macros-demo",

@@ -22,7 +22,7 @@
 
 use once_cell::sync::Lazy;
 use crate::bridge::BridgedSmtpMailer;
-use crate::{FileMailer, MemoryMailer, MailResult, Mailable, SmtpConfig};
+use crate::{Address, FileMailer, Mail as MailMessage, MailBuilder, MemoryMailer, MailResult, Mailable, SmtpConfig};
 use std::path::PathBuf;
 use std::sync::RwLock;
 
@@ -61,6 +61,25 @@ pub static GLOBAL_FILE_MAILER: Lazy<RwLock<FileMailer>> =
 pub static GLOBAL_SMTP_MAILER: Lazy<RwLock<Option<BridgedSmtpMailer>>> =
     Lazy::new(|| RwLock::new(None));
 
+/// Default `From` address used by the convenience one-liners ([`Mail::raw`],
+/// [`Mail::to`]`(..).subject(..).text(..).send()`) when the caller does not set
+/// one explicitly. Initialized from the `MAIL_FROM` environment variable, falling
+/// back to `noreply@rustforge.local`, and reconfigurable at runtime via
+/// [`Mail::from`].
+pub static GLOBAL_MAIL_FROM: Lazy<RwLock<String>> = Lazy::new(|| {
+    RwLock::new(
+        std::env::var("MAIL_FROM").unwrap_or_else(|_| "noreply@rustforge.local".to_string()),
+    )
+});
+
+/// Read the current default sender address.
+fn default_from() -> String {
+    GLOBAL_MAIL_FROM
+        .read()
+        .expect("rf-mail default-from lock poisoned")
+        .clone()
+}
+
 pub struct Mail;
 
 impl Mail {
@@ -91,6 +110,50 @@ impl Mail {
     /// ```
     pub fn to(address: impl Into<String>) -> Mailer {
         Mailer::new(address.into())
+    }
+
+    /// Send a one-off plain-text email in a single call — no `Mailable` struct to
+    /// define.
+    ///
+    /// This is the ergonomic counterpart to the [`Mailable`] trait path for a
+    /// trivial text notification. It builds a real [`Mail`](crate::Mail) with the
+    /// configured default sender (see [`Mail::from`]) and delivers it through the
+    /// exact same transport as every other facade send (fake ➜ SMTP ➜ the default
+    /// `.eml`-on-disk [`FileMailer`]).
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use rf_mail::facade::Mail;
+    ///
+    /// # fn example() -> rf_mail::MailResult<()> {
+    /// Mail::raw("user@example.com", "Upload complete", "Your file finished processing.")?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn raw(
+        to: impl Into<String>,
+        subject: impl Into<String>,
+        body: impl Into<String>,
+    ) -> MailResult<()> {
+        Mailer::new(to.into()).subject(subject).text(body).send()
+    }
+
+    /// Configure the default `From` address used by the convenience one-liners
+    /// ([`Mail::raw`] and the [`Mail::to`]`(..).subject(..).text(..).send()`
+    /// builder) when a message does not set its own sender.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use rf_mail::facade::Mail;
+    ///
+    /// Mail::from("hello@myapp.test");
+    /// ```
+    pub fn from(address: impl Into<String>) {
+        *GLOBAL_MAIL_FROM
+            .write()
+            .expect("rf-mail default-from lock poisoned") = address.into();
     }
 
     /// Configure the mailbox directory used by the default file transport.
@@ -172,6 +235,14 @@ fn deliver<M: Mailable>(mailable: M, to_override: Option<&str>) -> MailResult<()
         }
     }
 
+    deliver_mail(mail)
+}
+
+/// Route an already-built [`Mail`](crate::Mail) through the real facade transport
+/// chain: mail-fake recorder (if enabled) ➜ configured SMTP ➜ the default
+/// `.eml`-on-disk [`FileMailer`]. Shared by the [`Mailable`] path ([`deliver`])
+/// and the convenience one-liners ([`Mail::raw`] / [`DraftMail::send`]).
+fn deliver_mail(mail: MailMessage) -> MailResult<()> {
     if let Some(fake) = crate::testing::get_fake() {
         fake.record(mail);
         return Ok(());
@@ -211,6 +282,111 @@ impl Mailer {
     /// ```
     pub fn send<M: Mailable>(self, mailable: M) -> MailResult<()> {
         deliver(mailable, Some(&self.to))
+    }
+
+    /// Begin a fluent one-off text/HTML message to this recipient by setting its
+    /// subject. Returns a [`DraftMail`] whose `.text(..)` / `.html(..)` set the
+    /// body and whose `.send()` delivers it — no `Mailable` struct required:
+    ///
+    /// ```rust,no_run
+    /// use rf_mail::facade::Mail;
+    ///
+    /// # fn example() -> rf_mail::MailResult<()> {
+    /// Mail::to("user@example.com")
+    ///     .subject("Upload complete")
+    ///     .text("Your file finished processing.")
+    ///     .send()?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn subject(self, subject: impl Into<String>) -> DraftMail {
+        DraftMail::new(self.to).subject(subject)
+    }
+
+    /// Begin a fluent one-off message to this recipient by setting a plain-text
+    /// body (see [`Mailer::subject`]).
+    pub fn text(self, body: impl Into<String>) -> DraftMail {
+        DraftMail::new(self.to).text(body)
+    }
+
+    /// Begin a fluent one-off message to this recipient by setting an HTML body
+    /// (see [`Mailer::subject`]).
+    pub fn html(self, body: impl Into<String>) -> DraftMail {
+        DraftMail::new(self.to).html(body)
+    }
+}
+
+/// A one-off message under construction, produced by [`Mail::to`]`(..).subject(..)`
+/// (or `.text(..)`/`.html(..)`). Accumulates subject/body/sender and delivers
+/// through the real facade transport on [`send`](DraftMail::send) — the
+/// no-`Mailable` convenience path.
+pub struct DraftMail {
+    to: String,
+    from: Option<String>,
+    subject: String,
+    text: Option<String>,
+    html: Option<String>,
+}
+
+impl DraftMail {
+    fn new(to: String) -> Self {
+        Self {
+            to,
+            from: None,
+            subject: String::new(),
+            text: None,
+            html: None,
+        }
+    }
+
+    /// Set the subject line.
+    pub fn subject(mut self, subject: impl Into<String>) -> Self {
+        self.subject = subject.into();
+        self
+    }
+
+    /// Set the plain-text body.
+    pub fn text(mut self, body: impl Into<String>) -> Self {
+        self.text = Some(body.into());
+        self
+    }
+
+    /// Set the HTML body.
+    pub fn html(mut self, body: impl Into<String>) -> Self {
+        self.html = Some(body.into());
+        self
+    }
+
+    /// Override the sender for this message (defaults to [`Mail::from`]).
+    pub fn from(mut self, address: impl Into<String>) -> Self {
+        self.from = Some(address.into());
+        self
+    }
+
+    /// Build the real [`Mail`](crate::Mail) and deliver it through the facade's
+    /// transport chain (fake ➜ SMTP ➜ default file transport).
+    pub fn send(self) -> MailResult<()> {
+        let from = self.from.unwrap_or_else(default_from);
+
+        let has_html = self.html.is_some();
+        let mut builder = MailBuilder::new()
+            .from(Address::new(from))
+            .to(Address::new(self.to))
+            .subject(self.subject);
+
+        if let Some(html) = self.html {
+            builder = builder.html(html);
+        }
+        // Default to an empty text body when neither body was supplied so a bare
+        // `Mail::to(x).subject(y).send()` still produces a valid message rather
+        // than failing MailBuilder's "at least one body required" validation.
+        if let Some(text) = self.text {
+            builder = builder.text(text);
+        } else if !has_html {
+            builder = builder.text(String::new());
+        }
+
+        deliver_mail(builder.build()?)
     }
 }
 
@@ -293,6 +469,46 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("rf-mail-facade-box-{}", uuid::Uuid::new_v4()));
         Mail::mailbox(&dir);
         assert_eq!(Mail::mailbox_path(), dir);
+    }
+
+    #[test]
+    fn test_raw_and_builder_one_liners_build_and_deliver() {
+        // `Mail::raw` and the `Mail::to(..).subject(..).text(..).send()` builder
+        // must build a real Mail (correct sender/recipient/subject/body) and route
+        // it through the SAME facade transport chain as the Mailable path — with no
+        // Mailable struct defined. The mail fake records the actual built Mail, so
+        // asserting through it proves the message content without racing the
+        // process-global file-transport dir. (The real `.eml`-on-disk proof lives
+        // in the single-threaded sandbox probe.) Run sequentially in one test: the
+        // fake recorder is process-global, so parallel `#[test]`s would race on it.
+        crate::testing::fake();
+        Mail::from("sender@rustforge.test");
+
+        // (1) The `raw` one-liner.
+        Mail::raw("recipient@example.com", "Upload complete", "Your file is ready.")
+            .expect("Mail::raw should deliver a message");
+        crate::testing::assert_sent(|m| {
+            m.subject == "Upload complete"
+                && m.from.email == "sender@rustforge.test"
+                && m.to.iter().any(|a| a.email == "recipient@example.com")
+                && m.text() == Some("Your file is ready.")
+        });
+
+        // (2) The fluent builder, with a per-message sender override.
+        Mail::to("builder@example.com")
+            .subject("Hi there")
+            .text("builder body")
+            .from("other@rustforge.test")
+            .send()
+            .expect("builder send should succeed");
+        crate::testing::assert_sent(|m| {
+            m.subject == "Hi there"
+                && m.from.email == "other@rustforge.test"
+                && m.to.iter().any(|a| a.email == "builder@example.com")
+                && m.text() == Some("builder body")
+        });
+
+        crate::testing::restore();
     }
 
     #[test]

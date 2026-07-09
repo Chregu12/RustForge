@@ -66,6 +66,8 @@ mod broadcaster;
 mod channel;
 mod error;
 mod event;
+/// Process-global `Broadcast` facade (static, handle-free broadcasting).
+pub mod facade;
 mod memory;
 /// In-memory WebSocket room registry for server-side broadcasting.
 pub mod room_registry;
@@ -86,9 +88,10 @@ pub use broadcaster::{Broadcaster, ConnectionId, PresenceInfo, UserId};
 pub use channel::Channel;
 pub use error::{BroadcastError, BroadcastResult};
 pub use event::{Event, SimpleEvent};
+pub use facade::{default_broadcaster, Broadcast, PendingBroadcast};
 pub use memory::{BroadcastMessage, MemoryBroadcaster};
 pub use room_registry::RoomRegistry;
-pub use websocket::{websocket_router, WsMessage, WsState};
+pub use websocket::{websocket_router, websocket_router_default, WsMessage, WsState};
 
 #[cfg(feature = "redis-backend")]
 pub use redis::RedisBroadcaster;

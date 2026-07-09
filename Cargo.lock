@@ -4746,6 +4746,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "jobs-offline"
+version = "1.0.0"
+dependencies = [
+ "async-trait",
+ "rf-queue",
+ "serde",
+ "tokio",
+]
+
+[[package]]
 name = "jobserver"
 version = "0.1.34"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8125,6 +8135,7 @@ name = "rf-forms"
 version = "1.0.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "chrono",
  "regex",
  "rf-plugins",
@@ -8786,6 +8797,7 @@ dependencies = [
  "aws-sdk-sqs",
  "chrono",
  "deadpool-redis",
+ "futures",
  "once_cell",
  "redis",
  "rf-async-bridge",
@@ -11442,6 +11454,20 @@ name = "target-triple"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "591ef38edfb78ca4771ee32cf494cb8771944bee237a9b91fc9c1424ac4b777b"
+
+[[package]]
+name = "taskflow"
+version = "0.1.0"
+dependencies = [
+ "axum 0.8.7",
+ "rf",
+ "rf-auth",
+ "rf-validation",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tower 0.5.2",
+]
 
 [[package]]
 name = "tempfile"

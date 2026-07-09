@@ -81,6 +81,160 @@ impl MemoryBroadcaster {
         self.sender.subscribe()
     }
 
+    // ---- Synchronous core ------------------------------------------------
+    //
+    // Every `MemoryBroadcaster` operation is genuinely synchronous under the
+    // hood: it locks an in-memory `Mutex` and (for broadcast) pushes onto a
+    // `tokio::sync::broadcast` channel — none of it ever yields to an executor.
+    // The `#[async_trait] impl Broadcaster` below is just an async veneer that
+    // delegates to these inherent methods.
+    //
+    // The process-global `Broadcast` facade calls these directly so it needs NO
+    // ambient runtime and — crucially — does NOT panic with "Cannot start a
+    // runtime from within a runtime" when invoked from inside a Tokio context
+    // (an Axum handler, or a background job body running on a worker). That is
+    // exactly the call a MediaFlow job makes after finishing an upload.
+
+    /// Broadcast an event to a channel (synchronous core; see [`Broadcaster::broadcast`]).
+    pub fn broadcast_now(&self, channel: &Channel, event: &dyn Event) -> Result<(), BroadcastError> {
+        let connections = {
+            let subs = self.subscriptions.lock().unwrap();
+            subs.get(channel)
+                .map(|s| s.iter().cloned().collect())
+                .unwrap_or_else(Vec::new)
+        };
+
+        let message = BroadcastMessage {
+            channel: channel.clone(),
+            event_name: event.event_name().to_string(),
+            data: event.to_json()?,
+            connections: connections.clone(),
+        };
+
+        // Ignore send errors (no receivers is ok).
+        let _ = self.sender.send(message);
+
+        tracing::debug!(
+            channel = %channel.name(),
+            event = %event.event_name(),
+            connections = connections.len(),
+            "Event broadcasted"
+        );
+
+        Ok(())
+    }
+
+    /// Subscribe a connection to a channel (synchronous core; see [`Broadcaster::subscribe`]).
+    pub fn subscribe_now(
+        &self,
+        channel: &Channel,
+        connection_id: ConnectionId,
+        user_id: Option<UserId>,
+    ) -> Result<(), BroadcastError> {
+        {
+            let mut subs = self.subscriptions.lock().unwrap();
+            subs.entry(channel.clone())
+                .or_insert_with(HashSet::new)
+                .insert(connection_id.clone());
+        }
+
+        {
+            let mut conns = self.connections.lock().unwrap();
+            conns.insert(connection_id.clone(), user_id.clone());
+        }
+
+        if channel.is_presence() {
+            if let Some(ref uid) = user_id {
+                let mut pres = self.presence.lock().unwrap();
+                pres.entry(channel.clone())
+                    .or_insert_with(HashMap::new)
+                    .insert(uid.clone(), PresenceInfo::new(uid.clone()));
+            }
+        }
+
+        tracing::debug!(
+            channel = %channel.name(),
+            connection_id = %connection_id,
+            user_id = ?user_id,
+            "Connection subscribed"
+        );
+
+        Ok(())
+    }
+
+    /// Unsubscribe a connection from a channel (synchronous core; see [`Broadcaster::unsubscribe`]).
+    pub fn unsubscribe_now(
+        &self,
+        channel: &Channel,
+        connection_id: &ConnectionId,
+    ) -> Result<(), BroadcastError> {
+        let user_id = {
+            let conns = self.connections.lock().unwrap();
+            conns.get(connection_id).cloned().flatten()
+        };
+
+        {
+            let mut subs = self.subscriptions.lock().unwrap();
+            if let Some(conns) = subs.get_mut(channel) {
+                conns.remove(connection_id);
+            }
+        }
+
+        if channel.is_presence() {
+            if let Some(uid) = user_id {
+                let mut pres = self.presence.lock().unwrap();
+                if let Some(channel_pres) = pres.get_mut(channel) {
+                    channel_pres.remove(&uid);
+                }
+            }
+        }
+
+        tracing::debug!(
+            channel = %channel.name(),
+            connection_id = %connection_id,
+            "Connection unsubscribed"
+        );
+
+        Ok(())
+    }
+
+    /// List the connections subscribed to a channel (synchronous core).
+    pub fn connections_now(&self, channel: &Channel) -> Result<Vec<ConnectionId>, BroadcastError> {
+        let subs = self.subscriptions.lock().unwrap();
+        Ok(subs
+            .get(channel)
+            .map(|s| s.iter().cloned().collect())
+            .unwrap_or_default())
+    }
+
+    /// List presence info for a presence channel (synchronous core).
+    pub fn presence_now(&self, channel: &Channel) -> Result<Vec<PresenceInfo>, BroadcastError> {
+        if !channel.is_presence() {
+            return Err(BroadcastError::InvalidChannel(
+                "Not a presence channel".into(),
+            ));
+        }
+
+        let pres = self.presence.lock().unwrap();
+        Ok(pres
+            .get(channel)
+            .map(|p| p.values().cloned().collect())
+            .unwrap_or_default())
+    }
+
+    /// Check whether a connection is subscribed to a channel (synchronous core).
+    pub fn is_subscribed_now(
+        &self,
+        channel: &Channel,
+        connection_id: &ConnectionId,
+    ) -> Result<bool, BroadcastError> {
+        let subs = self.subscriptions.lock().unwrap();
+        Ok(subs
+            .get(channel)
+            .map(|s| s.contains(connection_id))
+            .unwrap_or(false))
+    }
+
     /// Get number of subscriptions (for testing)
     #[cfg(test)]
     pub fn subscription_count(&self, channel: &Channel) -> usize {
@@ -103,36 +257,13 @@ impl Default for MemoryBroadcaster {
     }
 }
 
+// The async `Broadcaster` impl is a thin veneer over the synchronous inherent
+// methods above — every operation is non-blocking in-memory work, so there is no
+// real awaiting to do.
 #[async_trait]
 impl Broadcaster for MemoryBroadcaster {
     async fn broadcast(&self, channel: &Channel, event: &dyn Event) -> Result<(), BroadcastError> {
-        // Get connections subscribed to this channel
-        let connections = {
-            let subs = self.subscriptions.lock().unwrap();
-            subs.get(channel)
-                .map(|s| s.iter().cloned().collect())
-                .unwrap_or_else(Vec::new)
-        };
-
-        let message = BroadcastMessage {
-            channel: channel.clone(),
-            event_name: event.event_name().to_string(),
-            data: event.to_json()?,
-            connections: connections.clone(),
-        };
-
-        // Send to all WebSocket handlers
-        // Ignore send errors (no receivers is ok)
-        let _ = self.sender.send(message);
-
-        tracing::debug!(
-            channel = %channel.name(),
-            event = %event.event_name(),
-            connections = connections.len(),
-            "Event broadcasted"
-        );
-
-        Ok(())
+        self.broadcast_now(channel, event)
     }
 
     async fn subscribe(
@@ -141,38 +272,7 @@ impl Broadcaster for MemoryBroadcaster {
         connection_id: ConnectionId,
         user_id: Option<UserId>,
     ) -> Result<(), BroadcastError> {
-        // Add to subscriptions
-        {
-            let mut subs = self.subscriptions.lock().unwrap();
-            subs.entry(channel.clone())
-                .or_insert_with(HashSet::new)
-                .insert(connection_id.clone());
-        }
-
-        // Track user connection
-        {
-            let mut conns = self.connections.lock().unwrap();
-            conns.insert(connection_id.clone(), user_id.clone());
-        }
-
-        // Add to presence if presence channel
-        if channel.is_presence() {
-            if let Some(ref uid) = user_id {
-                let mut pres = self.presence.lock().unwrap();
-                pres.entry(channel.clone())
-                    .or_insert_with(HashMap::new)
-                    .insert(uid.clone(), PresenceInfo::new(uid.clone()));
-            }
-        }
-
-        tracing::debug!(
-            channel = %channel.name(),
-            connection_id = %connection_id,
-            user_id = ?user_id,
-            "Connection subscribed"
-        );
-
-        Ok(())
+        self.subscribe_now(channel, connection_id, user_id)
     }
 
     async fn unsubscribe(
@@ -180,59 +280,15 @@ impl Broadcaster for MemoryBroadcaster {
         channel: &Channel,
         connection_id: &ConnectionId,
     ) -> Result<(), BroadcastError> {
-        // Get user ID before removing
-        let user_id = {
-            let conns = self.connections.lock().unwrap();
-            conns.get(connection_id).cloned().flatten()
-        };
-
-        // Remove from subscriptions
-        {
-            let mut subs = self.subscriptions.lock().unwrap();
-            if let Some(conns) = subs.get_mut(channel) {
-                conns.remove(connection_id);
-            }
-        }
-
-        // Remove from presence if presence channel
-        if channel.is_presence() {
-            if let Some(uid) = user_id {
-                let mut pres = self.presence.lock().unwrap();
-                if let Some(channel_pres) = pres.get_mut(channel) {
-                    channel_pres.remove(&uid);
-                }
-            }
-        }
-
-        tracing::debug!(
-            channel = %channel.name(),
-            connection_id = %connection_id,
-            "Connection unsubscribed"
-        );
-
-        Ok(())
+        self.unsubscribe_now(channel, connection_id)
     }
 
     async fn connections(&self, channel: &Channel) -> Result<Vec<ConnectionId>, BroadcastError> {
-        let subs = self.subscriptions.lock().unwrap();
-        Ok(subs
-            .get(channel)
-            .map(|s| s.iter().cloned().collect())
-            .unwrap_or_default())
+        self.connections_now(channel)
     }
 
     async fn presence(&self, channel: &Channel) -> Result<Vec<PresenceInfo>, BroadcastError> {
-        if !channel.is_presence() {
-            return Err(BroadcastError::InvalidChannel(
-                "Not a presence channel".into(),
-            ));
-        }
-
-        let pres = self.presence.lock().unwrap();
-        Ok(pres
-            .get(channel)
-            .map(|p| p.values().cloned().collect())
-            .unwrap_or_default())
+        self.presence_now(channel)
     }
 
     async fn is_subscribed(
@@ -240,11 +296,7 @@ impl Broadcaster for MemoryBroadcaster {
         channel: &Channel,
         connection_id: &ConnectionId,
     ) -> Result<bool, BroadcastError> {
-        let subs = self.subscriptions.lock().unwrap();
-        Ok(subs
-            .get(channel)
-            .map(|s| s.contains(connection_id))
-            .unwrap_or(false))
+        self.is_subscribed_now(channel, connection_id)
     }
 }
 

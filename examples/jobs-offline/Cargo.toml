@@ -1,0 +1,11 @@
+[package]
+name = "jobs-offline"
+version.workspace = true
+edition.workspace = true
+publish = false
+
+[dependencies]
+rf-queue = { path = "../../crates/rf-queue" }
+tokio = { workspace = true, features = ["full"] }
+serde = { workspace = true, features = ["derive"] }
+async-trait.workspace = true
