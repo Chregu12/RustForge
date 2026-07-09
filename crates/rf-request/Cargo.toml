@@ -13,6 +13,10 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 serde_urlencoded = "0.7"
 bytes = "1"
+# Used to downcast an over-limit body error (LengthLimitError) so an oversize
+# body maps to 413 Payload Too Large rather than a generic 400. Same crate axum
+# wraps the body with (`http_body_util::Limited`).
+http-body-util = "0.1"
 tokio = { version = "1.0", features = ["full"] }
 rf-validation = { path = "../rf-validation" }
 

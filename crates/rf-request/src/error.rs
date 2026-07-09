@@ -16,6 +16,8 @@ pub type RequestResult<T> = Result<T, RequestError>;
 pub enum RequestError {
     /// Failed to parse request body
     InvalidBody(String),
+    /// Request body exceeded the size limit (maps to 413 Payload Too Large)
+    PayloadTooLarge(String),
     /// Field not found in request
     FieldNotFound(String),
     /// Field type mismatch
@@ -34,6 +36,7 @@ impl std::fmt::Display for RequestError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             RequestError::InvalidBody(msg) => write!(f, "Invalid request body: {}", msg),
+            RequestError::PayloadTooLarge(msg) => write!(f, "Payload too large: {}", msg),
             RequestError::FieldNotFound(field) => write!(f, "Field not found: {}", field),
             RequestError::InvalidFieldType(field) => write!(f, "Invalid field type: {}", field),
             RequestError::ValidationFailed(errors) => write!(f, "Validation failed: {:?}", errors),
@@ -52,6 +55,11 @@ impl IntoResponse for RequestError {
             RequestError::InvalidBody(msg) => {
                 (StatusCode::BAD_REQUEST, Json(json!({"error": msg}))).into_response()
             }
+            RequestError::PayloadTooLarge(msg) => (
+                StatusCode::PAYLOAD_TOO_LARGE,
+                Json(json!({"error": msg})),
+            )
+                .into_response(),
             RequestError::FieldNotFound(field) => (
                 StatusCode::BAD_REQUEST,
                 Json(json!({"error": format!("Field '{}' not found", field)})),

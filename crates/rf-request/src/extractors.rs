@@ -8,8 +8,8 @@
 use crate::{error::RequestError, upload::UploadedFile, Request};
 use axum::{
     body::Body,
-    extract::{FromRequest, Multipart, Request as AxumRequest},
-    http::Request as HttpRequest,
+    extract::{multipart::MultipartError, DefaultBodyLimit, FromRequest, Multipart, Request as AxumRequest},
+    http::{Request as HttpRequest, StatusCode},
 };
 use serde_json::Value;
 use std::collections::HashMap;
@@ -17,7 +17,40 @@ use std::collections::HashMap;
 /// Extractor marker for the [`Request`] type (the impl below is what does the work).
 pub struct RequestExtractor;
 
+/// One shared ceiling for every request body — JSON, urlencoded AND multipart —
+/// so a large file upload is bounded by the SAME limit as a JSON payload rather
+/// than falling under axum's much smaller 2 MiB `DefaultBodyLimit`.
 const MAX_BODY_SIZE: usize = 10 * 1024 * 1024; // 10 MiB
+
+/// Map an `axum` body error from [`axum::body::to_bytes`] to a [`RequestError`].
+///
+/// `to_bytes` wraps the body in `http_body_util::Limited`; when the body exceeds
+/// `MAX_BODY_SIZE` the inner error is a [`http_body_util::LengthLimitError`]. That
+/// case becomes [`RequestError::PayloadTooLarge`] (→ 413) so an oversize body is
+/// distinguishable from a malformed one (→ 400).
+fn map_body_error(err: axum::Error) -> RequestError {
+    let inner = err.into_inner();
+    if inner.downcast_ref::<http_body_util::LengthLimitError>().is_some() {
+        RequestError::PayloadTooLarge(format!(
+            "Request body exceeds the {MAX_BODY_SIZE} byte limit"
+        ))
+    } else {
+        RequestError::InvalidBody(inner.to_string())
+    }
+}
+
+/// Map an axum [`MultipartError`] to a [`RequestError`], preserving the 413 that
+/// axum assigns to a field/stream that exceeds the configured body limit (rather
+/// than flattening every multipart failure to a generic 400).
+fn map_multipart_error(err: MultipartError) -> RequestError {
+    if err.status() == StatusCode::PAYLOAD_TOO_LARGE {
+        RequestError::PayloadTooLarge(format!(
+            "Uploaded file exceeds the {MAX_BODY_SIZE} byte limit"
+        ))
+    } else {
+        RequestError::InvalidBody(err.to_string())
+    }
+}
 
 /// Parse a urlencoded string (query or form body) into string fields.
 fn merge_urlencoded(fields: &mut HashMap<String, Value>, input: &str) {
@@ -85,7 +118,7 @@ where
         if content_type.contains("application/json") {
             let bytes = axum::body::to_bytes(body, MAX_BODY_SIZE)
                 .await
-                .map_err(|e| RequestError::InvalidBody(e.to_string()))?;
+                .map_err(map_body_error)?;
             if !bytes.is_empty() {
                 let json: Value = serde_json::from_slice(&bytes)
                     .map_err(|e| RequestError::InvalidBody(e.to_string()))?;
@@ -106,22 +139,24 @@ where
         } else if content_type.contains("application/x-www-form-urlencoded") {
             let bytes = axum::body::to_bytes(body, MAX_BODY_SIZE)
                 .await
-                .map_err(|e| RequestError::InvalidBody(e.to_string()))?;
+                .map_err(map_body_error)?;
             let text = String::from_utf8_lossy(&bytes);
             merge_urlencoded(&mut fields, &text);
             buffered_body = Some(bytes);
         } else if content_type.contains("multipart/form-data") {
-            // Hand the (parts, body) to axum's Multipart extractor.
-            let req = AxumRequest::from_parts(parts, body);
+            // Hand the (parts, body) to axum's Multipart extractor. axum's own
+            // multipart ceiling is its 2 MiB `DefaultBodyLimit`; raise it to the
+            // SAME `MAX_BODY_SIZE` as the JSON/urlencoded paths so file uploads —
+            // the body kind most likely to be large — share ONE consistent limit
+            // instead of the smallest one. Applied per-request via `apply`, so it
+            // does not affect any other body extractor on the route.
+            let mut req = AxumRequest::from_parts(parts, body);
+            DefaultBodyLimit::max(MAX_BODY_SIZE).apply(&mut req);
             let mut multipart = Multipart::from_request(req, state)
                 .await
                 .map_err(|e| RequestError::InvalidBody(e.to_string()))?;
 
-            while let Some(field) = multipart
-                .next_field()
-                .await
-                .map_err(|e| RequestError::InvalidBody(e.to_string()))?
-            {
+            while let Some(field) = multipart.next_field().await.map_err(map_multipart_error)? {
                 let Some(name) = field.name().map(str::to_string) else {
                     continue;
                 };
@@ -129,21 +164,17 @@ where
                 let field_content_type = field.content_type().map(str::to_string);
 
                 if filename.is_some() {
-                    // A file part: keep the raw bytes for later `.store()`.
-                    let data = field
-                        .bytes()
-                        .await
-                        .map_err(|e| RequestError::InvalidBody(e.to_string()))?;
+                    // A file part: keep the raw bytes for later `.store()`. An
+                    // over-limit field surfaces here as a 413 (Payload Too Large),
+                    // not a generic 400, via `map_multipart_error`.
+                    let data = field.bytes().await.map_err(map_multipart_error)?;
                     files.insert(
                         name.clone(),
                         UploadedFile::new(name, filename, field_content_type, data),
                     );
                 } else {
                     // A plain text field.
-                    let text = field
-                        .text()
-                        .await
-                        .map_err(|e| RequestError::InvalidBody(e.to_string()))?;
+                    let text = field.text().await.map_err(map_multipart_error)?;
                     fields.insert(name, Value::String(text));
                 }
             }

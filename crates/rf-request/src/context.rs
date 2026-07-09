@@ -92,6 +92,17 @@ pub async fn capture_request(req: AxumRequest, next: Next) -> Response {
             let ctx = Arc::new(RequestContext { fields, files });
             with_request_context(ctx, next.run(inner)).await
         }
+        // An oversize body (over MAX_BODY_SIZE, whether JSON/urlencoded/multipart)
+        // is rejected as 413 Payload Too Large — the SAME ceiling for every body
+        // kind — with the framework's stable JSON envelope.
+        Err(crate::error::RequestError::PayloadTooLarge(_)) => (
+            StatusCode::PAYLOAD_TOO_LARGE,
+            axum::Json(serde_json::json!({
+                "error": "Payload too large",
+                "message": "The request body exceeds the allowed size limit.",
+            })),
+        )
+            .into_response(),
         // Malformed body (e.g. invalid JSON): reject with a stable JSON error
         // envelope (application/json) instead of a text/plain string that would
         // leak the underlying serde parser internals (byte/line/column). The
