@@ -22,6 +22,17 @@ pub trait Queue: Send + Sync {
     /// Retry a failed job
     async fn retry(&self, metadata: JobMetadata) -> QueueResult<()>;
 
+    /// List the jobs that have permanently failed (a dead-letter view).
+    ///
+    /// A "permanently failed" job is one that exhausted its retries or was
+    /// dead-lettered immediately (e.g. a non-retryable deserialization error).
+    /// Backends that do not track failed jobs return an empty list; the
+    /// in-memory backend records every such job so callers can observe and
+    /// inspect them. The returned `Vec`'s length doubles as the failed count.
+    async fn failed(&self) -> QueueResult<Vec<JobMetadata>> {
+        Ok(Vec::new())
+    }
+
     /// Get job count for a queue
     async fn size(&self, queue: &str) -> QueueResult<usize>;
 

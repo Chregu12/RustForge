@@ -12,6 +12,9 @@ serde_json.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
 tokio = { workspace = true, features = ["sync", "time"] }
+# `FutureExt::catch_unwind` makes the worker panic-safe: a poison-pill job is
+# turned into a recoverable error instead of unwinding out of the drain loop.
+futures = { workspace = true }
 chrono.workspace = true
 uuid.workspace = true
 once_cell.workspace = true

@@ -3,10 +3,24 @@
 use crate::error::{QueueError, QueueResult};
 use crate::job::{Job, JobMetadata};
 use crate::queue::Queue;
+use futures::future::FutureExt;
 use std::collections::HashMap;
+use std::panic::AssertUnwindSafe;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::time::sleep;
+
+/// Best-effort extraction of a human-readable message from a caught panic
+/// payload (the `Box<dyn Any>` produced by `catch_unwind`).
+fn panic_message(panic: Box<dyn std::any::Any + Send>) -> String {
+    if let Some(s) = panic.downcast_ref::<&'static str>() {
+        (*s).to_string()
+    } else if let Some(s) = panic.downcast_ref::<String>() {
+        s.clone()
+    } else {
+        "unknown panic".to_string()
+    }
+}
 
 type JobHandler = Arc<dyn Fn(Vec<u8>) -> JobHandlerFuture + Send + Sync>;
 type JobHandlerFuture =
@@ -180,16 +194,22 @@ impl Worker {
             }
         };
 
-        // Execute job with timeout enforcement
+        // Execute job with timeout enforcement, catching panics so a single
+        // poison-pill job cannot unwind out of the drain loop and kill the
+        // worker. `catch_unwind` turns a panic into an `Err` payload; we route
+        // it through the same failure path a returned `Err` takes, so
+        // `process_job` always returns normally and the loop survives.
         let start = std::time::Instant::now();
         let timeout_secs = metadata.timeout_secs.max(1);
-        let result = match tokio::time::timeout(
-            Duration::from_secs(timeout_secs),
-            handler(metadata.data.clone()),
-        )
-        .await
+        let handler_future = AssertUnwindSafe(handler(metadata.data.clone())).catch_unwind();
+        let result = match tokio::time::timeout(Duration::from_secs(timeout_secs), handler_future)
+            .await
         {
-            Ok(r) => r,
+            Ok(Ok(r)) => r,
+            Ok(Err(panic)) => Err(QueueError::JobFailed(format!(
+                "job panicked: {}",
+                panic_message(panic)
+            ))),
             Err(_) => Err(QueueError::Timeout(timeout_secs)),
         };
         let duration = start.elapsed();
@@ -205,6 +225,10 @@ impl Worker {
             }
             Err(e) => {
                 let error_msg = e.to_string();
+                // A deserialization failure is deterministic: the exact same
+                // bytes will never decode, so retrying only burns `max_retries`
+                // on an unrecoverable error. Dead-letter it immediately instead.
+                let non_retryable = matches!(e, QueueError::DeserializationError(_));
                 tracing::error!(
                     job_id = %job_id,
                     error = %error_msg,
@@ -214,7 +238,7 @@ impl Worker {
 
                 metadata.mark_error(error_msg.clone());
 
-                if metadata.can_retry() {
+                if !non_retryable && metadata.can_retry() {
                     tracing::info!(
                         job_id = %job_id,
                         attempt = metadata.attempts + 1,
