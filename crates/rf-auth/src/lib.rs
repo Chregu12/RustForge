@@ -97,6 +97,10 @@ pub use auth_manager::{
 };
 pub use guard::Guard;
 
+// Ready-made bearer-auth guard middleware: a reusable 401-before-body-extraction
+// route layer (replaces the hand-written auth-scope + bearer→login middleware).
+pub use middleware::require_auth;
+
 // Re-export main authorization types
 pub use authorization::{
     Authorizable, AuthorizationError, AuthorizationResult, Gate, Policy, PolicyRegistry,
@@ -115,7 +119,7 @@ pub mod prelude {
     pub use crate::{
         error::{AuthError, AuthResult},
         jwt::{Claims, JwtManager},
-        middleware::{auth_layer, auth_middleware, require_role},
+        middleware::{auth_layer, auth_middleware, require_auth, require_role},
         password::{HashAlgorithm, PasswordHasher},
     };
 

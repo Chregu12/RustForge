@@ -13,7 +13,9 @@ categories = ["authentication", "web-programming"]
 
 [dependencies]
 # Workspace dependencies
-rf-core = { path = "../rf-core" }
+# `axum` feature enables `impl IntoResponse for AppError`, used by `require_auth`
+# to render the framework's JSON 401 envelope.
+rf-core = { path = "../rf-core", features = ["axum"] }
 anyhow.workspace = true
 thiserror.workspace = true
 serde.workspace = true

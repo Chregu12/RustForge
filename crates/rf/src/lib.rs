@@ -31,6 +31,9 @@ pub use std::time::Duration;
 // Facades (from merged locations in main crates)
 pub use rf_routing::{RouteFacade as Route, global_router, GlobalRouter};
 pub use rf_auth::Auth;
+// Ready-made bearer-auth guard: `route_layer(from_fn(rf::require_auth))` rejects
+// unauthenticated requests with a JSON 401 before the handler + its body extractors.
+pub use rf_auth::require_auth;
 pub use rf_orm::DB;
 pub use rf_cache::CacheFacade as Cache;
 pub use rf_events::EventFacade as Event;
@@ -114,6 +117,10 @@ pub mod prelude {
     // `file("image")`, `input("title")`, `has("title")`.
     pub use rf_request::{file, has, input};
     pub use rf_auth::Auth;
+    // Ready-made bearer-auth guard middleware for protected routes:
+    // `.route_layer(axum::middleware::from_fn(require_auth))` returns a JSON 401
+    // before the handler and its body extractors run (so auth precedes any 422).
+    pub use rf_auth::require_auth;
     pub use rf_orm::DB;
     pub use rf_cache::CacheFacade as Cache;
     pub use rf_events::EventFacade as Event;
