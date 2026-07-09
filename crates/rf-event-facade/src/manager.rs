@@ -14,6 +14,16 @@ pub static GLOBAL_EVENT: Lazy<RwLock<EventManager>> = Lazy::new(|| {
 /// Event listener callback type
 pub type EventListener = Box<dyn Fn(&Value) + Send + Sync>;
 
+/// Invoke a single listener with panic isolation.
+///
+/// A panicking listener is caught here so it neither poisons any lock held by
+/// the caller nor prevents the remaining listeners from running.
+pub(crate) fn invoke_isolated(listener: &Arc<EventListener>, data: &Value) {
+    // The default panic hook already reports the panic; we swallow the unwind
+    // here so one bad listener cannot brick the bus or stop the others.
+    let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| listener(data)));
+}
+
 /// Event manager that holds event listeners and dispatches events
 #[derive(Default)]
 pub struct EventManager {
@@ -32,18 +42,28 @@ impl EventManager {
         }
     }
 
-    /// Dispatch an event
-    pub fn dispatch(&mut self, event_name: &str, data: Value) -> Result<(), String> {
-        // Store in history
+    /// Record the event in history and return a snapshot (cloned `Arc` handles)
+    /// of the listeners registered for it.
+    ///
+    /// Callers holding a shared lock over the manager (e.g. the global
+    /// [`Event`](crate::Event) facade) should call this, **drop the lock**, and
+    /// only then invoke the returned listeners — so a panicking or re-entrant
+    /// listener can neither poison nor deadlock the lock.
+    pub fn snapshot_listeners(&mut self, event_name: &str, data: &Value) -> Vec<Arc<EventListener>> {
         self.history.push((event_name.to_string(), data.clone()));
+        self.listeners.get(event_name).cloned().unwrap_or_default()
+    }
 
-        // Call all listeners for this event
-        if let Some(listeners) = self.listeners.get(event_name) {
-            for listener in listeners {
-                listener(&data);
-            }
+    /// Dispatch an event.
+    ///
+    /// Listeners are snapshotted first, then each is invoked wrapped in
+    /// [`std::panic::catch_unwind`] so a panic in one listener neither aborts the
+    /// remaining listeners nor escapes `dispatch`.
+    pub fn dispatch(&mut self, event_name: &str, data: Value) -> Result<(), String> {
+        let listeners = self.snapshot_listeners(event_name, &data);
+        for listener in &listeners {
+            invoke_isolated(listener, &data);
         }
-
         Ok(())
     }
 

@@ -68,8 +68,18 @@ impl Event {
         let value = serde_json::to_value(data)
             .map_err(|e| format!("Failed to serialize event data: {}", e))?;
 
-        let mut manager = GLOBAL_EVENT.write().unwrap();
-        manager.dispatch(event_name, value)
+        // Hold the global lock only long enough to record history and snapshot
+        // the current listeners; release it *before* invoking any listener. Each
+        // listener is then run with panic isolation, so a panicking listener
+        // cannot poison the lock and a re-entrant listener cannot deadlock.
+        let listeners = {
+            let mut manager = GLOBAL_EVENT.write().unwrap_or_else(|e| e.into_inner());
+            manager.snapshot_listeners(event_name, &value)
+        };
+        for listener in &listeners {
+            crate::manager::invoke_isolated(listener, &value);
+        }
+        Ok(())
     }
 
     /// Listen for an event
@@ -89,7 +99,7 @@ impl Event {
     where
         F: Fn(&Value) + Send + Sync + 'static,
     {
-        let mut manager = GLOBAL_EVENT.write().unwrap();
+        let mut manager = GLOBAL_EVENT.write().unwrap_or_else(|e| e.into_inner());
         manager.listen(event_name, callback);
     }
 
@@ -107,7 +117,7 @@ impl Event {
     /// }
     /// ```
     pub fn has_listeners(event_name: &str) -> bool {
-        let manager = GLOBAL_EVENT.read().unwrap();
+        let manager = GLOBAL_EVENT.read().unwrap_or_else(|e| e.into_inner());
         manager.has_listeners(event_name)
     }
 
@@ -124,7 +134,7 @@ impl Event {
     /// }
     /// ```
     pub fn listener_count(event_name: &str) -> usize {
-        let manager = GLOBAL_EVENT.read().unwrap();
+        let manager = GLOBAL_EVENT.read().unwrap_or_else(|e| e.into_inner());
         manager.listener_count(event_name)
     }
 
@@ -140,7 +150,7 @@ impl Event {
     /// }
     /// ```
     pub fn forget(event_name: &str) {
-        let mut manager = GLOBAL_EVENT.write().unwrap();
+        let mut manager = GLOBAL_EVENT.write().unwrap_or_else(|e| e.into_inner());
         manager.forget(event_name);
     }
 
@@ -156,7 +166,7 @@ impl Event {
     /// }
     /// ```
     pub fn forget_all() {
-        let mut manager = GLOBAL_EVENT.write().unwrap();
+        let mut manager = GLOBAL_EVENT.write().unwrap_or_else(|e| e.into_inner());
         manager.forget_all();
     }
 
@@ -207,13 +217,13 @@ impl Event {
 
     /// Get event dispatch history (for testing/debugging)
     pub fn history() -> Vec<(String, Value)> {
-        let manager = GLOBAL_EVENT.read().unwrap();
+        let manager = GLOBAL_EVENT.read().unwrap_or_else(|e| e.into_inner());
         manager.history().to_vec()
     }
 
     /// Clear event history
     pub fn clear_history() {
-        let mut manager = GLOBAL_EVENT.write().unwrap();
+        let mut manager = GLOBAL_EVENT.write().unwrap_or_else(|e| e.into_inner());
         manager.clear_history();
     }
 }

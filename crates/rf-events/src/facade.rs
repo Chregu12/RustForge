@@ -43,12 +43,24 @@ pub struct EventFacade;
 
 impl EventFacade {
     /// Dispatch an event
+    ///
+    /// The global lock is held only long enough to record history and snapshot
+    /// the current listeners; it is released *before* any listener runs. Each
+    /// listener is then invoked with panic isolation. This means a panicking
+    /// listener cannot poison the global lock, and a listener that itself calls
+    /// back into the bus cannot deadlock on the non-reentrant lock.
     pub fn dispatch<T: Serialize>(event_name: &str, data: T) -> Result<(), String> {
         let value = serde_json::to_value(data)
             .map_err(|e| format!("Failed to serialize event data: {}", e))?;
 
-        let mut manager = GLOBAL_EVENT.write().unwrap();
-        manager.dispatch(event_name, value)
+        let listeners = {
+            let mut manager = GLOBAL_EVENT.write().unwrap_or_else(|e| e.into_inner());
+            manager.snapshot_listeners(event_name, &value)
+        };
+        for listener in &listeners {
+            crate::event_manager::invoke_isolated(listener, &value);
+        }
+        Ok(())
     }
 
     /// Listen for an event
@@ -56,43 +68,43 @@ impl EventFacade {
     where
         F: Fn(&Value) + Send + Sync + 'static,
     {
-        let mut manager = GLOBAL_EVENT.write().unwrap();
+        let mut manager = GLOBAL_EVENT.write().unwrap_or_else(|e| e.into_inner());
         manager.listen(event_name, callback);
     }
 
     /// Check if an event has listeners
     pub fn has_listeners(event_name: &str) -> bool {
-        let manager = GLOBAL_EVENT.read().unwrap();
+        let manager = GLOBAL_EVENT.read().unwrap_or_else(|e| e.into_inner());
         manager.has_listeners(event_name)
     }
 
     /// Get the number of listeners for an event
     pub fn listener_count(event_name: &str) -> usize {
-        let manager = GLOBAL_EVENT.read().unwrap();
+        let manager = GLOBAL_EVENT.read().unwrap_or_else(|e| e.into_inner());
         manager.listener_count(event_name)
     }
 
     /// Forget all listeners for an event
     pub fn forget(event_name: &str) {
-        let mut manager = GLOBAL_EVENT.write().unwrap();
+        let mut manager = GLOBAL_EVENT.write().unwrap_or_else(|e| e.into_inner());
         manager.forget(event_name);
     }
 
     /// Forget all event listeners
     pub fn forget_all() {
-        let mut manager = GLOBAL_EVENT.write().unwrap();
+        let mut manager = GLOBAL_EVENT.write().unwrap_or_else(|e| e.into_inner());
         manager.forget_all();
     }
 
     /// Get event dispatch history (for testing/debugging)
     pub fn history() -> Vec<(String, Value)> {
-        let manager = GLOBAL_EVENT.read().unwrap();
+        let manager = GLOBAL_EVENT.read().unwrap_or_else(|e| e.into_inner());
         manager.history().to_vec()
     }
 
     /// Clear event history
     pub fn clear_history() {
-        let mut manager = GLOBAL_EVENT.write().unwrap();
+        let mut manager = GLOBAL_EVENT.write().unwrap_or_else(|e| e.into_inner());
         manager.clear_history();
     }
 }
