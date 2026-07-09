@@ -132,6 +132,17 @@ fn cookie_session_id(req: &Request) -> Option<String> {
         })
 }
 
+/// Returns `true` when called from within a task that is running inside a
+/// [`session_scope`] — i.e., from a real HTTP request handler.  Returns `false`
+/// in unit tests, CLI code, or any context where no scope has been established.
+///
+/// Downstream crates (e.g. `rf-views`) use this to decide whether to delegate
+/// flash reads/writes to the per-client [`SessionFacade`] or to a local
+/// fallback, without hard-coding knowledge of the task-local internals.
+pub fn in_session_scope() -> bool {
+    CURRENT_SESSION_ID.try_with(|_| ()).is_ok()
+}
+
 /// Per-request middleware that establishes the current client's session scope,
 /// mirroring `rf_request::capture_request` / `rf_auth::auth_scope`.
 ///

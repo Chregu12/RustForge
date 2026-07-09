@@ -9,6 +9,9 @@ keywords = ["templates", "views", "tera", "blade", "axum"]
 categories = ["template-engine", "web-programming"]
 
 [dependencies]
+# Internal crates
+rf-web = { path = "../rf-web" }
+
 # Template Engine
 tera = "1.19"
 

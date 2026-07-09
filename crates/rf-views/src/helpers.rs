@@ -3,6 +3,7 @@ use axum::{
     http::StatusCode,
     response::{Html, IntoResponse, Redirect, Response},
 };
+use rf_web::{in_session_scope, SessionFacade};
 use serde::Serialize;
 use std::sync::Arc;
 
@@ -37,7 +38,16 @@ pub fn redirect_with_success(
     path: impl AsRef<str>,
     message: impl Into<String>,
 ) -> Redirect {
-    engine.set_flash("success", message);
+    let msg: String = message.into();
+    if in_session_scope() {
+        // Write to the current client's per-request session flash so it is
+        // readable on the NEXT request for THIS client only (one-request lifetime,
+        // no cross-client bleed).
+        SessionFacade::flash("success", serde_json::Value::String(msg));
+    } else {
+        // Fallback for non-session contexts (unit tests, CLI).
+        engine.set_flash("success", msg);
+    }
     Redirect::to(path.as_ref())
 }
 
@@ -47,7 +57,12 @@ pub fn redirect_with_error(
     path: impl AsRef<str>,
     message: impl Into<String>,
 ) -> Redirect {
-    engine.set_flash("error", message);
+    let msg: String = message.into();
+    if in_session_scope() {
+        SessionFacade::flash("error", serde_json::Value::String(msg));
+    } else {
+        engine.set_flash("error", msg);
+    }
     Redirect::to(path.as_ref())
 }
 
@@ -57,7 +72,12 @@ pub fn redirect_with_info(
     path: impl AsRef<str>,
     message: impl Into<String>,
 ) -> Redirect {
-    engine.set_flash("info", message);
+    let msg: String = message.into();
+    if in_session_scope() {
+        SessionFacade::flash("info", serde_json::Value::String(msg));
+    } else {
+        engine.set_flash("info", msg);
+    }
     Redirect::to(path.as_ref())
 }
 
@@ -67,7 +87,12 @@ pub fn redirect_with_warning(
     path: impl AsRef<str>,
     message: impl Into<String>,
 ) -> Redirect {
-    engine.set_flash("warning", message);
+    let msg: String = message.into();
+    if in_session_scope() {
+        SessionFacade::flash("warning", serde_json::Value::String(msg));
+    } else {
+        engine.set_flash("warning", msg);
+    }
     Redirect::to(path.as_ref())
 }
 

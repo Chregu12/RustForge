@@ -1,3 +1,4 @@
+use rf_web::{in_session_scope, SessionFacade};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
@@ -324,6 +325,15 @@ impl Function for FlashFunction {
             .and_then(|v| v.as_str())
             .ok_or_else(|| tera::Error::msg("'key' parameter is required"))?;
 
+        // When inside a per-request session scope (set up by `rf_web::session_scope`),
+        // read from the client's own session flash — this is per-client and cannot
+        // bleed across concurrent requests.
+        if in_session_scope() {
+            return Ok(SessionFacade::get(key).unwrap_or(Value::Null));
+        }
+
+        // Fallback: internal HashMap for non-session contexts (unit tests, CLI, etc.)
+        // where `session_scope` middleware is not running.
         let flash = self
             .flash
             .read()

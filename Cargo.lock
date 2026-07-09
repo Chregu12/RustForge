@@ -8182,6 +8182,7 @@ dependencies = [
  "serde_json",
  "thiserror 1.0.69",
  "tokio",
+ "tower 0.5.2",
  "tracing",
 ]
 
@@ -9242,6 +9243,7 @@ dependencies = [
  "serde",
  "thiserror 1.0.69",
  "tokio",
+ "tower 0.4.13",
  "tracing",
 ]
 
@@ -9403,6 +9405,7 @@ dependencies = [
  "globset",
  "once_cell",
  "regex",
+ "rf-web",
  "serde",
  "serde_json",
  "tempfile",
