@@ -8,6 +8,7 @@ authors.workspace = true
 [dependencies]
 async-trait = { workspace = true }
 axum = { workspace = true }
+tower = { workspace = true }
 tokio = { workspace = true }
 serde = { workspace = true }
 thiserror = { workspace = true }
@@ -15,3 +16,4 @@ tracing = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["test-util"] }
+tower = { workspace = true, features = ["util"] }
