@@ -304,11 +304,11 @@ impl Clone for Session {
 
 #[cfg(test)]
 mod tests {
-    use super::super::driver::CookieSessionDriver;
+    use super::super::driver::MemorySessionDriver;
     use super::*;
 
     fn create_test_session() -> Session {
-        let driver = Arc::new(CookieSessionDriver::new());
+        let driver = Arc::new(MemorySessionDriver::new());
         Session::new("test_id".to_string(), driver)
     }
 
@@ -421,7 +421,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_session_store_create() {
-        let driver = Arc::new(CookieSessionDriver::new());
+        let driver = Arc::new(MemorySessionDriver::new());
         let store = SessionStore::new(driver);
 
         let session = store.create().await;

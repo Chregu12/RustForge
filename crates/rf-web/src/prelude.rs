@@ -12,5 +12,5 @@
 pub use crate:: csrf::{csrf_field, csrf_meta, csrf_token, CsrfConfig, CsrfLayer, CsrfMiddleware, CsrfToken};
 pub use crate:: middleware::{compression_layer, cors_layer, timeout_layer, tracing_layer, CorsConfig};
 pub use crate:: router::RouterBuilder;
-pub use crate:: session::{Session, SessionConfig, SessionDriver, SessionMiddleware};
+pub use crate::session::{Session, SessionConfig, SessionDriver};
 pub use crate:: versioning::{ApiVersion, VersionedRouter};

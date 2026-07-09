@@ -21,6 +21,18 @@
 //! the one after — the classic Laravel new/old flash aging, performed by
 //! [`session_scope`] at the start of every request.
 //!
+//! ## Session regeneration (fixation defense)
+//!
+//! Call [`SessionFacade::regenerate`] after a successful login.  It mints a new
+//! session id and migrates the current session data to it, invalidating the old
+//! id.  This prevents session-fixation attacks: an attacker who planted their own
+//! id before the victim's login can no longer use that id once regeneration has
+//! happened.
+//!
+//! [`session_scope`] also guards the other direction: if the client sends a session
+//! id that is not present in the in-memory store (i.e. an unknown / forged id), a
+//! fresh id is generated rather than echoing the attacker-supplied value.
+//!
 //! # Examples
 //!
 //! ```rust
@@ -41,6 +53,7 @@ use axum::{
 };
 use once_cell::sync::Lazy;
 use serde_json::Value;
+use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::sync::{Mutex, RwLock};
 
@@ -89,17 +102,19 @@ static SESSIONS: Lazy<RwLock<HashMap<String, SessionData>>> =
 static FALLBACK: Lazy<Mutex<SessionData>> = Lazy::new(|| Mutex::new(SessionData::default()));
 
 tokio::task_local! {
-    /// The current request's session id, established by [`session_scope`].
-    static CURRENT_SESSION_ID: String;
+    /// The current request's session id, wrapped in a `RefCell` so that
+    /// [`SessionFacade::regenerate`] can swap in a new id during the same request.
+    static CURRENT_SESSION_ID: RefCell<String>;
 }
 
 /// Run `f` against the active session: the per-request one keyed by the task-local
 /// session id if a scope is established, otherwise the process-local fallback.
 fn with_session<R>(f: impl FnOnce(&mut SessionData) -> R) -> R {
     let mut f = Some(f);
-    let attempted = CURRENT_SESSION_ID.try_with(|sid| {
+    let attempted = CURRENT_SESSION_ID.try_with(|cell| {
+        let sid = cell.borrow().clone();
         let mut store = SESSIONS.write().unwrap();
-        let entry = store.entry(sid.clone()).or_default();
+        let entry = store.entry(sid).or_default();
         (f.take().unwrap())(entry)
     });
     match attempted {
@@ -143,15 +158,18 @@ pub fn in_session_scope() -> bool {
     CURRENT_SESSION_ID.try_with(|_| ()).is_ok()
 }
 
-/// Per-request middleware that establishes the current client's session scope,
-/// mirroring `rf_request::capture_request` / `rf_auth::auth_scope`.
+/// Per-request middleware that establishes the current client's session scope.
 ///
 /// On each request it:
-/// 1. reads the `rf_session` cookie, or mints a fresh session id if absent;
+/// 1. reads the `rf_session` cookie, or mints a fresh session id if absent **or if
+///    the supplied id is not present in the session store** (session-fixation defense:
+///    an attacker-planted unknown id is never echoed back as authenticated);
 /// 2. ages that session's flash data (one-request lifetime);
 /// 3. runs the handler inside a task-local scope so the [`SessionFacade`] reads
 ///    and writes ONLY this client's session; and
-/// 4. sets/refreshes the `rf_session` cookie on the response.
+/// 4. sets/refreshes the `rf_session` cookie on the response, using the **final**
+///    session id (which may have changed if the handler called
+///    [`SessionFacade::regenerate`]).
 ///
 /// ```ignore
 /// use axum::{Router, routing::get, middleware};
@@ -160,7 +178,16 @@ pub fn in_session_scope() -> bool {
 ///     .layer(middleware::from_fn(session_scope));
 /// ```
 pub async fn session_scope(req: Request, next: Next) -> Response {
-    let session_id = cookie_session_id(&req).unwrap_or_else(generate_session_id);
+    let candidate_id = cookie_session_id(&req);
+
+    // Session fixation defense: only reuse a supplied session id if it actually
+    // exists in the store.  An attacker can plant an id before the victim visits;
+    // if we echo that id back as authenticated, they know the victim's session.
+    // Instead we mint a new id whenever the client sends one we do not recognise.
+    let session_id = match candidate_id {
+        Some(id) if SESSIONS.read().unwrap().contains_key(&id) => id,
+        _ => generate_session_id(),
+    };
 
     // Age flash at the start of the request so values flashed on the previous
     // request are readable now, then gone next time.
@@ -169,13 +196,25 @@ pub async fn session_scope(req: Request, next: Next) -> Response {
         store.entry(session_id.clone()).or_default().age_flash();
     }
 
-    let mut response = CURRENT_SESSION_ID
-        .scope(session_id.clone(), next.run(req))
+    // Run the handler inside a task-local scope.  The RefCell lets the handler
+    // call SessionFacade::regenerate() to swap the session id mid-request; we
+    // capture the final id (which may differ from session_id) before the scope
+    // ends so we can set the correct cookie.
+    let (final_id, mut response) = CURRENT_SESSION_ID
+        .scope(
+            RefCell::new(session_id),
+            async move {
+                let response = next.run(req).await;
+                // Still inside the scope — read back the (possibly regenerated) id.
+                let final_id = CURRENT_SESSION_ID.with(|cell| cell.borrow().clone());
+                (final_id, response)
+            },
+        )
         .await;
 
     let cookie = format!(
         "{}={}; Path=/; HttpOnly; SameSite=Lax",
-        SESSION_COOKIE, session_id
+        SESSION_COOKIE, final_id
     );
     if let Ok(value) = cookie.parse() {
         response.headers_mut().append(header::SET_COOKIE, value);
@@ -254,6 +293,50 @@ impl SessionFacade {
             s.flash_new.insert(key);
         });
     }
+
+    /// Regenerate the session id, migrating all session data to a fresh id.
+    ///
+    /// Call this immediately after a successful login to defend against session
+    /// fixation: any id the attacker may have planted (e.g. via a shared link or
+    /// XSS) becomes invalid the moment the user authenticates, because the
+    /// authenticated session now lives under a brand-new id that the attacker does
+    /// not know.
+    ///
+    /// - All current session data (durable values and flash bookkeeping) is
+    ///   preserved under the new id.
+    /// - The old id is removed from the store so subsequent requests bearing it
+    ///   are treated as unknown and get a fresh session (no fixation, no replay).
+    /// - [`session_scope`] automatically picks up the new id for the `Set-Cookie`
+    ///   header at the end of the request.
+    /// - Outside a session scope (CLI / unit tests) this is a no-op.
+    pub fn regenerate() {
+        let _ = CURRENT_SESSION_ID.try_with(|cell| {
+            let old_id = cell.borrow().clone();
+            let new_id = generate_session_id();
+
+            // Migrate data from old to new id in the global store.
+            {
+                let mut store = SESSIONS.write().unwrap();
+                if let Some(data) = store.remove(&old_id) {
+                    store.insert(new_id.clone(), data);
+                } else {
+                    store.entry(new_id.clone()).or_default();
+                }
+            }
+
+            // Update the task-local so subsequent with_session() calls use the new
+            // id, and so session_scope picks up the new id for Set-Cookie.
+            *cell.borrow_mut() = new_id;
+        });
+    }
+
+    /// Return the current session id, if running inside a [`session_scope`].
+    ///
+    /// Returns `None` outside a request scope (CLI, unit tests without an explicit
+    /// scope).  Primarily useful for testing and debugging.
+    pub fn id() -> Option<String> {
+        CURRENT_SESSION_ID.try_with(|cell| cell.borrow().clone()).ok()
+    }
 }
 
 #[cfg(test)]
@@ -264,7 +347,7 @@ mod tests {
     /// Run a closure inside a fresh, uniquely-keyed session scope so tests do not
     /// clobber each other or the shared fallback.
     fn in_session<R>(id: &str, f: impl FnOnce() -> R) -> R {
-        CURRENT_SESSION_ID.sync_scope(id.to_string(), f)
+        CURRENT_SESSION_ID.sync_scope(RefCell::new(id.to_string()), f)
     }
 
     #[test]
@@ -356,5 +439,78 @@ mod tests {
                 "flash must be cleared after one request"
             );
         });
+    }
+
+    #[test]
+    fn test_in_session_scope_detects_scope() {
+        assert!(!in_session_scope(), "no scope outside in_session helper");
+        in_session("scope_detect", || {
+            assert!(in_session_scope(), "in_session_scope() must return true inside scope");
+        });
+    }
+
+    // -----------------------------------------------------------------------
+    // regenerate() tests
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_regenerate_changes_session_id() {
+        in_session("regen_id", || {
+            let old_id = SessionFacade::id().expect("must be in scope");
+            SessionFacade::regenerate();
+            let new_id = SessionFacade::id().expect("must be in scope after regenerate");
+            assert_ne!(old_id, new_id, "regenerate must change the session id");
+        });
+    }
+
+    #[test]
+    fn test_regenerate_preserves_session_data() {
+        in_session("regen_data", || {
+            SessionFacade::put("role", json!("admin"));
+            SessionFacade::put("user_id", json!(42));
+            SessionFacade::regenerate();
+            assert_eq!(
+                SessionFacade::get("role"),
+                Some(json!("admin")),
+                "durable value must survive regeneration"
+            );
+            assert_eq!(
+                SessionFacade::get("user_id"),
+                Some(json!(42)),
+                "durable value must survive regeneration"
+            );
+        });
+    }
+
+    #[test]
+    fn test_regenerate_old_id_removed_from_store() {
+        in_session("regen_old_gone", || {
+            SessionFacade::put("secret", json!("data"));
+            let old_id = SessionFacade::id().expect("must be in scope");
+
+            SessionFacade::regenerate();
+            let new_id = SessionFacade::id().expect("must be in scope");
+
+            // Old id must be absent from the store (prevents replay / fixation).
+            let store = SESSIONS.read().unwrap();
+            assert!(
+                !store.contains_key(&old_id),
+                "old session id must be removed from the store after regeneration"
+            );
+            // New id must carry the data.
+            assert!(
+                store
+                    .get(&new_id)
+                    .map(|s| s.data.contains_key("secret"))
+                    .unwrap_or(false),
+                "new session id must hold the migrated data"
+            );
+        });
+    }
+
+    #[test]
+    fn test_regenerate_outside_scope_is_noop() {
+        // Must not panic or crash outside a session scope.
+        SessionFacade::regenerate();
     }
 }

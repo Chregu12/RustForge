@@ -64,52 +64,6 @@ pub trait SessionDriver: Send + Sync {
 }
 
 // ---------------------------------------------------------------------------
-// Cookie Session Driver
-// ---------------------------------------------------------------------------
-
-/// Cookie-based session driver (stores data in encrypted cookies)
-#[derive(Clone)]
-pub struct CookieSessionDriver {
-    // Cookie sessions store data in the cookie itself
-    // No server-side storage needed
-}
-
-impl CookieSessionDriver {
-    pub fn new() -> Self {
-        Self {}
-    }
-}
-
-impl Default for CookieSessionDriver {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-#[async_trait]
-impl SessionDriver for CookieSessionDriver {
-    async fn read(&self, _id: &str) -> SessionResult<HashMap<String, Value>> {
-        // Cookie data is passed directly, not looked up
-        Ok(HashMap::new())
-    }
-
-    async fn write(&self, _id: &str, _data: HashMap<String, Value>) -> SessionResult<()> {
-        // Cookie data is returned in response, not stored
-        Ok(())
-    }
-
-    async fn destroy(&self, _id: &str) -> SessionResult<()> {
-        // Cookie is cleared on client side
-        Ok(())
-    }
-
-    async fn gc(&self, _lifetime: Duration) -> SessionResult<usize> {
-        // No GC needed for cookie sessions
-        Ok(0)
-    }
-}
-
-// ---------------------------------------------------------------------------
 // Database Session Driver
 // ---------------------------------------------------------------------------
 
@@ -326,12 +280,6 @@ mod tests {
     use super::*;
 
     #[tokio::test]
-    async fn test_cookie_driver_creation() {
-        let driver = CookieSessionDriver::new();
-        assert!(driver.read("test").await.is_ok());
-    }
-
-    #[tokio::test]
     async fn test_database_driver_write_and_read() {
         let driver = DatabaseSessionDriver::new("sessions");
         let mut data = HashMap::new();
@@ -428,14 +376,6 @@ mod tests {
         // Destroy
         driver.destroy("test").await.unwrap();
         assert!(!driver.exists("test").await);
-    }
-
-    #[tokio::test]
-    async fn test_driver_gc() {
-        let driver = CookieSessionDriver::new();
-        let result = driver.gc(Duration::from_secs(3600)).await;
-        assert!(result.is_ok());
-        assert_eq!(result.unwrap(), 0);
     }
 
     #[tokio::test]
