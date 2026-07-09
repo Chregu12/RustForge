@@ -60,6 +60,11 @@ async fn handle_socket(socket: WebSocket, state: WsState) {
     // Subscribe to broadcast events
     let mut event_rx = state.broadcaster.subscribe_to_events();
 
+    // Control channel: lets the receive task push control frames (e.g. a
+    // `Subscribed` acknowledgement or a lag warning) back to this client
+    // through the single task that owns the WebSocket sink.
+    let (ctrl_tx, mut ctrl_rx) = tokio::sync::mpsc::unbounded_channel::<WsMessage>();
+
     // Clone connection_id for tasks
     let connection_id_clone = connection_id.clone();
     let connection_id_clone2 = connection_id.clone();
@@ -68,21 +73,71 @@ async fn handle_socket(socket: WebSocket, state: WsState) {
     let subscribed_channels = Arc::new(tokio::sync::Mutex::new(Vec::new()));
     let subscribed_channels_clone = subscribed_channels.clone();
 
-    // Spawn task to forward broadcast events to WebSocket
+    // Spawn task to forward broadcast events (and control frames) to WebSocket
     let broadcaster_clone = state.broadcaster.clone();
     let mut send_task = tokio::spawn(async move {
-        while let Ok(msg) = event_rx.recv().await {
-            // Only send if this connection is subscribed to the channel
-            if msg.connections.contains(&connection_id_clone) {
-                let ws_msg = WsMessage::Event {
-                    channel: msg.channel.name().to_string(),
-                    event: msg.event_name,
-                    data: serde_json::from_str(&msg.data).unwrap_or_default(),
-                };
+        loop {
+            tokio::select! {
+                // Control frames (acks, warnings) take priority so a client
+                // waiting on a `Subscribed` ack is unblocked promptly.
+                biased;
 
-                if let Ok(json) = serde_json::to_string(&ws_msg) {
-                    if sender.send(Message::Text(json.into())).await.is_err() {
-                        break;
+                ctrl = ctrl_rx.recv() => {
+                    match ctrl {
+                        Some(ws_msg) => {
+                            if let Ok(json) = serde_json::to_string(&ws_msg) {
+                                if sender.send(Message::Text(json.into())).await.is_err() {
+                                    break;
+                                }
+                            }
+                        }
+                        // Receive task is gone; nothing more to send.
+                        None => break,
+                    }
+                }
+
+                event = event_rx.recv() => {
+                    match event {
+                        Ok(msg) => {
+                            // Only send if this connection is subscribed to the channel
+                            if msg.connections.contains(&connection_id_clone) {
+                                let ws_msg = WsMessage::Event {
+                                    channel: msg.channel.name().to_string(),
+                                    event: msg.event_name,
+                                    data: serde_json::from_str(&msg.data).unwrap_or_default(),
+                                };
+
+                                if let Ok(json) = serde_json::to_string(&ws_msg) {
+                                    if sender.send(Message::Text(json.into())).await.is_err() {
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                        // A slow consumer fell behind the broadcast channel's ring
+                        // buffer. Do NOT drop the client: skip the missed events,
+                        // warn the client so it can resync, and keep receiving.
+                        // Exiting here would silently close the socket on a burst.
+                        Err(tokio::sync::broadcast::error::RecvError::Lagged(skipped)) => {
+                            tracing::warn!(
+                                connection_id = %connection_id_clone,
+                                skipped,
+                                "WebSocket consumer lagged; skipped events, continuing"
+                            );
+                            let warn = WsMessage::Error {
+                                message: format!(
+                                    "lagged: {skipped} event(s) skipped, please resync"
+                                ),
+                            };
+                            if let Ok(json) = serde_json::to_string(&warn) {
+                                if sender.send(Message::Text(json.into())).await.is_err() {
+                                    break;
+                                }
+                            }
+                            continue;
+                        }
+                        // Broadcaster dropped; no more events will ever arrive.
+                        Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
                     }
                 }
             }
@@ -107,6 +162,13 @@ async fn handle_socket(socket: WebSocket, state: WsState) {
                             {
                                 // Track subscription
                                 subscribed_channels_clone.lock().await.push(ch);
+
+                                // Acknowledge the subscription so a remote client
+                                // can deterministically wait for it to go live
+                                // instead of racing/sleeping before broadcasts.
+                                let _ = ctrl_tx.send(WsMessage::Subscribed {
+                                    channel: channel.clone(),
+                                });
 
                                 tracing::info!(
                                     connection_id = %connection_id_clone2,

@@ -154,6 +154,21 @@ mod tests {
         assert_eq!(n1, 2, "handler must register 2 room-1 subscriptions");
         let _ = wait_for_subs(&broadcaster, &room2, 1).await;
 
+        // Each subscriber now receives a deterministic `Subscribed` ack frame
+        // (no polling of the server-side broadcaster needed) BEFORE any events.
+        // Drain it so the event assertions below read the event frame.
+        let ack1 = recv_text(&mut c1).await;
+        let ack2 = recv_text(&mut c2).await;
+        let ack3 = recv_text(&mut c3).await;
+        for (name, ack) in [("c1", &ack1), ("c2", &ack2), ("c3", &ack3)] {
+            assert!(
+                ack.as_ref()
+                    .map(|s| s.contains("\"subscribed\""))
+                    .unwrap_or(false),
+                "{name} must receive a Subscribed ack before events, got {ack:?}"
+            );
+        }
+
         // Broadcast from an independent code path.
         let event = SimpleEvent::new(
             "message.posted",
