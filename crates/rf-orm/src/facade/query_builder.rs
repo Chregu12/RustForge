@@ -1368,7 +1368,7 @@ impl QueryBuilder {
         // The search attributes are the WHERE filter for the update.
         if let Value::Object(map) = &search_value {
             for (key, value) in map {
-                self = self.where_clause(key.clone(), "=", value.clone());
+                self = self.where_op(key.clone(), "=", value.clone());
             }
         }
 

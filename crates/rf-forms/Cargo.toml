@@ -25,5 +25,12 @@ chrono.workspace = true
 
 rf-plugins = { path = "../rf-plugins" }
 
+# Async form request support (optional)
+async-trait = { workspace = true, optional = true }
+
+[features]
+# Enables the AsyncFormRequest trait for async authorization/validation.
+async = ["dep:async-trait"]
+
 [dev-dependencies]
 tokio.workspace = true

@@ -43,6 +43,10 @@ chrono = "0.4"
 # RustForge
 rf-cli-gen = { path = "../rf-cli-gen" }
 
+[features]
+# Surfaces the queued-mail scaffolding hint (rf-mail "queue" feature).
+queue = []
+
 [dev-dependencies]
 tempfile = "3.8"
 assert_cmd = "2.0"

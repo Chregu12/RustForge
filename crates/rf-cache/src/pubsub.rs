@@ -81,13 +81,12 @@ impl RedisPubSub {
         &self,
         channel: &str,
     ) -> Result<mpsc::UnboundedReceiver<PubSubMessage>, CacheError> {
-        let conn = redis::Client::open(self.redis_url.as_str())
+        let mut pubsub = redis::Client::open(self.redis_url.as_str())
             .map_err(|e| CacheError::Backend(format!("Redis connect: {e}")))?
-            .get_async_connection()
+            .get_async_pubsub()
             .await
             .map_err(|e| CacheError::Backend(format!("Redis subscribe conn: {e}")))?;
 
-        let mut pubsub = conn.into_pubsub();
         pubsub
             .subscribe(channel)
             .await
@@ -129,13 +128,12 @@ impl RedisPubSub {
         &self,
         pattern: &str,
     ) -> Result<mpsc::UnboundedReceiver<PubSubMessage>, CacheError> {
-        let conn = redis::Client::open(self.redis_url.as_str())
+        let mut pubsub = redis::Client::open(self.redis_url.as_str())
             .map_err(|e| CacheError::Backend(format!("Redis connect: {e}")))?
-            .get_async_connection()
+            .get_async_pubsub()
             .await
             .map_err(|e| CacheError::Backend(format!("Redis psubscribe conn: {e}")))?;
 
-        let mut pubsub = conn.into_pubsub();
         pubsub
             .psubscribe(pattern)
             .await

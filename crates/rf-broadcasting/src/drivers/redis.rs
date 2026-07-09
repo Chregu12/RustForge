@@ -138,12 +138,10 @@ impl RedisSubscriber {
         let client =
             redis::Client::open(self.redis_url.clone()).map_err(|e| BroadcastError::Redis(e))?;
 
-        let conn = client
-            .get_async_connection()
+        let mut pubsub = client
+            .get_async_pubsub()
             .await
             .map_err(|e| BroadcastError::Redis(e))?;
-
-        let mut pubsub = conn.into_pubsub();
 
         // Subscribe to all channels
         for channel in &channels {
