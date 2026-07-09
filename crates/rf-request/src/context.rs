@@ -37,15 +37,63 @@ fn with_ctx<R>(f: impl FnOnce(&RequestContext) -> R) -> Option<R> {
     CURRENT_REQUEST.try_with(|ctx| f(ctx)).ok()
 }
 
+/// Deserialize a stored field [`Value`] into `T`, coercing a `Value::String`
+/// holding a numeric/bool literal into the requested scalar when a *direct*
+/// deserialize fails.
+///
+/// Query and form fields are always stored as `Value::String` (the urlencoded
+/// wire format is untyped — see `extractors.rs`), so `input::<usize>("page")`
+/// for `?page=2` would otherwise return `None` even though `input::<i64>("id")`
+/// works for the `/posts/{id}` path param (which IS coerced at capture time).
+/// This applies the SAME coercion uniformly to query, form and path fields when
+/// read through the typed helpers.
+///
+/// String targets keep the raw string (the direct deserialize wins first), and a
+/// non-numeric value like `?page=abc` for a numeric `T` yields `None`, never a
+/// panic.
+pub(crate) fn coerce_value<T: DeserializeOwned>(v: &Value) -> Option<T> {
+    // Fast path: the value already deserializes into `T` — numbers/bools from a
+    // JSON body or a coerced path param, and real strings for `input::<String>`.
+    if let Ok(t) = serde_json::from_value::<T>(v.clone()) {
+        return Some(t);
+    }
+    // Coercion path: the field is a string holding a scalar literal. Try the
+    // common scalar JSON shapes in turn and let `T`'s own deserializer accept
+    // the one that matches (e.g. `"2"` → i64 `2` → `usize`, `"true"` → bool).
+    if let Value::String(s) = v {
+        if let Ok(i) = s.parse::<i64>() {
+            if let Ok(t) = serde_json::from_value::<T>(Value::from(i)) {
+                return Some(t);
+            }
+        }
+        // `u64` covers positive integers above `i64::MAX`.
+        if let Ok(u) = s.parse::<u64>() {
+            if let Ok(t) = serde_json::from_value::<T>(Value::from(u)) {
+                return Some(t);
+            }
+        }
+        if let Ok(f) = s.parse::<f64>() {
+            if let Ok(t) = serde_json::from_value::<T>(Value::from(f)) {
+                return Some(t);
+            }
+        }
+        if let Ok(b) = s.parse::<bool>() {
+            if let Ok(t) = serde_json::from_value::<T>(Value::Bool(b)) {
+                return Some(t);
+            }
+        }
+    }
+    None
+}
+
 /// Get a field from the current request (query or body). `None` outside a request
 /// scope, or when the key is absent / cannot deserialize to `T`.
+///
+/// String query/form fields are coerced into the requested numeric/bool scalar
+/// (so `input::<usize>("page")` reads `?page=2` as `Some(2)`), matching how path
+/// params already coerce; `input::<String>` still returns the raw string.
 pub fn input<T: DeserializeOwned>(key: &str) -> Option<T> {
-    with_ctx(|c| {
-        c.fields
-            .get(key)
-            .and_then(|v| serde_json::from_value(v.clone()).ok())
-    })
-    .flatten()
+    with_ctx(|c| c.fields.get(key).and_then(coerce_value)).flatten()
 }
 
 /// True if the current request has a field named `key`.
@@ -206,6 +254,50 @@ mod tests {
             path_param_value("99999999999999999999"),
             Value::String("99999999999999999999".into())
         );
+    }
+
+    #[test]
+    fn test_coerce_value_string_scalars() {
+        // String query/form fields coerce into the requested numeric/bool scalar.
+        assert_eq!(coerce_value::<usize>(&Value::String("2".into())), Some(2));
+        assert_eq!(coerce_value::<i64>(&Value::String("-12".into())), Some(-12));
+        assert_eq!(coerce_value::<f64>(&Value::String("1.5".into())), Some(1.5));
+        assert_eq!(coerce_value::<bool>(&Value::String("true".into())), Some(true));
+        // A very large positive integer (above i64::MAX) coerces via u64.
+        assert_eq!(
+            coerce_value::<u64>(&Value::String("18446744073709551615".into())),
+            Some(u64::MAX)
+        );
+        // String target keeps the raw string, never the parsed number.
+        assert_eq!(
+            coerce_value::<String>(&Value::String("2".into())),
+            Some("2".to_string())
+        );
+        // Non-numeric value for a numeric target is None (no panic).
+        assert_eq!(coerce_value::<usize>(&Value::String("abc".into())), None);
+        // Already-typed JSON numbers (from a JSON body / path param) still work.
+        assert_eq!(coerce_value::<usize>(&Value::from(7_i64)), Some(7));
+    }
+
+    #[tokio::test]
+    async fn test_input_coerces_query_string_fields() {
+        let mut fields = HashMap::new();
+        fields.insert("page".to_string(), Value::String("2".into()));
+        fields.insert("active".to_string(), Value::String("true".into()));
+        fields.insert("name".to_string(), Value::String("rust".into()));
+        fields.insert("bad".to_string(), Value::String("abc".into()));
+        let ctx = Arc::new(RequestContext { fields, files: HashMap::new() });
+
+        with_request_context(ctx, async {
+            assert_eq!(input::<usize>("page"), Some(2));
+            assert_eq!(input::<bool>("active"), Some(true));
+            assert_eq!(input::<String>("name"), Some("rust".to_string()));
+            // Raw string still available even for a numeric-looking field.
+            assert_eq!(input::<String>("page"), Some("2".to_string()));
+            // Non-numeric coercion target: None, not a panic.
+            assert_eq!(input::<usize>("bad"), None);
+        })
+        .await;
     }
 
     #[tokio::test]

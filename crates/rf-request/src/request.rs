@@ -83,7 +83,9 @@ impl Request {
     /// let age: u32 = request.get("age").unwrap();
     /// ```
     pub fn get<T: DeserializeOwned>(&self, key: &str) -> Option<T> {
-        self.fields.get(key).and_then(|v| serde_json::from_value(v.clone()).ok())
+        // Coerce string query/form fields into the requested scalar (shared with
+        // the global `input()` helper) so `get::<usize>("page")` reads `?page=2`.
+        self.fields.get(key).and_then(crate::context::coerce_value)
     }
 
     /// Get a field or return an error if not found
