@@ -101,12 +101,43 @@ impl RateLimiter for MemoryRateLimiter {
         Ok(())
     }
 
+    /// Peek at the current rate-limit state **without** consuming quota.
+    ///
+    /// Unlike `check`, `info` does NOT add a timestamp entry.  It only prunes
+    /// expired timestamps (harmless housekeeping) and returns the current
+    /// remaining capacity.  Calling `info` any number of times does not affect
+    /// how many real requests the client can make.
     async fn info(&self, key: &str) -> Result<LimitInfo, RateLimitError> {
-        let result = self.check(key).await?;
+        let full_key = format!("{}:{}", self.config.key_prefix, key);
+        let now = chrono::Utc::now();
+        let window_start = now
+            - chrono::Duration::from_std(self.config.window)
+                .map_err(|_| RateLimitError::InvalidConfig("Invalid window duration".into()))?;
+
+        let mut state = self.state.lock().unwrap();
+        let timestamps = state.entry(full_key).or_insert_with(Vec::new);
+
+        // Prune expired entries (housekeeping — no new timestamp is recorded).
+        timestamps.retain(|&ts| ts > window_start.timestamp_millis());
+
+        let count = timestamps.len() as u64;
+        let remaining = self.config.max_requests.saturating_sub(count);
+
+        let reset_at = now
+            + chrono::Duration::from_std(self.config.window)
+                .map_err(|_| RateLimitError::InvalidConfig("Invalid window duration".into()))?;
+
+        tracing::debug!(
+            key = %key,
+            remaining = %remaining,
+            count = %count,
+            "Rate limit info (peek, non-mutating)"
+        );
+
         Ok(LimitInfo {
-            limit: result.limit,
-            remaining: result.remaining,
-            reset_at: result.reset_at,
+            limit: self.config.max_requests,
+            remaining,
+            reset_at,
         })
     }
 }
@@ -202,19 +233,30 @@ mod tests {
         assert_eq!(limiter.key_count(), 0);
     }
 
+    /// Fix (2): info() must be a non-mutating peek — calling it must NOT consume quota.
     #[tokio::test]
-    async fn test_memory_rate_limiter_info() {
+    async fn test_memory_rate_limiter_info_non_destructive() {
         let config = RateLimitConfig::per_minute(10);
         let limiter = MemoryRateLimiter::new(config);
 
-        // Make some requests
+        // Consume 3 slots.
         for _ in 0..3 {
             limiter.check("test").await.unwrap();
         }
 
-        // Get info (doesn't increment)
+        // info() is a non-destructive peek: remaining = 10 - 3 = 7.
         let info = limiter.info("test").await.unwrap();
         assert_eq!(info.limit, 10);
-        assert_eq!(info.remaining, 6); // 10 - 3 - 1 (from info check)
+        assert_eq!(info.remaining, 7, "info() must not consume a slot");
+
+        // Calling info() again must not change remaining.
+        let info2 = limiter.info("test").await.unwrap();
+        assert_eq!(info2.remaining, 7, "info() must be idempotent");
+
+        // A subsequent check() still sees only 3 consumed; it returns remaining=6
+        // (10 - 3 consumed - 1 for this check).
+        let result = limiter.check("test").await.unwrap();
+        assert!(result.allowed, "quota was not consumed by info() calls");
+        assert_eq!(result.remaining, 6);
     }
 }
