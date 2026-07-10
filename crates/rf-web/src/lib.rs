@@ -57,7 +57,10 @@ pub mod versioning;
 pub use csrf::{
     csrf_field, csrf_meta, csrf_token, CsrfConfig, CsrfLayer, CsrfMiddleware, CsrfToken,
 };
-pub use middleware::{compression_layer, cors_layer, timeout_layer, tracing_layer, CorsConfig};
+pub use middleware::{
+    compression_layer, cors_layer, security_headers_layer, timeout_layer, tracing_layer,
+    CorsConfig, HstsConfig, SecurityHeadersConfig, SecurityHeadersLayer, SecurityHeadersService,
+};
 pub use router::RouterBuilder;
 pub use session::{Session, SessionConfig, SessionDriver};
 pub use session_facade::{in_session_scope, session_scope, SessionFacade};
