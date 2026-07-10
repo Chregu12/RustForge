@@ -68,7 +68,7 @@ pub async fn websocket_handler(ws: WebSocketUpgrade, State(_state): State<AppSta
 /// use axum::{Router, routing::get};
 /// use rf_api::websocket::handler::websocket_channel_handler;
 ///
-/// let app = Router::new().route("/ws/:channel", get(websocket_channel_handler));
+/// let app = Router::new().route("/ws/{channel}", get(websocket_channel_handler));
 /// ```
 pub async fn websocket_channel_handler(
     ws: WebSocketUpgrade,

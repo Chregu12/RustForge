@@ -145,13 +145,20 @@ pub use facade::{
     sanctum::Sanctum,
 };
 
+// Dependency re-exports so callers do not need direct sea-orm / axum dev deps.
+// Callers implementing LoadFromToken or custom extractors can use:
+//   rf_sanctum::DatabaseConnection  (sea_orm::DatabaseConnection)
+//   rf_sanctum::FromRequestParts    (axum::extract::FromRequestParts)
+pub use sea_orm::DatabaseConnection;
+pub use axum::extract::FromRequestParts;
+
 /// Prelude module for convenient imports
 pub mod prelude {
     pub use crate::{
-        Ability, AbilityChecker, AuthMethod, HashAlgorithm, LoadFromToken, NewToken,
-        PersonalAccessToken, PersonalAccessTokenModel, SanctumAuth, SanctumConfig, SanctumError,
-        SanctumGuard, TokenRepository, TokenStats, Tokenable, TransientTokenBuilder,
-        TransientTokenStore,
+        Ability, AbilityChecker, AuthMethod, DatabaseConnection, FromRequestParts, HashAlgorithm,
+        LoadFromToken, NewToken, PersonalAccessToken, PersonalAccessTokenModel, SanctumAuth,
+        SanctumConfig, SanctumError, SanctumGuard, TokenRepository, TokenStats, Tokenable,
+        TransientTokenBuilder, TransientTokenStore,
     };
 }
 

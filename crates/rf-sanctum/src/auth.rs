@@ -17,6 +17,7 @@ use sea_orm::DatabaseConnection;
 ///     Json(user)
 /// }
 /// ```
+#[derive(Debug)]
 pub struct SanctumAuth<T>(pub T, pub PersonalAccessToken);
 
 /// Trait for loading a user from a token
