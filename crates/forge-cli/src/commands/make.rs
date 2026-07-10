@@ -1000,49 +1000,55 @@ pub async fn middleware(name: &str) -> Result<()> {
 // Content generators for new make commands
 
 fn generate_request_content(request_name: &str) -> Result<String> {
-    let template = r#"use rf_validation::{Validator, ValidationRule};
+    let template = r#"use rf_validation::{Rule, ValidationErrors, Validator};
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::collections::HashMap;
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct {{request_name}} {
-    // Add your fields here
+    // TODO: Add your request fields here.
+    // Example:
+    // pub email: String,
+    // pub name: String,
 }
 
 impl {{request_name}} {
-    /// Validate the request data
-    pub fn validate(&self) -> Result<(), Vec<String>> {
-        let mut validator = Validator::new();
-        let rules = self.rules();
+    /// Validate the request data against the rules defined in `build_rules`.
+    pub async fn validate(&self) -> Result<(), ValidationErrors> {
+        let data: HashMap<String, Value> =
+            serde_json::from_value(serde_json::to_value(self).unwrap_or_default())
+                .unwrap_or_default();
 
-        // TODO: Add validation logic
-        // Example:
-        // validator.validate("field_name", &self.field, &rules.get("field_name").unwrap())?;
-
-        if validator.has_errors() {
-            return Err(validator.errors());
-        }
-
-        Ok(())
+        let mut validator = Validator::new(data);
+        validator.rules(self.build_rules());
+        validator.validate().await.map(|_| ())
     }
 
-    /// Authorization logic
+    /// Returns true if the requesting user is authorized to make this request.
     pub fn authorize(&self) -> bool {
-        // TODO: Implement authorization logic
-        // Return true if the user is authorized to make this request
+        // TODO: Replace with real authorization logic.
         true
     }
 
-    /// Validation rules
-    fn rules(&self) -> HashMap<String, Vec<ValidationRule>> {
-        let mut rules = HashMap::new();
+    /// Validation rules for each field.
+    ///
+    /// Insert one entry per field that should be validated. Available rules live
+    /// in `rf_validation::rules` (e.g. `RequiredRule`, `EmailRule`, `StringRule`,
+    /// `MinLengthRule`, `MaxLengthRule`, `IntegerRule`, …).
+    fn build_rules(&self) -> HashMap<&str, Vec<Box<dyn Rule>>> {
+        let mut rules: HashMap<&str, Vec<Box<dyn Rule>>> = HashMap::new();
 
-        // TODO: Add validation rules
+        // TODO: Add validation rules.
         // Example:
-        // rules.insert("email".to_string(), vec![
-        //     ValidationRule::Required,
-        //     ValidationRule::Email,
-        // ]);
+        //   use rf_validation::rules::{RequiredRule, EmailRule};
+        //   rules.insert("email", vec![
+        //       Box::new(RequiredRule) as Box<dyn Rule>,
+        //       Box::new(EmailRule),
+        //   ]);
+        //   rules.insert("name", vec![
+        //       Box::new(RequiredRule) as Box<dyn Rule>,
+        //   ]);
 
         rules
     }
@@ -1052,13 +1058,13 @@ impl {{request_name}} {
 mod tests {
     use super::*;
 
-    #[test]
-    fn test_validation() {
+    #[tokio::test]
+    async fn test_validation() {
         let request = {{request_name}} {
-            // Add test data
+            // TODO: Add test field values here.
         };
 
-        assert!(request.validate().is_ok());
+        assert!(request.validate().await.is_ok());
     }
 }
 "#;
