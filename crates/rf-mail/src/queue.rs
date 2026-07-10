@@ -11,6 +11,30 @@ use serde::{Deserialize, Serialize};
 #[cfg(feature = "queue")]
 use std::sync::Arc;
 
+/// Outcome summary returned by [`MailQueue::process_report`].
+///
+/// Counts how many mail jobs in a single drain pass either delivered
+/// successfully or were permanently dead-lettered after exhausting retries.
+/// `delivered + dead_lettered` equals the number of jobs that were pending
+/// in the queue at the start of the drain (ignoring any delayed jobs not yet
+/// due).
+///
+/// # Backend note
+///
+/// `dead_lettered` is derived from the queue's
+/// [`failed()`](rf_queue::Queue::failed) list. Backends that do not track
+/// failed jobs (those that return an empty default) will always report
+/// `dead_lettered = 0`; use the in-memory backend (or a backend that
+/// overrides `failed()`) for accurate dead-letter counts.
+#[cfg(feature = "queue")]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DeliveryReport {
+    /// Number of mail jobs that delivered successfully in this drain pass.
+    pub delivered: usize,
+    /// Number of mail jobs that exhausted retries and were dead-lettered.
+    pub dead_lettered: usize,
+}
+
 #[cfg(feature = "queue")]
 /// Mail queue for background sending.
 ///
@@ -46,6 +70,23 @@ impl MailQueue {
     /// For convenience dispatch onto the process-global default queue (e.g.
     /// from [`Mailable::queue`](crate::Mailable::queue)), see
     /// [`push_global`](Self::push_global).
+    ///
+    /// # Async signature, synchronous bridge
+    ///
+    /// This method is declared `async` for consistency with the surrounding
+    /// async interface, but the actual enqueue step is **synchronous** inside:
+    /// [`rf_queue::dispatch`] drives the queue's `push` future on a dedicated
+    /// [`AsyncBridge`](rf_async_bridge::AsyncBridge) thread rather than the
+    /// Tokio thread pool. This design means:
+    ///
+    /// - **Safe from inside any Tokio runtime** — calling `push().await` from
+    ///   an Axum handler, a spawned task, or `#[tokio::main]` will never panic
+    ///   with "cannot start a runtime from within a runtime".
+    /// - The bridge incurs a brief cross-thread round-trip. For very
+    ///   high-throughput enqueue paths, wrapping in
+    ///   `tokio::task::spawn_blocking` avoids holding a Tokio worker while the
+    ///   bridge completes, though in practice the overhead is negligible for
+    ///   single-message dispatches.
     pub async fn push(&self, mail: Mail) -> Result<(), MailError> {
         dispatch(Arc::clone(&self.queue), SendMailJob { mail })
             .map_err(|e| MailError::SendFailed(format!("failed to enqueue mail job: {e}")))?;
@@ -78,7 +119,59 @@ impl MailQueue {
     /// transport is used for real, not just held. Register a real
     /// [`FileMailer`](crate::FileMailer)/SMTP mailer and every drained message is
     /// delivered through it.
+    ///
+    /// Returns `Ok(())` when the drain loop completes, regardless of how many
+    /// individual jobs were delivered vs. dead-lettered. Use
+    /// [`process_report`](Self::process_report) when you need to distinguish
+    /// successful deliveries from permanently-failed (dead-lettered) ones.
     pub async fn process(&self) -> Result<(), MailError> {
+        self.process_report().await?;
+        Ok(())
+    }
+
+    /// Process queued emails and return a [`DeliveryReport`] with outcome counts.
+    ///
+    /// Drains every currently-pending [`SendMailJob`] exactly like
+    /// [`process`](Self::process) does, but returns a [`DeliveryReport`]
+    /// distinguishing jobs that **delivered** successfully from those that
+    /// **dead-lettered** after exhausting retries.
+    ///
+    /// # Counting method
+    ///
+    /// The counts are derived from the queue backend:
+    ///
+    /// - `total_pending` = `queue.size("mail")` sampled **before** the drain.
+    /// - `dead_lettered` = growth in `queue.failed()` across the drain.
+    /// - `delivered` = `total_pending - dead_lettered`.
+    ///
+    /// Jobs that are still being retried at the time `process_report` is called
+    /// are processed to completion (delivered or dead-lettered) before the
+    /// drain loop exits, so every initially-pending job is accounted for in
+    /// exactly one of the two counters.
+    ///
+    /// # Backend note
+    ///
+    /// Backends that do not override [`Queue::failed`](rf_queue::Queue::failed)
+    /// always return an empty list; on those backends `dead_lettered` will be
+    /// reported as `0` even when jobs exhaust retries. The in-memory
+    /// [`rf_queue::MemoryQueue`] fully tracks the dead-letter list and produces
+    /// accurate counts.
+    pub async fn process_report(&self) -> Result<DeliveryReport, MailError> {
+        // Snapshot the pending count and the failed-jobs baseline BEFORE the drain
+        // so we can compute deltas after the loop exits.
+        let total_pending = self
+            .queue
+            .size("mail")
+            .await
+            .map_err(|e| MailError::SendFailed(format!("queue.size failed: {e}")))?;
+
+        let before_failed = self
+            .queue
+            .failed()
+            .await
+            .map_err(|e| MailError::SendFailed(format!("queue.failed failed: {e}")))?
+            .len();
+
         let mailer = Arc::clone(&self.mailer);
         let worker = Worker::new(Arc::clone(&self.queue))
             .queues(vec!["mail".to_string()])
@@ -96,7 +189,20 @@ impl MailQueue {
             .await
             .map_err(|e| MailError::SendFailed(e.to_string()))?
         {}
-        Ok(())
+
+        // Count newly dead-lettered jobs (those that were added to failed() by
+        // this drain run).
+        let after_failed = self
+            .queue
+            .failed()
+            .await
+            .map_err(|e| MailError::SendFailed(format!("queue.failed failed: {e}")))?
+            .len();
+
+        let dead_lettered = after_failed.saturating_sub(before_failed);
+        let delivered = total_pending.saturating_sub(dead_lettered);
+
+        Ok(DeliveryReport { delivered, dead_lettered })
     }
 }
 
@@ -331,6 +437,125 @@ mod tests {
         assert!(body.contains("Test"), "eml must carry the mail subject: {body}");
 
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// `process_report()` must return the correct `delivered` and `dead_lettered`
+    /// counts for a mixed-outcome batch: some mails succeed, some exhaust retries
+    /// and land in the dead-letter list.
+    ///
+    /// The key regression being guarded: `process()` previously returned `Ok(())`
+    /// with no indication of partial failure; callers had to separately call
+    /// `queue.failed()` to detect dead letters.  Now `process_report()` surfaces
+    /// the outcome directly, and `process()` delegates to it so the drain logic
+    /// lives in exactly one place.
+    #[tokio::test]
+    async fn test_process_report_mixed_delivery() {
+        use crate::{Mail, MailBody, MailError, Mailer};
+        use async_trait::async_trait;
+        use rf_queue::{MemoryQueue, Queue};
+        use std::sync::atomic::{AtomicUsize, Ordering};
+
+        // A mailer that fails for any mail whose subject starts with "FAIL:".
+        // Deterministic: the same subject always produces the same outcome, so
+        // retries of a "FAIL:" job always fail until it is dead-lettered.
+        struct SubjectFilterMailer {
+            delivered: Arc<AtomicUsize>,
+        }
+
+        #[async_trait]
+        impl Mailer for SubjectFilterMailer {
+            async fn send(&self, mail: Mail) -> Result<(), MailError> {
+                if mail.subject.starts_with("FAIL:") {
+                    Err(MailError::SendFailed(
+                        "simulated delivery failure".into(),
+                    ))
+                } else {
+                    self.delivered.fetch_add(1, Ordering::Relaxed);
+                    Ok(())
+                }
+            }
+        }
+
+        let delivered_counter = Arc::new(AtomicUsize::new(0));
+        let mailer: Arc<dyn Mailer> = Arc::new(SubjectFilterMailer {
+            delivered: Arc::clone(&delivered_counter),
+        });
+
+        let queue: Arc<dyn Queue> = Arc::new(MemoryQueue::new());
+        let mq = MailQueue::new(Arc::clone(&queue), mailer);
+
+        // Push 3 mails that will deliver and 2 that will always fail (dead-letter).
+        let mut good_subjects = vec!["Good #1", "Good #2", "Good #3"];
+        let mut fail_subjects = vec!["FAIL: #1", "FAIL: #2"];
+        for subject in good_subjects.drain(..) {
+            mq.push(Mail {
+                id: uuid::Uuid::new_v4().to_string(),
+                to: vec![Address::new("to@example.com")],
+                cc: vec![],
+                bcc: vec![],
+                from: Address::new("from@example.com"),
+                reply_to: None,
+                subject: subject.into(),
+                body: MailBody::Text("body".into()),
+                attachments: vec![],
+            })
+            .await
+            .unwrap();
+        }
+        for subject in fail_subjects.drain(..) {
+            mq.push(Mail {
+                id: uuid::Uuid::new_v4().to_string(),
+                to: vec![Address::new("to@example.com")],
+                cc: vec![],
+                bcc: vec![],
+                from: Address::new("from@example.com"),
+                reply_to: None,
+                subject: subject.into(),
+                body: MailBody::Text("body".into()),
+                attachments: vec![],
+            })
+            .await
+            .unwrap();
+        }
+
+        // Drain and observe the outcome report.
+        let report = mq.process_report().await.expect("process_report must not error");
+
+        assert_eq!(
+            report.delivered, 3,
+            "3 good mails must be reported as delivered (got {})",
+            report.delivered
+        );
+        assert_eq!(
+            report.dead_lettered, 2,
+            "2 always-failing mails must be reported as dead-lettered (got {})",
+            report.dead_lettered
+        );
+
+        // Cross-check: the mailer's own counter must agree with the report.
+        assert_eq!(
+            delivered_counter.load(Ordering::Relaxed),
+            3,
+            "mailer's internal counter must match report.delivered"
+        );
+
+        // Cross-check: queue.failed() must list the same 2 dead-lettered jobs.
+        let failed = queue.failed().await.unwrap();
+        assert_eq!(
+            failed.len(),
+            2,
+            "queue.failed() must hold the 2 dead-lettered jobs; report.dead_lettered \
+             must match (report={}, queue.failed={})",
+            report.dead_lettered,
+            failed.len()
+        );
+
+        // The queue is fully drained.
+        assert_eq!(
+            queue.size("mail").await.unwrap(),
+            0,
+            "queue must be empty after process_report()"
+        );
     }
 
     /// Regression: multiple MailQueue instances operating CONCURRENTLY must NEVER
