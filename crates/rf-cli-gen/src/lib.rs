@@ -72,6 +72,8 @@ pub struct TemplateData {
     pub snake_name: String,
     /// Pascal case name
     pub pascal_name: String,
+    /// Lowercased plural name (e.g. "posts" for "Post")
+    pub plural_name: String,
     /// Timestamp
     pub timestamp: String,
     /// Custom data
@@ -86,11 +88,13 @@ impl TemplateData {
         let snake_name = to_snake_case(&name);
         // Convert via snake_case to properly handle PascalCase input
         let pascal_name = to_pascal_case(&snake_name);
+        let plural_name = to_plural(&snake_name);
 
         Self {
             name,
             snake_name,
             pascal_name,
+            plural_name,
             timestamp: chrono::Utc::now().to_rfc3339(),
             custom: config.data.clone(),
         }
@@ -188,7 +192,7 @@ impl ControllerGenerator {
 //! Generated at {{timestamp}}
 
 use axum::{
-    routing::{get, post, put, delete},
+    routing::get,
     Router, Json, extract::Path,
 };
 use serde::{Deserialize, Serialize};
@@ -201,8 +205,8 @@ pub struct {{pascal_name}}Response {
 
 pub fn {{snake_name}}_routes() -> Router {
     Router::new()
-        .route("/{{name}}", get(index).post(store))
-        .route("/{{name}}/{id}", get(show).put(update).delete(destroy))
+        .route("/{{plural_name}}", get(index).post(store))
+        .route("/{{plural_name}}/{id}", get(show).put(update).delete(destroy))
 }
 
 /// List all {{name}}s
@@ -339,6 +343,60 @@ impl Default for TestGenerator {
 
 /// Utility functions
 
+/// Produce a simple English plural of an already-snake_case word.
+/// Handles the most common cases (e.g. post → posts, category → categories).
+fn to_plural(s: &str) -> String {
+    if s.is_empty() {
+        return s.to_string();
+    }
+
+    // Irregular plurals
+    let irregulars: &[(&str, &str)] = &[
+        ("person", "people"),
+        ("child", "children"),
+        ("man", "men"),
+        ("woman", "women"),
+        ("tooth", "teeth"),
+        ("foot", "feet"),
+        ("mouse", "mice"),
+        ("goose", "geese"),
+    ];
+    let lower = s.to_lowercase();
+    for (singular, plural) in irregulars {
+        if lower == *singular {
+            return plural.to_string();
+        }
+    }
+
+    // Already ends with 's' (but not 'ss')
+    if lower.ends_with('s') && !lower.ends_with("ss") {
+        return s.to_string();
+    }
+
+    // ch / sh / ss / x / z → +es
+    if lower.ends_with("ch")
+        || lower.ends_with("sh")
+        || lower.ends_with("ss")
+        || lower.ends_with('x')
+        || lower.ends_with('z')
+    {
+        return format!("{}es", s);
+    }
+
+    // consonant + y → -y +ies
+    if lower.ends_with('y') {
+        if let Some(before_y) = lower.chars().rev().nth(1) {
+            if !"aeiou".contains(before_y) {
+                let stem = &s[..s.len() - 1];
+                return format!("{}ies", stem);
+            }
+        }
+    }
+
+    // Default: +s
+    format!("{}s", s)
+}
+
 fn to_snake_case(s: &str) -> String {
     let mut result = String::new();
     let mut prev_upper = false;
@@ -443,6 +501,9 @@ mod tests {
         assert!(path.exists());
         let content = fs::read_to_string(&path).await.unwrap();
         assert!(content.contains("post_routes"));
+        // Route URL must be lowercase plural REST path, not the raw Pascal-case name
+        assert!(content.contains("\"/posts\""), "route should be /posts, got:\n{}", content);
+        assert!(!content.contains("\"/Post\""), "route must not use Pascal-case /Post");
     }
 
     #[tokio::test]

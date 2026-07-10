@@ -104,8 +104,7 @@ mod tests {
     const CONTROLLER_TEMPLATE: &'static str = r#"//! {{name}} controller
 
 use axum::{
-    extract::{Path, State, Json},
-    http::StatusCode,
+    extract::{Path, Json},
     response::IntoResponse,
 };
 use serde_json::json;
@@ -156,11 +155,11 @@ mod tests {
     const CONTROLLER_RESOURCE_TEMPLATE: &'static str = r#"//! {{name}} resource controller
 
 use axum::{
-    extract::{Path, State, Json},
+    extract::{Path, Json},
     http::StatusCode,
     response::IntoResponse,
 };
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use serde_json::json;
 
 /// Create {{model_name}} request
@@ -302,7 +301,6 @@ enum {{table_name}} {
 
     const SERVICE_TEMPLATE: &'static str = r#"//! {{name}} service
 
-use std::sync::Arc;
 use async_trait::async_trait;
 use anyhow::Result;
 
