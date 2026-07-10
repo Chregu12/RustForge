@@ -798,3 +798,16 @@ Round-3 convergence-confirmation: an independent adversarial concurrency hammer 
 - The documented Rust language ceilings remain (visible `Result`/`?`; `::` vs `.`; eager-only bare relation fields) — boundaries, not bugs.
 
 The engine and the four pillars are real; the failure paths are handled; the surfaces compose; docs are honest; 0 warnings; example + probe coverage guards each surface. This is an honest "production-usable across the breadth" bar met — not a formally certified 1.0, but no known blocker/major remains from repeated real-app building.
+
+### Production loop — re-eval round 4 (ops/security) + fixes (commits `4d1d1079`…`824129ab`)
+
+Round 4 opened the never-before-stressed OPS/SECURITY surfaces (token auth, rate limiting, CORS, security headers, observability, health, metrics) — they were a step behind the converged web/data surfaces: real cores but leaky failure/production paths (3 blockers + ~7 major). ALL fixed:
+- **axum 0.8 route panic (blocker, a migration miss):** `rf-api` websocket + `rf-horizon`/`rf-cli-gen` still had axum-0.7 `:param` route strings → panic at router construction under 0.8. Swept + converted all 11 to `{param}`. Probe `axum08_route_params`.
+- **rf-sanctum token auth (blocker):** the Axum extractors hard-required Postgres and `allow_transient_tokens` was theatre → now DB-free/transient token auth works (verify against the TransientTokenStore when no DB), and auth errors return a **JSON envelope** (was text/plain). 43 tests.
+- **Security headers (blocker):** the sub-surface was entirely absent → real opt-in `SecurityHeadersLayer` (nosniff / X-Frame-Options / Referrer-Policy defaults, HSTS+CSP configurable). Probe `security_headers`.
+- **Rate limit:** 429 now **application/json** (was text/plain), `info()` is a non-destructive peek (was consuming quota), default key is now **per-client IP** (was one shared global bucket). Probe `rate_limiting`.
+- **Observability correctness:** real trace/log correlation (reads the OTel span context → non-null trace/span ids; was a permanent stub), **fail-closed** default health checkers (were reporting healthy without probing), unified Prometheus registry (was silently omitting HTTP timings), config honored + idempotent init.
+- **Health consolidation:** resolved the `HealthCheck` struct-vs-trait name collision between rf-observability and rf-health (both importable now); `Degraded` can surface as **503** for readiness (was 200).
+- **Mail residuals:** `MailQueue::process_report()` gives observable delivered/dead-lettered counts; async-push layering documented.
+
+**Verified:** `cargo check --workspace` default AND `--all-features` **0 warnings**; rf-sanctum 43 / rf-web 73 / rf-ratelimit 13 / rf-observability / rf-health / rf-mail 79 / rf-metrics tests green; probes axum08_route_params / security_headers / rate_limiting / mail_notify_gaps green. The ops/security surfaces are now at parity with the rest; loop continues with a round-5 confirmation.
