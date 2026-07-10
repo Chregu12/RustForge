@@ -118,9 +118,14 @@ async fn liveness_handler(State(checker): State<HealthChecker>) -> Response {
 }
 
 /// Readiness endpoint handler (Kubernetes)
+///
+/// Uses `readiness_http_status()` so that a `Degraded` result produces 503,
+/// allowing load balancers and Kubernetes to gate traffic away from a pod that
+/// is operational but not at full capacity.  The liveness handler keeps 200 for
+/// `Degraded` (the process should not be restarted for a degradation).
 async fn readiness_handler(State(checker): State<HealthChecker>) -> Response {
     let response = checker.check_readiness().await;
-    let status = StatusCode::from_u16(response.http_status()).unwrap_or(StatusCode::OK);
+    let status = StatusCode::from_u16(response.readiness_http_status()).unwrap_or(StatusCode::OK);
 
     (status, Json(response)).into_response()
 }

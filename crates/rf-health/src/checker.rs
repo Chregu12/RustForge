@@ -32,11 +32,30 @@ impl HealthStatus {
         matches!(self, HealthStatus::Unhealthy)
     }
 
-    /// Get HTTP status code
+    /// Get HTTP status code for liveness probes and general health endpoints.
+    ///
+    /// `Degraded` returns 200 here because the process is still alive and
+    /// operational — liveness probes should only fail when the process must be
+    /// restarted (Unhealthy).  For readiness probes (k8s traffic gating) use
+    /// [`readiness_http_status`](HealthStatus::readiness_http_status) instead.
     pub fn http_status(&self) -> u16 {
         match self {
             HealthStatus::Healthy => 200,
             HealthStatus::Degraded => 200,
+            HealthStatus::Unhealthy => 503,
+        }
+    }
+
+    /// Get HTTP status code for readiness probes.
+    ///
+    /// Unlike [`http_status`](HealthStatus::http_status), `Degraded` maps to
+    /// **503** here so that load balancers and Kubernetes readiness probes can
+    /// gate traffic away from a degraded pod.  This is the correct code to use
+    /// for `/health/ready` endpoints.
+    pub fn readiness_http_status(&self) -> u16 {
+        match self {
+            HealthStatus::Healthy => 200,
+            HealthStatus::Degraded => 503,
             HealthStatus::Unhealthy => 503,
         }
     }
@@ -153,8 +172,21 @@ impl HealthResponse {
         }
     }
 
-    /// Get HTTP status code
+    /// Get HTTP status code for liveness probes and general health endpoints.
+    ///
+    /// `Degraded` returns 200 (process is alive).  Use
+    /// [`readiness_http_status`](HealthResponse::readiness_http_status) for
+    /// readiness probes that need to gate traffic away from degraded pods.
     pub fn http_status(&self) -> u16 {
         self.status.http_status()
+    }
+
+    /// Get HTTP status code for readiness probes.
+    ///
+    /// Returns 503 for both `Degraded` and `Unhealthy` so load balancers and
+    /// Kubernetes readiness probes can remove the pod from rotation when the
+    /// service is not fully operational.
+    pub fn readiness_http_status(&self) -> u16 {
+        self.status.readiness_http_status()
     }
 }

@@ -32,7 +32,9 @@ pub mod telemetry;
 pub mod tracing_middleware;
 
 pub use config::{ObservabilityConfig, OtelConfig, PrometheusConfig};
-pub use health::{HealthCheck, HealthChecker, HealthStatus};
+pub use health::{
+    HealthCheckProvider, HealthCheckRegistry, HealthCheckResult, HealthState, HealthStatusReport,
+};
 pub use logging::{init_logging, LogEntry, StructuredLogger};
 pub use metrics::{Metrics, METRICS};
 pub use span_builder::SpanBuilder;

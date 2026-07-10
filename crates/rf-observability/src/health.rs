@@ -1,4 +1,22 @@
 //! Health check system for monitoring application status
+//!
+//! # Canonical health system
+//!
+//! **rf-health** (`rf_health`) is the canonical health surface for RustForge
+//! applications.  It provides the `HealthCheck` trait, `HealthChecker`,
+//! `health_router`, and built-in checks (Memory, Disk, Ping, Uptime, Database,
+//! Redis).  Use `rf_health` for routing and probe logic.
+//!
+//! This module (`rf_observability::health`) provides lightweight check
+//! primitives that integrate with the observability stack (telemetry, metrics).
+//! Its types use distinct names to avoid name collisions when both crates are
+//! imported in the same module:
+//!
+//! | rf-observability type   | Analogous rf-health type |
+//! |-------------------------|--------------------------|
+//! | `HealthCheckResult`     | `CheckResult`            |
+//! | `HealthCheckProvider`   | `HealthCheck` (trait)    |
+//! | `HealthStatusReport`    | `HealthResponse`         |
 
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
@@ -8,7 +26,11 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::RwLock;
 
-/// Overall health status
+/// Overall health state for observability health checks.
+///
+/// Used by `HealthCheckResult` and `HealthStatusReport` in this module.
+/// The canonical rf-health system uses `rf_health::HealthStatus` (an enum
+/// with the same variants) as its status type.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum HealthState {
@@ -17,9 +39,12 @@ pub enum HealthState {
     Unhealthy,
 }
 
-/// Individual health check result
+/// Result of a single observability health check.
+///
+/// Renamed from `HealthCheck` (which collided with `rf_health::HealthCheck`
+/// trait).  Use `rf_health::CheckResult` for the canonical health system.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct HealthCheck {
+pub struct HealthCheckResult {
     /// Name of the component being checked
     pub name: String,
 
@@ -41,7 +66,7 @@ pub struct HealthCheck {
     pub metadata: HashMap<String, serde_json::Value>,
 }
 
-impl HealthCheck {
+impl HealthCheckResult {
     /// Create a healthy check result
     pub fn healthy(name: impl Into<String>, duration: Duration) -> Self {
         Self {
@@ -86,21 +111,24 @@ impl HealthCheck {
         }
     }
 
-    /// Add metadata to the health check
+    /// Add metadata to the health check result
     pub fn with_metadata(mut self, key: impl Into<String>, value: serde_json::Value) -> Self {
         self.metadata.insert(key.into(), value);
         self
     }
 }
 
-/// Complete health status response
+/// Aggregated health status report from all registered observability checkers.
+///
+/// Renamed from `HealthStatus` (which collided with `rf_health::HealthStatus`
+/// enum).  Use `rf_health::HealthResponse` for the canonical health system.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct HealthStatus {
+pub struct HealthStatusReport {
     /// Overall status
     pub status: HealthState,
 
     /// Individual component checks
-    pub checks: Vec<HealthCheck>,
+    pub checks: Vec<HealthCheckResult>,
 
     /// Application version
     pub version: String,
@@ -112,9 +140,9 @@ pub struct HealthStatus {
     pub timestamp: DateTime<Utc>,
 }
 
-impl HealthStatus {
-    /// Create a new health status
-    pub fn new(checks: Vec<HealthCheck>, start_time: Instant) -> Self {
+impl HealthStatusReport {
+    /// Create a new health status report
+    pub fn new(checks: Vec<HealthCheckResult>, start_time: Instant) -> Self {
         let status = Self::determine_overall_status(&checks);
         let uptime = start_time.elapsed();
 
@@ -128,7 +156,7 @@ impl HealthStatus {
     }
 
     /// Determine overall status from individual checks
-    fn determine_overall_status(checks: &[HealthCheck]) -> HealthState {
+    fn determine_overall_status(checks: &[HealthCheckResult]) -> HealthState {
         if checks.iter().any(|c| c.status == HealthState::Unhealthy) {
             HealthState::Unhealthy
         } else if checks.iter().any(|c| c.status == HealthState::Degraded) {
@@ -139,17 +167,21 @@ impl HealthStatus {
     }
 }
 
-/// Trait for implementing custom health checks
+/// Trait for implementing observability health check providers.
+///
+/// Renamed from `HealthChecker` (which collided with `rf_health::HealthChecker`
+/// struct).  To use a provider with the canonical health system's router,
+/// implement `rf_health::HealthCheck` instead.
 #[async_trait]
-pub trait HealthChecker: Send + Sync {
-    /// Perform the health check
-    async fn check(&self) -> HealthCheck;
+pub trait HealthCheckProvider: Send + Sync {
+    /// Perform the health check and return a result
+    async fn check(&self) -> HealthCheckResult;
 
-    /// Get the name of this health checker
+    /// Get the name of this health check provider
     fn name(&self) -> &str;
 }
 
-/// Database health checker
+/// Database health checker (observability variant)
 pub struct DatabaseHealthChecker {
     name: String,
     check_fn: Option<
@@ -182,8 +214,8 @@ impl DatabaseHealthChecker {
 }
 
 #[async_trait]
-impl HealthChecker for DatabaseHealthChecker {
-    async fn check(&self) -> HealthCheck {
+impl HealthCheckProvider for DatabaseHealthChecker {
+    async fn check(&self) -> HealthCheckResult {
         let start = Instant::now();
 
         let result = if let Some(check_fn) = &self.check_fn {
@@ -203,9 +235,9 @@ impl HealthChecker for DatabaseHealthChecker {
         let duration = start.elapsed();
 
         match result {
-            Ok(_) => HealthCheck::healthy(&self.name, duration)
+            Ok(_) => HealthCheckResult::healthy(&self.name, duration)
                 .with_metadata("type", serde_json::json!("database")),
-            Err(error) => HealthCheck::unhealthy(&self.name, error, duration)
+            Err(error) => HealthCheckResult::unhealthy(&self.name, error, duration)
                 .with_metadata("type", serde_json::json!("database")),
         }
     }
@@ -215,7 +247,7 @@ impl HealthChecker for DatabaseHealthChecker {
     }
 }
 
-/// Redis/Cache health checker
+/// Redis/Cache health checker (observability variant)
 pub struct CacheHealthChecker {
     name: String,
     check_fn: Option<
@@ -248,8 +280,8 @@ impl CacheHealthChecker {
 }
 
 #[async_trait]
-impl HealthChecker for CacheHealthChecker {
-    async fn check(&self) -> HealthCheck {
+impl HealthCheckProvider for CacheHealthChecker {
+    async fn check(&self) -> HealthCheckResult {
         let start = Instant::now();
 
         let result = if let Some(check_fn) = &self.check_fn {
@@ -267,9 +299,9 @@ impl HealthChecker for CacheHealthChecker {
         let duration = start.elapsed();
 
         match result {
-            Ok(_) => HealthCheck::healthy(&self.name, duration)
+            Ok(_) => HealthCheckResult::healthy(&self.name, duration)
                 .with_metadata("type", serde_json::json!("cache")),
-            Err(error) => HealthCheck::unhealthy(&self.name, error, duration)
+            Err(error) => HealthCheckResult::unhealthy(&self.name, error, duration)
                 .with_metadata("type", serde_json::json!("cache")),
         }
     }
@@ -279,7 +311,7 @@ impl HealthChecker for CacheHealthChecker {
     }
 }
 
-/// Queue health checker
+/// Queue health checker (observability variant)
 pub struct QueueHealthChecker {
     name: String,
     check_fn: Option<
@@ -312,8 +344,8 @@ impl QueueHealthChecker {
 }
 
 #[async_trait]
-impl HealthChecker for QueueHealthChecker {
-    async fn check(&self) -> HealthCheck {
+impl HealthCheckProvider for QueueHealthChecker {
+    async fn check(&self) -> HealthCheckResult {
         let start = Instant::now();
 
         let result = if let Some(check_fn) = &self.check_fn {
@@ -331,9 +363,9 @@ impl HealthChecker for QueueHealthChecker {
         let duration = start.elapsed();
 
         match result {
-            Ok(_) => HealthCheck::healthy(&self.name, duration)
+            Ok(_) => HealthCheckResult::healthy(&self.name, duration)
                 .with_metadata("type", serde_json::json!("queue")),
-            Err(error) => HealthCheck::unhealthy(&self.name, error, duration)
+            Err(error) => HealthCheckResult::unhealthy(&self.name, error, duration)
                 .with_metadata("type", serde_json::json!("queue")),
         }
     }
@@ -343,9 +375,13 @@ impl HealthChecker for QueueHealthChecker {
     }
 }
 
-/// Health check registry
+/// Registry of observability health check providers.
+///
+/// Aggregates `HealthCheckProvider` impls and produces a `HealthStatusReport`.
+/// For Kubernetes readiness/liveness routing use `rf_health::HealthChecker`
+/// and `rf_health::health_router` instead.
 pub struct HealthCheckRegistry {
-    checkers: Arc<RwLock<Vec<Arc<dyn HealthChecker>>>>,
+    checkers: Arc<RwLock<Vec<Arc<dyn HealthCheckProvider>>>>,
     start_time: Instant,
 }
 
@@ -358,14 +394,14 @@ impl HealthCheckRegistry {
         }
     }
 
-    /// Register a health checker
-    pub async fn register(&self, checker: Arc<dyn HealthChecker>) {
+    /// Register a health check provider
+    pub async fn register(&self, checker: Arc<dyn HealthCheckProvider>) {
         let mut checkers = self.checkers.write().await;
         checkers.push(checker);
     }
 
-    /// Run all health checks
-    pub async fn check_health(&self) -> HealthStatus {
+    /// Run all registered health check providers and aggregate results
+    pub async fn check_health(&self) -> HealthStatusReport {
         let checkers = self.checkers.read().await;
         let mut checks = Vec::new();
 
@@ -374,7 +410,7 @@ impl HealthCheckRegistry {
             checks.push(check);
         }
 
-        HealthStatus::new(checks, self.start_time)
+        HealthStatusReport::new(checks, self.start_time)
     }
 }
 
@@ -389,32 +425,32 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_health_check_creation() {
-        let check = HealthCheck::healthy("test", Duration::from_millis(100));
+    fn test_health_check_result_creation() {
+        let check = HealthCheckResult::healthy("test", Duration::from_millis(100));
         assert_eq!(check.name, "test");
         assert_eq!(check.status, HealthState::Healthy);
         assert_eq!(check.duration_ms, 100);
     }
 
     #[test]
-    fn test_health_status_determination() {
+    fn test_health_status_report_determination() {
         let checks = vec![
-            HealthCheck::healthy("db", Duration::from_millis(10)),
-            HealthCheck::healthy("cache", Duration::from_millis(5)),
+            HealthCheckResult::healthy("db", Duration::from_millis(10)),
+            HealthCheckResult::healthy("cache", Duration::from_millis(5)),
         ];
 
-        let status = HealthStatus::new(checks, Instant::now());
+        let status = HealthStatusReport::new(checks, Instant::now());
         assert_eq!(status.status, HealthState::Healthy);
     }
 
     #[test]
     fn test_unhealthy_status_propagation() {
         let checks = vec![
-            HealthCheck::healthy("db", Duration::from_millis(10)),
-            HealthCheck::unhealthy("cache", "Connection failed", Duration::from_millis(5)),
+            HealthCheckResult::healthy("db", Duration::from_millis(10)),
+            HealthCheckResult::unhealthy("cache", "Connection failed", Duration::from_millis(5)),
         ];
 
-        let status = HealthStatus::new(checks, Instant::now());
+        let status = HealthStatusReport::new(checks, Instant::now());
         assert_eq!(status.status, HealthState::Unhealthy);
     }
 
