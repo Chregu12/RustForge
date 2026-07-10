@@ -63,8 +63,29 @@ pub async fn init_observability(config: ObservabilityConfig) -> Result<()> {
 
     info!("Initializing observability system...");
 
-    // 2. Metrics are automatically initialized via lazy_static
-    info!("Prometheus metrics initialized on /metrics endpoint");
+    // 2. Prometheus metrics.
+    //
+    // The METRICS collectors are registered on the prometheus *default* global
+    // registry (via lazy_static) so that `prometheus::gather()` — used by
+    // rf-metrics' /metrics handler — automatically includes them.
+    //
+    // When `config.prometheus.enabled` is false we do not touch the collectors
+    // (they are initialised lazily on first use), and we log a reminder that
+    // the caller should not mount a /metrics endpoint.
+    if config.prometheus.enabled {
+        // Force lazy_static initialisation now so any registration error is
+        // surfaced at startup rather than on first request.
+        let _ = &*metrics::METRICS;
+        info!(
+            endpoint = %config.prometheus.endpoint_path,
+            "Prometheus metrics registered; mount the /metrics handler at this path"
+        );
+    } else {
+        info!(
+            "Prometheus metrics disabled by config; \
+             no /metrics endpoint will be served"
+        );
+    }
 
     info!("Observability system ready");
     Ok(())

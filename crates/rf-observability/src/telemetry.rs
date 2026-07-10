@@ -1,5 +1,6 @@
 //! OpenTelemetry telemetry initialization and management
 
+use std::sync::OnceLock;
 use std::time::Duration;
 
 use crate::config::OtelConfig;
@@ -10,6 +11,10 @@ use opentelemetry_sdk::{runtime, trace as sdktrace, Resource};
 use opentelemetry_semantic_conventions::resource::SERVICE_NAME;
 use tracing::info;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Registry};
+
+/// Guard that ensures `init_telemetry` is a no-op on repeated calls.
+/// The first call sets this to `()` after the subscriber is installed.
+static TELEMETRY_INIT: OnceLock<()> = OnceLock::new();
 
 /// Initialize a real OpenTelemetry OTLP tracing pipeline.
 ///
@@ -22,11 +27,23 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilte
 /// After this returns, spans created through either the `tracing` macros or the
 /// OpenTelemetry API are recorded and batched for export to the collector.
 ///
+/// # Idempotency
+///
+/// Repeated calls (e.g. during tests or hot-reload) are a graceful no-op:
+/// only the first invocation installs the global subscriber.  Subsequent calls
+/// return `Ok(())` immediately without re-building the OTLP pipeline.
+///
 /// # Runtime
 ///
 /// Must be called from within a Tokio runtime — the batch span processor spawns a
 /// background export task (this mirrors the `opentelemetry-otlp` `install_batch` contract).
 pub fn init_telemetry(config: &OtelConfig) -> Result<()> {
+    // Idempotency guard – return immediately on repeated calls so the process
+    // does not attempt to install a second global subscriber (which would
+    // error or panic).
+    if TELEMETRY_INIT.get().is_some() {
+        return Ok(());
+    }
     // Clamp the sample rate into the valid [0.0, 1.0] probability range so a
     // misconfigured value can never panic or produce an invalid sampler.
     let sample_rate = config.sample_rate.clamp(0.0, 1.0);
@@ -69,6 +86,9 @@ pub fn init_telemetry(config: &OtelConfig) -> Result<()> {
         .with(tracing_subscriber::fmt::layer())
         .try_init()
         .context("Failed to install OpenTelemetry tracing subscriber")?;
+
+    // Mark as initialised so subsequent calls short-circuit cleanly.
+    TELEMETRY_INIT.set(()).ok();
 
     info!(
         endpoint = %config.endpoint,

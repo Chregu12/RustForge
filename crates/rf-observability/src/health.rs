@@ -193,8 +193,11 @@ impl HealthChecker for DatabaseHealthChecker {
                 Err(e) => Err(e),
             }
         } else {
-            // Default: just verify the checker is configured
-            Ok(())
+            // Fail-closed: without a real probe closure we cannot know whether
+            // the database is reachable.  Reporting "healthy" here would be
+            // security theatre — use `.with_check(|| async { ... })` to supply
+            // an actual connectivity check (e.g. `SELECT 1`).
+            Err("No health probe configured for database checker; call .with_check(...) to probe the real connection".to_string())
         };
 
         let duration = start.elapsed();
@@ -255,7 +258,10 @@ impl HealthChecker for CacheHealthChecker {
                 Err(e) => Err(e),
             }
         } else {
-            Ok(())
+            // Fail-closed: without a real probe we cannot know whether the
+            // cache is reachable.  Use `.with_check(|| async { ... })` to
+            // supply an actual ping / get-set round-trip.
+            Err("No health probe configured for cache checker; call .with_check(...) to probe the real connection".to_string())
         };
 
         let duration = start.elapsed();
@@ -316,7 +322,10 @@ impl HealthChecker for QueueHealthChecker {
                 Err(e) => Err(e),
             }
         } else {
-            Ok(())
+            // Fail-closed: without a real probe we cannot know whether the
+            // queue broker is reachable.  Use `.with_check(|| async { ... })`
+            // to supply an actual connection check.
+            Err("No health probe configured for queue checker; call .with_check(...) to probe the real connection".to_string())
         };
 
         let duration = start.elapsed();
@@ -409,6 +418,47 @@ mod tests {
         assert_eq!(status.status, HealthState::Unhealthy);
     }
 
+    /// Checkers without a probe closure must fail-closed (Unhealthy), not
+    /// pretend to be healthy when they have never actually probed anything.
+    #[tokio::test]
+    async fn test_checker_without_probe_is_unhealthy() {
+        let db = DatabaseHealthChecker::new("postgres");
+        let result = db.check().await;
+        assert_eq!(
+            result.status,
+            HealthState::Unhealthy,
+            "DatabaseHealthChecker with no probe must be Unhealthy, not {:?}",
+            result.status
+        );
+
+        let cache = CacheHealthChecker::new("redis");
+        let result = cache.check().await;
+        assert_eq!(
+            result.status,
+            HealthState::Unhealthy,
+            "CacheHealthChecker with no probe must be Unhealthy, not {:?}",
+            result.status
+        );
+
+        let queue = QueueHealthChecker::new("rabbitmq");
+        let result = queue.check().await;
+        assert_eq!(
+            result.status,
+            HealthState::Unhealthy,
+            "QueueHealthChecker with no probe must be Unhealthy, not {:?}",
+            result.status
+        );
+    }
+
+    /// A checker WITH a passing probe closure must remain Healthy.
+    #[tokio::test]
+    async fn test_checker_with_passing_probe_is_healthy() {
+        let db = DatabaseHealthChecker::new("postgres")
+            .with_check(|| async { Ok(()) });
+        let result = db.check().await;
+        assert_eq!(result.status, HealthState::Healthy);
+    }
+
     #[tokio::test]
     async fn test_health_registry() {
         let registry = HealthCheckRegistry::new();
@@ -418,5 +468,7 @@ mod tests {
 
         let status = registry.check_health().await;
         assert_eq!(status.checks.len(), 1);
+        // Without a probe, the checker is Unhealthy (fail-closed).
+        assert_eq!(status.status, HealthState::Unhealthy);
     }
 }

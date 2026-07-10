@@ -7,8 +7,14 @@ use prometheus::{
 use std::time::Instant;
 
 lazy_static! {
-    /// Global metrics registry
-    pub static ref REGISTRY: Registry = Registry::new();
+    /// Global metrics registry.
+    ///
+    /// Points to the prometheus *default* global registry so that
+    /// `prometheus::gather()` — used by rf-metrics' `/metrics` endpoint —
+    /// automatically includes all rf-observability collectors (HTTP timing
+    /// histograms, command counters, etc.).  Previously this was a private
+    /// `Registry::new()` which silently omitted these metrics from scrapes.
+    pub static ref REGISTRY: Registry = prometheus::default_registry().clone();
 
     /// Global metrics instance
     pub static ref METRICS: Metrics = Metrics::new().expect("Failed to create metrics");
@@ -330,5 +336,40 @@ mod tests {
             .with_label_values(&["test_cmd", "success"])
             .get();
         assert!(total >= 1, "Expected at least 1 command recorded");
+    }
+
+    /// Prove that the rf-observability HTTP timing histogram appears in the
+    /// output of `prometheus::gather()` (the same gather used by rf-metrics'
+    /// /metrics endpoint).  Before the REGISTRY fix this was silently absent.
+    #[test]
+    fn test_http_timing_appears_in_global_gather() {
+        // Ensure METRICS lazy_static is initialised (registers collectors on
+        // the default registry via REGISTRY).
+        METRICS.record_http_request(
+            "GET",
+            "/probe",
+            200,
+            std::time::Duration::from_millis(1),
+        );
+
+        let families = prometheus::gather();
+        let names: Vec<&str> = families.iter().map(|f| f.get_name()).collect();
+
+        assert!(
+            names
+                .iter()
+                .any(|n| *n == "rustforge_http_request_duration_seconds"),
+            "rustforge_http_request_duration_seconds must appear in prometheus::gather(); \
+             found: {:?}",
+            names
+        );
+        assert!(
+            names
+                .iter()
+                .any(|n| *n == "rustforge_http_requests_total"),
+            "rustforge_http_requests_total must appear in prometheus::gather(); \
+             found: {:?}",
+            names
+        );
     }
 }

@@ -90,18 +90,41 @@ impl TracingMiddleware {
     }
 }
 
-/// Extract trace ID from current context for logging correlation
+/// Extract trace ID from current context for logging correlation.
+///
+/// Returns `Some(hex_trace_id)` when called inside a tracing span that has an
+/// active OpenTelemetry context (i.e. the tracing subscriber includes a
+/// `tracing_opentelemetry` layer).  Returns `None` when called outside any
+/// span or when no OTel layer is wired, which is the honest fail-open
+/// behaviour rather than fabricating an id.
 pub fn current_trace_id() -> Option<String> {
-    // Simplified: Returns None for now
-    // Full implementation requires compatible OpenTelemetry context API
-    None
+    use opentelemetry::trace::TraceContextExt;
+    use tracing_opentelemetry::OpenTelemetrySpanExt;
+
+    let ctx = tracing::Span::current().context();
+    let sc = ctx.span().span_context().clone();
+    if sc.is_valid() {
+        Some(sc.trace_id().to_string())
+    } else {
+        None
+    }
 }
 
-/// Extract span ID from current context
+/// Extract span ID from the current OpenTelemetry context.
+///
+/// Returns `Some(hex_span_id)` when there is an active OTel-instrumented span
+/// on the current thread, `None` otherwise.
 pub fn current_span_id() -> Option<String> {
-    // Simplified: Returns None for now
-    // Full implementation requires compatible OpenTelemetry context API
-    None
+    use opentelemetry::trace::TraceContextExt;
+    use tracing_opentelemetry::OpenTelemetrySpanExt;
+
+    let ctx = tracing::Span::current().context();
+    let sc = ctx.span().span_context().clone();
+    if sc.is_valid() {
+        Some(sc.span_id().to_string())
+    } else {
+        None
+    }
 }
 
 #[cfg(test)]
@@ -109,6 +132,50 @@ mod tests {
     use super::*;
     use axum::http::HeaderValue;
     use opentelemetry::trace::TraceContextExt;
+
+    /// Verify that `current_trace_id` / `current_span_id` return a real hex id
+    /// when the current thread is inside a span backed by an OTel tracer, and
+    /// return `None` when outside such a span (honest fail-open).
+    #[test]
+    fn test_trace_id_correlation_inside_otel_span() {
+        use opentelemetry_sdk::trace::TracerProvider as SdkProvider;
+        use tracing_subscriber::layer::SubscriberExt;
+
+        // Outside any otel-wired span: should be None, not fabricated.
+        assert_eq!(
+            current_trace_id(),
+            None,
+            "current_trace_id should be None outside an OTel span"
+        );
+
+        // Build a real in-process tracer provider (no exporter needed for id tests).
+        let provider = SdkProvider::builder().build();
+        let tracer = opentelemetry::trace::TracerProvider::tracer(&provider, "test-tracer");
+        let otel_layer = tracing_opentelemetry::layer().with_tracer(tracer);
+        let sub = tracing_subscriber::registry().with(otel_layer);
+
+        // Scope the subscriber to this test thread only.
+        let _guard = tracing::subscriber::set_default(sub);
+
+        let span = tracing::info_span!("test_correlation_span");
+        let _enter = span.enter();
+
+        let trace_id = current_trace_id();
+        assert!(
+            trace_id.is_some(),
+            "current_trace_id() must return Some inside an OTel-instrumented span, got None"
+        );
+        let tid = trace_id.unwrap();
+        assert_eq!(tid.len(), 32, "trace_id should be 32 hex chars, got {:?}", tid);
+
+        let span_id = current_span_id();
+        assert!(
+            span_id.is_some(),
+            "current_span_id() must return Some inside an OTel-instrumented span, got None"
+        );
+        let sid = span_id.unwrap();
+        assert_eq!(sid.len(), 16, "span_id should be 16 hex chars, got {:?}", sid);
+    }
 
     #[test]
     fn test_extract_trace_context() {
