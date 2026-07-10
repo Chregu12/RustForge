@@ -202,7 +202,7 @@ pub struct {{pascal_name}}Response {
 pub fn {{snake_name}}_routes() -> Router {
     Router::new()
         .route("/{{name}}", get(index).post(store))
-        .route("/{{name}}/:id", get(show).put(update).delete(destroy))
+        .route("/{{name}}/{id}", get(show).put(update).delete(destroy))
 }
 
 /// List all {{name}}s

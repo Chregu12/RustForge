@@ -38,7 +38,7 @@ pub fn routes(state: AppState) -> Router {
         // Dashboard views
         .route("/horizon", get(dashboard_handler))
         .route("/horizon/jobs", get(jobs_list_handler))
-        .route("/horizon/jobs/:id", get(job_detail_handler))
+        .route("/horizon/jobs/{id}", get(job_detail_handler))
         .route("/horizon/failed", get(failed_jobs_handler))
 
         // WebSocket for real-time updates
@@ -48,25 +48,25 @@ pub fn routes(state: AppState) -> Router {
         .route("/horizon/api/stats", get(stats_api_handler))
         .route("/horizon/api/workload", get(workload_handler))
         .route("/horizon/api/metrics", get(metrics_api_handler))
-        .route("/horizon/api/metrics/:queue", get(queue_metrics_handler))
+        .route("/horizon/api/metrics/{queue}", get(queue_metrics_handler))
 
         // Jobs endpoints
         .route("/horizon/api/jobs", get(jobs_api_handler))
         .route("/horizon/api/jobs/recent", get(recent_jobs_handler))
         .route("/horizon/api/jobs/pending", get(pending_jobs_handler))
         .route("/horizon/api/jobs/completed", get(completed_jobs_handler))
-        .route("/horizon/api/jobs/:id", get(job_detail_api_handler))
-        .route("/horizon/api/jobs/:id/retry", post(retry_job_handler))
-        .route("/horizon/api/jobs/:id", delete(delete_job_handler))
+        .route("/horizon/api/jobs/{id}", get(job_detail_api_handler))
+        .route("/horizon/api/jobs/{id}/retry", post(retry_job_handler))
+        .route("/horizon/api/jobs/{id}", delete(delete_job_handler))
 
         // Jobs by tag
-        .route("/horizon/api/jobs/tag/:tag", get(jobs_by_tag_handler))
+        .route("/horizon/api/jobs/tag/{tag}", get(jobs_by_tag_handler))
 
         // Failed jobs endpoints
         .route("/horizon/api/failed", get(failed_jobs_api_handler))
-        .route("/horizon/api/failed/:id", get(failed_job_details_handler))
-        .route("/horizon/api/failed/:id/retry", post(retry_failed_job_handler))
-        .route("/horizon/api/failed/:id", delete(forget_failed_handler))
+        .route("/horizon/api/failed/{id}", get(failed_job_details_handler))
+        .route("/horizon/api/failed/{id}/retry", post(retry_failed_job_handler))
+        .route("/horizon/api/failed/{id}", delete(forget_failed_handler))
         .route("/horizon/api/failed/retry-all", post(retry_all_failed_handler))
         .route("/horizon/api/failed", delete(flush_failed_handler))
         .route("/horizon/api/failed/batch-retry", post(batch_retry_handler))
@@ -76,7 +76,7 @@ pub fn routes(state: AppState) -> Router {
         .route("/horizon/api/workers", get(workers_api_handler))
         .route("/horizon/api/masters", get(masters_handler))
         .route("/horizon/api/supervisors", get(supervisors_handler))
-        .route("/horizon/api/supervisors/:name", get(supervisor_handler))
+        .route("/horizon/api/supervisors/{name}", get(supervisor_handler))
 
         // Monitoring endpoints
         .route("/horizon/api/monitoring", get(monitoring_handler))

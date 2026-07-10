@@ -63,7 +63,7 @@ pub fn websocket_routes() -> Router<AppState> {
 
     Router::new()
         .route("/ws", get(websocket_handler))
-        .route("/ws/:channel", get(handler::websocket_channel_handler))
+        .route("/ws/{channel}", get(handler::websocket_channel_handler))
 }
 
 #[cfg(test)]
