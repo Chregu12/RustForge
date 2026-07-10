@@ -4,13 +4,10 @@
 //! and SPA cookie-based authentication.
 
 use crate::{
-    config::SanctumConfig, repository::TokenRepository, LoadFromToken,
-    PersonalAccessToken, SanctumError,
+    config::SanctumConfig, repository::TokenRepository, transient::TransientTokenStore,
+    LoadFromToken, PersonalAccessToken, SanctumError,
 };
-use axum::{
-    extract::FromRequestParts,
-    http::request::Parts,
-};
+use axum::{extract::FromRequestParts, http::request::Parts};
 use sea_orm::DatabaseConnection;
 use std::sync::Arc;
 
@@ -100,13 +97,6 @@ where
         parts: &mut Parts,
         _state: &S,
     ) -> Result<Self, Self::Rejection> {
-        // Get database connection from extensions
-        let db = parts
-            .extensions
-            .get::<Arc<DatabaseConnection>>()
-            .cloned()
-            .ok_or(SanctumError::Unauthenticated)?;
-
         // Get config from extensions (optional, use default if not provided)
         let config = parts
             .extensions
@@ -114,14 +104,41 @@ where
             .cloned()
             .unwrap_or_default();
 
-        // Try token authentication first
+        // Clone the Arc<DatabaseConnection> if present (cheap clone of Arc pointer)
+        let db_opt = parts
+            .extensions
+            .get::<Arc<DatabaseConnection>>()
+            .cloned();
+
+        // --- Bearer token path ---
         if let Some(bearer_token) = extract_bearer_token(parts) {
-            return authenticate_via_token(bearer_token, &*db, &config, parts).await;
+            // Prefer database path when a connection is available
+            if let Some(ref db) = db_opt {
+                return authenticate_via_token(bearer_token, &**db, &config, parts).await;
+            }
+
+            // Fall back to transient store (DB-free / test deployments)
+            if config.allow_transient_tokens {
+                if let Some(store) = parts.extensions.get::<TransientTokenStore>().cloned() {
+                    return authenticate_via_transient_token(
+                        bearer_token,
+                        &store,
+                        &config,
+                        parts,
+                    )
+                    .await;
+                }
+            }
+
+            // Bearer token present but no auth backend is configured
+            return Err(SanctumError::Unauthenticated);
         }
 
-        // Try SPA cookie authentication
-        if let Some(user_id) = extract_session_user_id(parts) {
-            return authenticate_via_cookie(user_id, &*db).await;
+        // --- SPA cookie / session path (requires database) ---
+        if let Some(ref db) = db_opt {
+            if let Some(user_id) = extract_session_user_id(parts) {
+                return authenticate_via_cookie(user_id, &**db).await;
+            }
         }
 
         Err(SanctumError::Unauthenticated)
@@ -224,6 +241,48 @@ where
     })
 }
 
+/// Authenticate via in-memory TransientTokenStore (no database required)
+async fn authenticate_via_transient_token<T>(
+    bearer_token: String,
+    store: &TransientTokenStore,
+    config: &SanctumConfig,
+    parts: &mut Parts,
+) -> Result<SanctumGuard<T>, SanctumError>
+where
+    T: LoadFromToken,
+{
+    // Strip prefix if configured
+    let raw = config.strip_prefix(&bearer_token);
+
+    // Hash the token to look it up in the store
+    let hashed = PersonalAccessToken::hash_token(raw);
+
+    // Find token in the transient store
+    let token_data = store
+        .find(&hashed)?
+        .ok_or(SanctumError::InvalidToken)?;
+
+    // Check expiry
+    if token_data.is_expired() {
+        return Err(SanctumError::TokenExpired);
+    }
+
+    // Update last_used_at in the transient store
+    store.touch(&hashed)?;
+
+    // Load user via the transient (DB-free) hook on LoadFromToken
+    let user = T::load_from_transient_token(&token_data).await?;
+
+    // Store token in extensions for downstream middleware
+    parts.extensions.insert(token_data.clone());
+
+    Ok(SanctumGuard {
+        user,
+        token: Some(token_data),
+        auth_method: AuthMethod::Token,
+    })
+}
+
 /// Extract client IP address from request
 fn extract_client_ip(parts: &Parts) -> Option<String> {
     // Try X-Forwarded-For first (proxy/load balancer)
@@ -253,6 +312,11 @@ fn extract_client_ip(parts: &Parts) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::{
+        config::SanctumConfig,
+        transient::{TransientTokenBuilder, TransientTokenStore},
+    };
+    use axum::http::Request;
 
     #[test]
     fn test_auth_method() {
@@ -262,8 +326,6 @@ mod tests {
 
     #[test]
     fn test_extract_bearer_token() {
-        use axum::http::Request;
-
         let req = Request::builder()
             .uri("/")
             .header("Authorization", "Bearer test_token_123")
@@ -278,16 +340,98 @@ mod tests {
 
     #[test]
     fn test_extract_bearer_token_missing() {
-        use axum::http::Request;
-
-        let req = Request::builder()
-            .uri("/")
-            .body(())
-            .unwrap();
+        let req = Request::builder().uri("/").body(()).unwrap();
 
         let (parts, _) = req.into_parts();
 
         let token = extract_bearer_token(&parts);
         assert_eq!(token, None);
+    }
+
+    // -----------------------------------------------------------------------
+    // Minimal user type for transient guard tests
+    // -----------------------------------------------------------------------
+    struct GuardTestUser {
+        pub id: i64,
+    }
+
+    #[async_trait::async_trait]
+    impl LoadFromToken for GuardTestUser {
+        async fn load_from_token(
+            tokenable_id: i64,
+            _db: &sea_orm::DatabaseConnection,
+        ) -> Result<Self, SanctumError> {
+            Ok(GuardTestUser { id: tokenable_id })
+        }
+
+        async fn load_from_transient_token(
+            token: &PersonalAccessToken,
+        ) -> Result<Self, SanctumError> {
+            Ok(GuardTestUser {
+                id: token.tokenable_id,
+            })
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // SanctumGuard: valid transient token, no DatabaseConnection → success
+    // -----------------------------------------------------------------------
+    #[tokio::test]
+    async fn test_guard_transient_valid_token_no_db() {
+        let store = TransientTokenStore::new();
+        let (plain_token, token_data) = TransientTokenBuilder::new("User", 99, "guard-key")
+            .with_abilities(vec!["*".to_string()])
+            .build();
+        store.store(token_data).unwrap();
+
+        let req = Request::builder()
+            .uri("/")
+            .header("Authorization", format!("Bearer {}", plain_token))
+            .body(())
+            .unwrap();
+
+        let (mut parts, _) = req.into_parts();
+        parts.extensions.insert(store.clone());
+        parts.extensions.insert(SanctumConfig::default());
+
+        let result =
+            SanctumGuard::<GuardTestUser>::from_request_parts(&mut parts, &()).await;
+        assert!(
+            result.is_ok(),
+            "valid transient bearer must succeed: {:?}",
+            result.err()
+        );
+        let guard = result.unwrap();
+        assert_eq!(guard.user.id, 99);
+        assert_eq!(guard.auth_method, AuthMethod::Token);
+        assert!(guard.token.is_some());
+    }
+
+    // -----------------------------------------------------------------------
+    // SanctumGuard: invalid bearer, no DB → InvalidToken
+    // -----------------------------------------------------------------------
+    #[tokio::test]
+    async fn test_guard_transient_invalid_token_no_db() {
+        let store = TransientTokenStore::new();
+
+        let req = Request::builder()
+            .uri("/")
+            .header("Authorization", "Bearer totally_wrong")
+            .body(())
+            .unwrap();
+
+        let (mut parts, _) = req.into_parts();
+        parts.extensions.insert(store.clone());
+        parts.extensions.insert(SanctumConfig::default());
+
+        let result =
+            SanctumGuard::<GuardTestUser>::from_request_parts(&mut parts, &()).await;
+        assert!(result.is_err());
+        let err = result.err().unwrap();
+        assert!(
+            matches!(err, SanctumError::InvalidToken),
+            "unknown bearer must yield InvalidToken, got: {:?}",
+            err
+        );
     }
 }
