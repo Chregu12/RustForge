@@ -49,9 +49,9 @@ certification beyond what is graded Stable/Usable/Experimental in those sources.
 
 | Location | Purpose |
 |----------|---------|
-| [architecture.md](./architecture.md) | v0.2.0 architecture blueprint (Foundry Core). Notes implementation gaps. |
-| [adr/](./adr/) | Architecture Decision Records: web framework, error handling, DI, observability, config, ORM, queue. |
-| [architecture/roadmap.md](./architecture/roadmap.md) | Development roadmap. |
+| [architecture.md](./architecture.md) | Current architecture: four pillars, crate map by layer, request flow, AsyncBridge pattern, design ceilings, ADR summary. Supersedes the old v0.2.0 "Foundry Core" blueprint. |
+| [adr/](./adr/) | Architecture Decision Records: web framework (axum 0.8), error handling (RFC 7807), DI, observability, config, ORM (SeaORM), queue (Redis). All active; none contradicts current implementation. |
+| [architecture/roadmap.md](./architecture/roadmap.md) | Early roadmap from the "Foundry" naming era. Superseded by `VISION_GAP.md` for current priorities. |
 
 ---
 
