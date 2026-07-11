@@ -217,6 +217,7 @@ mod tests {
     use crate::rules::RequiredRule;
 
     #[derive(Debug, serde::Deserialize)]
+    #[allow(dead_code)] // deserialize-only fixture; fields are populated, not read
     struct TestRequest {
         email: String,
         name: String,

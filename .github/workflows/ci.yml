@@ -399,15 +399,18 @@ jobs:
   workspace-gate:
     name: "Workspace Check + Core Tests"
     runs-on: ubuntu-latest
-    env:
-      RUSTFLAGS: "-Dwarnings"
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
 
+      # -Dwarnings is scoped to the library check only: the workspace must build
+      # 0-warning clean. Test targets are NOT held to -Dwarnings because test
+      # fixtures legitimately carry unused fields (e.g. deserialize-only structs).
       - name: cargo check --workspace (0 warnings enforced)
         run: cargo check --workspace
+        env:
+          RUSTFLAGS: "-Dwarnings"
 
       - name: rf-validation lib tests
         run: cargo test -p rf-validation --lib
