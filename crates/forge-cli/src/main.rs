@@ -84,6 +84,10 @@ enum Commands {
         shell: String,
     },
 
+    /// Generate deployment artifacts (Dockerfile, docker-compose.yml, K8s manifests)
+    #[command(subcommand)]
+    Deploy(DeployCommands),
+
     /// Show command aliases
     Aliases,
 
@@ -392,6 +396,49 @@ enum QueueCommands {
     },
 }
 
+#[derive(Subcommand)]
+enum DeployCommands {
+    /// Generate deployment artifact files (Dockerfile, docker-compose.yml, and
+    /// optionally Kubernetes manifests) in the current project directory.
+    ///
+    /// The generated Kubernetes manifests probe GET /health/live (liveness) and
+    /// GET /health/ready (readiness).  Your app must serve those routes (e.g.
+    /// via rf-health) or pass --liveness-path / --readiness-path to customise.
+    Generate {
+        /// Application name used in service names and image tags
+        #[arg(long, default_value = "app")]
+        name: String,
+
+        /// Port exposed by the application
+        #[arg(short, long, default_value = "8000")]
+        port: u16,
+
+        /// Add a PostgreSQL service (provide version, e.g. "16")
+        #[arg(long)]
+        postgres: Option<String>,
+
+        /// Add a Redis service
+        #[arg(long)]
+        redis: bool,
+
+        /// Also generate Kubernetes deployment + service manifests in k8s/
+        #[arg(long)]
+        kubernetes: bool,
+
+        /// Container image name for Kubernetes manifests (default: <name>:latest)
+        #[arg(long)]
+        image: Option<String>,
+
+        /// Liveness probe HTTP path (default: /health/live)
+        #[arg(long, default_value = "/health/live")]
+        liveness_path: String,
+
+        /// Readiness probe HTTP path (default: /health/ready)
+        #[arg(long, default_value = "/health/ready")]
+        readiness_path: String,
+    },
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
     // Load configuration
@@ -536,6 +583,30 @@ async fn main() -> Result<()> {
             }
             QueueCommands::Flush { hours, queue } => {
                 commands::queue::flush(hours, queue.as_deref()).await?;
+            }
+        },
+        Commands::Deploy(deploy_cmd) => match deploy_cmd {
+            DeployCommands::Generate {
+                name,
+                port,
+                postgres,
+                redis,
+                kubernetes,
+                image,
+                liveness_path,
+                readiness_path,
+            } => {
+                commands::deploy::generate(
+                    &name,
+                    port,
+                    postgres.as_deref(),
+                    redis,
+                    kubernetes,
+                    &liveness_path,
+                    &readiness_path,
+                    image.as_deref(),
+                )
+                .await?;
             }
         },
         Commands::Serve { port, host } => {

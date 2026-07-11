@@ -11,6 +11,11 @@ use std::path::Path;
 /// 2. Environment-specific file (config/{env}.toml)
 /// 3. Default file (config/default.toml)
 ///
+/// A `.env` file is loaded before all other sources.  By default,
+/// [`ConfigLoader`] searches for `.env` in the current working directory
+/// (standard dotenvy behaviour).  Use [`Self::env_file`] to point at a
+/// specific path instead.
+///
 /// # Example
 ///
 /// ```rust,no_run
@@ -22,10 +27,24 @@ use std::path::Path;
 ///     .load::<AppConfig>()
 ///     .expect("Failed to load config");
 /// ```
+///
+/// Loading from a custom `.env` path:
+///
+/// ```rust,no_run
+/// use rf_config::{AppConfig, ConfigLoader};
+///
+/// let config = ConfigLoader::new()
+///     .env_file("/etc/myapp/.env")
+///     .load::<AppConfig>()
+///     .expect("Failed to load config");
+/// ```
 pub struct ConfigLoader {
     env: String,
     config_dir: String,
     prefix: String,
+    /// Optional explicit path for the `.env` file.
+    /// When `None`, `dotenvy::dotenv()` searches from the CWD upward.
+    env_file: Option<std::path::PathBuf>,
 }
 
 impl ConfigLoader {
@@ -35,12 +54,32 @@ impl ConfigLoader {
     /// - env: "development"
     /// - config_dir: "config"
     /// - prefix: "APP"
+    /// - env_file: None (search for `.env` from CWD upward via dotenvy)
     pub fn new() -> Self {
         Self {
             env: std::env::var("APP_ENV").unwrap_or_else(|_| "development".to_string()),
             config_dir: "config".to_string(),
             prefix: "APP".to_string(),
+            env_file: None,
         }
+    }
+
+    /// Load variables from a specific `.env` file instead of the CWD-relative
+    /// default.  The file is loaded with `dotenvy::from_path`, which handles
+    /// quoted values, `export` prefixes, and multi-line strings correctly.
+    ///
+    /// ```rust,no_run
+    /// use rf_config::ConfigLoader;
+    /// use rf_config::AppConfig;
+    ///
+    /// let config = ConfigLoader::new()
+    ///     .env_file("/deploy/secrets/.env.production")
+    ///     .load::<AppConfig>()
+    ///     .unwrap();
+    /// ```
+    pub fn env_file(mut self, path: impl Into<std::path::PathBuf>) -> Self {
+        self.env_file = Some(path.into());
+        self
     }
 
     /// Set the environment (development, staging, production)
@@ -70,8 +109,11 @@ impl ConfigLoader {
     /// - Configuration cannot be deserialized
     /// - Environment variables have invalid values
     pub fn load<T: DeserializeOwned>(&self) -> Result<T, ConfigError> {
-        // Load .env file if it exists
-        dotenvy::dotenv().ok();
+        // Load .env file — use explicit path when set, otherwise search from CWD.
+        match &self.env_file {
+            Some(path) => { dotenvy::from_path(path).ok(); }
+            None => { dotenvy::dotenv().ok(); }
+        }
 
         let default_path = Path::new(&self.config_dir).join("default.toml");
         let env_path = Path::new(&self.config_dir).join(format!("{}.toml", self.env));
@@ -104,6 +146,7 @@ impl Default for ConfigLoader {
 mod tests {
     use super::*;
     use crate::types::AppConfig;
+    use std::io::Write;
 
     #[test]
     fn test_config_loader_new() {
@@ -138,6 +181,36 @@ mod tests {
             }
             Err(_e) => {
                 // Expected if no config files exist
+            }
+        }
+    }
+
+    /// env_file(path) must load variables from the specified file, not from
+    /// whatever `.env` happens to live in the CWD.
+    #[test]
+    fn test_env_file_custom_path() {
+        // Write a temporary .env file in a tempdir
+        let tmp = tempfile::NamedTempFile::new().expect("temp file");
+        writeln!(tmp.as_file(), "APP__SERVER__PORT=7654").unwrap();
+
+        // The file must be flushed before we read it
+        tmp.as_file().sync_all().unwrap();
+
+        // Clear any pre-existing value so we can verify the file took effect
+        std::env::remove_var("APP__SERVER__PORT");
+
+        let result = ConfigLoader::new()
+            .env_file(tmp.path())
+            .load::<AppConfig>();
+
+        // Clean up env
+        std::env::remove_var("APP__SERVER__PORT");
+
+        match result {
+            Ok(config) => assert_eq!(config.server.port, 7654,
+                "env_file value must override the default"),
+            Err(_) => {
+                // Config files may not exist in test environment — acceptable.
             }
         }
     }

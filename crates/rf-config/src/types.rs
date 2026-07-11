@@ -20,6 +20,15 @@ pub enum ConfigValidationError {
 
     #[error("missing required field: {0}")]
     MissingField(&'static str),
+
+    /// Returned when an environment variable is *present* but cannot be parsed
+    /// into the expected type (e.g. `SERVER_PORT=not_a_number`).
+    #[error("environment variable {var} has an invalid value '{value}': {detail}")]
+    InvalidEnvVar {
+        var: String,
+        value: String,
+        detail: String,
+    },
 }
 
 /// Main application configuration
@@ -33,6 +42,25 @@ pub struct AppConfig {
 
     /// Authentication configuration
     pub auth: AuthConfig,
+}
+
+/// Parse an environment variable into `T`, using `default` when the variable is
+/// absent.  Returns [`ConfigValidationError::InvalidEnvVar`] when the variable
+/// is *present but cannot be parsed* — never silently falls back to the default
+/// in that case.
+fn parse_env_var<T>(name: &str, default: fn() -> T) -> Result<T, ConfigValidationError>
+where
+    T: std::str::FromStr,
+    T::Err: std::fmt::Display,
+{
+    match std::env::var(name) {
+        Err(_) => Ok(default()),
+        Ok(val) => val.parse::<T>().map_err(|e| ConfigValidationError::InvalidEnvVar {
+            var: name.to_string(),
+            value: val,
+            detail: e.to_string(),
+        }),
+    }
 }
 
 impl AppConfig {
@@ -60,51 +88,43 @@ impl AppConfig {
         Ok(())
     }
 
-    /// Load from environment variables with defaults
+    /// Load from environment variables with defaults.
+    ///
+    /// Returns [`ConfigValidationError::InvalidEnvVar`] if an environment variable
+    /// is *present but cannot be parsed* (e.g. `SERVER_PORT=not_a_number`).
+    /// Missing variables fall back to compiled-in defaults.
     pub fn from_env() -> Result<Self, ConfigValidationError> {
         let config = Self {
             server: ServerConfig {
                 host: std::env::var("SERVER_HOST").unwrap_or_else(|_| default_host()),
-                port: std::env::var("SERVER_PORT")
-                    .ok()
-                    .and_then(|p| p.parse().ok())
-                    .unwrap_or_else(default_port),
-                workers: std::env::var("SERVER_WORKERS")
-                    .ok()
-                    .and_then(|w| w.parse().ok())
-                    .unwrap_or_else(default_workers),
-                timeout: std::env::var("SERVER_TIMEOUT")
-                    .ok()
-                    .and_then(|t| t.parse().ok())
-                    .unwrap_or_else(default_timeout),
+                port: parse_env_var("SERVER_PORT", default_port)?,
+                workers: parse_env_var("SERVER_WORKERS", default_workers)?,
+                timeout: parse_env_var("SERVER_TIMEOUT", default_timeout)?,
             },
             database: DatabaseConfig {
                 url: std::env::var("DATABASE_URL")
                     .unwrap_or_else(|_| "postgres://localhost/rustforge".to_string()),
-                max_connections: std::env::var("DATABASE_MAX_CONNECTIONS")
-                    .ok()
-                    .and_then(|c| c.parse().ok())
-                    .unwrap_or_else(default_max_connections),
-                min_connections: std::env::var("DATABASE_MIN_CONNECTIONS")
-                    .ok()
-                    .and_then(|c| c.parse().ok())
-                    .unwrap_or_else(default_min_connections),
-                connect_timeout: std::env::var("DATABASE_CONNECT_TIMEOUT")
-                    .ok()
-                    .and_then(|t| t.parse().ok())
-                    .unwrap_or_else(default_connect_timeout),
+                max_connections: parse_env_var(
+                    "DATABASE_MAX_CONNECTIONS",
+                    default_max_connections,
+                )?,
+                min_connections: parse_env_var(
+                    "DATABASE_MIN_CONNECTIONS",
+                    default_min_connections,
+                )?,
+                connect_timeout: parse_env_var(
+                    "DATABASE_CONNECT_TIMEOUT",
+                    default_connect_timeout,
+                )?,
             },
             auth: AuthConfig {
                 jwt_secret: std::env::var("JWT_SECRET")
                     .unwrap_or_else(|_| "dev-secret-change-in-production".to_string()),
-                token_expiry_hours: std::env::var("TOKEN_EXPIRY_HOURS")
-                    .ok()
-                    .and_then(|e| e.parse().ok())
-                    .unwrap_or_else(default_token_expiry),
-                session_timeout_minutes: std::env::var("SESSION_TIMEOUT_MINUTES")
-                    .ok()
-                    .and_then(|s| s.parse().ok())
-                    .unwrap_or_else(default_session_timeout),
+                token_expiry_hours: parse_env_var("TOKEN_EXPIRY_HOURS", default_token_expiry)?,
+                session_timeout_minutes: parse_env_var(
+                    "SESSION_TIMEOUT_MINUTES",
+                    default_session_timeout,
+                )?,
             },
         };
 
@@ -330,5 +350,42 @@ mod tests {
         config.database.max_connections = 0;
 
         assert!(config.validate().is_err());
+    }
+
+    // Env-var tests mutate global process state; serialize them with a mutex
+    // to avoid races when cargo test runs multiple threads.
+    static ENV_TEST_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+    /// A present-but-unparseable SERVER_PORT must return an error, NOT silently
+    /// fall back to the default 3000.
+    #[test]
+    fn test_from_env_bad_port_errors() {
+        let _guard = ENV_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+        std::env::set_var("SERVER_PORT", "not_a_number");
+        let result = AppConfig::from_env();
+        std::env::remove_var("SERVER_PORT");
+
+        assert!(
+            result.is_err(),
+            "from_env must fail when SERVER_PORT is not a number, not silently use 3000"
+        );
+        let err = result.unwrap_err();
+        let msg = err.to_string();
+        assert!(
+            msg.contains("SERVER_PORT"),
+            "error message must name the bad variable; got: {msg}"
+        );
+    }
+
+    /// A missing SERVER_PORT must still fall back to the default (3000) without error.
+    #[test]
+    fn test_from_env_missing_port_uses_default() {
+        let _guard = ENV_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+        std::env::remove_var("SERVER_PORT");
+        // Only succeeds if no other bad env vars are set; use a best-effort check.
+        if let Ok(cfg) = AppConfig::from_env() {
+            assert_eq!(cfg.server.port, 3000);
+        }
+        // If other required vars are mis-set in the test environment this is a no-op.
     }
 }

@@ -25,6 +25,7 @@ validator = { workspace = true, optional = true }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt"] }
+tempfile = "3.10"
 
 [features]
 default = []

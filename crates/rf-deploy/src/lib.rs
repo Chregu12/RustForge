@@ -1,6 +1,17 @@
 //! Deployment Helpers for RustForge
 //!
-//! This crate provides code generation for deployment configurations.
+//! This crate provides **code generators** for deployment configuration files.
+//! It is a **library-only artifact generator** — the builders produce YAML/Dockerfile
+//! strings that you write to disk from your own code (e.g. a `build.rs`, a helper
+//! binary, or the `forge deploy generate` CLI command).
+//!
+//! ## Health-check paths
+//!
+//! [`KubernetesBuilder`] emits liveness/readiness probes that default to
+//! `GET /health/live` and `GET /health/ready`.  Your application **must** expose
+//! those routes (e.g. via `rf-health`).  Use
+//! [`KubernetesBuilder::liveness_path`] / [`KubernetesBuilder::readiness_path`]
+//! to customise the paths if your app uses different endpoints.
 
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -119,10 +130,15 @@ impl Default for DockerfileBuilder {
 /// Docker Compose service
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ComposeService {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub image: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub build: Option<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub ports: Vec<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub environment: Vec<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub depends_on: Vec<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub volumes: Option<Vec<String>>,
@@ -158,9 +174,16 @@ impl DockerComposeBuilder {
         self
     }
 
-    /// Add application service
+    /// Add application service.
+    ///
+    /// This also sets the *internal* app-name used by [`Self::postgres_service`]
+    /// and [`Self::redis_service`] to wire up dependencies, so the call order
+    /// `app_service` → `postgres_service` / `redis_service` always works
+    /// regardless of what name you give the service.
     pub fn app_service(mut self, name: impl Into<String>, port: u16) -> Self {
         let name = name.into();
+        // Keep app_name in sync so postgres_service / redis_service can find us.
+        self.app_name = name.clone();
         let service = ComposeService {
             build: Some(".".to_string()),
             image: None,
@@ -262,16 +285,25 @@ impl Default for DockerComposeBuilder {
 }
 
 /// Kubernetes deployment configuration
+///
+/// The generated liveness/readiness probes default to `GET /health/live` and
+/// `GET /health/ready`.  Customise them with [`Self::liveness_path`] and
+/// [`Self::readiness_path`] if your application uses different endpoints.
 pub struct KubernetesBuilder {
     app_name: String,
     namespace: String,
     replicas: u32,
     image: String,
     port: u16,
+    liveness_path: String,
+    readiness_path: String,
 }
 
 impl KubernetesBuilder {
-    /// Create a new Kubernetes builder
+    /// Create a new Kubernetes builder.
+    ///
+    /// Health-check paths default to `/health/live` and `/health/ready`.
+    /// Your application must expose these routes (e.g. via `rf-health`).
     pub fn new(app_name: impl Into<String>, image: impl Into<String>) -> Self {
         Self {
             app_name: app_name.into(),
@@ -279,7 +311,21 @@ impl KubernetesBuilder {
             replicas: 3,
             image: image.into(),
             port: 8000,
+            liveness_path: "/health/live".to_string(),
+            readiness_path: "/health/ready".to_string(),
         }
+    }
+
+    /// Override the liveness probe HTTP path (default: `/health/live`).
+    pub fn liveness_path(mut self, path: impl Into<String>) -> Self {
+        self.liveness_path = path.into();
+        self
+    }
+
+    /// Override the readiness probe HTTP path (default: `/health/ready`).
+    pub fn readiness_path(mut self, path: impl Into<String>) -> Self {
+        self.readiness_path = path.into();
+        self
     }
 
     /// Set namespace
@@ -329,13 +375,13 @@ impl KubernetesBuilder {
         yaml.push_str("          value: \"info\"\n");
         yaml.push_str("        livenessProbe:\n");
         yaml.push_str("          httpGet:\n");
-        yaml.push_str("            path: /health/live\n");
+        yaml.push_str(&format!("            path: {}\n", self.liveness_path));
         yaml.push_str(&format!("            port: {}\n", self.port));
         yaml.push_str("          initialDelaySeconds: 30\n");
         yaml.push_str("          periodSeconds: 10\n");
         yaml.push_str("        readinessProbe:\n");
         yaml.push_str("          httpGet:\n");
-        yaml.push_str("            path: /health/ready\n");
+        yaml.push_str(&format!("            path: {}\n", self.readiness_path));
         yaml.push_str(&format!("            port: {}\n", self.port));
         yaml.push_str("          initialDelaySeconds: 5\n");
         yaml.push_str("          periodSeconds: 5\n");
@@ -520,5 +566,64 @@ mod tests {
         assert!(compose.contains("my-app:"));
         assert!(!compose.contains("postgres:"));
         assert!(!compose.contains("redis:"));
+    }
+
+    /// A service with only `image` set must NOT emit `build: null` in the YAML.
+    /// docker-compose rejects null fields.
+    #[test]
+    fn test_image_only_service_no_null_fields() {
+        // postgres_service has image but no build — previously emitted `build: null`
+        let compose = DockerComposeBuilder::new()
+            .app_service("web", 3000)
+            .postgres_service("15")
+            .build()
+            .unwrap();
+
+        assert!(!compose.contains("null"), "YAML must not contain any null values; got:\n{compose}");
+        assert!(!compose.contains("build: ~"), "YAML must not contain null build field");
+        assert!(compose.contains("image: postgres:15"), "postgres image must be present");
+    }
+
+    /// A service with only `build` set must NOT emit `image: null` in the YAML.
+    #[test]
+    fn test_build_only_service_no_null_fields() {
+        let compose = DockerComposeBuilder::new()
+            .app_service("web", 3000)
+            .build()
+            .unwrap();
+
+        assert!(!compose.contains("null"), "YAML must not contain any null values; got:\n{compose}");
+        assert!(!compose.contains("image: ~"), "YAML must not contain null image field");
+        assert!(compose.contains("build:"), "build field must be present for app service");
+    }
+
+    /// K8s health paths can be overridden from the defaults.
+    #[test]
+    fn test_kubernetes_custom_health_paths() {
+        let k8s = KubernetesBuilder::new("my-app", "my-app:latest")
+            .liveness_path("/healthz")
+            .readiness_path("/readyz");
+
+        let deployment = k8s.build_deployment().unwrap();
+
+        assert!(deployment.contains("/healthz"), "custom liveness path must appear");
+        assert!(deployment.contains("/readyz"), "custom readiness path must appear");
+        assert!(!deployment.contains("/health/live"), "default liveness path must not appear");
+        assert!(!deployment.contains("/health/ready"), "default readiness path must not appear");
+    }
+
+    /// Calling app_service with a non-default name then postgres_service must
+    /// wire the postgres dependency onto the app (no silent name-mismatch).
+    #[test]
+    fn test_postgres_depends_on_custom_app_name() {
+        let compose = DockerComposeBuilder::new()
+            .app_service("web", 3000) // non-default name
+            .postgres_service("15")
+            .build()
+            .unwrap();
+
+        // The `web` service must declare a dependency on postgres
+        assert!(compose.contains("depends_on") || compose.contains("- postgres"),
+            "web service must depend on postgres; got:\n{compose}");
     }
 }

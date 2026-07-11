@@ -1,6 +1,7 @@
 pub mod about;
 pub mod cache;
 pub mod config;
+pub mod deploy;
 pub mod inspire;
 pub mod mail;
 pub mod make;
