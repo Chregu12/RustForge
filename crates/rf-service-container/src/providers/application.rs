@@ -60,12 +60,38 @@ impl ServiceProvider for ApplicationServiceProvider {
     }
 
     async fn boot(&self, _container: &Container) -> Result<()> {
-        // Validate APP_KEY is set in production
+        // Fail-closed: refuse to boot in production with a missing or placeholder APP_KEY.
+        // A missing key means session signatures, encrypted casts, and auth tokens are
+        // either unkeyed (trivially forgeable) or will panic at first use.
         let env = std::env::var("APP_ENV").unwrap_or_else(|_| "development".to_string());
         let key = std::env::var("APP_KEY").unwrap_or_default();
 
-        if env == "production" && key.is_empty() {
-            tracing::warn!("APP_KEY is not set in production environment!");
+        if env == "production" {
+            if key.is_empty() {
+                return Err(crate::error::ContainerError::ProviderError(
+                    "APP_KEY is required in production. \
+                     Run `foundry key:generate` to create one and set it in your .env file."
+                        .to_string(),
+                ));
+            }
+            // Reject obvious placeholder values that ship in starter .env.example files.
+            let lower = key.to_lowercase();
+            if lower == "changeme"
+                || lower == "your-secret-key"
+                || lower == "base64:changeme"
+                || lower.contains("example")
+            {
+                return Err(crate::error::ContainerError::ProviderError(
+                    "APP_KEY appears to be a placeholder value. \
+                     Generate a real cryptographic key with `foundry key:generate`."
+                        .to_string(),
+                ));
+            }
+        } else if key.is_empty() {
+            tracing::warn!(
+                "APP_KEY is not set. Set it before deploying to production \
+                 (`foundry key:generate`)."
+            );
         }
 
         Ok(())

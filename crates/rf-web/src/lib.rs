@@ -56,6 +56,7 @@ pub mod versioning;
 // Re-exports for convenience
 pub use csrf::{
     csrf_field, csrf_meta, csrf_token, CsrfConfig, CsrfLayer, CsrfMiddleware, CsrfToken,
+    CsrfTokenStore,
 };
 pub use middleware::{
     compression_layer, cors_layer, default_security_headers_layer, security_headers_layer,

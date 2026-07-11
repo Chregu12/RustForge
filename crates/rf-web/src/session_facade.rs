@@ -212,9 +212,19 @@ pub async fn session_scope(req: Request, next: Next) -> Response {
         )
         .await;
 
+    // Add the Secure flag when:
+    //   • APP_ENV=production (fail-safe: production traffic should always be HTTPS), or
+    //   • SESSION_SECURE=true is explicitly set.
+    // In development and test environments the flag is omitted so localhost HTTPS
+    // is not required.
+    let secure_attr = {
+        let env = std::env::var("APP_ENV").unwrap_or_default();
+        let forced = std::env::var("SESSION_SECURE").as_deref() == Ok("true");
+        if env == "production" || forced { "; Secure" } else { "" }
+    };
     let cookie = format!(
-        "{}={}; Path=/; HttpOnly; SameSite=Lax",
-        SESSION_COOKIE, final_id
+        "{}={}; Path=/; HttpOnly; SameSite=Lax{}",
+        SESSION_COOKIE, final_id, secure_attr
     );
     if let Ok(value) = cookie.parse() {
         response.headers_mut().append(header::SET_COOKIE, value);
