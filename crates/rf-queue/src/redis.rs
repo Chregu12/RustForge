@@ -198,7 +198,7 @@ impl Queue for RedisQueue {
 
         // Store job data
         let job_key = self.job_key(&job_id);
-        conn.set_ex(&job_key, job_data, 86400) // 24 hours TTL
+        conn.set_ex::<_, _, ()>(&job_key, job_data, 86400) // 24 hours TTL
             .await
             .map_err(|e| QueueError::Backend(e.to_string()))?;
 
@@ -207,7 +207,7 @@ impl Queue for RedisQueue {
             let delayed_key = self.delayed_key(&queue_name);
             let score = execute_at.timestamp() as f64;
 
-            conn.zadd(&delayed_key, &job_data_str, score)
+            conn.zadd::<_, _, _, ()>(&delayed_key, &job_data_str, score)
                 .await
                 .map_err(|e| QueueError::Backend(e.to_string()))?;
 
@@ -221,7 +221,7 @@ impl Queue for RedisQueue {
             // Add to ready queue
             let queue_key = self.queue_key(&queue_name);
 
-            conn.lpush(&queue_key, &job_data_str)
+            conn.lpush::<_, _, ()>(&queue_key, &job_data_str)
                 .await
                 .map_err(|e| QueueError::Backend(e.to_string()))?;
 
@@ -300,7 +300,7 @@ impl Queue for RedisQueue {
         }
 
         // Delete job data
-        conn.del(&job_key)
+        conn.del::<_, ()>(&job_key)
             .await
             .map_err(|e| QueueError::Backend(e.to_string()))?;
 
@@ -342,12 +342,12 @@ impl Queue for RedisQueue {
 
             // Store in failed queue
             let failed_data = metadata.to_bytes()?;
-            conn.lpush(&failed_key, failed_data)
+            conn.lpush::<_, _, ()>(&failed_key, failed_data)
                 .await
                 .map_err(|e| QueueError::Backend(e.to_string()))?;
 
             // Delete original job data
-            conn.del(&self.job_key(job_id))
+            conn.del::<_, ()>(&self.job_key(job_id))
                 .await
                 .map_err(|e| QueueError::Backend(e.to_string()))?;
 
@@ -439,7 +439,7 @@ impl Queue for RedisQueue {
         let failed_key = self.failed_key(queue);
 
         // Delete all queue-related keys
-        conn.del(&[&queue_key, &delayed_key, &processing_key, &failed_key])
+        conn.del::<_, ()>(&[&queue_key, &delayed_key, &processing_key, &failed_key])
             .await
             .map_err(|e| QueueError::Backend(e.to_string()))?;
 

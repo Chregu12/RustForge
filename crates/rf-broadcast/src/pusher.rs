@@ -57,7 +57,7 @@ use crate::{
 };
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
+use sha2::Sha256;
 use std::collections::HashMap;
 
 /// Pusher configuration
@@ -224,7 +224,7 @@ impl PusherBroadcaster {
             .body(body_str)
             .send()
             .await
-            .map_err(|e| BroadcastError::ConnectionError(e.to_string()))?;
+            .map_err(|e| BroadcastError::BackendError(e.to_string()))?;
 
         let status = response.status();
         if !status.is_success() {
@@ -233,7 +233,7 @@ impl PusherBroadcaster {
                 .await
                 .unwrap_or_else(|_| "Unknown error".to_string());
 
-            return Err(BroadcastError::TransportError(format!(
+            return Err(BroadcastError::BackendError(format!(
                 "Pusher API error ({}): {}",
                 status, error_text
             )));
@@ -283,7 +283,7 @@ impl PusherBroadcaster {
             .body(body_str)
             .send()
             .await
-            .map_err(|e| BroadcastError::ConnectionError(e.to_string()))?;
+            .map_err(|e| BroadcastError::BackendError(e.to_string()))?;
 
         let status = response.status();
         let response_text = response
@@ -292,7 +292,7 @@ impl PusherBroadcaster {
             .unwrap_or_else(|_| "Unknown error".to_string());
 
         if !status.is_success() {
-            return Err(BroadcastError::TransportError(format!(
+            return Err(BroadcastError::BackendError(format!(
                 "Pusher API error ({}): {}",
                 status, response_text
             )));
@@ -363,11 +363,17 @@ impl PusherBroadcaster {
 #[async_trait]
 impl Broadcaster for PusherBroadcaster {
     async fn broadcast(&self, channel: &Channel, event: &dyn Event) -> BroadcastResult<()> {
-        let channel_name = channel.name();
-        let event_name = event.name();
-        let event_data = event.data();
+        let channel_name = channel.name().to_string();
+        let event_name = event.event_name().to_string();
+        // Serialize event data to JSON; treat serialisation error as backend error
+        let event_data: serde_json::Value = serde_json::from_str(
+            &event
+                .to_json()
+                .map_err(|e| BroadcastError::BackendError(e.to_string()))?,
+        )
+        .map_err(|e| BroadcastError::SerializationError(e.to_string()))?;
 
-        self.trigger_event(&channel_name, event_name, &event_data)
+        self.trigger_event(&channel_name, &event_name, &event_data)
             .await
     }
 
@@ -382,7 +388,7 @@ impl Broadcaster for PusherBroadcaster {
         if channel.is_presence() {
             if let Some(uid) = user_id {
                 let mut cache = self.presence_cache.write().await;
-                let presence_list = cache.entry(channel.name()).or_insert_with(Vec::new);
+                let presence_list = cache.entry(channel.name().to_string()).or_insert_with(Vec::new);
 
                 // Add or update presence
                 if !presence_list.iter().any(|p| p.user_id == uid) {
@@ -418,7 +424,7 @@ impl Broadcaster for PusherBroadcaster {
         }
 
         let cache = self.presence_cache.read().await;
-        Ok(cache.get(&channel.name()).cloned().unwrap_or_default())
+        Ok(cache.get(channel.name()).cloned().unwrap_or_default())
     }
 
     async fn is_subscribed(

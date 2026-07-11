@@ -196,8 +196,8 @@ impl MailManager {
                     .to_lowercase()
                     .as_str()
                 {
-                    "eu" => crate::backends::MailgunRegion::Eu,
-                    _ => crate::backends::MailgunRegion::Us,
+                    "eu" => crate::backends::MailgunRegion::EU,
+                    _ => crate::backends::MailgunRegion::US,
                 };
                 Ok(Self::mailgun(crate::backends::MailgunConfig {
                     api_key,

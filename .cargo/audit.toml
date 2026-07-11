@@ -1,0 +1,34 @@
+# cargo-audit configuration for RustForge workspace
+# https://github.com/rustsec/rustsec/blob/main/cargo-audit/README.md
+#
+# This file mirrors the documented ignores in deny.toml so that both
+# `cargo audit` and `cargo deny check` agree.  Every entry here MUST have a
+# corresponding entry in deny.toml with a root-cause explanation.
+
+[advisories]
+ignore = [
+    # RUSTSEC-2024-0421  idna 0.5.0
+    #   Root: prometheus 0.13 → url → idna 0.5; no fix until prometheus 0.14.
+    "RUSTSEC-2024-0421",
+
+    # RUSTSEC-2024-0437  protobuf 2.28.0
+    #   Root: prometheus 0.13 uses protobuf 2.x for text-format serialisation;
+    #   the endpoint only *emits* text — it never *parses* untrusted bytes.
+    "RUSTSEC-2024-0437",
+
+    # RUSTSEC-2023-0071  rsa 0.9.9  (Marvin Attack — NO FIX AVAILABLE)
+    #   Root: sqlx-mysql uses rsa 0.9 for MySQL caching_sha2_password handshake.
+    #   Exploiting the timing side-channel requires millions of oracle calls.
+    "RUSTSEC-2023-0071",
+
+    # RUSTSEC-2026-0098  rustls-webpki 0.101.7
+    # RUSTSEC-2026-0099  rustls-webpki 0.101.7
+    # RUSTSEC-2026-0104  rustls-webpki 0.101.7
+    #   Root: async-stripe 0.41 → reqwest 0.11 → rustls 0.21 → rustls-webpki
+    #   0.101.7.  This old webpki is used only for outbound Stripe API TLS;
+    #   the framework's own server TLS uses rustls 0.23 / webpki 0.103.13.
+    #   Upgrade is blocked until async-stripe 1.0 stable ships.
+    "RUSTSEC-2026-0098",
+    "RUSTSEC-2026-0099",
+    "RUSTSEC-2026-0104",
+]

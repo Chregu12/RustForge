@@ -144,10 +144,7 @@ impl MailgunMailer {
 
     /// Send using Mailgun API
     async fn send_via_api(&self, mail: &Mail) -> MailResult<MailgunResponse> {
-        let from = mail
-            .from
-            .as_ref()
-            .ok_or_else(|| MailError::InvalidAddress("Missing 'from' address".to_string()))?;
+        let from = &mail.from;
 
         // Build form data
         let mut form = HashMap::new();
@@ -270,7 +267,7 @@ impl MailgunMailer {
 
         // Add attachments
         for attachment in &mail.attachments {
-            let part = reqwest::multipart::Part::bytes(attachment.content.clone())
+            let part = reqwest::multipart::Part::bytes(attachment.data.clone())
                 .file_name(attachment.filename.clone())
                 .mime_str(&attachment.content_type)
                 .map_err(|e| MailError::SendFailed(format!("Invalid mime type: {}", e)))?;

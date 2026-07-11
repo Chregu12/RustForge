@@ -1,0 +1,343 @@
+# cargo-deny 0.20 configuration for RustForge workspace
+# https://embarkstudios.github.io/cargo-deny/
+#
+# Run:  cargo deny check
+# CI:   .github/workflows/ci.yml  →  supply-chain job
+
+# ---------------------------------------------------------------------------
+# ADVISORIES
+# ---------------------------------------------------------------------------
+# cargo-deny 0.20 removed vulnerability/unmaintained/notice/unsound top-level
+# keys.  Vulnerabilities are now always errors unless the specific advisory ID
+# is listed in `ignore`.  Unmaintained/unsound/notice advisories are also
+# errors by default; suppress them via `ignore` entries.
+[advisories]
+version = 2
+
+# Warn on yanked crates, do not fail the build.
+yanked = "warn"
+
+ignore = [
+    # -------------------------------------------------------------------
+    # VULNERABILITIES — blocked from upgrade, documented reasons
+    # -------------------------------------------------------------------
+
+    # RUSTSEC-2024-0421  idna 0.5.0
+    #   "`idna` accepts Punycode labels that do not produce any non-ASCII"
+    #   Fix: >= 1.0.0 (major bump).
+    #   Root cause: prometheus 0.13 → url 2.x → idna 0.5.  The url crate
+    #   used by prometheus 0.13 pins idna < 1.0.  Upgrading requires first
+    #   upgrading prometheus to 0.14 (which uses url 2.5 / idna >= 1.0).
+    #   Risk: URL-validation quirk, no RCE or data-loss vector.
+    { id = "RUSTSEC-2024-0421", reason = "Locked by prometheus 0.13 → url → idna 0.5; no RCE risk; upgrade tracked (prometheus 0.14 removes this dep chain)." },
+
+    # RUSTSEC-2024-0437  protobuf 2.28.0
+    #   "Crash due to uncontrolled recursion in protobuf crate"
+    #   Fix: >= 3.7.2 (breaking major bump).
+    #   Root cause: prometheus 0.13 embeds protobuf 2.x for text-format
+    #   serialisation.  Prometheus 0.14 drops the protobuf dep entirely.
+    #   Risk: DoS via deeply nested protobuf payload.  The metrics endpoint
+    #   only *emits* text-format — it never *parses* incoming protobuf.
+    { id = "RUSTSEC-2024-0437", reason = "Locked by prometheus 0.13; metrics endpoint only emits text-format and never parses untrusted protobuf bytes; upgrade to prometheus 0.14 tracked." },
+
+    # RUSTSEC-2023-0071  rsa 0.9.9
+    #   "Marvin Attack: potential key recovery through timing side-channels"
+    #   Fix: NO FIX AVAILABLE (as of 2026-07-11).
+    #   Root cause: sqlx-mysql uses rsa 0.9 for MySQL caching_sha2_password
+    #   key exchange.  Exploiting the Marvin Attack requires millions of
+    #   precisely-measured oracle calls against the DB connection — not a
+    #   web-layer attack surface.
+    { id = "RUSTSEC-2023-0071", reason = "No fix available; sqlx-mysql uses rsa 0.9 for MySQL handshake only; Marvin Attack requires millions of oracle calls against the DB port, not an HTTP-layer risk." },
+
+    # RUSTSEC-2026-0098  rustls-webpki 0.101.7
+    #   "Name constraints for URI names were incorrectly accepted"
+    #   Fix: >= 0.103.12.
+    # RUSTSEC-2026-0099  rustls-webpki 0.101.7
+    #   "Name constraints were accepted for certificates asserting a wildcard name"
+    #   Fix: >= 0.103.12.
+    # RUSTSEC-2026-0104  rustls-webpki 0.101.7
+    #   "Reachable panic in certificate revocation list parsing"
+    #   Fix: >= 0.103.13.
+    #   Root cause: async-stripe 0.41 → reqwest 0.11 → rustls 0.21 →
+    #   rustls-webpki 0.101.7.  async-stripe 1.0 (reqwest 0.12-compatible)
+    #   is still RC at time of writing.  This older webpki is used only for
+    #   outbound TLS to the Stripe API, not for the framework's own server TLS
+    #   (which uses rustls 0.23 / webpki 0.103.13).
+    { id = "RUSTSEC-2026-0098", reason = "async-stripe 0.41 locks reqwest 0.11 → rustls-webpki 0.101.7; affects only outbound Stripe API TLS; upgrade to async-stripe >= 1.0 stable when released." },
+    { id = "RUSTSEC-2026-0099", reason = "Same root cause as RUSTSEC-2026-0098." },
+    { id = "RUSTSEC-2026-0104", reason = "Same root cause as RUSTSEC-2026-0098." },
+
+    # -------------------------------------------------------------------
+    # UNMAINTAINED — transitive deps, no direct alternative available
+    # -------------------------------------------------------------------
+    # async-std 1.13.2 — pulled in by surf (transitive); async-std project
+    # is discontinued but the crate still compiles and works.
+    { id = "RUSTSEC-2025-0052", reason = "Transitive dep via surf; async-std is stable and builds; no direct alternative for the pulling crate yet." },
+    # bincode 1.3.3 — transitive dep of several serialisation crates.
+    { id = "RUSTSEC-2025-0141", reason = "Transitive dep; bincode 1.x is frozen but widely used and builds; migration to bincode 2.x depends on upstream crates." },
+    # core2 0.4.0 — yanked + unmaintained; pulled in by bitstream-io → rav1e
+    # → image (used by rf-2fa QR code generation).
+    { id = "RUSTSEC-2026-0105", reason = "Transitive dep of rav1e (image encoder); core2 is effectively frozen but builds; image/rav1e are expected to drop it in a future release." },
+    # derivative 2.2.0 — proc-macro helper; pulled in by several crates.
+    { id = "RUSTSEC-2024-0388", reason = "Transitive proc-macro dep; no API-breaking changes expected; migration depends on upstream crates." },
+    # instant 0.1.13 — timing abstraction; pulled in by older crates
+    # pre-dating std::time on WASM.
+    { id = "RUSTSEC-2024-0384", reason = "Transitive dep; used only on native targets in practice; will be removed as upstreams migrate to web-time." },
+    # number_prefix 0.4.0 — pulled in by indicatif.
+    { id = "RUSTSEC-2025-0119", reason = "Transitive dep of indicatif; pure-function crate with no security surface." },
+    # paste 1.0.15 — proc-macro; pulled in by several macro crates.
+    { id = "RUSTSEC-2024-0436", reason = "Transitive proc-macro dep; paste is still in wide use and builds; no exploitable surface." },
+    # proc-macro-error 1.0.4 — proc-macro helper.
+    { id = "RUSTSEC-2024-0370", reason = "Transitive proc-macro dep; migration depends on upstream macro crates." },
+    # proc-macro-error2 2.0.1 — proc-macro helper.
+    { id = "RUSTSEC-2026-0173", reason = "Transitive proc-macro dep; migration depends on upstream macro crates." },
+    # rustls-pemfile 1.0.4 — pulled in by reqwest 0.11 / async-stripe path.
+    { id = "RUSTSEC-2025-0134", reason = "Transitive dep of async-stripe 0.41 → reqwest 0.11; will be eliminated when async-stripe is upgraded." },
+    # yaml-rust 0.4.5 — pulled in by config crate.
+    { id = "RUSTSEC-2024-0320", reason = "Transitive dep of the config crate; yaml-rust is read-only parsing; no network/exec surface." },
+
+    # -------------------------------------------------------------------
+    # UNSOUND — well-understood impact, upgrade not yet feasible
+    # -------------------------------------------------------------------
+    # anyhow 1.0.100 — RUSTSEC-2026-0190: UB in Error::downcast_mut when
+    # using Error::context.  The framework uses anyhow for error propagation
+    # with context() but not for downcast_mut().  Low practical risk.
+    { id = "RUSTSEC-2026-0190", reason = "Framework code does not call Error::downcast_mut on context-wrapped errors; practical risk is negligible until anyhow 1.0.101+ is published." },
+    # rand 0.7/0.8/0.9 — RUSTSEC-2026-0097: unsound if a custom logger calls
+    # rand::rng().  RustForge does not use a custom logger that calls rand.
+    { id = "RUSTSEC-2026-0097", reason = "Multiple rand versions from transitive deps; the unsoundness only triggers if a custom logger (not tracing-subscriber) calls rand::rng() — which this project does not do." },
+
+    # -------------------------------------------------------------------
+    # NOTICE
+    # -------------------------------------------------------------------
+    # http-types 2.12.0 — RUSTSEC-2026-0174: notice about ASCII invariants.
+    { id = "RUSTSEC-2026-0174", reason = "Notice-level advisory; http-types is a transitive dep and we do not construct Authorization headers via http-types directly." },
+]
+
+# ---------------------------------------------------------------------------
+# LICENSES
+# ---------------------------------------------------------------------------
+[licenses]
+version = 2
+
+# Minimum confidence before a detected license is accepted.
+confidence-threshold = 0.8
+
+# All OSI-approved and explicitly reviewed licenses present in the dep tree.
+allow = [
+    "MIT",
+    "MIT-0",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "CC0-1.0",
+    "0BSD",
+    "Unlicense",
+    "Zlib",
+    "NCSA",               # Permissive, similar to MIT + BSD
+    "Unicode-3.0",        # Unicode data tables — permissive
+    "Unicode-DFS-2016",   # Unicode data files — permissive
+    "CDLA-Permissive-2.0",# Community Data License Agreement — permissive
+    # Weak/file-level copyleft — reviewed and accepted:
+    "MPL-2.0",            # File-level copyleft only; modifications to MPL
+                          # files must be shared but do not infect the rest.
+    "LGPL-2.1-or-later",  # r-efi (UEFI interface bindings); LGPL only requires
+                          # sharing modifications to the library itself.
+    "BSL-1.0",            # Business Source License — used by ryu, clipboard-win,
+                          # whoami.  Converts to Apache-2.0 after 4 years; no
+                          # restrictions on production application use.
+]
+
+# Workspace crates that inherit "MIT OR Apache-2.0" from the workspace root but
+# cargo-deny reports as "Unlicensed" because their individual Cargo.toml files
+# do not repeat the license field.  Each is explicitly allowed here.
+[[licenses.exceptions]]
+allow = ["MIT", "Apache-2.0"]
+name = "auth-paginated-search"
+
+[[licenses.exceptions]]
+allow = ["MIT", "Apache-2.0"]
+name = "blog-slice"
+
+[[licenses.exceptions]]
+allow = ["MIT", "Apache-2.0"]
+name = "deployment-tests"
+
+[[licenses.exceptions]]
+allow = ["MIT", "Apache-2.0"]
+name = "facades-demo"
+
+[[licenses.exceptions]]
+allow = ["MIT", "Apache-2.0"]
+name = "i18n-localized-api"
+
+[[licenses.exceptions]]
+allow = ["MIT", "Apache-2.0"]
+name = "jobs-demo"
+
+[[licenses.exceptions]]
+allow = ["MIT", "Apache-2.0"]
+name = "jobs-offline"
+
+[[licenses.exceptions]]
+allow = ["MIT", "Apache-2.0"]
+name = "laravel-syntax-complete"
+
+[[licenses.exceptions]]
+allow = ["MIT", "Apache-2.0"]
+name = "laravel-syntax-simple"
+
+[[licenses.exceptions]]
+allow = ["MIT", "Apache-2.0"]
+name = "macros-demo"
+
+[[licenses.exceptions]]
+allow = ["MIT", "Apache-2.0"]
+name = "mail-demo"
+
+[[licenses.exceptions]]
+allow = ["MIT", "Apache-2.0"]
+name = "phase12-blog"
+
+[[licenses.exceptions]]
+allow = ["MIT", "Apache-2.0"]
+name = "probe-sweep"
+
+[[licenses.exceptions]]
+allow = ["MIT", "Apache-2.0"]
+name = "realtime-chat"
+
+[[licenses.exceptions]]
+allow = ["MIT", "Apache-2.0"]
+name = "rest-crud-resource"
+
+[[licenses.exceptions]]
+allow = ["MIT", "Apache-2.0"]
+name = "scaffold-demo"
+
+[[licenses.exceptions]]
+allow = ["MIT", "Apache-2.0"]
+name = "taskflow"
+
+[[licenses.exceptions]]
+allow = ["MIT", "Apache-2.0"]
+name = "validated-signup"
+
+[[licenses.exceptions]]
+allow = ["MIT", "Apache-2.0"]
+name = "rustforge-benchmarks"
+
+[[licenses.exceptions]]
+allow = ["MIT", "Apache-2.0"]
+name = "rf-2fa"
+
+[[licenses.exceptions]]
+allow = ["MIT", "Apache-2.0"]
+name = "rf-admin"
+
+[[licenses.exceptions]]
+allow = ["MIT", "Apache-2.0"]
+name = "rf-api-resources"
+
+[[licenses.exceptions]]
+allow = ["MIT", "Apache-2.0"]
+name = "rf-audit"
+
+[[licenses.exceptions]]
+allow = ["MIT", "Apache-2.0"]
+name = "rf-auth-scaffolding"
+
+[[licenses.exceptions]]
+allow = ["MIT", "Apache-2.0"]
+name = "rf-cli-gen"
+
+[[licenses.exceptions]]
+allow = ["MIT", "Apache-2.0"]
+name = "rf-collections"
+
+[[licenses.exceptions]]
+allow = ["MIT", "Apache-2.0"]
+name = "rf-deploy"
+
+[[licenses.exceptions]]
+allow = ["MIT", "Apache-2.0"]
+name = "rf-events"
+
+[[licenses.exceptions]]
+allow = ["MIT", "Apache-2.0"]
+name = "rf-export"
+
+[[licenses.exceptions]]
+allow = ["MIT", "Apache-2.0"]
+name = "rf-feature-flags"
+
+[[licenses.exceptions]]
+allow = ["MIT", "Apache-2.0"]
+name = "rf-i18n"
+
+[[licenses.exceptions]]
+allow = ["MIT", "Apache-2.0"]
+name = "rf-logging"
+
+[[licenses.exceptions]]
+allow = ["MIT", "Apache-2.0"]
+name = "rf-metrics"
+
+[[licenses.exceptions]]
+allow = ["MIT", "Apache-2.0"]
+name = "rf-notifications"
+
+[[licenses.exceptions]]
+allow = ["MIT", "Apache-2.0"]
+name = "rf-oauth-server"
+
+[[licenses.exceptions]]
+allow = ["MIT", "Apache-2.0"]
+name = "rf-pagination"
+
+[[licenses.exceptions]]
+allow = ["MIT", "Apache-2.0"]
+name = "rf-requests"
+
+[[licenses.exceptions]]
+allow = ["MIT", "Apache-2.0"]
+name = "rf-routing"
+
+[[licenses.exceptions]]
+allow = ["MIT", "Apache-2.0"]
+name = "rf-search"
+
+[[licenses.exceptions]]
+allow = ["MIT", "Apache-2.0"]
+name = "rf-sse"
+
+[[licenses.exceptions]]
+allow = ["MIT", "Apache-2.0"]
+name = "rf-swagger"
+
+[[licenses.exceptions]]
+allow = ["MIT", "Apache-2.0"]
+name = "rf-upload"
+
+# ---------------------------------------------------------------------------
+# BANS
+# ---------------------------------------------------------------------------
+[bans]
+# Warn (not fail) on duplicate dep versions — the lockfile has intentional
+# dual-version situations (e.g. reqwest 0.11 from async-stripe, rand 0.7/0.8/0.9
+# from different transitive deps).
+multiple-versions = "warn"
+
+# Allow wildcards in version specifiers (common in optional deps).
+wildcards = "allow"
+
+# ---------------------------------------------------------------------------
+# SOURCES
+# ---------------------------------------------------------------------------
+[sources]
+unknown-registry = "warn"
+unknown-git      = "warn"
+
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]

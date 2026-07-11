@@ -84,10 +84,7 @@ impl PostmarkMailer {
 
     /// Send using Postmark API
     async fn send_via_api(&self, mail: &Mail) -> MailResult<PostmarkResponse> {
-        let from = mail
-            .from
-            .as_ref()
-            .ok_or_else(|| MailError::InvalidAddress("Missing 'from' address".to_string()))?;
+        let from = &mail.from;
 
         // Build recipients
         let to_addresses: Vec<String> = mail
@@ -160,7 +157,7 @@ impl PostmarkMailer {
                     .map(|att| {
                         json!({
                             "Name": att.filename,
-                            "Content": base64::encode(&att.content),
+                            "Content": base64::encode(&att.data),
                             "ContentType": att.content_type,
                         })
                     })

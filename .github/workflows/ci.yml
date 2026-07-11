@@ -561,3 +561,34 @@ jobs:
         if: always()
         run: |
           docker compose -f docker-compose.test.yml -f docker-compose.ci.yml down -v
+
+  # ===========================================
+  # Supply Chain — cargo audit + cargo deny
+  # ===========================================
+  #
+  # Scans the workspace lockfile for known RUSTSEC advisories (cargo audit)
+  # and enforces the license allow-list, bans policy, and source policy
+  # defined in deny.toml (cargo deny). Runs on every push so a newly
+  # introduced dependency with a known advisory is caught immediately.
+  #
+  # Advisory ignores are documented in deny.toml with precise root-cause
+  # comments; nothing is silently suppressed.
+  supply-chain:
+    name: "Supply Chain (audit + deny)"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Install cargo-audit
+        run: cargo install cargo-audit --locked
+
+      - name: Install cargo-deny
+        run: cargo install cargo-deny --locked
+
+      - name: cargo audit
+        run: cargo audit
+
+      - name: cargo deny check
+        run: cargo deny check

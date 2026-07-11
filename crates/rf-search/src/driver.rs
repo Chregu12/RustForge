@@ -34,6 +34,14 @@ pub enum SearchError {
     /// Feature not enabled in Cargo.toml
     #[error("Feature '{0}' is not enabled. Enable it in Cargo.toml with: features = [\"{0}\"]")]
     FeatureNotEnabled(String),
+
+    /// Query/API error (alias used by some drivers)
+    #[error("Query error: {0}")]
+    QueryError(String),
+
+    /// Invalid query parameters
+    #[error("Invalid query: {0}")]
+    InvalidQuery(String),
 }
 
 /// Result type for search operations

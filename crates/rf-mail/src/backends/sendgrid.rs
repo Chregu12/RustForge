@@ -115,10 +115,7 @@ impl SendGridMailer {
 
     /// Send using SendGrid API v3
     async fn send_via_api(&self, mail: &Mail) -> MailResult<()> {
-        let from = mail
-            .from
-            .as_ref()
-            .ok_or_else(|| MailError::InvalidAddress("Missing 'from' address".to_string()))?;
+        let from = &mail.from;
 
         // Build personalizations (recipients)
         let mut personalizations = Vec::new();
@@ -236,7 +233,7 @@ impl SendGridMailer {
                 .iter()
                 .map(|att| {
                     json!({
-                        "content": base64::encode(&att.content),
+                        "content": base64::encode(&att.data),
                         "type": att.content_type,
                         "filename": att.filename,
                     })

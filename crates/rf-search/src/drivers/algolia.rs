@@ -128,12 +128,11 @@ impl AlgoliaDriver {
 
 #[async_trait]
 impl SearchDriver for AlgoliaDriver {
-    async fn index<T: Searchable + Serialize + Send + Sync>(&self, item: &T) -> Result<()> {
+    async fn index<T: Searchable>(&self, item: &T) -> Result<()> {
         let index_name = T::index_name();
         let url = format!("{}/{}", self.index_url(index_name), item.search_id());
 
-        let searchable = item.to_searchable();
-        let data = serde_json::to_value(&searchable)
+        let data = serde_json::to_value(&item.to_searchable())
             .map_err(|e| SearchError::IndexError(e.to_string()))?;
 
         let _: Value = self.request(reqwest::Method::PUT, &url, Some(data)).await?;
@@ -141,7 +140,7 @@ impl SearchDriver for AlgoliaDriver {
         Ok(())
     }
 
-    async fn index_many<T: Searchable + Serialize + Send + Sync>(
+    async fn index_many<T: Searchable>(
         &self,
         items: Vec<&T>,
     ) -> Result<()> {
@@ -184,24 +183,27 @@ impl SearchDriver for AlgoliaDriver {
         Ok(())
     }
 
-    async fn search<T: Searchable + for<'de> Deserialize<'de>>(
+    async fn search<T: Searchable>(
         &self,
         query: &str,
         options: Option<SearchOptions>,
-    ) -> Result<SearchResult<T>> {
+    ) -> Result<SearchResult<T::Model>> {
         let index_name = T::index_name();
         let url = format!("{}/query", self.index_url(index_name));
 
         let opts = options.unwrap_or_default();
+        let limit = if opts.limit == 0 { 20 } else { opts.limit };
+        let page = if limit > 0 { opts.offset / limit } else { 0 };
 
         let mut search_params = json!({
             "query": query,
-            "hitsPerPage": opts.limit.unwrap_or(20),
-            "page": opts.offset.map(|o| o / opts.limit.unwrap_or(20)).unwrap_or(0),
+            "hitsPerPage": limit,
+            "page": page,
         });
 
-        if let Some(filters) = opts.filters {
-            let filter_str = filters
+        if !opts.filters.is_empty() {
+            let filter_str = opts
+                .filters
                 .iter()
                 .map(|(k, v)| format!("{}:{}", k, v))
                 .collect::<Vec<_>>()
@@ -209,30 +211,30 @@ impl SearchDriver for AlgoliaDriver {
             search_params["filters"] = Value::String(filter_str);
         }
 
-        if let Some(sort) = opts.sort_by {
-            search_params["sortBy"] = Value::String(sort);
+        if let Some((sort_field, _asc)) = opts.sort {
+            search_params["sortBy"] = Value::String(sort_field);
         }
 
-        if opts.highlight {
-            search_params["attributesToHighlight"] = json!(["*"]);
+        if !opts.highlight_fields.is_empty() {
+            search_params["attributesToHighlight"] = json!(opts.highlight_fields);
         }
 
         #[derive(Deserialize)]
-        struct AlgoliaResponse<T> {
-            hits: Vec<AlgoliaHit<T>>,
+        struct AlgoliaResponse<M> {
+            hits: Vec<AlgoliaHit<M>>,
             #[serde(rename = "nbHits")]
             nb_hits: usize,
             page: usize,
-            #[serde(rename = "nbPages")]
-            nb_pages: usize,
+            #[serde(rename = "processingTimeMS", default)]
+            processing_time_ms: u64,
         }
 
         #[derive(Deserialize)]
-        struct AlgoliaHit<T> {
+        struct AlgoliaHit<M> {
             #[serde(rename = "objectID")]
             object_id: String,
             #[serde(flatten)]
-            data: T,
+            document: M,
             #[serde(rename = "_highlightResult", default)]
             highlight_result: Option<HashMap<String, HighlightField>>,
         }
@@ -242,29 +244,40 @@ impl SearchDriver for AlgoliaDriver {
             value: String,
         }
 
-        let response: AlgoliaResponse<T> = self
+        let response: AlgoliaResponse<T::Model> = self
             .request(reqwest::Method::POST, &url, Some(search_params))
             .await?;
 
-        let hits: Vec<SearchHit<T>> = response
+        let total = response.nb_hits;
+        let hits: Vec<SearchHit<T::Model>> = response
             .hits
             .into_iter()
             .enumerate()
-            .map(|(idx, hit)| SearchHit {
-                score: ((response.nb_hits - idx) as f32) / (response.nb_hits as f32),
-                data: hit.data,
-                highlights: hit
+            .map(|(idx, hit)| {
+                let score = if total > 0 {
+                    ((total - idx) as f64) / (total as f64)
+                } else {
+                    0.0
+                };
+                let highlights: Option<HashMap<String, Vec<String>>> = hit
                     .highlight_result
-                    .map(|hr| hr.into_iter().map(|(k, v)| (k, v.value)).collect()),
-                metadata: HashMap::new(),
+                    .map(|hr| hr.into_iter().map(|(k, v)| (k, vec![v.value])).collect());
+                SearchHit {
+                    document: hit.document,
+                    score,
+                    highlights,
+                    metadata: None,
+                }
             })
             .collect();
 
         Ok(SearchResult {
             hits,
-            total: response.nb_hits,
-            page: response.page,
-            per_page: opts.limit.unwrap_or(20),
+            total,
+            query: query.to_string(),
+            processing_time_ms: response.processing_time_ms,
+            page: Some(response.page),
+            per_page: Some(limit),
         })
     }
 
@@ -309,11 +322,9 @@ impl SearchDriver for AlgoliaDriver {
 
 #[async_trait]
 impl ConfigurableDriver for AlgoliaDriver {
-    type Config = AlgoliaConfig;
-
-    async fn configure<T: Searchable>(&self, _config: Self::Config) -> Result<()> {
-        // Algolia indexes are created automatically on first insert
-        // We could configure searchable attributes, ranking, etc. here
+    async fn configure_index<T: Searchable>(&self) -> Result<()> {
+        // Algolia indexes are created automatically on first insert.
+        // We apply searchable attribute settings here.
         let index_name = T::index_name();
         let url = format!("{}/settings", self.index_url(index_name));
 
@@ -326,6 +337,28 @@ impl ConfigurableDriver for AlgoliaDriver {
             .request(reqwest::Method::PUT, &url, Some(settings))
             .await?;
 
+        Ok(())
+    }
+
+    async fn set_searchable_fields<T: Searchable>(&self, fields: Vec<String>) -> Result<()> {
+        let index_name = T::index_name();
+        let url = format!("{}/settings", self.index_url(index_name));
+        let settings = json!({ "searchableAttributes": fields });
+        let _: Value = self.request(reqwest::Method::PUT, &url, Some(settings)).await?;
+        Ok(())
+    }
+
+    async fn set_filterable_fields<T: Searchable>(&self, fields: Vec<String>) -> Result<()> {
+        let index_name = T::index_name();
+        let url = format!("{}/settings", self.index_url(index_name));
+        let settings = json!({ "attributesForFaceting": fields });
+        let _: Value = self.request(reqwest::Method::PUT, &url, Some(settings)).await?;
+        Ok(())
+    }
+
+    async fn set_sortable_fields<T: Searchable>(&self, _fields: Vec<String>) -> Result<()> {
+        // Algolia sorting is configured via replica indexes; not a simple settings call.
+        // Implementing as a no-op for now.
         Ok(())
     }
 }
