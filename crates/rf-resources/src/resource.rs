@@ -36,7 +36,24 @@ impl Default for ResourceOptions {
     }
 }
 
-/// Main trait for API Resource transformation
+/// Main trait for API Resource transformation.
+///
+/// # Which resource crate should I use?
+///
+/// RustForge ships two resource crates with different roles:
+///
+/// | | `rf-resources` | `rf-api-resources` |
+/// |---|---|---|
+/// | **Role** | Full model-to-resource transformer contract | Marker trait + collection / wrapping helpers |
+/// | **`Resource` requires** | `Serialize + from_model(Model) + Sized` | Just `Serialize` |
+/// | **`to_json()` returns** | `serde_json::Value` (infallible, panics on error) | `serde_json::Result<Value>` (can fail) |
+/// | **Wrapping** | n/a | `.wrap(key)` → `WrappedResource` |
+/// | **Use when** | You need a typed Model→Resource pipeline | You want collection/pagination helpers and simple wrapping |
+///
+/// **Important:** Switching between the two traits is NOT a drop-in replacement because
+/// `to_json()` has different return types (this crate returns `Value` directly, panicking
+/// on serialization error; `rf-api-resources` wraps it in `Result`). Pick one crate per
+/// service layer and be consistent.
 #[async_trait]
 pub trait Resource: Serialize + Sized {
     /// The underlying model type

@@ -1,6 +1,6 @@
 //! Resource collection handling with pagination support.
 
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, Serializer};
 use serde_json::Value;
 
 /// Pagination metadata.
@@ -189,21 +189,37 @@ impl PaginationLinks {
     }
 }
 
-/// A wrapped collection with custom key.
-#[derive(Debug, Clone, Serialize)]
+/// A wrapped collection with a custom key.
+///
+/// `axum::Json(wrapped)` and `serde_json::to_value(&wrapped)` both produce
+/// `{"<key>": { …collection fields… }}`, identical to `wrapped.to_json()`.
+#[derive(Debug, Clone)]
 pub struct WrappedCollection<T> {
-    #[serde(flatten)]
     collection: T,
-    #[serde(skip)]
     key: String,
+}
+
+/// Manual Serialize so that both `axum::Json(wrapped)` and `serde_json::to_value(&wrapped)`
+/// emit `{"<key>": { …collection fields… }}` — the same shape as `to_json()`.
+///
+/// The old `#[derive(Serialize)]` with `#[serde(flatten)] collection` + `#[serde(skip)] key`
+/// silently dropped the wrapper and emitted flat fields at the top level.
+impl<T: Serialize> Serialize for WrappedCollection<T> {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        use serde::ser::SerializeMap;
+        let mut map = serializer.serialize_map(Some(1))?;
+        map.serialize_entry(&self.key, &self.collection)?;
+        map.end()
+    }
 }
 
 impl<T: Serialize> WrappedCollection<T> {
     /// Get JSON representation with wrapping.
+    ///
+    /// Equivalent to `serde_json::to_value(self)` after the Serialize fix —
+    /// both paths now produce `{"<key>": { …collection fields… }}`.
     pub fn to_json(&self) -> serde_json::Result<Value> {
-        let mut map = serde_json::Map::new();
-        map.insert(self.key.clone(), serde_json::to_value(&self.collection)?);
-        Ok(Value::Object(map))
+        serde_json::to_value(self)
     }
 }
 
@@ -283,5 +299,58 @@ mod tests {
         let json = wrapped.to_json().unwrap();
         assert!(json["items"].is_object());
         assert!(json["items"]["data"].is_array());
+    }
+
+    /// Regression: serde_json::to_value (what axum::Json calls) must produce the
+    /// same {"items":{...}} envelope as to_json(), not flat fields at the top level.
+    #[test]
+    fn test_wrapped_collection_serialize_matches_to_json() {
+        let items = vec![
+            TestItem { id: 1, name: "Item 1".to_string() },
+            TestItem { id: 2, name: "Item 2".to_string() },
+        ];
+        let collection = Collection::new(items);
+        let wrapped = collection.wrap("items");
+
+        let via_serialize = serde_json::to_value(&wrapped).unwrap();
+        let via_to_json = wrapped.to_json().unwrap();
+        // Both paths must be identical.
+        assert_eq!(
+            via_serialize, via_to_json,
+            "axum::Json path diverges from to_json()"
+        );
+        // The wrapper key must exist at the top level.
+        assert!(
+            via_serialize["items"].is_object(),
+            "top-level 'items' key missing from Serialize output"
+        );
+        assert!(via_serialize["items"]["data"].is_array());
+        // Flat top-level 'data' from Collection must NOT appear at the top level.
+        assert!(
+            via_serialize.get("data").is_none(),
+            "flat 'data' must not appear at top level when wrapper key is 'items'"
+        );
+    }
+
+    /// Regression for paginated collection: wrapped form must produce {"data":{...meta+data...}}.
+    #[test]
+    fn test_wrapped_paginated_collection_serialize_matches_to_json() {
+        let items = vec![TestItem { id: 1, name: "Item 1".to_string() }];
+        let meta = PaginationMeta::new(1, 10, 1);
+        let coll = PaginatedCollection::new(items, meta);
+        let wrapped = coll.wrap("data");
+
+        let via_serialize = serde_json::to_value(&wrapped).unwrap();
+        let via_to_json = wrapped.to_json().unwrap();
+
+        assert_eq!(
+            via_serialize, via_to_json,
+            "axum::Json path diverges from to_json() for paginated collection"
+        );
+        // The wrapper key must exist.
+        assert!(via_serialize["data"].is_object());
+        // The inner collection's data array and meta must be nested under the wrapper key.
+        assert!(via_serialize["data"]["data"].is_array());
+        assert!(via_serialize["data"]["meta"].is_object());
     }
 }

@@ -1,10 +1,27 @@
 //! Resource transformation traits and implementations.
 
-use serde::Serialize;
+use serde::{Serialize, Serializer};
 use serde_json::Value;
 use std::collections::HashMap;
 
-/// Trait for transforming models into API resources.
+/// Marker trait for API resource types.
+///
+/// # Which resource crate should I use?
+///
+/// RustForge ships two resource crates with different roles:
+///
+/// | | `rf-api-resources` | `rf-resources` |
+/// |---|---|---|
+/// | **Role** | Marker trait + collection / wrapping helpers | Full model-to-resource transformer contract |
+/// | **`Resource` requires** | Just `Serialize` | `Serialize + from_model(Model) + Sized` |
+/// | **`to_json()` returns** | `serde_json::Result<Value>` (can fail) | `serde_json::Value` (panics on error) |
+/// | **Wrapping** | `.wrap(key)` → `WrappedResource` | n/a |
+/// | **Use when** | You want collection/pagination helpers and simple wrapping | You need a typed Model→Resource pipeline |
+///
+/// **Important:** Switching between the two traits is NOT a drop-in replacement because
+/// `to_json()` has different return types (one wraps in `Result`, the other panics-or-returns-Value).
+/// Prefer `rf-api-resources::Resource` for public API handlers; prefer `rf-resources::Resource`
+/// when you need the `from_model` transformer contract enforced by the compiler.
 pub trait Resource: Serialize {
     /// Transform the resource into JSON.
     fn to_json(&self) -> serde_json::Result<Value> {
@@ -35,20 +52,36 @@ pub trait Resource: Serialize {
 }
 
 /// A wrapped resource with a custom key.
-#[derive(Debug, Clone, Serialize)]
+///
+/// `axum::Json(wrapped)` and `serde_json::to_value(&wrapped)` both produce
+/// `{"<key>": { …resource fields… }}`, identical to `wrapped.to_json()`.
+#[derive(Debug, Clone)]
 pub struct WrappedResource<T> {
-    #[serde(flatten)]
     resource: T,
-    #[serde(skip)]
     key: String,
+}
+
+/// Manual Serialize so that both `axum::Json(wrapped)` and `serde_json::to_value(&wrapped)`
+/// emit `{"<key>": { …resource fields… }}` — the same shape as `to_json()`.
+///
+/// The old `#[derive(Serialize)]` with `#[serde(flatten)] resource` + `#[serde(skip)] key`
+/// silently dropped the wrapper and emitted flat fields at the top level.
+impl<T: Serialize> Serialize for WrappedResource<T> {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        use serde::ser::SerializeMap;
+        let mut map = serializer.serialize_map(Some(1))?;
+        map.serialize_entry(&self.key, &self.resource)?;
+        map.end()
+    }
 }
 
 impl<T: Serialize> WrappedResource<T> {
     /// Get the JSON representation with wrapping.
+    ///
+    /// Equivalent to `serde_json::to_value(self)` after the Serialize fix —
+    /// both paths now produce `{"<key>": { …resource fields… }}`.
     pub fn to_json(&self) -> serde_json::Result<Value> {
-        let mut map = serde_json::Map::new();
-        map.insert(self.key.clone(), serde_json::to_value(&self.resource)?);
-        Ok(Value::Object(map))
+        serde_json::to_value(self)
     }
 }
 
@@ -150,6 +183,37 @@ mod tests {
 
         assert!(json["data"].is_object());
         assert_eq!(json["data"]["id"], 1);
+    }
+
+    /// Regression: serde_json::to_value (what axum::Json calls) must produce the
+    /// same {"data":{...}} envelope as to_json(), not flat fields at the top level.
+    #[test]
+    fn test_wrapped_resource_serialize_matches_to_json() {
+        let resource = TestResource {
+            id: 42,
+            name: "Serialize".to_string(),
+            email: Some("s@test.com".to_string()),
+        };
+        let wrapped = resource.wrap("data");
+        let via_serialize = serde_json::to_value(&wrapped).unwrap();
+        let via_to_json = wrapped.to_json().unwrap();
+        // Both paths must be identical.
+        assert_eq!(
+            via_serialize, via_to_json,
+            "axum::Json path diverges from to_json()"
+        );
+        // The wrapper key must exist at the top level.
+        assert!(
+            via_serialize["data"].is_object(),
+            "top-level 'data' key missing from Serialize output"
+        );
+        assert_eq!(via_serialize["data"]["id"], 42);
+        assert_eq!(via_serialize["data"]["name"], "Serialize");
+        // Flat top-level fields must NOT appear (the old broken behavior).
+        assert!(
+            via_serialize.get("id").is_none(),
+            "flat 'id' must not appear at top level"
+        );
     }
 
     #[test]
