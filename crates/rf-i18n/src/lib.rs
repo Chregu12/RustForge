@@ -1,6 +1,34 @@
 //! Internationalization (i18n) System for RustForge
 //!
-//! This crate provides multi-language support with translation management.
+//! This crate provides multi-language support with translation management,
+//! including JSON catalogs, Handlebars interpolation, pluralization, locale
+//! fallback, and (behind the `axum` Cargo feature) an axum-0.8
+//! `Accept-Language` extractor for per-request locale negotiation.
+//!
+//! # Axum integration (opt-in)
+//!
+//! Enable the `axum` feature to get the [`AcceptLanguage`] extractor:
+//!
+//! ```toml
+//! [dependencies]
+//! rf-i18n = { path = "...", features = ["axum"] }
+//! ```
+//!
+//! ```ignore
+//! use std::sync::Arc;
+//! use axum::{routing::get, Router, Extension};
+//! use rf_i18n::{I18n, AcceptLanguage};
+//!
+//! async fn hello(AcceptLanguage(locale): AcceptLanguage, Extension(i18n): Extension<Arc<I18n>>) -> String {
+//!     let local = i18n.for_locale(&locale);
+//!     local.t("greeting", None).unwrap_or_default()
+//! }
+//!
+//! let i18n: Arc<I18n> = Arc::new(/* … */);
+//! let app = Router::new()
+//!     .route("/hello", get(hello))
+//!     .layer(Extension(i18n));
+//! ```
 
 use handlebars::Handlebars;
 use serde_json::Value;
@@ -37,7 +65,7 @@ pub enum PluralRule {
 }
 
 impl PluralRule {
-    /// Get plural rule for English
+    /// Get plural rule for English-family languages (en, es, it, pt, …)
     pub fn for_english(count: i64) -> Self {
         if count == 0 {
             PluralRule::Zero
@@ -48,7 +76,7 @@ impl PluralRule {
         }
     }
 
-    /// Get plural rule for German
+    /// Get plural rule for German-family languages (de, nl, …)
     pub fn for_german(count: i64) -> Self {
         if count == 1 {
             PluralRule::One
@@ -57,7 +85,7 @@ impl PluralRule {
         }
     }
 
-    /// Get plural rule for French
+    /// Get plural rule for French-family languages (fr, pt-BR, …)
     pub fn for_french(count: i64) -> Self {
         if count == 0 || count == 1 {
             PluralRule::One
@@ -66,7 +94,42 @@ impl PluralRule {
         }
     }
 
-    /// Get plural rule key
+    /// Get plural rule for Slavic languages (ru, uk, be, …) per CLDR.
+    ///
+    /// Forms: one / few / many. There is no "other" for integers in these
+    /// locales; "many" covers the residual category.
+    pub fn for_slavic(count: i64) -> Self {
+        let n = count.unsigned_abs();
+        if n % 10 == 1 && n % 100 != 11 {
+            PluralRule::One
+        } else if (2..=4).contains(&(n % 10)) && !(12..=14).contains(&(n % 100)) {
+            PluralRule::Few
+        } else {
+            PluralRule::Many
+        }
+    }
+
+    /// Get plural rule for Arabic (ar) per CLDR.
+    ///
+    /// Forms: zero / one / two / few / many / other.
+    pub fn for_arabic(count: i64) -> Self {
+        let n = count.unsigned_abs();
+        if n == 0 {
+            PluralRule::Zero
+        } else if n == 1 {
+            PluralRule::One
+        } else if n == 2 {
+            PluralRule::Two
+        } else if (3..=10).contains(&(n % 100)) {
+            PluralRule::Few
+        } else if (11..=99).contains(&(n % 100)) {
+            PluralRule::Many
+        } else {
+            PluralRule::Other
+        }
+    }
+
+    /// Get plural rule key suitable for use as a catalog sub-key
     pub fn key(&self) -> &'static str {
         match self {
             PluralRule::Zero => "zero",
@@ -109,9 +172,8 @@ impl TranslationCatalog {
         self
     }
 
-    /// Get a translation
+    /// Get a translation (supports dot-separated nested keys like `"messages.welcome"`)
     pub fn get(&self, key: &str) -> Option<&Value> {
-        // Support nested keys like "messages.welcome"
         let parts: Vec<&str> = key.split('.').collect();
         let mut current = self.translations.get(parts[0])?;
 
@@ -124,6 +186,12 @@ impl TranslationCatalog {
 }
 
 /// i18n instance
+///
+/// Cheaply [`Clone`]-able — the translation catalogs live behind an [`Arc`] so
+/// cloning copies the [`Arc`] pointer, not the catalog data. This makes it
+/// ergonomic to share a single configured instance via `Arc<I18n>` and obtain
+/// a lightweight per-request view with [`I18n::for_locale`].
+#[derive(Clone)]
 pub struct I18n {
     locale: String,
     fallback_locale: String,
@@ -132,7 +200,7 @@ pub struct I18n {
 }
 
 impl I18n {
-    /// Create a new i18n instance
+    /// Create a new i18n instance with the given default locale
     pub fn new(locale: impl Into<String>) -> Self {
         Self {
             locale: locale.into(),
@@ -142,7 +210,7 @@ impl I18n {
         }
     }
 
-    /// Set fallback locale
+    /// Set fallback locale (used when a key is absent in the current locale)
     pub fn fallback(mut self, locale: impl Into<String>) -> Self {
         self.fallback_locale = locale.into();
         self
@@ -161,12 +229,33 @@ impl I18n {
         &self.locale
     }
 
-    /// Set the current locale
+    /// Set the current locale in place
     pub fn set_locale(&mut self, locale: impl Into<String>) {
         self.locale = locale.into();
     }
 
-    /// Translate a key
+    /// Return a cloned view of this `I18n` with a different active locale.
+    ///
+    /// The catalog data is shared (behind `Arc`) so this clone is cheap.
+    /// Typical use: obtain a per-request `I18n` from a shared `Arc<I18n>`
+    /// based on the `Accept-Language` header.
+    ///
+    /// ```ignore
+    /// let shared: Arc<I18n> = /* … */;
+    /// let local = shared.for_locale("de");
+    /// local.t("greeting", None)?;
+    /// ```
+    pub fn for_locale(&self, locale: impl Into<String>) -> I18n {
+        let mut i = self.clone();
+        i.locale = locale.into();
+        i
+    }
+
+    /// Translate a key, optionally interpolating `data` into the template.
+    ///
+    /// Handlebars placeholders that are present in the translation but absent
+    /// in `data` (or when `data` is `None`) resolve to an empty string rather
+    /// than leaking the raw `{{…}}` syntax into the output.
     pub fn t(&self, key: &str, data: Option<Value>) -> I18nResult<String> {
         // Try current locale first
         if let Some(catalog) = self.catalogs.get(&self.locale) {
@@ -185,7 +274,7 @@ impl I18n {
         Err(I18nError::TranslationNotFound(key.to_string()))
     }
 
-    /// Translate with pluralization
+    /// Translate with pluralization based on `count`.
     pub fn t_plural(&self, key: &str, count: i64) -> I18nResult<String> {
         let plural_rule = self.get_plural_rule(count);
         let plural_key = format!("{}.{}", key, plural_rule.key());
@@ -201,10 +290,8 @@ impl I18n {
         }
     }
 
-    /// Format a date (simplified)
+    /// Format a date (simplified; for production use chrono with locale formatting)
     pub fn format_date(&self, timestamp: i64, format: &str) -> String {
-        // This is a simplified implementation
-        // In production, use chrono with locale-specific formatting
         match format {
             "short" => format!("{}", timestamp),
             "long" => format!("Date: {}", timestamp),
@@ -212,10 +299,8 @@ impl I18n {
         }
     }
 
-    /// Format a number with locale-specific formatting
+    /// Format a number with locale-specific formatting (simplified)
     pub fn format_number(&self, number: f64) -> String {
-        // Simplified implementation
-        // In production, use icu4x or similar for proper locale-specific formatting
         match self.locale.as_str() {
             "de" => format!("{:.2}", number).replace('.', ","),
             _ => format!("{:.2}", number),
@@ -233,28 +318,184 @@ impl I18n {
         }
     }
 
-    /// Get plural rule for current locale
+    /// Get plural rule for the current locale.
+    ///
+    /// Locales not explicitly listed fall back to English rules and emit a
+    /// `tracing::warn` so callers can add the missing rule or supply a catalog
+    /// that sidesteps the issue.
     fn get_plural_rule(&self, count: i64) -> PluralRule {
         match self.locale.as_str() {
-            "de" => PluralRule::for_german(count),
-            "fr" => PluralRule::for_french(count),
-            _ => PluralRule::for_english(count),
+            // German family: one / other
+            "de" | "nl" | "af" | "sq" | "az" | "hy" | "ka" | "lb" | "mk" | "sw" => {
+                PluralRule::for_german(count)
+            }
+            // French family: one (0 or 1) / other
+            "fr" | "pt-br" | "pt-BR" | "am" | "ff" | "gu" | "hi" | "ln" | "mg" | "mr"
+            | "ti" | "wa" => PluralRule::for_french(count),
+            // Slavic family: one / few / many
+            "ru" | "uk" | "be" | "bs" | "hr" | "sr" | "sh" => PluralRule::for_slavic(count),
+            // Arabic: zero / one / two / few / many / other
+            "ar" => PluralRule::for_arabic(count),
+            // English family: zero / one / other
+            "en" | "es" | "it" | "pt" | "da" | "fi" | "nb" | "sv" | "el" | "he" | "hu"
+            | "id" | "ja" | "ko" | "ms" | "th" | "tr" | "vi" | "zh" => {
+                PluralRule::for_english(count)
+            }
+            other => {
+                tracing::warn!(
+                    locale = other,
+                    "rf-i18n: no plural rules for locale '{}'; \
+                     falling back to English rules (one/other). \
+                     Add a PluralRule::for_<locale> impl or use a two-form catalog.",
+                    other
+                );
+                PluralRule::for_english(count)
+            }
         }
     }
 
-    /// Render translation with interpolation
+    /// Render a translation value with Handlebars interpolation.
+    ///
+    /// Always passes `data` (or an empty object when `None`) through the
+    /// Handlebars engine so that unmatched `{{…}}` placeholders resolve to
+    /// empty strings rather than leaking raw template syntax into responses.
     fn render_translation(&self, translation: &Value, data: Option<Value>) -> I18nResult<String> {
         match translation {
             Value::String(s) => {
-                if let Some(data) = data {
-                    self.handlebars
-                        .render_template(s, &data)
-                        .map_err(|e| I18nError::TemplateError(e.to_string()))
-                } else {
-                    Ok(s.clone())
-                }
+                let ctx = data.unwrap_or_else(|| serde_json::json!({}));
+                self.handlebars
+                    .render_template(s, &ctx)
+                    .map_err(|e| I18nError::TemplateError(e.to_string()))
             }
             _ => Ok(translation.to_string()),
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Optional axum integration
+// ---------------------------------------------------------------------------
+
+#[cfg(feature = "axum")]
+pub use axum_integration::AcceptLanguage;
+
+#[cfg(feature = "axum")]
+mod axum_integration {
+    use axum::{
+        extract::FromRequestParts,
+        http::{header, request::Parts},
+    };
+
+    /// Parse an `Accept-Language` header value into a best-match BCP-47 primary
+    /// language tag (e.g. `"de-DE,de;q=0.9,en;q=0.8"` → `"de"`).
+    ///
+    /// The string is lowercased and only the primary subtag before the first `-`
+    /// is returned (`"zh-Hant"` → `"zh"`). If parsing fails or the header is
+    /// empty, returns `"en"`.
+    pub(super) fn parse_accept_language(header: &str) -> String {
+        let mut locales: Vec<(f32, &str)> = header
+            .split(',')
+            .filter_map(|entry| {
+                let entry = entry.trim();
+                if entry.is_empty() {
+                    return None;
+                }
+                if let Some(semi) = entry.find(';') {
+                    let lang = entry[..semi].trim();
+                    let q = entry[semi + 1..]
+                        .split(';')
+                        .find_map(|p| {
+                            p.trim()
+                                .strip_prefix("q=")
+                                .and_then(|v| v.parse::<f32>().ok())
+                        })
+                        .unwrap_or(1.0);
+                    if lang.is_empty() {
+                        None
+                    } else {
+                        Some((q, lang))
+                    }
+                } else {
+                    Some((1.0, entry))
+                }
+            })
+            .collect();
+
+        // Stable sort: highest q first; preserve order for equal q values.
+        locales.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
+
+        locales
+            .first()
+            .map(|(_, lang)| {
+                lang.split('-')
+                    .next()
+                    .unwrap_or("en")
+                    .to_ascii_lowercase()
+            })
+            .unwrap_or_else(|| "en".to_string())
+    }
+
+    /// Axum extractor that resolves the best-match locale for a request.
+    ///
+    /// Resolution order (first match wins):
+    /// 1. `?locale=<tag>` query parameter
+    /// 2. `Accept-Language` header (highest-weight tag)
+    /// 3. Falls back to `"en"`
+    ///
+    /// Only the primary subtag is returned: `"de-DE"` → `"de"`.
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// use std::sync::Arc;
+    /// use axum::{routing::get, Router, Extension};
+    /// use rf_i18n::{I18n, AcceptLanguage};
+    ///
+    /// async fn greet(
+    ///     AcceptLanguage(locale): AcceptLanguage,
+    ///     Extension(i18n): Extension<Arc<I18n>>,
+    /// ) -> String {
+    ///     i18n.for_locale(&locale).t("greeting", None).unwrap_or_default()
+    /// }
+    /// ```
+    #[derive(Debug, Clone)]
+    pub struct AcceptLanguage(pub String);
+
+    impl<S> FromRequestParts<S> for AcceptLanguage
+    where
+        S: Send + Sync,
+    {
+        type Rejection = std::convert::Infallible;
+
+        async fn from_request_parts(
+            parts: &mut Parts,
+            _state: &S,
+        ) -> Result<Self, Self::Rejection> {
+            // 1. ?locale= query param takes precedence (easy per-request override).
+            if let Some(query) = parts.uri.query() {
+                for pair in query.split('&') {
+                    if let Some(val) = pair.strip_prefix("locale=") {
+                        let lang = val
+                            .split('-')
+                            .next()
+                            .unwrap_or("en")
+                            .to_ascii_lowercase();
+                        if !lang.is_empty() {
+                            return Ok(AcceptLanguage(lang));
+                        }
+                    }
+                }
+            }
+
+            // 2. Accept-Language header.
+            if let Some(value) = parts.headers.get(header::ACCEPT_LANGUAGE) {
+                if let Ok(s) = value.to_str() {
+                    return Ok(AcceptLanguage(parse_accept_language(s)));
+                }
+            }
+
+            // 3. Default.
+            Ok(AcceptLanguage("en".to_string()))
         }
     }
 }
@@ -430,5 +671,100 @@ mod tests {
 
         assert_eq!(catalog.get("greeting").unwrap(), "Hello");
         assert_eq!(catalog.get("farewell").unwrap(), "Goodbye");
+    }
+
+    // --- New regression tests for the four fixes ---
+
+    /// Fix 1: I18n must implement Clone so Arc<I18n> patterns work.
+    #[test]
+    fn test_i18n_clone() {
+        let i18n = create_test_i18n();
+        let cloned = i18n.clone();
+        assert_eq!(cloned.locale(), "en");
+        assert_eq!(cloned.t("goodbye", None).unwrap(), "Goodbye!");
+    }
+
+    /// Fix 1b: for_locale() returns a cheap clone with the desired locale.
+    #[test]
+    fn test_for_locale() {
+        let i18n = create_test_i18n();
+        let de = i18n.for_locale("de");
+        assert_eq!(de.locale(), "de");
+        assert_eq!(de.t("goodbye", None).unwrap(), "Auf Wiedersehen!");
+        // Original is unchanged.
+        assert_eq!(i18n.locale(), "en");
+    }
+
+    /// Fix 2: t(key, None) with a placeholder must NOT leak {{…}} into output.
+    #[test]
+    fn test_no_template_leak_with_none_data() {
+        let i18n = create_test_i18n();
+        // "welcome" = "Welcome, {{name}}!" — data is None
+        let result = i18n.t("welcome", None).unwrap();
+        assert!(
+            !result.contains("{{"),
+            "raw Handlebars syntax leaked into output: {result}"
+        );
+        // Handlebars renders the missing variable as an empty string.
+        assert_eq!(result, "Welcome, !");
+    }
+
+    /// Fix 3: Slavic plural rules.
+    #[test]
+    fn test_plural_rules_slavic() {
+        assert_eq!(PluralRule::for_slavic(1), PluralRule::One);
+        assert_eq!(PluralRule::for_slavic(11), PluralRule::Many); // n%10==1 but n%100==11
+        assert_eq!(PluralRule::for_slavic(21), PluralRule::One);
+        assert_eq!(PluralRule::for_slavic(2), PluralRule::Few);
+        assert_eq!(PluralRule::for_slavic(12), PluralRule::Many); // n%10==2 but n%100==12
+        assert_eq!(PluralRule::for_slavic(22), PluralRule::Few);
+        assert_eq!(PluralRule::for_slavic(5), PluralRule::Many);
+        assert_eq!(PluralRule::for_slavic(0), PluralRule::Many);
+    }
+
+    /// Fix 3: Arabic plural rules.
+    #[test]
+    fn test_plural_rules_arabic() {
+        assert_eq!(PluralRule::for_arabic(0), PluralRule::Zero);
+        assert_eq!(PluralRule::for_arabic(1), PluralRule::One);
+        assert_eq!(PluralRule::for_arabic(2), PluralRule::Two);
+        assert_eq!(PluralRule::for_arabic(5), PluralRule::Few);   // 5 % 100 = 5 ∈ 3..10
+        assert_eq!(PluralRule::for_arabic(11), PluralRule::Many); // 11 % 100 = 11 ∈ 11..99
+        assert_eq!(PluralRule::for_arabic(100), PluralRule::Other);
+    }
+
+    /// Fix 3: get_plural_rule on a Russian locale (I18n-level wiring).
+    #[test]
+    fn test_i18n_slavic_plural_rule_wiring() {
+        let mut i18n = create_test_i18n();
+        i18n.set_locale("ru");
+        // The "items" catalog only has "one"/"other" keys, but the plural rule
+        // for "ru"/count=21 is One → the "one" catalog key should resolve.
+        let result = i18n.t_plural("items", 21).unwrap();
+        assert_eq!(result, "1 item");
+    }
+
+    /// Fix 3: unhandled locale falls back without panicking (warns via tracing).
+    #[test]
+    fn test_unhandled_locale_plural_no_panic() {
+        let mut i18n = create_test_i18n();
+        i18n.set_locale("xx"); // unknown locale
+        // Should not panic; falls back to English rules.
+        let result = i18n.t_plural("items", 5).unwrap();
+        assert_eq!(result, "5 items");
+    }
+
+    /// Fix 4: parse_accept_language helper (requires the `axum` feature).
+    #[cfg(feature = "axum")]
+    #[test]
+    fn test_parse_accept_language() {
+        use super::axum_integration::parse_accept_language;
+        assert_eq!(parse_accept_language("de-DE,de;q=0.9,en;q=0.8"), "de");
+        assert_eq!(parse_accept_language("fr"), "fr");
+        assert_eq!(parse_accept_language("en-US,en;q=0.9,de;q=0.8"), "en");
+        // Highest q wins even if listed second.
+        assert_eq!(parse_accept_language("de;q=0.8,fr;q=0.9"), "fr");
+        // Empty header → default.
+        assert_eq!(parse_accept_language(""), "en");
     }
 }

@@ -8269,10 +8269,12 @@ dependencies = [
 name = "rf-i18n"
 version = "0.1.0"
 dependencies = [
+ "axum 0.8.7",
  "handlebars",
  "serde",
  "serde_json",
  "thiserror 1.0.69",
+ "tracing",
 ]
 
 [[package]]
