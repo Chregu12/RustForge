@@ -1,0 +1,50 @@
+[package]
+name = "probe-sweep"
+version = "0.0.0"
+edition = "2021"
+publish = false
+# Committed integration-test suite that CI runs on every push.
+#
+# Each file under tests/ maps to ONE convergence-critical sandbox probe,
+# adapted from sandbox/probes/ (gitignored). Tests are kept as separate
+# binaries so the in-memory SQLite state does not bleed between probes.
+#
+# Probes covered:
+#   rate_limiting          - MemoryRateLimiter logic (no DB)
+#   security_headers       - rf-web security-headers middleware (no DB)
+#   session_per_client     - per-request session isolation (no DB)
+#   flash_no_bleed         - ViewEngine flash does not bleed across clients (no DB)
+#   tenancy                - rf-tenancy multi-tenant scope + guard (no DB)
+#   scaffold_codegen_verify - scaffold template output compiles + roundtrips
+#   validated_json_dto     - ValidatedJson<T> extractor + Validate DSL
+#   crud_macros            - Model!/create!/find!/update!/delete! CRUD macros
+#   eager_bidirectional    - bidirectional hasMany/belongsTo hydration
+
+[lib]
+name = "probe_sweep"
+path = "src/lib.rs"
+
+[dev-dependencies]
+# Framework crates under test
+rf = { path = "../../crates/rf" }
+rf-web = { path = "../../crates/rf-web" }
+rf-views = { path = "../../crates/rf-views" }
+rf-ratelimit = { path = "../../crates/rf-ratelimit" }
+rf-tenancy = { path = "../../crates/rf-tenancy" }
+rf-validation = { path = "../../crates/rf-validation" }
+rf-db-facade = { path = "../../crates/rf-db-facade" }
+rf-api = { path = "../../crates/rf-api" }
+
+# HTTP stack
+axum = { version = "0.8", features = ["macros", "json"] }
+tower = { version = "0.4", features = ["util"] }
+
+# Async runtime
+tokio = { version = "1.37", features = ["macros", "rt-multi-thread"] }
+
+# Serialisation + data
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+chrono = { version = "0.4", features = ["serde", "clock"] }
+anyhow = "1.0"
+tempfile = "3.8"

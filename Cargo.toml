@@ -159,6 +159,8 @@ members = [
     "crates/rf-nightwatch",
     # Deployment Tests
     "tests/deployment",
+    # Committed probe-sweep integration tests (sandbox probes adapted for CI)
+    "tests/probe-sweep",
 ]
 resolver = "2"
 

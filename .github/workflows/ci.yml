@@ -388,6 +388,79 @@ jobs:
           cargo test -p rf-cache --lib || true
 
   # ===========================================
+  # Workspace Gate — 0-warning check + key lib tests (enforced, no || true)
+  # ===========================================
+  #
+  # Runs independently of the per-crate build jobs so it fails fast on the
+  # first push that introduces a new compiler warning or breaks a core test.
+  # -Dwarnings turns every warning into a compile error so warnings cannot
+  # accumulate silently. The test commands here are a curated set that are
+  # KNOWN to pass reliably without any external services.
+  workspace-gate:
+    name: "Workspace Check + Core Tests"
+    runs-on: ubuntu-latest
+    env:
+      RUSTFLAGS: "-Dwarnings"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: cargo check --workspace (0 warnings enforced)
+        run: cargo check --workspace
+
+      - name: rf-validation lib tests
+        run: cargo test -p rf-validation --lib
+
+      - name: rf-macros lib tests
+        run: cargo test -p rf-macros --lib
+
+      - name: rf-helpers lib tests
+        run: cargo test -p rf-helpers --lib
+
+      - name: rf-ratelimit lib tests
+        run: cargo test -p rf-ratelimit --lib
+
+      - name: rf-cache lib tests (memory backend only, no live Redis)
+        run: cargo test -p rf-cache --lib
+
+      - name: rf-mail lib tests (SMTP graceful-skip path, no live MailHog)
+        run: cargo test -p rf-mail --lib
+
+      - name: rf-web lib tests
+        run: cargo test -p rf-web --lib
+
+  # ===========================================
+  # Sandbox Probe Sweep — committed integration-test crate
+  # ===========================================
+  #
+  # Runs the load-bearing convergence probes as a committed crate at
+  # tests/probe-sweep/ — the probes that are convergence-critical for 1.0.
+  # Kept as an independent job so a probe failure is diagnosed in isolation
+  # from the build jobs and does not cascade.
+  #
+  # Probes covered (9 total):
+  #   rate_limiting          - MemoryRateLimiter logic
+  #   security_headers       - rf-web security-headers middleware
+  #   session_per_client     - per-request session isolation
+  #   flash_no_bleed         - ViewEngine flash isolation across clients
+  #   tenancy                - rf-tenancy scope + guard + spawn_with_tenant
+  #   scaffold_codegen_verify - scaffold template compile + CRUD roundtrip
+  #   validated_json_dto     - ValidatedJson<T> + typed validation DSL
+  #   crud_macros            - Model!/create!/find!/update!/delete! macros
+  #   eager_bidirectional    - bidirectional hasMany/belongsTo hydration
+  sandbox-probe-sweep:
+    name: "Sandbox Probe Sweep"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Build and run all probe-sweep integration tests
+        run: cargo test -p probe-sweep
+
+  # ===========================================
   # Live Backend Integration Tests
   # ===========================================
   #

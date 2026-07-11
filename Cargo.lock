@@ -6515,6 +6515,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "probe-sweep"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "axum 0.8.7",
+ "chrono",
+ "rf",
+ "rf-api",
+ "rf-db-facade",
+ "rf-ratelimit",
+ "rf-tenancy",
+ "rf-validation",
+ "rf-views",
+ "rf-web",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "tower 0.4.13",
+]
+
+[[package]]
 name = "proc-macro-crate"
 version = "3.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
