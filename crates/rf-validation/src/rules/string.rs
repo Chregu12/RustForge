@@ -8,6 +8,7 @@ use async_trait::async_trait;
 use regex::Regex;
 use serde_json::Value;
 use std::collections::HashMap;
+use std::sync::OnceLock;
 
 // ============================================================================
 // Required Rule
@@ -92,12 +93,20 @@ impl Rule for StringRule {
 /// ```
 pub struct EmailRule;
 
+// Compiled once at first use; re-used on every subsequent validation call.
+// Previously the regex was compiled on EVERY call — a measured 10–40 µs cliff
+// per validation (see docs/PERFORMANCE.md).  File: crates/rf-validation/src/rules/string.rs
+static EMAIL_REGEX: OnceLock<Regex> = OnceLock::new();
+
 impl EmailRule {
-    fn email_regex() -> Regex {
-        // Requires at least one dot in domain (TLD)
-        Regex::new(
-            r"^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$"
-        ).unwrap()
+    #[inline]
+    fn email_regex() -> &'static Regex {
+        EMAIL_REGEX.get_or_init(|| {
+            // Requires at least one dot in domain (TLD)
+            Regex::new(
+                r"^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$"
+            ).unwrap()
+        })
     }
 }
 
@@ -139,11 +148,16 @@ impl Rule for EmailRule {
 /// ```
 pub struct UrlRule;
 
+static URL_REGEX: OnceLock<Regex> = OnceLock::new();
+
 impl UrlRule {
-    fn url_regex() -> Regex {
-        Regex::new(
-            r"^https?://(?:www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b(?:[-a-zA-Z0-9()@:%_\+.~#?&/=]*)$"
-        ).unwrap()
+    #[inline]
+    fn url_regex() -> &'static Regex {
+        URL_REGEX.get_or_init(|| {
+            Regex::new(
+                r"^https?://(?:www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b(?:[-a-zA-Z0-9()@:%_\+.~#?&/=]*)$"
+            ).unwrap()
+        })
     }
 }
 
@@ -185,17 +199,26 @@ impl Rule for UrlRule {
 /// ```
 pub struct IpRule;
 
+static IPV4_REGEX: OnceLock<Regex> = OnceLock::new();
+static IPV6_REGEX: OnceLock<Regex> = OnceLock::new();
+
 impl IpRule {
-    fn ipv4_regex() -> Regex {
-        Regex::new(
-            r"^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$"
-        ).unwrap()
+    #[inline]
+    fn ipv4_regex() -> &'static Regex {
+        IPV4_REGEX.get_or_init(|| {
+            Regex::new(
+                r"^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$"
+            ).unwrap()
+        })
     }
 
-    fn ipv6_regex() -> Regex {
-        Regex::new(
-            r"^(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]))$"
-        ).unwrap()
+    #[inline]
+    fn ipv6_regex() -> &'static Regex {
+        IPV6_REGEX.get_or_init(|| {
+            Regex::new(
+                r"^(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]))$"
+            ).unwrap()
+        })
     }
 }
 
@@ -237,10 +260,17 @@ impl Rule for IpRule {
 /// ```
 pub struct UuidRule;
 
+static UUID_REGEX: OnceLock<Regex> = OnceLock::new();
+
 impl UuidRule {
-    fn uuid_regex() -> Regex {
-        Regex::new(r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
+    #[inline]
+    fn uuid_regex() -> &'static Regex {
+        UUID_REGEX.get_or_init(|| {
+            Regex::new(
+                r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+            )
             .unwrap()
+        })
     }
 }
 
