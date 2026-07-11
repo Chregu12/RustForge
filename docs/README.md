@@ -12,6 +12,7 @@ certification beyond what is graded Stable/Usable/Experimental in those sources.
 | File | Purpose |
 |------|---------|
 | [GETTING_STARTED.md](./GETTING_STARTED.md) | 5-minute quickstart, full REST resource example, validated-DTO pattern, maturity matrix with per-surface notes. **Read this first.** |
+| [COOKBOOK.md](./COOKBOOK.md) | Task-oriented recipes for every verified surface (routing, ORM, auth, jobs, broadcast, mail, i18n, health, CLI, deploy…). Every snippet is grep-verified against the source. |
 | [EXAMPLES.md](./EXAMPLES.md) | Gallery of runnable, CI-tested examples with descriptions. |
 | [installation.md](./installation.md) | Prerequisites, Forge CLI install, and project creation. |
 
