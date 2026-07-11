@@ -7,6 +7,104 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.0.0-rc.1] - 2026-07-11
+
+### Release candidate — honest state assessment
+
+This is the first formal release candidate for RustForge 1.0. It establishes
+the release engineering infrastructure (versioning, MSRV policy, deprecation
+policy, RELEASING.md, SECURITY.md) and documents the honest current state of
+the framework, derived from VISION_GAP.md and the git history.
+
+**The framework compiles clean (`RUSTFLAGS="-Dwarnings" cargo check
+--workspace` exits 0) and provides a well-structured foundation. However,
+several facade/sugar layers are mounted on in-memory mock backends that are
+not yet wired to the real engines. See the Known Limitations section below.**
+
+### Stable / Usable surface
+
+The following areas are genuine and usable in production applications:
+
+- **rf-web** — Axum integration, request routing, CSRF (constant-time token
+  comparison), security-headers middleware, per-request session isolation,
+  flash isolation across clients.
+- **rf-validation** — 48+ typed validation rules, `Validate` trait, `ValidatedJson<T>`
+  extractor, typed DSL (`rules!{}`). Real engine, well-tested (unit tests pass
+  in CI via `cargo test -p rf-validation --lib`).
+- **rf-auth** — JWT extraction, `AuthManager`, session-backed auth guards.
+- **rf-orm** — Genuine SeaORM wrapper (`DatabaseManager`, migration runner,
+  `Model::all(&db)`, `Model::query(db).filter(...).get().await`).
+- **rf-mail** — Real SMTP backend via `lettre`, SendGrid and Mailgun drivers.
+  Live round-trip tested in CI against MailHog.
+- **rf-cache** — Memory, Redis, File, and Database backends. Redis pub/sub
+  tested live in CI. Memory backend rated "strong" in VISION_GAP.md.
+- **rf-jobs** — Real job queue, batch/chain/DLQ/scheduler, `Dispatcher`.
+- **rf-ai** — Anthropic API provider (real HTTP calls).
+- **rf-storage** — Local and S3 (MinIO) backends, live round-trip tested
+  in CI against MinIO.
+- **Security posture** — CSRF, session fixation prevention, APP\_KEY
+  validation at boot (hard error in production), security-header layer, DB
+  credential masking in logs. See SECURITY.md.
+- **Supply chain** — `cargo audit` + `cargo deny` gates, `deny.toml`
+  with license/bans/source policy, advisory ignores documented with rationale.
+- **CI** — Workspace check (0 warnings), probe-sweep integration tests (9
+  probes covering rate-limiting, security headers, session isolation, tenancy,
+  scaffold, validation DSL, CRUD macros, eager relations), live-backend tests
+  (Redis, MailHog, MinIO), staging deploy smoke test.
+
+### Experimental — NOT covered by 1.0 compatibility guarantee
+
+Excluded per the `default-members` policy in `Cargo.toml`. See
+`docs/RELEASING.md` for the full list:
+
+- `rf-nova`, `rf-swagger`, `rf-telescope`, `rf-cms`, `rf-breeze`, `rf-vite`,
+  `rf-livereload`, `rf-socialite`, `rf-cashier`, `rf-mcp`, `rf-nightwatch`,
+  `rf-ai`, `rf-vector`, `rf-graphql`, `rf-dusk`, `rf-sail`, `rf-spark`.
+
+### Known Limitations (Tier 4 — engine-before-sugar backlog)
+
+These gaps are documented honestly in VISION_GAP.md:
+
+- **Model/DB facade returns mock data.** `rf-db-facade::QueryBuilder::get()`
+  returns `Ok(vec![])`. The real ORM engine (`rf-orm`, SeaORM) is not yet
+  bridged to the facade sugar. `Post::all().await` compiles and runs but hits
+  no database.
+- **Storage/Cache/Mail facades use in-memory mocks.** `rf-storage-facade`,
+  `rf-cache-facade`, and `rf-mail-facade` all default to `HashMap`/
+  `MemoryMailer` / `MemoryCache`. Real S3, Redis, and SMTP engines exist in
+  `rf-storage`, `rf-cache`, `rf-mail` but are not wired to the sync facade
+  layer. Wiring via runtime-thread bridge (not `block_on`) is the fix.
+- **`build_router()` returns an empty Router.** The routing sugar facade wraps
+  axum route registration but the current implementation returns an
+  uninhabited `Router`. Wire axum route methods directly for now.
+- **Process-global auth state.** A single `static GLOBAL_AUTH` stores the
+  current user across all requests — a real cross-request security bug for
+  multi-user servers. Use `rf-auth`'s per-request JWT extractor instead.
+- **Several advertised macros do not compile.** `job!` references a
+  nonexistent `rf-job-facade` crate; `mailable!` / `send_mail!` / `view!` /
+  `back!` reference nonexistent types or methods. Fix or delete before 1.0.0.
+- **Relationship stubs.** `HasRelationships::load_has_one/has_many/belongs_to`
+  are `panic!("placeholder")` stubs. The `#[relations]` proc-macro discards
+  method bodies. Use `rf-orm` builders directly for relationships.
+- **`block_on`-in-async panics.** Several sync facade methods call
+  `Handle::current().block_on()` from inside Tokio workers (i.e. axum
+  handlers), which panics at runtime. Safe bridge = dedicated runtime thread +
+  channel.
+
+### Release engineering changes in this RC
+
+- `[workspace.package].version` bumped to `1.0.0-rc.1`.
+- `rust-version = "1.79.0"` declared in `[workspace.package]` and inherited
+  by `rf-core`, `rf-web`, `rf-validation`, `rf` umbrella.
+- `rust-version = "1.79.0"` added directly to `rf-macros`, `rf-routing`,
+  `rustforge`.
+- MSRV CI job added: builds Stable surface on Rust 1.79.0 in GitHub Actions.
+- `docs/RELEASING.md` created: SemVer policy, MSRV, deprecation policy,
+  downstream consumption (git dep / path dep), release procedure.
+- `SECURITY.md` present and linked from `docs/RELEASING.md`.
+
+---
+
 ## [1.0.0] - 2025-11-21
 
 ### 🎉 **v1.0.0 - Stable Foundation Release**

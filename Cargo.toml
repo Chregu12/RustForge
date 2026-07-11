@@ -337,7 +337,8 @@ resolver = "2"
 
 [workspace.package]
 edition = "2021"
-version = "1.0.0"
+version = "1.0.0-rc.1"
+rust-version = "1.79.0"
 license = "MIT OR Apache-2.0"
 authors = ["chregu12"]
 repository = "https://github.com/Chregu12/RustForge"

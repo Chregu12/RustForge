@@ -451,6 +451,46 @@ jobs:
         run: cargo test -p rf-web --lib
 
   # ===========================================
+  # MSRV Gate — builds the stable public surface on the declared MSRV
+  # ===========================================
+  #
+  # Verifies that the key public crates compile on the declared Minimum
+  # Supported Rust Version (MSRV = 1.79.0, documented in docs/RELEASING.md
+  # and declared via `rust-version` in each crate's Cargo.toml).
+  #
+  # Scope is limited to the stable public surface (rf-core, rf-web,
+  # rf-validation, rf-macros, rf-routing, rf) rather than the full workspace,
+  # because experimental/internal crates may pull in dependencies with their
+  # own, possibly higher, MSRV requirements.
+  #
+  # This job does NOT enforce -Dwarnings (new lints arrive with new compilers;
+  # the warning gate runs on the pinned toolchain in workspace-gate above).
+  msrv:
+    name: "MSRV (Rust 1.79.0) — stable public surface"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.79.0
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: msrv-1.79.0
+
+      - name: cargo check rf-core (MSRV)
+        run: cargo check -p rf-core
+
+      - name: cargo check rf-web (MSRV)
+        run: cargo check -p rf-web
+
+      - name: cargo check rf-validation (MSRV)
+        run: cargo check -p rf-validation
+
+      - name: cargo check rf-macros (MSRV)
+        run: cargo check -p rf-macros
+
+      - name: cargo check rf-routing (MSRV)
+        run: cargo check -p rf-routing
+
+  # ===========================================
   # Sandbox Probe Sweep — committed integration-test crate
   # ===========================================
   #

@@ -1,7 +1,8 @@
 [package]
 name = "rustforge"
-version = "1.0.0"
+version = "1.0.0-rc.1"
 edition = "2021"
+rust-version = "1.79.0"
 description = "RustForge - The Laravel of Rust. Import everything with one line."
 license = "MIT"
 repository = "https://github.com/Chregu12/RustForge"
