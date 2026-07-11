@@ -24,9 +24,20 @@ impl BuiltinTemplates {
             .register_template_string("controller_resource", Self::CONTROLLER_RESOURCE_TEMPLATE)
             .map_err(|e| crate::ScaffoldError::RenderError(e.to_string()))?;
 
-        // Migration template
+        // Canonical plain-SQL migration templates (up.sql / down.sql per migration directory).
+        // All three generators (rf-scaffold, forge-cli, foundry-cli) emit this same format.
+        // Runner: DB::statement(include_str!("up.sql")).expect("migration failed");
         handlebars
-            .register_template_string("migration", Self::MIGRATION_TEMPLATE)
+            .register_template_string("migration_up", Self::MIGRATION_UP_TEMPLATE)
+            .map_err(|e| crate::ScaffoldError::RenderError(e.to_string()))?;
+        handlebars
+            .register_template_string("migration_down", Self::MIGRATION_DOWN_TEMPLATE)
+            .map_err(|e| crate::ScaffoldError::RenderError(e.to_string()))?;
+        handlebars
+            .register_template_string("migration_model_up", Self::MIGRATION_MODEL_UP_TEMPLATE)
+            .map_err(|e| crate::ScaffoldError::RenderError(e.to_string()))?;
+        handlebars
+            .register_template_string("migration_model_down", Self::MIGRATION_MODEL_DOWN_TEMPLATE)
             .map_err(|e| crate::ScaffoldError::RenderError(e.to_string()))?;
 
         // Service template
@@ -241,65 +252,56 @@ mod tests {
 }
 "#;
 
-    const MIGRATION_TEMPLATE: &'static str = r#"//! {{name}} migration
+    // ---------------------------------------------------------------------------
+    // Canonical plain-SQL migration templates
+    //
+    // All generators (rf-scaffold, forge-cli, foundry-cli) now emit the same
+    // convention: a timestamped directory holding up.sql and down.sql.
+    //
+    // Canonical runner (the only migration path that runs against the real DB):
+    //   DB::statement(include_str!("up.sql")).expect("migration failed");
+    //   or via `rf migrate` / foundry `make:migration --run`.
+    // ---------------------------------------------------------------------------
 
-use sea_orm_migration::prelude::*;
+    /// Standalone migration skeleton — up.sql (no model fields; developer fills in SQL).
+    const MIGRATION_UP_TEMPLATE: &'static str = r#"-- Up migration: {{name}}
+-- Canonical RustForge plain-SQL migration.
+-- Runner: DB::statement(include_str!("up.sql")).expect("migration failed");
+--
+-- TODO: Write your migration SQL here. Example:
+-- CREATE TABLE IF NOT EXISTS my_table (
+--     id INTEGER PRIMARY KEY AUTOINCREMENT,
+--     name TEXT NOT NULL,
+--     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+--     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+-- );
+"#;
 
-#[derive(DeriveMigrationName)]
-pub struct Migration;
+    /// Standalone migration skeleton — down.sql.
+    const MIGRATION_DOWN_TEMPLATE: &'static str = r#"-- Down migration: {{name}}
+-- Reverse of up.sql.
+--
+-- TODO: Write the rollback SQL here. Example:
+-- DROP TABLE IF EXISTS my_table;
+"#;
 
-#[async_trait::async_trait]
-impl MigrationTrait for Migration {
-    async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
-        manager
-            .create_table(
-                Table::create()
-                    .table({{table_name}}::Table)
-                    .if_not_exists()
-                    .col(
-                        ColumnDef::new({{table_name}}::Id)
-                            .big_integer()
-                            .not_null()
-                            .auto_increment()
-                            .primary_key(),
-                    )
-{{#each fields}}
-                    .col(ColumnDef::new({{../table_name}}::{{this.pascal_name}}){{this.column_def}})
-{{/each}}
-                    .col(
-                        ColumnDef::new({{table_name}}::CreatedAt)
-                            .timestamp()
-                            .not_null()
-                            .extra("DEFAULT CURRENT_TIMESTAMP".to_string()),
-                    )
-                    .col(
-                        ColumnDef::new({{table_name}}::UpdatedAt)
-                            .timestamp()
-                            .not_null()
-                            .extra("DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP".to_string()),
-                    )
-                    .to_owned(),
-            )
-            .await
-    }
+    /// Model migration up.sql — emits a real CREATE TABLE with the model's fields.
+    /// Field columns are rendered from the `fields` array (each has `name` + `sql_type`).
+    const MIGRATION_MODEL_UP_TEMPLATE: &'static str = r#"-- Up migration: create {{table_sql_name}} table
+-- Canonical RustForge plain-SQL migration.
+-- Runner: DB::statement(include_str!("up.sql")).expect("migration failed");
 
-    async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
-        manager
-            .drop_table(Table::drop().table({{table_name}}::Table).to_owned())
-            .await
-    }
-}
+CREATE TABLE IF NOT EXISTS {{table_sql_name}} (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+{{#each fields}}    {{this.name}} {{this.sql_type}},
+{{/each}}    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+"#;
 
-#[derive(DeriveIden)]
-enum {{table_name}} {
-    Table,
-    Id,
-{{#each fields}}
-    {{this.pascal_name}},
-{{/each}}
-    CreatedAt,
-    UpdatedAt,
-}
+    /// Model migration down.sql — drops the table created in up.sql.
+    const MIGRATION_MODEL_DOWN_TEMPLATE: &'static str = r#"-- Down migration: drop {{table_sql_name}} table
+DROP TABLE IF EXISTS {{table_sql_name}};
 "#;
 
     const SERVICE_TEMPLATE: &'static str = r#"//! {{name}} service

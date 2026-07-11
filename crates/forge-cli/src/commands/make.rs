@@ -99,22 +99,33 @@ pub async fn migration(name: &str) -> Result<()> {
     // Generate timestamp
     let timestamp = chrono::Utc::now().format("%Y%m%d%H%M%S");
     let migration_name = name.to_snake_case();
-    let migration_file = format!("src/migrations/{}_{}.rs", timestamp, migration_name);
 
-    if Path::new(&migration_file).exists() {
-        anyhow::bail!("Migration already exists: {}", migration_file);
+    // Canonical convention: a timestamped directory with up.sql + down.sql.
+    // All three generators (forge-cli, rf-scaffold, foundry-cli) emit this format.
+    // Runner: DB::statement(include_str!("up.sql")).expect("migration failed");
+    let migration_dir = format!("src/migrations/{}_{}", timestamp, migration_name);
+    let up_file = format!("{migration_dir}/up.sql");
+    let down_file = format!("{migration_dir}/down.sql");
+
+    if Path::new(&migration_dir).exists() {
+        anyhow::bail!("Migration already exists: {}", migration_dir);
     }
 
-    let migration_content = generate_migration_content(name)?;
+    let (up_content, down_content) = generate_migration_sql(name);
 
-    // Ensure migrations directory exists
-    fs::create_dir_all("src/migrations")?;
-    fs::write(&migration_file, migration_content)?;
+    // Create migration directory and write up.sql / down.sql
+    fs::create_dir_all(&migration_dir)?;
+    fs::write(&up_file, up_content)?;
+    fs::write(&down_file, down_content)?;
 
-    println!("  {} Created: {}", "✓".green(), migration_file);
+    println!("  {} Created: {}", "✓".green(), up_file);
+    println!("  {} Created: {}", "✓".green(), down_file);
     println!();
     println!("{}", "Migration generated successfully!".green().bold());
-    println!("Run {} to apply migrations", "forge migrate".cyan());
+    println!(
+        "Run {} to apply migrations",
+        "forge migrate".cyan()
+    );
 
     Ok(())
 }
@@ -280,22 +291,100 @@ impl {{controller_name}} {
     Ok(handlebars.render("controller", &data)?)
 }
 
-fn generate_migration_content(name: &str) -> Result<String> {
+/// Generate canonical plain-SQL migration content (up.sql, down.sql).
+///
+/// All three generators (forge-cli, rf-scaffold, foundry-cli) now emit this same
+/// convention: plain SQLite DDL files in a timestamped directory.
+///
+/// Runner (the only path that runs against the real DB):
+///   `DB::statement(include_str!("up.sql")).expect("migration failed")`
+///
+/// Returns `(up_sql, down_sql)`.
+fn generate_migration_sql(name: &str) -> (String, String) {
     let is_create = name.starts_with("create_") && name.ends_with("_table");
 
-    let template = if is_create {
+    if is_create {
         let table_name = name
             .strip_prefix("create_")
-            .unwrap()
-            .strip_suffix("_table")
-            .unwrap();
+            .and_then(|s| s.strip_suffix("_table"))
+            .unwrap_or(name);
 
-        format!("use anyhow::Result;\nuse sqlx::SqlitePool;\n\npub async fn up(pool: &SqlitePool) -> Result<()> {{\n    sqlx::query(\n        r#\"\n        CREATE TABLE IF NOT EXISTS {} (\n            id INTEGER PRIMARY KEY AUTOINCREMENT,\n            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,\n            updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP\n        )\n        \"#,\n    )\n    .execute(pool)\n    .await?;\n\n    Ok(())\n}}\n\npub async fn down(pool: &SqlitePool) -> Result<()> {{\n    sqlx::query(\"DROP TABLE IF EXISTS {}\")\n        .execute(pool)\n        .await?;\n\n    Ok(())\n}}\n", table_name, table_name)
+        let up = format!(
+            "-- Up migration: {name}\n\
+             -- Canonical RustForge plain-SQL migration.\n\
+             -- Runner: DB::statement(include_str!(\"up.sql\")).expect(\"migration failed\");\n\
+             \n\
+             CREATE TABLE IF NOT EXISTS {table_name} (\n\
+             \x20   id INTEGER PRIMARY KEY AUTOINCREMENT,\n\
+             \x20   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n\
+             \x20   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP\n\
+             );\n"
+        );
+        let down = format!(
+            "-- Down migration: {name}\n\
+             DROP TABLE IF EXISTS {table_name};\n"
+        );
+        (up, down)
     } else {
-        "use anyhow::Result;\nuse sqlx::SqlitePool;\n\npub async fn up(pool: &SqlitePool) -> Result<()> {\n    // TODO: Write migration up logic\n    Ok(())\n}\n\npub async fn down(pool: &SqlitePool) -> Result<()> {\n    // TODO: Write migration down logic\n    Ok(())\n}\n".to_string()
-    };
+        let up = format!(
+            "-- Up migration: {name}\n\
+             -- Canonical RustForge plain-SQL migration.\n\
+             -- Runner: DB::statement(include_str!(\"up.sql\")).expect(\"migration failed\");\n\
+             --\n\
+             -- TODO: Write your migration SQL here.\n"
+        );
+        let down = format!(
+            "-- Down migration: {name}\n\
+             -- TODO: Reverse the up migration.\n"
+        );
+        (up, down)
+    }
+}
 
-    Ok(template)
+#[cfg(test)]
+mod tests {
+    use super::generate_migration_sql;
+
+    #[test]
+    fn migration_sql_create_table_emits_plain_sql() {
+        let (up, down) = generate_migration_sql("create_posts_table");
+        // up.sql must be canonical plain-SQL (no sqlx/sea-orm Rust code)
+        assert!(
+            up.contains("CREATE TABLE IF NOT EXISTS posts"),
+            "up.sql must CREATE TABLE posts; got:\n{up}"
+        );
+        assert!(
+            up.contains("id INTEGER PRIMARY KEY AUTOINCREMENT"),
+            "up.sql must include id column; got:\n{up}"
+        );
+        assert!(
+            up.contains("DB::statement"),
+            "up.sql must reference the canonical runner; got:\n{up}"
+        );
+        // No Rust code in the SQL file
+        assert!(
+            !up.contains("use sqlx"),
+            "up.sql must not contain sqlx Rust code"
+        );
+        assert!(
+            !up.contains("SqlitePool"),
+            "up.sql must not contain sqlx Rust code"
+        );
+
+        assert!(
+            down.contains("DROP TABLE IF EXISTS posts"),
+            "down.sql must DROP TABLE posts; got:\n{down}"
+        );
+    }
+
+    #[test]
+    fn migration_sql_generic_emits_todo_skeleton() {
+        let (up, down) = generate_migration_sql("add_email_column");
+        assert!(up.contains("-- Up migration:"), "up.sql must be a comment skeleton");
+        assert!(up.contains("TODO"), "up.sql skeleton must contain a TODO");
+        assert!(down.contains("-- Down migration:"), "down.sql must be a comment skeleton");
+        assert!(!up.contains("SqlitePool"), "skeleton must not contain sqlx code");
+    }
 }
 
 fn generate_command_content(command_name: &str) -> Result<String> {

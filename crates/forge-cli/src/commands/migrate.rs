@@ -40,13 +40,15 @@ pub async fn run() -> Result<()> {
         return Ok(());
     }
 
-    // Get all migration files
+    // Canonical convention: each migration is a subdirectory containing up.sql + down.sql.
+    // Runner: DB::statement(include_str!("up.sql")).expect("migration failed");
     let mut migrations: Vec<String> = fs::read_dir("src/migrations")?
         .filter_map(|entry| {
             let entry = entry.ok()?;
             let path = entry.path();
-            if path.extension()? == "rs" && path.file_name()?.to_string_lossy() != "mod.rs" {
-                Some(path.file_stem()?.to_string_lossy().to_string())
+            // Accept subdirectories that contain an up.sql file
+            if path.is_dir() && path.join("up.sql").exists() {
+                Some(path.file_name()?.to_string_lossy().to_string())
             } else {
                 None
             }
@@ -467,13 +469,15 @@ pub async fn status() -> Result<()> {
     );
     println!("  {}", "-".repeat(100));
 
-    // Get all migration files
+    // Canonical convention: each migration is a subdirectory containing up.sql + down.sql.
+    // Runner: DB::statement(include_str!("up.sql")).expect("migration failed");
     let mut migrations: Vec<String> = fs::read_dir("src/migrations")?
         .filter_map(|entry| {
             let entry = entry.ok()?;
             let path = entry.path();
-            if path.extension()? == "rs" && path.file_name()?.to_string_lossy() != "mod.rs" {
-                Some(path.file_stem()?.to_string_lossy().to_string())
+            // Accept subdirectories that contain an up.sql file
+            if path.is_dir() && path.join("up.sql").exists() {
+                Some(path.file_name()?.to_string_lossy().to_string())
             } else {
                 None
             }
