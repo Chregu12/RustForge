@@ -24,7 +24,7 @@ Add to your `Cargo.toml`:
 ```toml
 [dependencies]
 rf-inertia = "0.1"
-axum = "0.7"
+axum = "0.8"
 ```
 
 ## Quick Start
@@ -111,18 +111,27 @@ export default function Index({ user, title }) {
 
 ### Shared Props
 
-Share data across all pages:
+Share data across all Inertia pages.  Shared props require the middleware — add them
+**before** passing the layer to the router:
 
 ```rust
-use rf_inertia::{InertiaConfig, InertiaMiddleware};
+use rf_inertia::{InertiaConfig, InertiaMiddlewareLayer};
 
 let config = InertiaConfig::new();
-let middleware = InertiaMiddleware::new(config);
+let layer = InertiaMiddlewareLayer::new(config);
 
-// Add shared props
-middleware.shared_props().add("app_name", "RustForge").await;
-middleware.shared_props().add("user", current_user()).await;
+// Populate shared props before starting the server
+layer.shared_props().add("app_name", "RustForge").await;
+layer.shared_props().add("user", current_user()).await;
+
+let app = Router::new()
+    .route("/", get(index))
+    .layer(layer);  // shared props are merged into every Inertia response
 ```
+
+> **Note:** Handlers that return `Inertia` **require** `InertiaMiddlewareLayer` on the
+> router to work correctly.  Without the middleware, browser requests receive raw JSON
+> instead of an HTML page, and shared props are not merged.
 
 ### Lazy Props
 

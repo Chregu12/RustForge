@@ -202,14 +202,42 @@ impl Inertia {
 
 impl IntoResponse for Inertia {
     fn into_response(self) -> Response {
-        // Default implementation for cases without middleware
-        let response = InertiaResponse::new(
+        use crate::response::PendingInertia;
+
+        // Evaluate ALL lazy props.
+        // Without request headers we cannot do selective partial-only evaluation,
+        // so we resolve all of them here.
+        let mut props = self.props;
+        for lazy_prop in &self.lazy_props {
+            let value = lazy_prop.evaluate();
+            props = props.with(lazy_prop.key(), value);
+        }
+
+        // Remember the explicitly set URL so the middleware can decide whether to
+        // use it or fall back to the actual request URI.
+        let explicit_url = self.url.clone();
+
+        let mut inertia_response = InertiaResponse::new(
             self.component,
-            self.props,
+            props,
             self.url.unwrap_or_else(|| "/".to_string()),
             self.version.unwrap_or_else(|| "1".to_string()),
         );
-        response.into_json_response()
+
+        if !self.deferred_keys.is_empty() {
+            inertia_response = inertia_response.with_deferred_props(self.deferred_keys);
+        }
+
+        // Store the raw page data in extensions so the Inertia middleware can
+        // finalize rendering (HTML vs JSON, shared props, real URL, real version).
+        // The JSON body below is a fallback for use without the middleware.
+        let pending = PendingInertia {
+            inertia_response: inertia_response.clone(),
+            explicit_url,
+        };
+        let mut response = inertia_response.into_json_response();
+        response.extensions_mut().insert(pending);
+        response
     }
 }
 

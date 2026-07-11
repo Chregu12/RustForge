@@ -49,7 +49,7 @@ pub mod version;
 
 pub use config::InertiaConfig;
 pub use error::{InertiaError, Result};
-pub use middleware::InertiaMiddleware;
+pub use middleware::{InertiaMiddleware, InertiaMiddlewareLayer};
 pub use props::{LazyProp, Props, SharedProps};
 pub use render::Inertia;
 pub use response::InertiaResponse;

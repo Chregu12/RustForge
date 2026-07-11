@@ -188,6 +188,22 @@ impl IntoResponse for InertiaResponse {
     }
 }
 
+/// Marker placed in a response's extensions by [`crate::render::Inertia::into_response`].
+///
+/// The Inertia middleware detects this marker and finalizes the response:
+/// * Full HTML page for browser requests (no `X-Inertia` request header).
+/// * JSON payload for Inertia XHR requests (`X-Inertia: true` request header).
+///
+/// Without the middleware the fallback JSON body is returned as-is.
+#[derive(Clone)]
+pub(crate) struct PendingInertia {
+    /// Page data with lazy props already evaluated.
+    pub(crate) inertia_response: InertiaResponse,
+    /// URL explicitly set by the handler via `.url(...)`.
+    /// `None` means the middleware should use the request URI.
+    pub(crate) explicit_url: Option<String>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
