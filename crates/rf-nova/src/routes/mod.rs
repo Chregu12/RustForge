@@ -15,32 +15,32 @@ pub fn build_routes(nova: Arc<Nova>) -> Router {
     Router::new()
         // API routes
         .route(&format!("{}/api/resources", base_path), get(handlers::list_resources))
-        .route(&format!("{}/api/resources/:resource", base_path), get(handlers::index_resource))
-        .route(&format!("{}/api/resources/:resource/:id", base_path), get(handlers::show_resource))
-        .route(&format!("{}/api/resources/:resource", base_path), post(handlers::create_resource))
-        .route(&format!("{}/api/resources/:resource/:id", base_path), put(handlers::update_resource))
-        .route(&format!("{}/api/resources/:resource/:id", base_path), delete(handlers::delete_resource))
+        .route(&format!("{}/api/resources/{{resource}}", base_path), get(handlers::index_resource))
+        .route(&format!("{}/api/resources/{{resource}}/{{id}}", base_path), get(handlers::show_resource))
+        .route(&format!("{}/api/resources/{{resource}}", base_path), post(handlers::create_resource))
+        .route(&format!("{}/api/resources/{{resource}}/{{id}}", base_path), put(handlers::update_resource))
+        .route(&format!("{}/api/resources/{{resource}}/{{id}}", base_path), delete(handlers::delete_resource))
 
         // Action routes
-        .route(&format!("{}/api/resources/:resource/actions/:action", base_path), post(handlers::run_action))
+        .route(&format!("{}/api/resources/{{resource}}/actions/{{action}}", base_path), post(handlers::run_action))
 
         // Filter routes
-        .route(&format!("{}/api/resources/:resource/filters", base_path), get(handlers::get_filters))
+        .route(&format!("{}/api/resources/{{resource}}/filters", base_path), get(handlers::get_filters))
 
         // Lens routes
-        .route(&format!("{}/api/resources/:resource/lenses/:lens", base_path), get(handlers::get_lens))
+        .route(&format!("{}/api/resources/{{resource}}/lenses/{{lens}}", base_path), get(handlers::get_lens))
 
         // Export routes
-        .route(&format!("{}/api/resources/:resource/export", base_path), get(handlers::export_resource))
+        .route(&format!("{}/api/resources/{{resource}}/export", base_path), get(handlers::export_resource))
 
         // Dashboard routes
         .route(&format!("{}/api/dashboards", base_path), get(handlers::list_dashboards))
-        .route(&format!("{}/api/dashboards/:dashboard", base_path), get(handlers::get_dashboard))
+        .route(&format!("{}/api/dashboards/{{dashboard}}", base_path), get(handlers::get_dashboard))
 
         // Metric routes
-        .route(&format!("{}/api/metrics/value/:metric", base_path), get(handlers::get_value_metric))
-        .route(&format!("{}/api/metrics/trend/:metric", base_path), get(handlers::get_trend_metric))
-        .route(&format!("{}/api/metrics/partition/:metric", base_path), get(handlers::get_partition_metric))
+        .route(&format!("{}/api/metrics/value/{{metric}}", base_path), get(handlers::get_value_metric))
+        .route(&format!("{}/api/metrics/trend/{{metric}}", base_path), get(handlers::get_trend_metric))
+        .route(&format!("{}/api/metrics/partition/{{metric}}", base_path), get(handlers::get_partition_metric))
 
         // Search routes
         .route(&format!("{}/api/search", base_path), get(handlers::global_search))

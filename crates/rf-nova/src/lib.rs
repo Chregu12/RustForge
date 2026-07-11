@@ -113,6 +113,7 @@ pub mod lens;
 pub mod metric;
 pub mod nova;
 pub mod resource;
+pub mod resource_router;
 pub mod routes;
 
 // Re-export main types
@@ -133,6 +134,7 @@ pub use metric::{
     PartitionMetric, PartitionSegment, TrendData, TrendDirection, TrendMetric, ValueMetric,
 };
 pub use nova::{Nova, NovaBuilder, NovaConfig};
+pub use resource_router::resource_router;
 pub use resource::{
     crud::{create, destroy, export, index, show, update},
     field::{

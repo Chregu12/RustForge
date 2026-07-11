@@ -1,45 +1,58 @@
 //! Derive macros for rf-nova
 //!
-//! Provides #[derive(Resource)], #[derive(Action)], etc.
+//! Provides #[derive(Action)], #[derive(Filter)], etc.
+//!
+//! # Note on `#[derive(Resource)]`
+//!
+//! The `Resource` derive is **not yet usable** — the attribute-based code
+//! generation for `type Entity` and `type Model` is unimplemented. Using it
+//! silently produced `type Entity = ()` and `type Model = ()` which break any
+//! code that passes `R::Entity` to the generic crud functions.
+//!
+//! Implement the [`rf_nova::resource::Resource`] trait manually instead:
+//!
+//! ```ignore
+//! pub struct UserResource;
+//!
+//! impl rf_nova::resource::Resource for UserResource {
+//!     type Entity = user::Entity;
+//!     type Model = user::Model;
+//!
+//!     fn name() -> &'static str { "User" }
+//!
+//!     fn fields() -> Vec<Box<dyn rf_nova::resource::Field>> {
+//!         vec![
+//!             Box::new(rf_nova::resource::field::ID::new("id")),
+//!             Box::new(rf_nova::resource::field::Text::new("name")),
+//!         ]
+//!     }
+//! }
+//! ```
 
 use proc_macro::TokenStream;
 use quote::quote;
 use syn::{parse_macro_input, DeriveInput};
 
-/// Derive macro for Resource trait
+/// **Unimplemented** — emits a compile error directing you to the manual impl.
 ///
-/// # Example
-///
-/// ```ignore
-/// #[derive(Resource)]
-/// #[nova(model = "User", group = "Users")]
-/// pub struct UserResource {
-///     #[nova(id)]
-///     pub id: ID,
-///
-///     #[nova(text, sortable, searchable)]
-///     pub name: Text,
-/// }
-/// ```
+/// The attribute-based `Entity` / `Model` extraction needed to make this derive
+/// useful is not yet implemented. Please implement the `Resource` trait manually.
+/// See the crate-level docs for an example.
 #[proc_macro_derive(Resource, attributes(nova))]
 pub fn derive_resource(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     let name = &input.ident;
+    let name_str = name.to_string();
 
-    // Parse attributes
     let expanded = quote! {
-        impl rf_nova::resource::Resource for #name {
-            type Entity = (); // Placeholder - would be extracted from attributes
-            type Model = (); // Placeholder
-
-            fn name() -> &'static str {
-                stringify!(#name)
-            }
-
-            fn fields() -> Vec<Box<dyn rf_nova::resource::Field>> {
-                vec![] // Would be generated from struct fields
-            }
-        }
+        compile_error!(concat!(
+            "#[derive(Resource)] on `",
+            #name_str,
+            "` is not yet usable: the attribute-based `type Entity` / `type Model` \
+             generation is unimplemented and would silently produce broken `()` types. \
+             Please implement the `rf_nova::resource::Resource` trait manually. \
+             See the rf-nova-macros crate docs for an example."
+        ));
     };
 
     TokenStream::from(expanded)

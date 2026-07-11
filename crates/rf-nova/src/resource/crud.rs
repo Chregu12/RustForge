@@ -24,20 +24,25 @@ where
     let page = query.page.unwrap_or(1);
     let per_page = query.per_page.unwrap_or(15);
 
-    let mut select = E::find();
+    let select = E::find();
 
-    // Apply search if provided
-    if let Some(search_term) = &query.search {
-        if !search_term.is_empty() && !searchable_fields.is_empty() {
-            // Build OR conditions for searchable fields
-            // Note: This is a simplified version. In production, you'd want to use
-            // the actual column types and build proper LIKE queries
-            select = select.filter(
-                sea_orm::Condition::any()
-                    // We'll add conditions dynamically based on the entity's columns
-            );
-        }
-    }
+    // Apply search if provided.
+    //
+    // NOTE: Text-search against dynamic field names is not yet implemented in
+    // this generic path — `searchable_fields` holds column *name strings* and
+    // there is no stable SeaORM API to look up `E::Column` by name in a
+    // generic function. Passing a non-empty `searchable_fields` slice is
+    // accepted (no error) but search is currently a no-op: the full paginated
+    // result is returned as if no search term was given.
+    //
+    // Callers that need real text search should implement a concrete index
+    // variant for their entity and add a `ColumnTrait::like` filter directly
+    // on the `select` before calling this function.
+    //
+    // IMPORTANT: never apply `Condition::any()` with zero predicates — SeaORM
+    // evaluates an empty `any()` as `WHERE FALSE`, returning 0 rows, which
+    // was the bug this comment replaces.
+    let _ = (&query.search, &searchable_fields);
 
     // Apply sorting
     if let Some(_sort_field) = &query.sort_by {
