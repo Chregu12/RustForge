@@ -48,6 +48,7 @@ impl BuiltinTemplates {
     }
 
     const MODEL_TEMPLATE: &'static str = r#"//! {{name}} model
+#![allow(dead_code)]
 
 use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
@@ -102,6 +103,7 @@ mod tests {
 "#;
 
     const CONTROLLER_TEMPLATE: &'static str = r#"//! {{name}} controller
+#![allow(dead_code)]
 
 use axum::{
     extract::{Path, Json},
@@ -153,6 +155,7 @@ mod tests {
 "#;
 
     const CONTROLLER_RESOURCE_TEMPLATE: &'static str = r#"//! {{name}} resource controller
+#![allow(dead_code)]
 
 use axum::{
     extract::{Path, Json},
@@ -300,6 +303,7 @@ enum {{table_name}} {
 "#;
 
     const SERVICE_TEMPLATE: &'static str = r#"//! {{name}} service
+#![allow(dead_code)]
 
 use async_trait::async_trait;
 use anyhow::Result;
@@ -353,6 +357,7 @@ mod tests {
 "#;
 
     const REPOSITORY_TEMPLATE: &'static str = r#"//! {{name}} repository
+#![allow(dead_code)]
 
 use async_trait::async_trait;
 use anyhow::Result;
