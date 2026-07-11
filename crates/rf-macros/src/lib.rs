@@ -1,43 +1,67 @@
-//! # RF Macros
+//! # rf-macros
 //!
-//! Procedural macros for the Rust DX Framework that enable Laravel-style syntax.
+//! Procedural macros for the RustForge framework that enable concise,
+//! Laravel-inspired syntax for models, validation, routing, and CRUD.
 //!
-//! ## Available Macros
+//! ## Flagship macros
 //!
-//! - `#[auto_await]`: Automatically adds `.await` to async function calls
-//! - `function!`: Converts function syntax to async closures with automatic `.await` insertion
-//! - `rules!`: Creates validation rules with pipe syntax
-//! - `#[controller]`: Marks structs as controllers and auto-converts methods
-//! - `laravel!`: Define models with PHP-like syntax
+//! | Macro | Purpose |
+//! |-------|---------|
+//! | `Model!` | Define a model struct, DB-table mapping, and DTOs in one shot |
+//! | `validate!` | Typed fluent validation DSL — validates the current request |
+//! | `create!` / `find!` / `update!` / `delete!` | CRUD without `json!` or explicit `.await` |
+//! | `controller_block!` | Vision controller syntax (generates handler methods) |
+//! | `#[auto_await]` / `#[await_calls]` | Transparently resolve framework async calls |
+//! | `routes!` | Route definitions without `\|\|` closures |
+//! | `#[derive(Job)]` | Derive the `rf_queue::Job` trait for background jobs |
 //!
-//! ## Example: Laravel-like syntax
+//! ## Model + validate + create in one handler
+//!
+//! The snippet below is taken from the `blog-slice` example:
 //!
 //! ```rust,ignore
-//! use rf_macros::laravel;
+//! use rf::prelude::*;          // re-exports all macros from this crate
 //!
-//! laravel! {
-//!     class User extends Model {
-//!         protected fillable = [name: String, email: String];
-//!         protected hidden = [password: String];
+//! // Declares the struct + `posts` table + `CreatePost` / `UpdatePost` DTOs.
+//! Model!(Post: title, body);
+//!
+//! async fn store() -> impl axum::response::IntoResponse {
+//!     // Typed validation — required, type-checked, constraint-enforced.
+//!     if validate! { title: string.max(200), body: string }.is_err() {
+//!         return json(serde_json::json!({"error": "validation failed"}));
+//!     }
+//!     let title: String = input("title").unwrap_or_default();
+//!     let body: String  = input("body").unwrap_or_default();
+//!     // `create!` does a real INSERT; returns the new row as serde_json::Value.
+//!     match create!(Post, title = title, body = body) {
+//!         Ok(row) => json(row),
+//!         Err(e)  => json(serde_json::json!({"error": e})),
 //!     }
 //! }
-//!
-//! // Then use Laravel-style queries:
-//! let users = User::where("active", true).get().await?;
 //! ```
 //!
-//! ## Example: auto_await
+//! ## validate! type keywords
+//!
+//! `string` / `text`, `email`, `url`, `uuid`, `ip`, `int` / `integer`,
+//! `float` / `decimal` / `number`, `date` / `datetime`, `array`,
+//! `bool` / `boolean`, `image`, `file`.
+//!
+//! Modifiers: `.min(n)`, `.max(n)`, `.between(lo, hi)`, `.optional`,
+//! `.nullable`, `.unique("table", "col")`, `.exists("table", "col")`.
+//! For `image`/`file` fields: `.mime("image/png")`, `.min(kb(100))`,
+//! `.max(mb(5))`.
+//!
+//! ## Model! @ DSL (inline validation overrides)
 //!
 //! ```rust,ignore
-//! use rf_macros::auto_await;
-//!
-//! #[auto_await]
-//! async fn get_users() -> Result<Vec<User>, Error> {
-//!     // No .await needed! The macro adds it automatically.
-//!     let users = User::filter("active", true).get();
-//!     let cached = Cache::get("stats");
-//!     Ok(users)
-//! }
+//! Model!(User {
+//!     validated,                                    // emit rf_validation::Validate impl
+//!     name:  String @ min(1) max(80),               // length constraints
+//!     email: String @ email message("Valid email required"),  // format + custom message
+//!     age:   i32    @ range(18.0, 120.0),           // numeric range (f64 bounds)
+//!     slug:  String @ regex("^[a-z0-9-]+$"),        // regex pattern
+//!     hasMany posts: Post,                          // eager-loadable relation field
+//! });
 //! ```
 
 extern crate proc_macro;
@@ -112,18 +136,33 @@ pub fn rules(input: TokenStream) -> TokenStream {
 
 /// Typed, fluent validation DSL that validates the current request.
 ///
-/// ```ignore
+/// Requires the `capture_request` axum middleware to be active (it populates the
+/// task-local that `validate!` reads from). Returns
+/// `Result<ValidatedData, ValidationErrors>`.
+///
+/// ```rust,ignore
+/// // In a handler (inside a capture_request scope):
 /// let data = validate! {
-///     title: string.max(255),
-///     email: email,
-///     age:   int.min(18),
-///     bio:   string.optional,
-/// }?;
+///     title:  string.max(255),          // required String, length ≤ 255
+///     email:  email,                    // required valid email
+///     age:    int.min(18),              // required integer ≥ 18
+///     bio:    string.optional,          // optional String (may be absent)
+///     tag_id: int.exists("tags", "id"), // must reference a real row
+/// }?;  // `?` propagates ValidationErrors as a 422 when used with AppResult
 /// ```
 ///
-/// The leading type disambiguates length-vs-numeric `min`/`max`; fields are
-/// required unless `.optional`/`.nullable`. Expands to an `.await`ed validation
-/// of `rf_request::all()`, yielding `Result<ValidatedData, ValidationErrors>`.
+/// ## Type keywords
+///
+/// `string` / `text`, `email`, `url`, `uuid`, `ip`,
+/// `int` / `integer`, `float` / `decimal` / `number`,
+/// `date` / `datetime`, `array`, `bool` / `boolean`,
+/// `image` (validates upload MIME), `file` (any uploaded file).
+///
+/// ## Modifiers
+///
+/// `.min(n)`, `.max(n)`, `.between(lo, hi)`, `.optional`, `.nullable`,
+/// `.unique("table", "col")`, `.exists("table", "col")`.
+/// For `image` / `file`: `.mime("image/png")`, `.min(kb(100))`, `.max(mb(5))`.
 #[proc_macro]
 pub fn validate(input: TokenStream) -> TokenStream {
     validate_macro::validate_impl(input)
@@ -459,43 +498,70 @@ pub fn laravel(input: TokenStream) -> TokenStream {
     laravel_syntax::laravel_impl(input)
 }
 
-/// Ultra-simple model definition macro.
+/// Define a model struct, its database-table mapping, and companion request DTOs
+/// with type-inferred validation rules — all in one declaration.
 ///
-/// # Minimal Syntax
+/// # Simple syntax (all fields become `String`)
 ///
-/// ```ignore
-/// // All fields default to String type
+/// ```rust,ignore
 /// Model!(User: name, email, hidden password);
 /// ```
 ///
-/// # Full Syntax
+/// # Full syntax (explicit types + options)
 ///
-/// ```ignore
-/// Model!(User {
-///     name: String,
-///     email: String,
-///     hidden password: String,
-///     age: i32,
-/// });
-/// ```
-///
-/// # With Custom Table
-///
-/// ```ignore
+/// ```rust,ignore
 /// Model!(Post {
-///     table = "blog_posts",
+///     table = "blog_posts",   // optional — default is snake_case plural of name
 ///     title: String,
-///     body: String,
+///     body:  String,
+///     views: i64,
+///     hidden secret: String,  // excluded from JSON serialization
+///
+///     belongsTo author: User, // eager relation field (Option<User>)
+///     hasMany comments: Comment,
+///     timestamps = false,     // omit created_at / updated_at
 /// });
 /// ```
 ///
-/// # Generated Code
+/// # Inline validation overrides (`@` DSL)
 ///
-/// The macro generates:
-/// - Struct with `id`, `created_at`, `updated_at` fields
-/// - `impl Model` with table name
-/// - `FILLABLE` and `HIDDEN` constants
-/// - `Default` implementation
+/// Append `@ <constraint>...` after a field's type to emit a real
+/// `rf_validation::Validate` impl (also requires the `validated` marker):
+///
+/// ```rust,ignore
+/// Model!(User {
+///     validated,
+///     name:  String @ min(1) max(80),
+///     email: String @ email message("A valid email address is required"),
+///     age:   i32    @ range(18.0, 120.0),
+///     slug:  String @ regex("^[a-z0-9-]+$"),
+/// });
+/// ```
+///
+/// Available `@` constraints: `email`, `url`, `uuid`, `ip`, `min(n)`, `max(n)`,
+/// `range(lo, hi)`, `regex("pattern")`, `alpha`, `alphanumeric`,
+/// `starts_with("prefix")`, `ends_with("suffix")`, `message("text")`.
+///
+/// # Local query scopes
+///
+/// ```rust,ignore
+/// Model!(Post {
+///     title: String,
+///     status: String,
+///     scope published: where("status", "published") order_by("created_at", "DESC"),
+/// });
+/// // Usage: Post::published().get().await
+/// ```
+///
+/// # What the macro generates
+///
+/// - A struct with `id: Option<i64>`, declared fields, optional timestamps, and
+///   an `Option<Related>` / `Vec<Related>` field per declared relation.
+/// - `FILLABLE` and `HIDDEN` constants and a `Default` impl.
+/// - `CreatePost` (all declared fields, required) and `UpdatePost` (Option-wrapped)
+///   DTOs each carrying a `VALIDATION_RULES` spec for the real validation engine.
+/// - A batch `load_<relation>_for` method per declared relation (no N+1).
+/// - A `<name>()` scope method per declared `scope` (returns a `QueryBuilder`).
 // Intentionally PascalCase so the macro reads as `Model! { ... }` (public API).
 #[allow(non_snake_case)]
 #[proc_macro]
@@ -1605,7 +1671,7 @@ pub fn notification(input: TokenStream) -> TokenStream {
 
 /// Markdown email content helper
 ///
-/// ```ignore
+/// ```text
 /// let content = markdown! {
 ///     # Welcome {{ user.name }}!
 ///

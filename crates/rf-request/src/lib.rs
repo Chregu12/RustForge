@@ -1,33 +1,45 @@
-//! # RF Request
+//! # rf-request
 //!
-//! Laravel-style request handling for Rust DX Framework.
+//! Request handling and implicit (task-local) request globals for RustForge.
 //!
-//! ## Features
+//! ## Implicit request globals (`capture_request` pattern)
 //!
-//! - **Custom Request Wrapper**: Enhanced wrapper around Axum's Request
-//! - **Field Access**: Easy access to request fields via `get()`
-//! - **Validation Integration**: Seamless integration with rf-validation
-//! - **User & Session**: Built-in support for authenticated users and sessions
-//! - **Extractors**: Axum-compatible extractors
+//! Add the `capture_request` middleware once at the router level; your handlers
+//! can then call the global helpers without threading a `Request` argument:
 //!
-//! ## Quick Start
+//! ```rust,ignore
+//! use rf_request::{input, has, all, file};
 //!
-//! ```ignore
-//! use rf_request::Request;
-//! use rf_macros::{function, rules};
+//! // Inside a handler wired to a router that has capture_request as a layer:
+//! async fn store() -> impl axum::response::IntoResponse {
+//!     // Deserialize a JSON/form/query field.  Returns None outside a request scope
+//!     // or if the field is absent / cannot coerce to the requested type.
+//!     let title: Option<String> = input("title");
+//!     let page:  Option<usize>  = input("page");   // coerces "2" -> 2
 //!
-//! let handler = function!(request: Request) -> Response {
-//!     // Access fields
-//!     let name: String = request.get("name").unwrap();
+//!     // Check presence without consuming the value.
+//!     if !has("title") { /* ... */ }
 //!
-//!     // Validate
-//!     let validated = request.validate(rules! {
-//!         name: required | min(3),
-//!         email: required | email,
-//!     }).await?;
+//!     // All merged fields as a HashMap<String, serde_json::Value>.
+//!     let fields = all();
 //!
-//!     Response::json(validated)
-//! };
+//!     // An uploaded file from a multipart field named "avatar".
+//!     if let Some(upload) = file("avatar") {
+//!         let _ = upload.content_type();  // e.g. "image/png"
+//!     }
+//! }
+//! ```
+//!
+//! These functions return empty / `None` when called outside a
+//! `capture_request` scope (e.g. in unit tests without the middleware).
+//!
+//! ## `capture_request` middleware
+//!
+//! ```rust,ignore
+//! use rf_request::capture_request;
+//! use axum::middleware::from_fn;
+//!
+//! let app = router.layer(from_fn(capture_request));
 //! ```
 
 pub mod context;

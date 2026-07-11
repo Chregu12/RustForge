@@ -1,30 +1,80 @@
-//! Ultra-simple Model macro with Laravel-style relationships
+//! `Model!` macro implementation — struct, DB-table, DTOs, relations, scopes.
 //!
-//! Define models with minimal syntax:
+//! A single `Model!` call is the canonical "one declaration covers five things"
+//! entry point for the RustForge ORM layer.  It generates:
+//!
+//! - A named struct with `id: Option<i64>`, timestamps, and your declared fields.
+//! - `FILLABLE` / `HIDDEN` constants and a `Default` impl.
+//! - A `Create<Name>` / `Update<Name>` DTO pair carrying `VALIDATION_RULES` specs
+//!   seeded from the declared field types.
+//! - One `load_<relation>_for` batch-loader per declared relation (no N+1 queries).
+//! - One scope method per declared `scope` line.
+//!
+//! ## Syntaxes
+//!
+//! ```rust,ignore
+//! // Simple — all fields inferred as String:
+//! Model!(Comment: body, user_id, post_id);
+//!
+//! // Full — explicit types, table override, relations, options:
+//! Model!(Post {
+//!     table = "blog_posts",      // optional; default: snake_case plural
+//!     title: String,
+//!     body:  String,
+//!     views: i64,
+//!     hidden secret: String,     // excluded from JSON (serde skip_serializing)
+//!     timestamps = false,        // omit created_at / updated_at
+//!     softDeletes,               // add deleted_at for soft-delete support
+//!
+//!     belongsTo author: User,    // eager Option<User> field + batch loader
+//!     hasMany comments: Comment, // eager Vec<Comment> field + batch loader
+//!     belongsToMany tags: Tag,   // eager Vec<Tag> via pivot table + batch loader
+//!
+//!     // Local query scope — Post::recent() returns a ready QueryBuilder.
+//!     scope recent: order_by("created_at", "DESC") limit(10),
+//! });
+//! ```
+//!
+//! ## `@` validation DSL (inline overrides)
+//!
+//! Append `@ <constraint>...` after a field type to emit a real
+//! `rf_validation::Validate` impl for the generated DTOs.  Also add the
+//! `validated` marker so the impl is always emitted.
 //!
 //! ```rust,ignore
 //! Model!(User {
-//!     name: String,
-//!     email: String,
-//!     hidden password: String,
-//!
-//!     // Relationships - Laravel style!
-//!     hasMany posts: Post,
-//!     hasOne profile: Profile,
+//!     validated,                               // always emit Validate impl
+//!     name:  String @ min(1) max(80),          // length constraints
+//!     email: String @ email                    // email format check
+//!                   message("Valid email required"), // custom error text
+//!     age:   i32    @ range(18.0, 120.0),      // numeric range (f64 bounds)
+//!     slug:  String @ regex("^[a-z0-9-]+$"),   // regex pattern
+//!     site:  String @ url,                     // URL format
+//!     token: String @ uuid,                    // UUID format
+//!     host:  String @ ip,                      // IPv4/IPv6 format
+//!     tag:   String @ alpha,                   // letters only
+//!     code:  String @ alphanumeric,            // letters + digits
+//!     pfx:   String @ starts_with("v"),        // string prefix
+//!     sfx:   String @ ends_with(".rs"),        // string suffix
 //! });
+//! ```
 //!
-//! Model!(Post {
+//! Available constraints: `email`, `url`, `uuid`, `ip`, `min(n)`, `max(n)`,
+//! `range(lo, hi)`, `regex("pat")`, `alpha`, `alphanumeric`,
+//! `starts_with("s")`, `ends_with("s")`, `message("text")`.
+//!
+//! ## Foreign-key override for relations
+//!
+//! When the FK column name deviates from the `<model>_id` convention, override:
+//!
+//! ```rust,ignore
+//! Model!(Task {
 //!     title: String,
-//!     body: String,
 //!     user_id: i64,
-//!
-//!     belongsTo user: User,
-//!     hasMany comments: Comment,
-//!     belongsToMany tags: Tag,
+//!     // The relation is named `assignee`, which would conventionally use
+//!     // `assignee_id`; but the real column is `user_id`, so override:
+//!     belongsTo assignee: User (foreign_key = "user_id"),
 //! });
-//!
-//! // Or even simpler for basic models:
-//! Model!(Comment: body, user_id, post_id);
 //! ```
 
 use proc_macro::TokenStream;

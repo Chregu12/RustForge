@@ -97,8 +97,22 @@ pub use auth_manager::{
 };
 pub use guard::Guard;
 
-// Ready-made bearer-auth guard middleware: a reusable 401-before-body-extraction
-// route layer (replaces the hand-written auth-scope + bearer→login middleware).
+/// Ready-made bearer-auth route guard. Apply it with
+/// `.route_layer(axum::middleware::from_fn(require_auth))` to reject requests
+/// that carry no valid JWT bearer token with a `401 Unauthorized` JSON response
+/// **before** the handler and its body extractors run (so auth precedes any 422).
+///
+/// ```rust,ignore
+/// use rf::prelude::*;  // re-exports require_auth
+/// use axum::middleware::from_fn;
+///
+/// let protected = axum::Router::new()
+///     .route("/profile", axum::routing::get(profile_handler))
+///     .route_layer(from_fn(require_auth));
+///
+/// // Unauthenticated: {"error":"Unauthorized"} 401
+/// // Authenticated:   handler runs normally
+/// ```
 pub use middleware::require_auth;
 
 // Re-export main authorization types

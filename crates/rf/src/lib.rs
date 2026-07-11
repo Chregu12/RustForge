@@ -1,25 +1,87 @@
-//! # RustForge (rf)
+//! # RustForge (`rf`)
 //!
-//! Simplified imports for the RustForge framework.
+//! Umbrella crate that re-exports the most common RustForge items under a
+//! single import. In your handler files write:
 //!
-//! ## Quick Start
-//! ```ignore
-//! // Most common - direct imports:
-//! use rf::{Route, Auth, DB, Hash, Collection};
-//!
-//! // Or use prelude for everything common:
+//! ```rust,ignore
 //! use rf::prelude::*;
 //! ```
 //!
-//! ## 5 Main Modules
+//! ## Canonical workflow: request → validate → persist → respond
 //!
-//! | Module | Description | Key Exports |
+//! The snippet below is taken directly from the shipped `blog-slice` example.
+//! Every primitive shown is real (SQLite-backed ORM, real axum routing).
+//!
+//! ```rust,ignore
+//! use rf::prelude::*;
+//!
+//! // One declaration gives you the struct, the `posts` DB-table mapping, and the
+//! // companion `CreatePost` / `UpdatePost` DTOs with type-inferred validation.
+//! Model!(Post: title, body);
+//!
+//! // Argument-less handler — the body is available via `input()` after the
+//! // `capture_request` middleware buffers it into the task-local scope.
+//! async fn create_post() -> impl axum::response::IntoResponse {
+//!     // Typed validation DSL: title must be a non-empty string ≤ 100 chars;
+//!     // body must be present. Returns Err on failure.
+//!     if validate! { title: string.max(100), body: string }.is_err() {
+//!         return json(serde_json::json!({"error": "validation failed"}));
+//!     }
+//!     let title: String = input("title").unwrap_or_default();
+//!     let body: String  = input("body").unwrap_or_default();
+//!     // `create!` expands to a real INSERT; returns the new row as
+//!     // `serde_json::Value` (including the generated `id`).
+//!     match create!(Post, title = title, body = body) {
+//!         Ok(row) => json(row),
+//!         Err(e)  => json(serde_json::json!({"error": e})),
+//!     }
+//! }
+//!
+//! async fn list_posts() -> impl axum::response::IntoResponse {
+//!     match Post::all().await {
+//!         Ok(posts) => json(posts),
+//!         Err(e)    => json(serde_json::json!({"error": e})),
+//!     }
+//! }
+//!
+//! fn build_app() -> axum::Router {
+//!     post("/posts", create_post);
+//!     get("/posts",  list_posts);
+//!     // `capture_request` buffers the body and populates the task-local that
+//!     // `input()` / `has()` / `all()` / `file()` read from.
+//!     rf::global_router()
+//!         .build_router()
+//!         .layer(axum::middleware::from_fn(rf::web::capture_request))
+//! }
+//! ```
+//!
+//! ## What is real (as of 1.0)
+//!
+//! | Primitive | Engine |
+//! |-----------|--------|
+//! | `Model!(T: fields)` / `Model!(T { … })` | Real SQLite via rusqlite |
+//! | `validate! { field: type.mods }` | Real rule engine (48 rules) |
+//! | `create!` / `find!` / `update!` / `delete!` | Real INSERT / SELECT / UPDATE / DELETE |
+//! | `get` / `post` / `put` / `patch` / `delete` routing | Real axum `Router` |
+//! | `json(data)` | `application/json` axum response |
+//! | `view(name, data)` | Renders `resources/views/<name>.blade.html` |
+//! | `input("field")` / `has` / `all()` / `file` | Require `capture_request` middleware |
+//! | `Cache::get` / `Cache::put` | In-memory default; Redis optional |
+//! | `Auth` / `require_auth` | JWT bearer auth, 401 before body extraction |
+//! | `Mail::to(..).send(..)` | In-memory default; SMTP / Mailgun / SES optional |
+//! | `Storage::put` / `Storage::get` | In-memory default; S3 optional |
+//! | `Broadcast::event` | WebSocket pub/sub |
+//!
+//! ## Module overview
+//!
+//! | Module | Description | Key exports |
 //! |--------|-------------|-------------|
-//! | `rf::prelude` | Common imports | Route, Auth, DB, Hash, etc. |
-//! | `rf::web` | HTTP & Views | Request, Response, Blade, Inertia |
-//! | `rf::data` | Database & Validation | ORM, Eloquent, Cache, Validator |
-//! | `rf::background` | Background Processing | Jobs, Queue, Events, Broadcast |
-//! | `rf::services` | Infrastructure | Storage, Mail, Logging, Metrics |
+//! | `rf::prelude` | Everything a typical handler file needs | `Model!`, `validate!`, `create!`, `json`, `input`, `DB`, `Auth`, … |
+//! | `rf::web` | HTTP, routing, sessions, views | `get`, `post`, `build_router`, `capture_request`, `Session`, `View` |
+//! | `rf::data` | ORM, cache, validation, collections | `DB`, `QueryBuilder`, `Cache`, `Validator`, `Collection` |
+//! | `rf::background` | Jobs, queue, events, broadcasting | `Job`, `Queue`, `Event`, `Broadcast` |
+//! | `rf::services` | Auth, mail, storage, logging, metrics | `Auth`, `Mail`, `Storage`, `Log` |
+//! | `rf::facades` | All facades in one place | `Route`, `Auth`, `DB`, `Cache`, `Mail`, … |
 
 // ============================================================================
 // DIRECT RE-EXPORTS (Most Common - Laravel-style)

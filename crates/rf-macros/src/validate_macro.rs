@@ -1,19 +1,36 @@
 //! The `validate!` macro: a typed, fluent validation DSL.
 //!
-//! ```ignore
+//! Validates the current request (`rf_request::all()`) — requires the
+//! `capture_request` axum middleware — and yields
+//! `Result<ValidatedData, ValidationErrors>`.
+//!
+//! ```rust,ignore
 //! let data = validate! {
-//!     title: string.max(255),
-//!     email: email,
-//!     age:   int.min(18),
-//!     bio:   string.optional,
+//!     title:  string.max(255),           // required String ≤ 255 chars
+//!     email:  email,                     // required valid email
+//!     age:    int.min(18),               // required integer ≥ 18
+//!     bio:    string.optional,           // optional String
+//!     ref_id: int.exists("posts", "id"), // must reference a real row
 //! }?;
 //! ```
 //!
 //! Unlike the pipe-based `rules!` macro, the leading TYPE disambiguates the
-//! length-vs-numeric `min`/`max` collision (`string.max(255)` -> `MaxLengthRule`,
-//! `int.max(255)` -> numeric `MaxRule`). Fields are **required by default** unless
-//! marked `.optional`/`.nullable`. The macro validates the current request
-//! (`rf_request::all()`) and yields `Result<ValidatedData, ValidationErrors>`.
+//! length-vs-numeric `min`/`max` collision (`string.max(255)` expands to
+//! `MaxLengthRule(255)`, `int.max(255)` to the numeric `MaxRule(255.0)`).
+//! Fields are **required by default** unless marked `.optional` or `.nullable`.
+//!
+//! ## Supported type keywords
+//!
+//! `string` / `text`, `email`, `url`, `uuid`, `ip`,
+//! `int` / `integer`, `float` / `decimal` / `number`,
+//! `date` / `datetime`, `array`, `bool` / `boolean`,
+//! `image` (validates upload MIME type), `file` (any uploaded file).
+//!
+//! ## Modifiers
+//!
+//! `.min(n)`, `.max(n)`, `.between(lo, hi)`, `.optional`, `.nullable`,
+//! `.unique("table", "col")`, `.exists("table", "col")`.
+//! For `image` / `file`: `.mime("image/png")`, `.min(kb(100))`, `.max(mb(5))`.
 
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;

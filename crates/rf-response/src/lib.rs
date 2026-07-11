@@ -1,23 +1,45 @@
-//! Response helpers for RustForge
+//! Response helpers for RustForge.
 //!
-//! Provides convenient response builders for Axum applications.
+//! Provides convenient response builders for Axum applications and a set of
+//! free-function helpers that mirror the `rf::prelude::*` surface.
 //!
-//! # Quick Start
+//! ## Free-function helpers (available via `rf::prelude::*`)
+//!
+//! These are the response helpers you use directly in handlers:
+//!
+//! ```rust,no_run
+//! use rf_response::{json, view, back, download};
+//! use serde_json::json as sjson;
+//!
+//! # async fn handler() {
+//! // Serialize any `Serialize` value to an application/json response.
+//! let r = json(sjson!({"status": "ok"}));
+//!
+//! // Render resources/views/home.blade.html with {{ title }} substituted.
+//! let r = view("home", sjson!({"title": "Welcome"}));
+//!
+//! // Redirect to the Referer (falls back to "/").
+//! let r = back();
+//!
+//! // Serve a file with Content-Disposition: attachment; filename=invoice.pdf
+//! let r = download("/path/to/file.pdf");
+//! # }
+//! ```
+//!
+//! ## `Response` builder (method-chaining API)
 //!
 //! ```rust
 //! use rf_response::Response;
 //! use axum::http::StatusCode;
 //!
 //! # async fn example() {
-//! // JSON response
-//! let response = Response::json(&serde_json::json!({"status": "ok"}))
-//!     .status(StatusCode::OK);
+//! let r = Response::json(&serde_json::json!({"status": "ok"}))
+//!     .status(StatusCode::CREATED);
 //!
-//! // Redirect
-//! let response = Response::redirect("/dashboard");
-//!
-//! // Download
-//! let response = Response::download("/path/to/file.pdf", "invoice.pdf");
+//! let r = Response::redirect("/dashboard");
+//! let r = Response::back();
+//! let r = Response::no_content();
+//! let r = Response::text("plain text");
 //! # }
 //! ```
 
