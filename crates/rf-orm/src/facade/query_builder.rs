@@ -1528,19 +1528,28 @@ impl QueryBuilder {
         let obj = value
             .as_object()
             .ok_or_else(|| "insert() data must be a JSON object".to_string())?;
-        if obj.is_empty() {
-            return Err("insert() data must not be empty".to_string());
-        }
 
-        let columns: Vec<&str> = obj.keys().map(String::as_str).collect();
-        let placeholders = vec!["?"; columns.len()].join(", ");
-        let sql = format!(
-            "INSERT INTO {} ({}) VALUES ({})",
-            self.table,
-            columns.join(", "),
-            placeholders
-        );
-        let bindings: Vec<Value> = obj.values().cloned().collect();
+        let (sql, bindings): (String, Vec<Value>) = if obj.is_empty() {
+            // No fields supplied: let the database assign all defaults.
+            // This supports create!(Model) with no arguments for tables where
+            // every non-PK column is nullable or has a DEFAULT value.
+            (
+                format!("INSERT INTO {} DEFAULT VALUES", self.table),
+                vec![],
+            )
+        } else {
+            let columns: Vec<&str> = obj.keys().map(String::as_str).collect();
+            let placeholders = vec!["?"; columns.len()].join(", ");
+            (
+                format!(
+                    "INSERT INTO {} ({}) VALUES ({})",
+                    self.table,
+                    columns.join(", "),
+                    placeholders
+                ),
+                obj.values().cloned().collect(),
+            )
+        };
 
         let mut manager = GLOBAL_DB.lock().unwrap();
         manager.insert(&sql, &bindings)

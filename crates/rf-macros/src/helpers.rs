@@ -1343,7 +1343,11 @@ struct CreateArgs {
 impl Parse for CreateArgs {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let model: Ident = input.parse()?;
-        input.parse::<Token![,]>()?;
+        // Comma is optional: `create!(Post)` (no fields) and
+        // `create!(Post, field = val, ...)` are both valid.
+        if !input.is_empty() {
+            input.parse::<Token![,]>()?;
+        }
         let fields = Punctuated::parse_terminated(input)?;
         Ok(CreateArgs { model, fields })
     }
