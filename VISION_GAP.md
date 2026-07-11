@@ -898,3 +898,6 @@ Instead of stressing more ecosystem surfaces, consolidated the converged framewo
 ### Final state: RustForge is at an honest 1.0-grade bar
 
 Core + ops/security + scaffolding converged (independent adversarial builds find only minor/papercut); 6 extended surfaces made real-or-honestly-labeled; migrations unified; warnings-as-errors clean workspace-wide; honest README + maturity matrix; CI enforces the convergence probes; example gallery + index. Not a formally certified 1.0 (no external users/load yet, some ecosystem surfaces still Experimental/unstressed: telescope/cms/breeze/vite, cashier/spark external-infra), but the honest, verified, self-consistent bar a real 1.0 candidate meets. The autonomous loop has delivered its goal.
+
+### CI green on push (verified 2026-07-11)
+GitHub Actions CI (ci.yml) passes on the current tip: `RUSTFLAGS=-Dwarnings cargo check --workspace` (0 warnings), the scoped crate test suites, the committed `tests/probe-sweep` (9 convergence probes), and the live-backends job all green. `-Dwarnings` is scoped to the library check (test fixtures may carry unused fields). The pinned `rust-toolchain.toml` (1.96.0) keeps the warnings-as-errors gate stable across rustc releases.
