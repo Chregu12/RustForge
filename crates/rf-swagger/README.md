@@ -1,51 +1,85 @@
 # rf-swagger
 
-rf swagger for RustForge
+OpenAPI / Swagger UI / ReDoc integration for RustForge, built as a thin layer over
+[utoipa](https://crates.io/crates/utoipa) 4.x.
 
-## Overview
+## What this crate IS
 
-This crate is part of the RustForge framework, providing essential functionality for building modern web applications in Rust.
+- A convenience re-export of `utoipa` and `utoipa::ToSchema`
+- `OpenApiBuilder` — a metadata builder (`title`, `version`, `description`, `contact`, `license`)
+  that produces a `utoipa::openapi::OpenApi` via `build()`
+- `swagger_ui(openapi)` — wraps the passed spec in a `SwaggerUi` router (Swagger UI + JSON endpoint)
+- `redoc(openapi)` — wraps the passed spec in a `Redoc` router
 
-## Features
+## What this crate is NOT
 
-- Type-safe and performant
-- Async/await support with Tokio
-- Seamless integration with other RustForge components
-- Production-ready implementations
+- **Not** an automatic route-introspecting spec generator. There is no magic scan of your
+  handler functions.
+- **Not** an alternative to annotating your handlers with `#[utoipa::path]` and deriving
+  `#[derive(utoipa::OpenApi)]`.
 
-## Installation
+## Quick start
 
-Add this to your `Cargo.toml`:
+Add to `Cargo.toml`:
 
 ```toml
 [dependencies]
 rf-swagger = { path = "../rf-swagger" }
+utoipa = { version = "4", features = ["axum_extras"] }
+axum = "0.7"   # see compatibility note below
 ```
 
-## Usage
+Annotate your handlers, derive the spec, then pass it to rf-swagger:
 
 ```rust
-use rf-swagger::*;
+use rf_swagger::{swagger_ui, OpenApiBuilder};
+use utoipa::OpenApi as UtoipaOpenApi;
 
-// Example usage here
+// 1. Annotate handlers
+#[utoipa::path(
+    get,
+    path = "/users",
+    responses((status = 200, description = "list of users"))
+)]
+async fn list_users() -> &'static str { "[]" }
+
+// 2. Collect into an OpenApi struct
+#[derive(utoipa::OpenApi)]
+#[openapi(paths(list_users))]
+struct ApiDoc;
+
+// 3. Build spec and pass to rf-swagger
+let spec = ApiDoc::openapi();
+let swagger = rf_swagger::swagger_ui(spec);
+
+// 4. Merge into your axum 0.7 router
+// let app = axum::Router::new()
+//     .route("/users", axum::routing::get(list_users))
+//     .merge(swagger);
 ```
 
-## Documentation
+## Using OpenApiBuilder
 
-For detailed documentation, run:
+`OpenApiBuilder` covers the `info` block only. To add paths, use utoipa derive and merge:
 
-```bash
-cargo doc --package rf-swagger --open
+```rust
+use rf_swagger::OpenApiBuilder;
+
+let info_spec = OpenApiBuilder::new("My API", "1.0.0")
+    .description("My great API")
+    .contact("Alice", "alice@example.com")
+    .license("MIT", "https://opensource.org/licenses/MIT")
+    .build();
 ```
+
+## Axum compatibility
+
+`utoipa-swagger-ui 6.x` and `utoipa-redoc 3.x` target **axum 0.7**. The `SwaggerUi` and `Redoc`
+types returned by this crate implement `Into<axum::Router>` for axum 0.7.
+
+Upgrading to axum 0.8 integration requires `utoipa-swagger-ui 7.x` / `utoipa-redoc 4.x`,
+which in turn require utoipa 5.x. That is tracked as a future upgrade.
 
 ## License
 
-This project is licensed under the MIT OR Apache-2.0 license.
-
-## Contributing
-
-Contributions are welcome! Please see the main RustForge repository for guidelines.
-
-## Part of RustForge
-
-This crate is part of [RustForge](https://github.com/RustForge/RustForge), a comprehensive full-stack application framework for Rust.
+MIT OR Apache-2.0

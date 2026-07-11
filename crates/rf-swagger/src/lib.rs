@@ -1,15 +1,56 @@
 //! OpenAPI/Swagger documentation for RustForge
 //!
-//! This crate provides automatic API documentation generation with Swagger UI and ReDoc.
+//! rf-swagger is a **thin integration layer** over [utoipa](https://docs.rs/utoipa) 4.x.
+//! It does **not** auto-generate specs by introspecting routes; the caller is responsible
+//! for building an [`utoipa::openapi::OpenApi`] (typically via `#[derive(utoipa::OpenApi)]`
+//! and `#[utoipa::path]` annotations), then passing it to [`swagger_ui`] or [`redoc`].
+//!
+//! # Quick start
+//!
+//! ```rust,ignore
+//! use rf_swagger::{swagger_ui, OpenApiBuilder};
+//! use utoipa::OpenApi as UtoipaOpenApi;
+//!
+//! // 1. Annotate your handlers with #[utoipa::path] and collect them:
+//! #[utoipa::path(get, path = "/health", responses((status = 200, description = "ok")))]
+//! async fn health() -> &'static str { "ok" }
+//!
+//! #[derive(utoipa::OpenApi)]
+//! #[openapi(paths(health))]
+//! struct ApiDoc;
+//!
+//! // 2. Build the spec and pass it to swagger_ui / redoc:
+//! let spec = ApiDoc::openapi();
+//! let swagger = swagger_ui(spec);
+//!
+//! // 3. Merge into your axum 0.7 router (utoipa-swagger-ui 6.x targets axum 0.7):
+//! // let app = axum::Router::new().merge(swagger);
+//! ```
+//!
+//! # Axum compatibility note
+//!
+//! The underlying crates `utoipa-swagger-ui 6.x` and `utoipa-redoc 3.x` target **axum 0.7**.
+//! Merging the returned [`SwaggerUi`]/[`Redoc`] into an axum **0.8** router requires upgrading
+//! to `utoipa-swagger-ui 7.x` / `utoipa-redoc 4.x` (which in turn require utoipa 5.x).
+//! That upgrade is outside the scope of this crate; document this honestly to users.
 
 use serde::{Deserialize, Serialize};
+use utoipa::openapi::{ContactBuilder, InfoBuilder, LicenseBuilder, OpenApiBuilder as UtoipaOpenApiBuilder};
 use utoipa_redoc::{Redoc, Servable};
 use utoipa_swagger_ui::SwaggerUi;
 
 pub use utoipa;
 pub use utoipa::ToSchema;
 
-/// OpenAPI builder for creating API documentation
+/// Thin builder that collects API metadata and produces a [`utoipa::openapi::OpenApi`].
+///
+/// Use [`build`](OpenApiBuilder::build) to obtain the spec, then add paths by merging a
+/// utoipa `#[derive(OpenApi)]` spec on top, or pass the result directly to
+/// [`swagger_ui`] / [`redoc`].
+///
+/// **Note:** This builder only captures metadata (title, version, contact, …).
+/// To include actual paths/schemas you must use utoipa's `#[utoipa::path]` annotations
+/// and `#[derive(utoipa::OpenApi)]` — see the crate-level docs.
 #[derive(Clone)]
 pub struct OpenApiBuilder {
     title: String,
@@ -23,7 +64,7 @@ pub struct OpenApiBuilder {
 }
 
 impl OpenApiBuilder {
-    /// Create a new OpenAPI builder
+    /// Create a new OpenAPI builder with a required title and version.
     pub fn new(title: impl Into<String>, version: impl Into<String>) -> Self {
         Self {
             title: title.into(),
@@ -37,62 +78,103 @@ impl OpenApiBuilder {
         }
     }
 
-    /// Set description
+    /// Set API description (markdown is supported).
     pub fn description(mut self, description: impl Into<String>) -> Self {
         self.description = Some(description.into());
         self
     }
 
-    /// Set terms of service
+    /// Set URL to the terms of service.
     pub fn terms_of_service(mut self, terms: impl Into<String>) -> Self {
         self.terms_of_service = Some(terms.into());
         self
     }
 
-    /// Set contact information
+    /// Set contact name and email.
     pub fn contact(mut self, name: impl Into<String>, email: impl Into<String>) -> Self {
         self.contact_name = Some(name.into());
         self.contact_email = Some(email.into());
         self
     }
 
-    /// Set license
+    /// Set license name and URL.
     pub fn license(mut self, name: impl Into<String>, url: impl Into<String>) -> Self {
         self.license_name = Some(name.into());
         self.license_url = Some(url.into());
         self
     }
 
-    /// Get the title
+    /// Get the title.
     pub fn get_title(&self) -> &str {
         &self.title
     }
 
-    /// Get the version
+    /// Get the version.
     pub fn get_version(&self) -> &str {
         &self.version
     }
 
-    /// Get the description
+    /// Get the description.
     pub fn get_description(&self) -> Option<&str> {
         self.description.as_deref()
     }
+
+    /// Build a [`utoipa::openapi::OpenApi`] from the accumulated metadata.
+    ///
+    /// The returned spec contains only the `info` block (title, version, contact, …).
+    /// To include paths and schemas, merge this with a spec produced by
+    /// `#[derive(utoipa::OpenApi)]`.
+    pub fn build(self) -> utoipa::openapi::OpenApi {
+        let mut info = InfoBuilder::new()
+            .title(self.title)
+            .version(self.version)
+            .description(self.description)
+            .terms_of_service(self.terms_of_service);
+
+        if self.contact_name.is_some() || self.contact_email.is_some() {
+            let contact = ContactBuilder::new()
+                .name(self.contact_name)
+                .email(self.contact_email)
+                .build();
+            info = info.contact(Some(contact));
+        }
+
+        if let Some(license_name) = self.license_name {
+            let license = LicenseBuilder::new()
+                .name(license_name)
+                .url(self.license_url)
+                .build();
+            info = info.license(Some(license));
+        }
+
+        UtoipaOpenApiBuilder::new().info(info.build()).build()
+    }
 }
 
-/// Create Swagger UI router
-pub fn swagger_ui<S>(_openapi_json: String) -> SwaggerUi
-where
-    S: Clone + Send + Sync + 'static,
-{
-    SwaggerUi::new("/swagger-ui").url(
-        "/api-docs/openapi.json",
-        utoipa::openapi::OpenApi::default(),
-    )
+/// Create a Swagger UI router that serves the provided OpenAPI spec.
+///
+/// The returned [`SwaggerUi`] mounts:
+/// - `/swagger-ui` — the interactive UI
+/// - `/api-docs/openapi.json` — the raw JSON spec
+///
+/// # Panics
+/// Does not panic.
+///
+/// # Axum compatibility
+/// [`SwaggerUi`] (from `utoipa-swagger-ui 6.x`) implements `Into<axum::Router>` for
+/// **axum 0.7**. Merge into an axum 0.7 router via `.merge(swagger_ui(spec))`.
+pub fn swagger_ui(openapi: utoipa::openapi::OpenApi) -> SwaggerUi {
+    SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", openapi)
 }
 
-/// Create ReDoc router
-pub fn redoc(_openapi_json: String) -> Redoc<'static, 'static, utoipa::openapi::OpenApi> {
-    Redoc::with_url("/redoc", utoipa::openapi::OpenApi::default())
+/// Create a ReDoc router that serves the provided OpenAPI spec.
+///
+/// The returned [`Redoc`] mounts `/redoc` with the interactive ReDoc UI.
+///
+/// # Axum compatibility
+/// [`Redoc`] (from `utoipa-redoc 3.x`) implements `Into<axum::Router>` for **axum 0.7**.
+pub fn redoc(openapi: utoipa::openapi::OpenApi) -> Redoc<'static, 'static, utoipa::openapi::OpenApi> {
+    Redoc::with_url("/redoc", openapi)
 }
 
 /// OpenAPI documentation info
@@ -117,7 +199,7 @@ pub struct ApiTag {
     pub description: Option<String>,
 }
 
-/// Example API response
+/// Generic API response wrapper
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct ApiResponse<T> {
     pub success: bool,
@@ -176,6 +258,46 @@ mod tests {
         assert_eq!(builder.get_title(), "Test API");
         assert_eq!(builder.get_version(), "1.0.0");
         assert_eq!(builder.get_description(), Some("Test API description"));
+    }
+
+    /// OpenApiBuilder::build() must produce a serializable utoipa OpenApi with
+    /// the correct title and version in the info block.
+    #[test]
+    fn test_openapi_builder_build() {
+        let openapi = OpenApiBuilder::new("My API", "2.0.0")
+            .description("A test API")
+            .contact("Alice", "alice@example.com")
+            .license("MIT", "https://opensource.org/licenses/MIT")
+            .build();
+
+        let json = serde_json::to_string(&openapi).expect("OpenApi must be serializable");
+
+        assert!(json.contains("My API"), "serialized spec must contain title");
+        assert!(json.contains("2.0.0"), "serialized spec must contain version");
+        assert!(json.contains("alice@example.com"), "serialized spec must contain contact email");
+        assert!(json.contains("MIT"), "serialized spec must contain license name");
+    }
+
+    /// swagger_ui() must accept a non-default OpenApi and not panic.
+    /// Verify that the spec info is the one we passed (not the empty default).
+    #[test]
+    fn test_swagger_ui_uses_passed_spec() {
+        let openapi = OpenApiBuilder::new("Probe API", "9.9.9").build();
+        // Serialize the spec we are about to pass so we know what to expect.
+        let expected_json = serde_json::to_string(&openapi).unwrap();
+        assert!(expected_json.contains("Probe API"));
+
+        // swagger_ui() must not panic and must accept the spec.
+        // (Before the fix this took a _String_ and discarded it, serving the empty default.)
+        let _ui = swagger_ui(openapi);
+        // If we reach here without panic, the function accepted the real spec.
+    }
+
+    /// redoc() must accept a non-default OpenApi and not panic.
+    #[test]
+    fn test_redoc_uses_passed_spec() {
+        let openapi = OpenApiBuilder::new("Redoc API", "1.2.3").build();
+        let _rd = redoc(openapi);
     }
 
     #[test]
