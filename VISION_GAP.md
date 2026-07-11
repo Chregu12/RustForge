@@ -836,3 +836,30 @@ The capstone found the RUNTIME framework converged across 14 surfaces (broad reg
 Probe `scaffold_codegen_verify` now RUNS the round trip (table=`scaffold_posts`, migration executes, `create!` id=1, `find!` returns the persisted name); `create_no_fields` proves `create!(Post)` inserts a default row. Verified: `cargo check --workspace` default AND `--all-features` **0 warnings**; crud_macros / model_dto_inference / scaffold_codegen_verify / create_no_fields / ergonomic_reexports probes green.
 
 **Loop status:** runtime converged (rounds 1-6); scaffolding generate->run now works. A final confirmation round will re-run the full CLI generate->compile->run + a broad regression to declare breadth convergence.
+
+---
+
+## Production loop — BREADTH CONVERGED (2026-07-11)
+
+Final confirmation. Two independent checks:
+- **Runtime, deterministic:** the full sandbox probe corpus — **31/31 surface probes green** across CRUD/relations (incl. bidirectional), validation+422, auth+require_auth+sanctum, per-client session+flash, tenancy, mail/queue, broadcast/websocket, upload+413, GraphQL+auth-ctx, events, input coercion, JSON 404/405, search-escape, where_eq, DB::refresh, scopes, pagination, security-headers, rate-limit, axum-0.8 routes, create!-no-fields, eager loads. `cargo check --workspace` default AND `--all-features` = **0 warnings**.
+- **Scaffolding, independent CLI generate->run:** a fresh app built ENTIRELY from the CLI generators (make:model/controller/request/migration, no edits to generated bodies) — `cargo build` clean, the generated migration runs, `create!/find!` round-trips against real SQLite (table `posts` matches `Model!`), and the generated HTTP route serves 200. The two previously-broken majors (plural-table mismatch, unusable create!) are gone.
+
+### Verdict: RustForge is production-usable across the breadth.
+
+Six re-eval rounds, each building real apps that found bugs the source audits missed, then fixed + independently re-verified:
+- rounds 1-3 (web/data): 5 architectural fixes -> 1 blocker -> 0 blocker (converged)
+- round 4-5 (ops/security): 3 blockers + ~7 majors fixed, then held under independent re-verify (29 tests, 0 regressions)
+- round 5-6 (scaffolding): generated code made to compile, then to RUN end-to-end
+- capstone: 14-surface broad regression clean + CLI generate->run confirmed
+
+The engine and all four pillars are real; failure paths (panics/poison/silent-loss/races) are handled; surfaces compose under concurrency; docs are honest; 0 framework warnings; example + probe coverage guards each surface; and the CLI produces a running app. This is an honest "production-usable across the breadth" bar met from repeated real-app building — NOT a formal 1.0 certification, but no known blocker/major remains on any stressed surface.
+
+### Honest residuals (minor/papercut/ceiling, non-blocking)
+- Scaffolded code emits `dead_code` warnings (templates lack `#[allow(dead_code)]`) — cosmetic, in the generated app, not the framework.
+- The three generators use three migration backends (sea-orm-migration / sqlx-raw-SQL / plain-SQL) — a fragmentation to unify later.
+- `rf-jobs` WorkerPool requires live Redis (rf-queue MemoryQueue is the documented in-process path); `MailQueue::process` async-wraps a sync bridge; a handful of import-path papercuts.
+- Rust language ceilings remain by design: visible `Result`/`?`, `::` vs `.`, eager-only bare relation fields — boundaries, not bugs.
+
+### Cadence
+The loop reached its goal: an independent adversarial build on any stressed surface now finds only minor/papercut. Continuing to spin fresh rounds is diminishing returns. Recommendation: pause the autonomous loop; resume on a concrete need — a new surface to stress, a real bug report, or a push toward a formal 1.0 (unify migrations, polish the residual papercuts, add CI live-backend + a broader example gallery).
