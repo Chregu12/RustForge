@@ -1,3 +1,5 @@
+//! **EXPERIMENTAL — not part of the RustForge 1.0 supported surface; API may change without a SemVer bump.**
+//!
 //! # rf-vite - Vite Asset Pipeline Integration
 //!
 //! Integrates Vite dev server and build tools with RustForge for modern frontend development.

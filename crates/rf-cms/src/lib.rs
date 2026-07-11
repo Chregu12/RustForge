@@ -1,3 +1,5 @@
+//! **EXPERIMENTAL — not part of the RustForge 1.0 supported surface; API may change without a SemVer bump.**
+//!
 //! # rf-cms - Content Management System
 //!
 //! Complete CMS features for RustForge including media management, WYSIWYG editors,

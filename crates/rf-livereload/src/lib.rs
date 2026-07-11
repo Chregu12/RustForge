@@ -1,3 +1,5 @@
+//! **EXPERIMENTAL — not part of the RustForge 1.0 supported surface; API may change without a SemVer bump.**
+//!
 //! # rf-livereload - Live Reload and HMR
 //!
 //! Provides live reload functionality for RustForge applications during development.

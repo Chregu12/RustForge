@@ -4,6 +4,7 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 authors.workspace = true
+description = "EXPERIMENTAL — not part of the RustForge 1.0 supported surface; API may change without a SemVer bump. Laravel Telescope-equivalent debugging dashboard for RustForge."
 
 [dependencies]
 tokio = { workspace = true, features = ["sync"] }

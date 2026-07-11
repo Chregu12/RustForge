@@ -215,8 +215,17 @@ async fn update_post() -> AppResult<impl IntoResponse> {
 Graded against the verified state after 8 production-loop rounds (documented in
 `VISION_GAP.md`). **Stable** = real engine, CI-tested or probe-verified, used in a
 shipped example. **Usable** = real core, documented minor gaps. **Experimental** =
-real but not yet battle-tested end-to-end. **Deferred** = intentionally not built,
-with a reason.
+exists in the repo but NOT part of the 1.0 supported surface — SemVer guarantees do
+NOT apply; API may change or be removed without a bump. **Deferred** = intentionally
+not built, with a reason.
+
+> **SemVer scope:** Only the Stable and Usable surfaces listed below are covered by
+> SemVer guarantees starting at 1.0. Experimental crates are excluded from the
+> workspace `default-members` so a plain `cargo check` skips them; they are kept in
+> `members` so `cargo check --workspace` still compiles them (no bitrot). Do not
+> depend on them in production code.
+
+### Supported 1.0 surface
 
 | Surface | Grade | Note |
 |---|---|---|
@@ -248,16 +257,29 @@ with a reason.
 | **Scaffolding** — `foundry-cli` / `forge-cli` | Stable | `make:model/controller/request/migration` generates compiling, running code (plural table name, real `Model!` DSL, axum 0.8 routes, validated request API). `forge deploy generate` wires rf-deploy from the CLI. Generated code is warning-clean. |
 | **i18n** — `rf-i18n` | Stable | `AcceptLanguage` axum extractor (header + `?locale=`); CLDR plural rules (Slavic/Arabic included); Handlebars rendering (no raw template leakage); `Arc`-shareable. |
 | **SSR / Inertia** — `rf-inertia` | Usable | Full protocol: X-Inertia-Location on 409, browser→HTML/XHR→JSON finalization, SharedProps wired. Not exhaustively load-tested. |
-| **Admin UI** — `rf-nova` | Usable | Single-resource CRUD hits the real DB; search `WHERE FALSE` bug fixed. Multi-resource type-erased dispatch is Experimental. |
-| **OpenAPI / Swagger** — `rf-swagger` | Usable | Thin utoipa integration: real spec serving via `swagger_ui`/`redoc`. NOT an auto-scanner; routes must be annotated with utoipa. |
 | **Deploy / config** — `rf-deploy`, `rf-config`, `rf-env` | Usable | DockerCompose serialization correct; `AppConfig::from_env` errors on unparseable values; dotenvy-backed; `forge deploy generate` CLI. |
 | **GraphQL** — `rf-graphql` | Usable | Per-request auth context injected so `AuthGuard`/`RoleGuard` are reachable. |
 | **Multi-tenancy** — `rf-tenancy` | Usable | Real axum 0.8 Layer + `Tenant::current()` + isolation helpers; `spawn_with_tenant()` for spawned tasks; missing-tenant header returns 400 (not 500). |
 | **Resource transform** — `rf-api-resources` | Usable | `WrappedResource`/`WrappedCollection`; `axum::Json(wrapped)` and `to_json()` are identical (manual Serialize, no silent wrapper drop). |
 | **`Result`/`Option` hiding** | Deferred | Rust language ceiling: `.await` is hidden, but `?`/`Result`/`Option` stay visible. Hiding them needs one uniform error type; `AppError` + `AppResult` make the idiomatic `?` path short (~8 vs 34 lines for equivalent behavior). |
 | **Lazy relation property access** (`post.user`) | Deferred | Impossible in Rust for lazy loading: field reads cannot be async. Bare `post.user` only works for eager-hydrated `Option<User>` fields (which is what `with().get()` populates). |
-| **Telescope, CMS, Breeze, Vite/livereload** | Deferred | Not yet stress-tested against the framework. Stubs exist; do not claim production readiness. |
 | **`load_session` / `readiness_check` / `init_telemetry`** | Deferred | Each requires external infra or a design decision: full Session entity, service-probe design, real OTel SDK respectively. Honestly stubbed, not faked. |
+
+### Experimental surfaces (NOT covered by SemVer)
+
+These crates exist in the repo and compile, but are **not part of the 1.0 supported
+surface**. They are excluded from `default-members` so plain `cargo check` skips them.
+Do not use them in production without accepting that their APIs may change at any time.
+
+| Crate | What it is | Why experimental |
+|---|---|---|
+| `rf-nova` + `rf-nova-macros` | Laravel Nova-inspired admin panel | Multi-resource type-erased dispatch unfinished; `#[derive(Resource)]` generates broken stubs |
+| `rf-swagger` | Thin utoipa/OpenAPI integration | Route-annotation-only (no auto-scan); not load-tested against real route trees |
+| `rf-telescope` | Debugging dashboard (request/query monitor) | Stub implementation; not stress-tested against the framework |
+| `rf-cms` | Content Management System features | Stub; media processing / versioning unfinished |
+| `rf-breeze` | Auth scaffolding generator (Laravel Breeze equiv.) | Depends on rf-blade template engine; not integration-tested |
+| `rf-vite` | Vite asset pipeline integration | Dev-tool only; not verified against current axum 0.8 handler model |
+| `rf-livereload` | Live reload / HMR for development | Dev-tool only; WebSocket watcher not integration-tested |
 
 ---
 

@@ -163,6 +163,176 @@ members = [
     # Committed probe-sweep integration tests (sandbox probes adapted for CI)
     "tests/probe-sweep",
 ]
+
+# default-members: what plain `cargo build` / `cargo check` (no --workspace) builds.
+# Experimental crates are listed in `members` so they still compile under
+# `cargo check --workspace` (no bitrot), but they are excluded here so the
+# default build surface only contains the supported 1.0 surfaces.
+#
+# Experimental crates (NOT in default-members):
+#   rf-nova, rf-nova-macros   — Nova multi-resource dispatch
+#   rf-swagger                — utoipa/OpenAPI integration
+#   rf-telescope              — debugging dashboard
+#   rf-cms                    — CMS features
+#   rf-breeze                 — auth scaffolding generator
+#   rf-vite                   — Vite asset pipeline
+#   rf-livereload             — live-reload / HMR
+default-members = [
+    # Phase 2: New Modular Architecture (rf-*)
+    "crates/rf-core",
+    "crates/rf-web",
+    "crates/rf-config",
+    "crates/rf-container",
+    "crates/rf-orm",
+    "crates/rf-model-macro",
+    "crates/rf-auth",
+    "crates/rf-validation",
+    "crates/rf-validation-derive",
+    "crates/rf-macros",
+    "crates/rf-request",
+    "crates/rf-jobs",
+    "crates/rf-mail",
+    "crates/rf-storage",
+    "crates/rf-seeder",
+    "crates/rf-ratelimit",
+    "crates/rf-broadcast",
+    "crates/rf-broadcasting",
+    "crates/rf-testing",
+    "crates/rf-pest",
+    "crates/rf-cashier",
+    "crates/rf-health",
+    "crates/rf-queue",
+    "crates/rf-scheduler",
+    "crates/rf-graphql",
+    "crates/rf-tenancy",
+    "crates/rf-cache",
+    "crates/rf-async-bridge",
+    "crates/rf-ai",
+    "crates/rf-vector",
+    "crates/rf-oauth2-server",
+    "crates/rf-logging",
+    "crates/rf-metrics",
+    # rf-swagger EXCLUDED (experimental)
+    "crates/rf-pagination",
+    "crates/rf-upload",
+    "crates/rf-sse",
+    "crates/rf-2fa",
+    "crates/rf-search",
+    "crates/rf-cli-gen",
+    "crates/rf-events",
+    "crates/rf-notifications",
+    "crates/rf-feature-flags",
+    "crates/rf-deploy",
+    "crates/rf-audit",
+    "crates/rf-export",
+    "crates/rf-i18n",
+    "crates/rf-admin",
+    "crates/rf-blade",
+    # rf-vite EXCLUDED (experimental)
+    # rf-livereload EXCLUDED (experimental)
+    # rf-cms EXCLUDED (experimental)
+    "crates/rf-scaffold",
+    # rf-breeze EXCLUDED (experimental)
+    "crates/rf-views",
+    "crates/rf-view",
+    "crates/rf-authorization",
+    # Phase 13: Eloquent ORM
+    "crates/rf-eloquent",
+    # Phase 14: API & Developer Experience
+    "crates/rf-api-resources",
+    "crates/rf-requests",
+    "crates/rf-collections",
+    "crates/rf-routing",
+    "crates/rf-global-helpers",
+    "crates/rustforge",
+    "crates/rf",
+    # Phase 15: Monitoring & Debugging
+    "crates/rf-horizon",
+    # rf-telescope EXCLUDED (experimental)
+    # rf-nova EXCLUDED (experimental)
+    # rf-nova-macros EXCLUDED (experimental)
+    "crates/rf-tinker",
+    # Phase 16: Error Handling
+    "crates/rf-errors",
+    # Phase 16-17: Ecosystem & Polish
+    "crates/rf-package-dev",
+    "crates/rf-providers",
+    "crates/rf-socialite",
+    "crates/rf-encryption",
+    "crates/rf-response",
+    "crates/rf-facades",
+    "crates/forge-cli",
+    # Phase 16-18: 100% Laravel Parity Features
+    "crates/rf-helpers",
+    "crates/rf-sanctum",
+    "crates/rf-passport",
+    "crates/rf-inertia",
+    # Examples
+    "examples/hello",
+    "examples/database-demo",
+    "examples/auth-demo",
+    "examples/jobs-demo",
+    "examples/jobs-offline",
+    "examples/mail-demo",
+    "examples/scaffold-demo",
+    "examples/macros-demo",
+    "examples/laravel-syntax-complete",
+    "examples/laravel-syntax-simple",
+    "examples/facades-demo",
+    "examples/blog-slice",
+    "examples/rest-crud-resource",
+    "examples/validated-signup",
+    "examples/auth-paginated-search",
+    "examples/phase12-blog",
+    "examples/realtime-chat",
+    "examples/taskflow",
+    "examples/i18n-localized-api",
+    # Benchmarks
+    "benchmarks",
+    # Legacy CLI (kept as foundry-cli)
+    "crates/foundry-cli",
+    # All other packages now use rf-* prefix
+    "crates/rf-application",
+    "crates/rf-domain",
+    "crates/rf-infra",
+    "crates/rf-plugins",
+    "crates/rf-api",
+    "crates/rf-interactive",
+    "crates/rf-console",
+    "crates/rf-scheduling",
+    "crates/rf-service-container",
+    "crates/rf-resources",
+    "crates/rf-soft-deletes",
+    "crates/rf-oauth",
+    "crates/rf-oauth-server",
+    "crates/rf-auth-scaffolding",
+    "crates/rf-forms",
+    "crates/rf-http-client",
+    "crates/rf-tinker-enhanced",
+    "crates/rf-maintenance",
+    "crates/rf-env",
+    "crates/rf-assets",
+    "crates/rf-command-executor",
+    "crates/rf-command-events",
+    "crates/rf-command-pipeline",
+    "crates/rf-signal-handler",
+    "crates/rf-observability",
+    "crates/rf-advanced-input",
+    "crates/rf-stub-system",
+    "crates/rf-verbosity",
+    # Phase 21: Complete Laravel Parity (Dusk, Echo, Envoy, Sail, Spark)
+    "crates/rf-dusk",
+    "crates/rf-echo",
+    "crates/rf-envoy",
+    "crates/rf-sail",
+    "crates/rf-spark",
+    "crates/rf-mcp",
+    "crates/rf-nightwatch",
+    # Deployment Tests
+    "tests/deployment",
+    # Committed probe-sweep integration tests
+    "tests/probe-sweep",
+]
 resolver = "2"
 
 [workspace.package]

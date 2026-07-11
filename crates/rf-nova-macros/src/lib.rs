@@ -1,3 +1,5 @@
+//! **EXPERIMENTAL — not part of the RustForge 1.0 supported surface; API may change without a SemVer bump.**
+//!
 //! Derive macros for rf-nova
 //!
 //! Provides #[derive(Action)], #[derive(Filter)], etc.

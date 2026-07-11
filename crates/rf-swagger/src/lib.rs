@@ -1,3 +1,5 @@
+//! **EXPERIMENTAL — not part of the RustForge 1.0 supported surface; API may change without a SemVer bump.**
+//!
 //! OpenAPI/Swagger documentation for RustForge
 //!
 //! rf-swagger is a **thin integration layer** over [utoipa](https://docs.rs/utoipa) 4.x.

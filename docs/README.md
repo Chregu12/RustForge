@@ -3,7 +3,13 @@
 This directory contains the documentation for the RustForge framework. Every kept file
 reflects the **verified state** documented in `VISION_GAP.md` and the maturity matrix
 in the top-level `README.md`. No document here claims 100% completion or production
-certification beyond what is graded Stable/Usable/Experimental in those sources.
+certification beyond what is graded Stable/Usable in those sources.
+
+> **Experimental crates** (`rf-nova`, `rf-nova-macros`, `rf-swagger`, `rf-telescope`,
+> `rf-cms`, `rf-breeze`, `rf-vite`, `rf-livereload`) are **not covered by SemVer
+> guarantees** and are excluded from the workspace `default-members`. They compile
+> under `cargo check --workspace` (no bitrot) but are skipped by plain `cargo check`.
+> See the "Experimental surfaces" table in the top-level `README.md`.
 
 ---
 
