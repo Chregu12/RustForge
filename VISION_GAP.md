@@ -824,3 +824,15 @@ Round 5: the seven round-4 ops/security fixes ALL HELD under independent re-veri
 **Each scaffolding fix is verified by actually GENERATING code and COMPILING it** — probes `scaffold_codegen_verify` (model + routes compile) + `make_request_template` (request compiles) pass. Verified: `cargo check --workspace` default AND `--all-features` **0 warnings**; forge-cli 54 / rf-scaffold 19 / rf-cli-gen 8 / rf-sanctum 43 tests green. Documented residual: the three generators use three migration backends (sea-orm-migration / sqlx-raw-SQL / plain-SQL) — a fragmentation to unify later, not a blocker.
 
 **Loop status:** three surface families now stressed + fixed + independently confirmed — web/data (rounds 1-3, converged), ops/security (round 4, held in round 5), scaffolding (round 5). Round 6 will re-verify scaffolding via the real CLI + a broad regression.
+
+### Production loop — capstone (round 6) + fixes: the generate->run path now works (commits `aa70e6f3`…`2c4a941c`)
+
+The capstone found the RUNTIME framework converged across 14 surfaces (broad regression 1/1, 3x concurrent, zero blocker/major) but the CLI-generated app compiled-but-did-not-RUN (2 majors). Both fixed + verified by an actual generate->migrate->create!->find! round trip:
+- **Migration/model table-name mismatch:** `make:model` migration created a SINGULAR table (`post`) while `Model!(Post{})` targets the PLURAL (`posts`) → runtime "no such table". FIXED: the migration template now pluralizes to match Model!. 
+- **Zero-field generated model:** the template emitted `Model!(Post {})` with no fields so `create!` was unusable → FIXED: the template emits a real sample field (`name: String`) + matching DDL; AND `create!(Model)` with no fields now compiles (optional trailing comma) and inserts via `INSERT ... DEFAULT VALUES` (rf-macros + rf-orm).
+- Generated kernel now auto-wires the generated route module; `slugify` preserves snake_case underscores.
+- Ergonomic papercuts: `rf_mail::MailQueue` + `rf_health::HealthChecker` at crate root, a zero-arg `default_security_headers_layer()`, rf-jobs documents rf-queue (MemoryQueue+Worker) as the no-Redis in-process path (verified running a job without Redis), and the `create!`(row) vs `update!`(rows-affected) return asymmetry is documented.
+
+Probe `scaffold_codegen_verify` now RUNS the round trip (table=`scaffold_posts`, migration executes, `create!` id=1, `find!` returns the persisted name); `create_no_fields` proves `create!(Post)` inserts a default row. Verified: `cargo check --workspace` default AND `--all-features` **0 warnings**; crud_macros / model_dto_inference / scaffold_codegen_verify / create_no_fields / ergonomic_reexports probes green.
+
+**Loop status:** runtime converged (rounds 1-6); scaffolding generate->run now works. A final confirmation round will re-run the full CLI generate->compile->run + a broad regression to declare breadth convergence.
