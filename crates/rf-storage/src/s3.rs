@@ -355,7 +355,7 @@ mod tests {
     #[tokio::test]
     async fn test_s3_operations() {
         if !s3_available().await {
-            eprintln!("⏭️  Skipping test_s3_operations: MinIO/S3 not available");
+            eprintln!("Skipping test_s3_operations: MinIO/S3 not available");
             eprintln!("   Start services with: ./scripts/test-env-up.sh");
             return;
         }
@@ -393,5 +393,94 @@ mod tests {
         // Verify deleted
         let exists = storage.exists("test.txt").await.unwrap();
         assert!(!exists);
+    }
+
+    /// Real AWS S3 integration test — env-gated, skips when credentials absent.
+    ///
+    /// Required environment variables (set via GitHub secrets in the live-cloud
+    /// CI job, or exported locally):
+    ///
+    ///   AWS_ACCESS_KEY_ID      — AWS IAM key with S3:Put/Get/Delete on the bucket
+    ///   AWS_SECRET_ACCESS_KEY  — corresponding secret
+    ///   AWS_REGION             — region where the bucket lives (e.g. us-east-1)
+    ///   S3_TEST_BUCKET         — name of a pre-existing bucket to use for tests
+    ///
+    /// The test writes, reads, and deletes a short-lived key
+    /// `rf_live_test/<pid>/smoke.txt` so it leaves no permanent objects even if
+    /// a previous run was interrupted.
+    #[tokio::test]
+    async fn test_real_aws_s3_operations() {
+        let access_key = match std::env::var("AWS_ACCESS_KEY_ID") {
+            Ok(v) if !v.is_empty() => v,
+            _ => {
+                eprintln!(
+                    "Skipping test_real_aws_s3_operations: AWS_ACCESS_KEY_ID not set"
+                );
+                eprintln!(
+                    "  Set AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION, S3_TEST_BUCKET"
+                );
+                eprintln!(
+                    "  See docs/live-cloud-ci.md for the full secrets setup guide."
+                );
+                return;
+            }
+        };
+        let secret_key = std::env::var("AWS_SECRET_ACCESS_KEY").unwrap_or_default();
+        let region = std::env::var("AWS_REGION").unwrap_or_else(|_| "us-east-1".to_string());
+        let bucket = match std::env::var("S3_TEST_BUCKET") {
+            Ok(v) if !v.is_empty() => v,
+            _ => {
+                eprintln!("Skipping test_real_aws_s3_operations: S3_TEST_BUCKET not set");
+                return;
+            }
+        };
+
+        let config = S3Config {
+            bucket,
+            region,
+            endpoint: None,     // Real AWS — no custom endpoint
+            access_key,
+            secret_key,
+            path_style: false,  // Virtual-hosted style for real AWS
+        };
+
+        let storage = S3Storage::new(config).await.expect("build S3 client");
+
+        // Use a unique key so concurrent runs don't collide.
+        let key = format!("rf_live_test/{}/smoke.txt", std::process::id());
+
+        // Clean up any stale object from a crashed previous run.
+        let _ = storage.delete(&key).await;
+
+        // Put
+        storage
+            .put(&key, b"RustForge live S3 smoke test".to_vec())
+            .await
+            .expect("S3 put");
+
+        // Exists
+        assert!(
+            storage.exists(&key).await.expect("S3 exists"),
+            "object should exist after put"
+        );
+
+        // Get
+        let bytes = storage.get(&key).await.expect("S3 get");
+        assert_eq!(bytes, b"RustForge live S3 smoke test");
+
+        // Size
+        let size = storage.size(&key).await.expect("S3 size");
+        assert_eq!(size, b"RustForge live S3 smoke test".len() as u64);
+
+        // Delete
+        storage.delete(&key).await.expect("S3 delete");
+
+        // Verify deleted
+        assert!(
+            !storage.exists(&key).await.expect("S3 exists after delete"),
+            "object should be gone after delete"
+        );
+
+        eprintln!("Live AWS S3 round-trip PASSED (bucket: {key})");
     }
 }

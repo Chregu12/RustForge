@@ -160,28 +160,46 @@ mod tests {
     use super::*;
     use std::time::Duration;
 
+    /// Return the Redis URL to use for live tests.
+    ///
+    /// Priority:
+    ///   1. `REDIS_URL` environment variable (set by the live-cloud CI job from
+    ///      the GitHub secret, or by the developer for any remote Redis).
+    ///   2. Default local URL `redis://127.0.0.1:6379` (used by the
+    ///      docker-compose test environment started with `scripts/test-env-up.sh`).
+    fn redis_test_url() -> String {
+        std::env::var("REDIS_URL").unwrap_or_else(|_| "redis://127.0.0.1:6379".to_string())
+    }
+
     /// Helper to check whether a live Redis is reachable for testing.
     ///
-    /// Mirrors the graceful-skip TCP probe used by `rf-storage`'s
-    /// `s3_available`: the live test SKIPS (prints a skip line and passes) when
-    /// Redis is down, and runs a full round-trip when it is up. Bring the
+    /// Parses `host:port` from `redis_test_url()` and probes with a TCP
+    /// connect. The live test SKIPS (prints a skip line and passes) when Redis
+    /// is down, and runs a full round-trip when it is up. Bring the local
     /// service up with `scripts/test-env-up.sh` (redis on 6379 in
-    /// `docker-compose.test.yml`).
+    /// `docker-compose.test.yml`), or set `REDIS_URL` to a remote instance.
     async fn redis_available() -> bool {
-        tokio::net::TcpStream::connect("127.0.0.1:6379")
-            .await
-            .is_ok()
+        let url = redis_test_url();
+        // Strip the redis:// (or rediss://) scheme and any trailing path to get host:port.
+        let hostport = url
+            .trim_start_matches("rediss://")
+            .trim_start_matches("redis://")
+            .split('/')
+            .next()
+            .unwrap_or("127.0.0.1:6379");
+        tokio::net::TcpStream::connect(hostport).await.is_ok()
     }
 
     #[tokio::test]
     async fn test_pubsub_publish_subscribe_roundtrip() {
         if !redis_available().await {
-            eprintln!("⏭️  Skipping test_pubsub_publish_subscribe_roundtrip: Redis not available");
-            eprintln!("   Start services with: ./scripts/test-env-up.sh");
+            eprintln!("Skipping test_pubsub_publish_subscribe_roundtrip: Redis not available");
+            eprintln!("  Local:  Start services with: ./scripts/test-env-up.sh");
+            eprintln!("  Cloud:  Set REDIS_URL=redis://<host>:6379 to test against a real instance");
             return;
         }
 
-        let pubsub = RedisPubSub::new("redis://127.0.0.1:6379")
+        let pubsub = RedisPubSub::new(&redis_test_url())
             .await
             .expect("connect to live redis");
 

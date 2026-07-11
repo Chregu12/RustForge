@@ -72,19 +72,22 @@ async fn main() -> anyhow::Result<()> {
 
     info!("Starting Hello World application...");
 
-    // Load configuration
+    // Load configuration: try file-based config first, then env vars, then
+    // compiled-in defaults.  This allows the SERVER_PORT environment variable
+    // to take effect even when no config file is present (used by the
+    // scripts/deploy-smoke.sh staging probe and by container deployments).
     let config = match ConfigLoader::new().load::<AppConfig>() {
         Ok(cfg) => {
             info!("Configuration loaded successfully");
             cfg
         }
         Err(e) => {
-            info!("Failed to load config: {}, using defaults", e);
-            AppConfig {
+            info!("Failed to load config file ({}), falling back to env/defaults", e);
+            AppConfig::from_env().unwrap_or_else(|_| AppConfig {
                 server: rf_config::ServerConfig::default(),
                 database: rf_config::DatabaseConfig::default(),
                 auth: rf_config::AuthConfig::default(),
-            }
+            })
         }
     };
 

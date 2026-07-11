@@ -580,6 +580,123 @@ jobs:
           docker compose -f docker-compose.test.yml -f docker-compose.ci.yml down -v
 
   # ===========================================
+  # Live Cloud Integration (secrets-gated, skips gracefully when absent)
+  # ===========================================
+  #
+  # Exercises rf-storage (real AWS S3), rf-mail (real SMTP/SES), and rf-cache
+  # (real Redis) against actual cloud endpoints.
+  #
+  # HOW IT WORKS
+  # ------------
+  # Each step exposes the relevant secret(s) as environment variables.  When a
+  # secret has not been configured in the repository the variable is the empty
+  # string; each test then prints a clear SKIP line and exits 0 (green).
+  # When the secrets ARE present the full integration round-trip runs.
+  #
+  # SECRETS REQUIRED (add in Settings → Secrets → Actions):
+  #   REDIS_URL              — redis[s]://host:port (AWS ElastiCache, Upstash …)
+  #   AWS_ACCESS_KEY_ID      — IAM key for the S3 test bucket
+  #   AWS_SECRET_ACCESS_KEY  — corresponding secret
+  #   AWS_REGION             — e.g. us-east-1
+  #   S3_TEST_BUCKET         — pre-existing bucket name (write + delete allowed)
+  #   RF_SMTP_TEST_ADDR      — host:port of an SMTP endpoint (SES on 465/587, …)
+  #
+  # See docs/live-cloud-ci.md for the full setup guide and honest status note.
+  #
+  # CURRENT STATUS: secrets not yet added to this repo — every step below takes
+  # the skip path and passes green.  The skip is the PROOF the framework handles
+  # absent credentials gracefully; the real round-trips run once secrets exist.
+  live-cloud:
+    name: "Live Cloud Integration (secrets-gated)"
+    runs-on: ubuntu-latest
+    # Run unconditionally so that absent-secret skips produce a green job,
+    # proving the skip path itself is solid.
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      # ---- Redis / rf-cache -------------------------------------------------
+      # When REDIS_URL is set the test connects and does a real pub/sub round-
+      # trip.  When it is empty the test's env-gated check prints a skip line
+      # and returns 0.
+      - name: rf-cache Redis pub/sub round-trip (real Redis or skip)
+        env:
+          REDIS_URL: ${{ secrets.REDIS_URL }}
+        run: |
+          if [ -z "$REDIS_URL" ]; then
+            echo "SKIP: secret REDIS_URL not set — add it in Settings > Secrets > Actions to run against a real Redis instance."
+            echo "See docs/live-cloud-ci.md for setup instructions."
+            exit 0
+          fi
+          cargo test -p rf-cache --features redis-backend \
+            test_pubsub_publish_subscribe_roundtrip -- --nocapture
+
+      # ---- AWS S3 / rf-storage ----------------------------------------------
+      # Uses the dedicated test_real_aws_s3_operations test that reads
+      # AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION, S3_TEST_BUCKET
+      # from env and skips when any are absent.
+      - name: rf-storage real AWS S3 round-trip (AWS creds or skip)
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+          S3_TEST_BUCKET: ${{ secrets.S3_TEST_BUCKET }}
+        run: |
+          if [ -z "$AWS_ACCESS_KEY_ID" ] || [ -z "$S3_TEST_BUCKET" ]; then
+            echo "SKIP: AWS_ACCESS_KEY_ID and/or S3_TEST_BUCKET secrets not set."
+            echo "Add AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION, S3_TEST_BUCKET"
+            echo "in Settings > Secrets > Actions.  See docs/live-cloud-ci.md."
+            exit 0
+          fi
+          cargo test -p rf-storage test_real_aws_s3_operations -- --nocapture
+
+      # ---- SMTP / SES / rf-mail ---------------------------------------------
+      # RF_SMTP_TEST_ADDR overrides the default localhost:1025 target so the
+      # existing test_smtp_send_via_mailhog test runs against a real relay.
+      # When the secret is absent the step skips; the test itself would also
+      # skip due to the TCP-probe graceful-skip logic (nothing listening on
+      # 127.0.0.1:1025 in this job).
+      - name: rf-mail SMTP send via real relay (RF_SMTP_TEST_ADDR or skip)
+        env:
+          RF_SMTP_TEST_ADDR: ${{ secrets.RF_SMTP_TEST_ADDR }}
+        run: |
+          if [ -z "$RF_SMTP_TEST_ADDR" ]; then
+            echo "SKIP: secret RF_SMTP_TEST_ADDR not set."
+            echo "Set it to host:port of an SMTP relay (e.g. email-smtp.us-east-1.amazonaws.com:587)."
+            echo "See docs/live-cloud-ci.md for the full SES configuration guide."
+            exit 0
+          fi
+          cargo test -p rf-mail test_smtp_send_via_mailhog -- --nocapture
+
+  # ===========================================
+  # Staging Deploy Probe — release binary smoke test
+  # ===========================================
+  #
+  # Builds the 'hello' example in release mode, starts it, curls /health and /,
+  # and asserts both return HTTP 200.  This proves the compiled artifact is
+  # runnable and serves traffic — a prerequisite for any real staging deploy.
+  #
+  # No cloud credentials are needed; runs fully on the Ubuntu runner.
+  # Delegates all logic to scripts/deploy-smoke.sh (committed, readable locally).
+  staging-deploy:
+    name: "Staging Deploy Probe (release binary smoke)"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Install curl
+        run: sudo apt-get install -y curl
+
+      - name: Build + boot + probe release binary
+        run: bash scripts/deploy-smoke.sh
+        env:
+          SMOKE_PORT: "3737"
+          SMOKE_WAIT: "30"
+
+  # ===========================================
   # Supply Chain — cargo audit + cargo deny
   # ===========================================
   #
