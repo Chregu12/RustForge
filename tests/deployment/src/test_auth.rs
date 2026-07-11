@@ -4,6 +4,7 @@
 mod tests {
     use rf_auth::prelude::*;
     use rf_auth::{Auth, AuthManager, Guard};
+    use rf_auth::auth_manager::with_auth_scope_sync;
     use serde::{Deserialize, Serialize};
 
     // ── Password Hashing ─────────────────────────────────────────
@@ -128,68 +129,82 @@ mod tests {
 
     #[test]
     fn auth_manager_login_logout() {
-        let mut auth = AuthManager::new();
-        assert!(!auth.check());
-        assert!(auth.guest());
+        // Each test gets its own auth scope to avoid FALLBACK_STATE races.
+        with_auth_scope_sync(|| {
+            let auth = AuthManager::new();
+            assert!(!auth.check());
+            assert!(auth.guest());
 
-        let user = TestUser { id: 1, email: "test@test.com".into() };
-        auth.login(user).expect("login");
+            let user = TestUser { id: 1, email: "test@test.com".into() };
+            auth.login(user).expect("login");
 
-        assert!(auth.check());
-        assert!(!auth.guest());
-        assert_eq!(auth.id(), Some(1));
+            assert!(auth.check());
+            assert!(!auth.guest());
+            assert_eq!(auth.id(), Some(1));
 
-        let retrieved: Option<TestUser> = auth.user();
-        assert!(retrieved.is_some());
-        assert_eq!(retrieved.unwrap().email, "test@test.com");
+            let retrieved: Option<TestUser> = auth.user();
+            assert!(retrieved.is_some());
+            assert_eq!(retrieved.unwrap().email, "test@test.com");
 
-        auth.logout();
-        assert!(!auth.check());
-        assert!(auth.guest());
-        assert_eq!(auth.id(), None);
+            auth.logout();
+            assert!(!auth.check());
+            assert!(auth.guest());
+            assert_eq!(auth.id(), None);
+        });
     }
 
     #[test]
     fn auth_manager_guards() {
-        let mut auth = AuthManager::new();
-        assert_eq!(auth.guard_name(), "web");
-        auth.set_guard("api".into());
-        assert_eq!(auth.guard_name(), "api");
+        with_auth_scope_sync(|| {
+            let auth = AuthManager::new();
+            assert_eq!(auth.guard_name(), "web");
+            auth.set_guard("api".into());
+            assert_eq!(auth.guard_name(), "api");
+        });
     }
 
     #[test]
     fn auth_manager_remember() {
-        let mut auth = AuthManager::new();
-        let user = TestUser { id: 1, email: "t@t.com".into() };
-        auth.login_with_remember(user, true).expect("login");
-        assert!(auth.via_remember());
+        with_auth_scope_sync(|| {
+            let auth = AuthManager::new();
+            let user = TestUser { id: 1, email: "t@t.com".into() };
+            auth.login_with_remember(user, true).expect("login");
+            assert!(auth.via_remember());
+        });
     }
 
     // ── Guard ────────────────────────────────────────────────────
 
     #[test]
     fn guard_creation() {
-        let guard = Guard::new("api");
-        assert_eq!(guard.name(), "api");
-        assert!(!guard.check());
-        assert!(guard.guest());
+        // Guard::check() reads from the process-global FALLBACK_STATE when outside
+        // a per-request scope. Wrap in with_auth_scope_sync for isolation.
+        with_auth_scope_sync(|| {
+            let guard = Guard::new("api");
+            assert_eq!(guard.name(), "api");
+            assert!(!guard.check());
+            assert!(guard.guest());
+        });
     }
 
     // ── Auth Facade ──────────────────────────────────────────────
 
     #[test]
     fn auth_facade_basic_operations() {
-        Auth::logout(); // Clean state
-        assert!(!Auth::check());
-        assert!(Auth::guest());
+        // Auth facade reads/writes FALLBACK_STATE outside a scope.
+        // Use with_auth_scope_sync to give this test its own isolated state.
+        with_auth_scope_sync(|| {
+            assert!(!Auth::check());
+            assert!(Auth::guest());
 
-        let user = TestUser { id: 5, email: "facade@test.com".into() };
-        Auth::login(user).expect("login");
-        assert!(Auth::check());
-        assert_eq!(Auth::id(), Some(5));
+            let user = TestUser { id: 5, email: "facade@test.com".into() };
+            Auth::login(user).expect("login");
+            assert!(Auth::check());
+            assert_eq!(Auth::id(), Some(5));
 
-        Auth::logout();
-        assert!(!Auth::check());
+            Auth::logout();
+            assert!(!Auth::check());
+        });
     }
 
     // ── Authorization Gates ──────────────────────────────────────

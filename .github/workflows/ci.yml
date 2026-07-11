@@ -363,29 +363,46 @@ jobs:
         run: cargo build -p rf-application
 
   # ===========================================
-  # Tests
+  # Full Workspace Test Suite (enforced — no || true, no continue-on-error)
   # ===========================================
+  #
+  # Runs the widest deterministic test set: cargo test --workspace.
+  #
+  # Root-cause fixes applied so the full suite is now reliable:
+  #
+  #   * rf-socialite  src/manager.rs test_driver_with_config:
+  #       ProviderConfig was out-of-scope in the test module.
+  #       Fix: added `use crate::ProviderConfig;` to the test mod.
+  #
+  #   * rf-telescope  src/middleware.rs error_handler:
+  #       `into_response()` call without IntoResponse in scope.
+  #       Fix: replaced dead test imports with the minimal
+  #       `use axum::response::{IntoResponse, Response};`.
+  #
+  #   * deployment-tests  test_auth.rs  (auth_manager_login_logout,
+  #       guard_creation, auth_facade_basic_operations):
+  #       All three touch the process-global FALLBACK_STATE (AuthManager,
+  #       Guard, Auth facade) and race each other when run in parallel.
+  #       Fix: wrapped each test body in with_auth_scope_sync() so each
+  #       test gets its own isolated per-test task-local auth scope.
+  #
+  #   * deployment-tests  test_events.rs  (event_facade_dispatch_and_listen,
+  #       event_facade_multiple_listeners):
+  #       Tests share the process-global EventFacade; a concurrent
+  #       forget_all() in one test removed another's listener before dispatch.
+  #       Fix: added a static EVENT_GLOBAL_GUARD mutex serialising all
+  #       EventFacade tests (same pattern used in rf-events own unit tests).
   tests:
-    name: "🧪 Tests"
+    name: "Full Workspace Test Suite"
     runs-on: ubuntu-latest
-    continue-on-error: true  # Tests have known issues, don't block CI
     needs: [core, web, database, auth, validation, queue, storage, notifications, admin, facades, macros, views, laravel-parity, phase22, cli, additional]
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
 
-      # Run tests for packages with working test suites
-      - name: Run working tests
-        run: |
-          cargo test -p rf-pest --lib || true
-          cargo test -p rf-macros --lib || true
-          cargo test -p rf-helpers --lib || true
-          cargo test -p rf-facades --lib || true
-          cargo test -p rf-validation --lib || true
-          cargo test -p rf-jobs --lib || true
-          cargo test -p rf-mail --lib || true
-          cargo test -p rf-cache --lib || true
+      - name: cargo test --workspace (full deterministic suite)
+        run: cargo test --workspace
 
   # ===========================================
   # Workspace Gate — 0-warning check + key lib tests (enforced, no || true)

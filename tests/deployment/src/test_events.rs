@@ -8,10 +8,17 @@ mod tests {
     use std::sync::Arc;
     use std::sync::atomic::{AtomicBool, Ordering};
 
+    /// Serializes every EventFacade test. All tests share the process-global event
+    /// manager: a concurrent `forget_all()` removes listeners registered by another
+    /// in-flight test, so the dispatch call finds no listener and `called` stays false.
+    /// `into_inner` ignores poisoning so a failing test doesn't cascade.
+    static EVENT_GLOBAL_GUARD: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
     // ── EventFacade ──────────────────────────────────────────────
 
     #[test]
     fn event_facade_dispatch_and_listen() {
+        let _guard = EVENT_GLOBAL_GUARD.lock().unwrap_or_else(|e| e.into_inner());
         EventFacade::forget_all();
 
         let called = Arc::new(AtomicBool::new(false));
@@ -30,6 +37,7 @@ mod tests {
 
     #[test]
     fn event_facade_forget() {
+        let _guard = EVENT_GLOBAL_GUARD.lock().unwrap_or_else(|e| e.into_inner());
         EventFacade::forget_all();
         EventFacade::listen("temp.event", |_| {});
         assert!(EventFacade::has_listeners("temp.event"));
@@ -39,6 +47,7 @@ mod tests {
 
     #[test]
     fn event_facade_forget_all() {
+        let _guard = EVENT_GLOBAL_GUARD.lock().unwrap_or_else(|e| e.into_inner());
         EventFacade::forget_all();
         EventFacade::listen("a", |_| {});
         EventFacade::listen("b", |_| {});
@@ -49,6 +58,7 @@ mod tests {
 
     #[test]
     fn event_facade_history() {
+        let _guard = EVENT_GLOBAL_GUARD.lock().unwrap_or_else(|e| e.into_inner());
         EventFacade::forget_all();
         EventFacade::clear_history();
         EventFacade::dispatch("test.event", json!({"key": "value"})).expect("dispatch");
@@ -90,6 +100,7 @@ mod tests {
 
     #[test]
     fn event_facade_multiple_listeners() {
+        let _guard = EVENT_GLOBAL_GUARD.lock().unwrap_or_else(|e| e.into_inner());
         EventFacade::forget_all();
         EventFacade::listen("multi", |_| {});
         EventFacade::listen("multi", |_| {});

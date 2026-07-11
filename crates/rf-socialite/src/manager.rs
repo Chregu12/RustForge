@@ -129,6 +129,7 @@ impl Default for SocialiteManager {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ProviderConfig;
 
     #[test]
     fn test_manager_creation() {

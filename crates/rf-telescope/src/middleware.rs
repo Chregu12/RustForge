@@ -96,17 +96,10 @@ pub fn telescope_layer(_telescope: Telescope) -> tower::layer::util::Identity {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::Telescope;
     use axum::{
-        body::Body,
-        http::{Request, StatusCode},
-        middleware::from_fn,
-        response::Response,
-        routing::get,
-        Router,
+        http::StatusCode,
+        response::{IntoResponse, Response},
     };
-    use tower::ServiceExt;
 
     async fn test_handler() -> &'static str {
         "Hello, World!"
