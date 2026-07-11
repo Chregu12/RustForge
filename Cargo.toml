@@ -116,6 +116,7 @@ members = [
     "examples/phase12-blog",
     "examples/realtime-chat",
     "examples/taskflow",
+    "examples/i18n-localized-api",
     # Benchmarks
     "benchmarks",
     # Legacy CLI (kept as foundry-cli)

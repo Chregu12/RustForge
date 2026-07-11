@@ -4342,6 +4342,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "i18n-localized-api"
+version = "0.1.0"
+dependencies = [
+ "axum 0.8.7",
+ "rf-i18n",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tower 0.5.2",
+]
+
+[[package]]
 name = "iana-time-zone"
 version = "0.1.64"
 source = "registry+https://github.com/rust-lang/crates.io-index"
