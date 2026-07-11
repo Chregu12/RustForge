@@ -311,6 +311,9 @@ where
 /// This is **opt-in**: only routers that explicitly add this layer will have
 /// the security headers applied.  Routers without it are completely unaffected.
 ///
+/// For the common case where secure defaults are sufficient, prefer the
+/// zero-argument [`default_security_headers_layer`].
+///
 /// # Examples
 ///
 /// ```rust,no_run
@@ -334,6 +337,28 @@ pub fn security_headers_layer(config: SecurityHeadersConfig) -> SecurityHeadersL
     SecurityHeadersLayer {
         headers: Arc::new(config.build_headers()),
     }
+}
+
+/// Create a security-headers [`Layer`] with secure defaults — no configuration required.
+///
+/// This is equivalent to `security_headers_layer(SecurityHeadersConfig::default())` and
+/// covers the most common case: add `X-Content-Type-Options: nosniff`,
+/// `X-Frame-Options: DENY`, and `Referrer-Policy: no-referrer` to every response.
+/// HSTS and CSP are opt-in via [`security_headers_layer`] with a customised config.
+///
+/// # Example
+///
+/// ```rust,no_run
+/// use rf_web::default_security_headers_layer;
+/// use axum::Router;
+///
+/// let app: Router = Router::new()
+///     .layer(default_security_headers_layer());
+/// ```
+///
+/// [`Layer`]: tower::Layer
+pub fn default_security_headers_layer() -> SecurityHeadersLayer {
+    security_headers_layer(SecurityHeadersConfig::default())
 }
 
 // ---------------------------------------------------------------------------

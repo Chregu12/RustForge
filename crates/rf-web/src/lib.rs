@@ -58,8 +58,9 @@ pub use csrf::{
     csrf_field, csrf_meta, csrf_token, CsrfConfig, CsrfLayer, CsrfMiddleware, CsrfToken,
 };
 pub use middleware::{
-    compression_layer, cors_layer, security_headers_layer, timeout_layer, tracing_layer,
-    CorsConfig, HstsConfig, SecurityHeadersConfig, SecurityHeadersLayer, SecurityHeadersService,
+    compression_layer, cors_layer, default_security_headers_layer, security_headers_layer,
+    timeout_layer, tracing_layer, CorsConfig, HstsConfig, SecurityHeadersConfig,
+    SecurityHeadersLayer, SecurityHeadersService,
 };
 pub use router::RouterBuilder;
 pub use session::{Session, SessionConfig, SessionDriver};

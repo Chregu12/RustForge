@@ -138,6 +138,10 @@ pub use templates::TemplateEngine;
 // Facade re-exports (Laravel-style static API)
 pub use facade::{Mail as MailFacade, Mailer as FacadeMailer, GLOBAL_MAILER};
 
+// Queue re-export: available as `rf_mail::MailQueue` regardless of whether the
+// `queue` feature is enabled (the non-feature stub is a no-op with helpful errors).
+pub use queue::MailQueue;
+
 // Mailable trait module
 mod mailable;
 
@@ -147,6 +151,9 @@ pub mod prelude {
         Address, Attachment, Mail, MailBody, MailBuilder, MailConfig, MailDriver, MailError,
         MailResult, Mailable, MailableAsync, Mailer, Message, MessageBuilder, TemplateEngine,
     };
+
+    // Queue
+    pub use crate::queue::MailQueue;
 
     // Backends
     pub use crate::{FileMailer, LogMailer, MemoryMailer, MockMailer, SendmailMailer, SmtpMailer};

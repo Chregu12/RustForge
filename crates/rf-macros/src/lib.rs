@@ -918,17 +918,27 @@ pub fn storage(input: TokenStream) -> TokenStream {
 
 /// Update a model record - Laravel-style without json! or explicit .await!
 ///
+/// # Return value
+///
+/// Returns `Result<u64, String>` where the `u64` is the **number of rows affected**
+/// by the UPDATE statement (0 if no rows matched the ID, 1 on a normal update).
+///
+/// This differs from [`create!`], which returns `Result<serde_json::Value, String>`
+/// (the newly-created row, including its generated `id`).  Keeping the distinction
+/// in mind prevents surprising type-mismatch errors when you switch between the two.
+///
 /// # Example
 ///
 /// ```ignore
 /// use rf_macros::update;
 ///
 /// // Clean syntax - no json!, automatic .await!
-/// update!(User, 1, name = "John Doe");
+/// let rows_affected: u64 = update!(User, 1, name = "John Doe")?;
 /// update!(User, user_id, name = "John", email = "john@example.com");
 ///
 /// // Equivalent to:
 /// // User::update_by_id(1, json!({"name": "John Doe"})).await
+/// // -> Result<u64, String>  (rows affected, NOT the updated row)
 /// ```
 #[proc_macro]
 pub fn update(input: TokenStream) -> TokenStream {
@@ -937,16 +947,28 @@ pub fn update(input: TokenStream) -> TokenStream {
 
 /// Create a new model record - Laravel-style without json! or explicit .await!
 ///
+/// # Return value
+///
+/// Returns `Result<serde_json::Value, String>` where the `Value` is the
+/// **newly-created row** returned by the database (including its generated `id`
+/// and any server-side defaults).
+///
+/// This differs from [`update!`], which returns `Result<u64, String>`
+/// (rows affected, not the updated row).  Use the returned `Value` to read
+/// back the new record's `id`: `let id = user["id"].as_i64().unwrap();`.
+///
 /// # Example
 ///
 /// ```ignore
 /// use rf_macros::create;
 ///
 /// // Clean syntax - no json!, automatic .await!
-/// let user = create!(User, name = "John", email = "john@example.com");
+/// let user = create!(User, name = "John", email = "john@example.com")?;
+/// println!("Created user with id: {}", user["id"]);
 ///
 /// // Equivalent to:
 /// // User::create(json!({"name": "John", "email": "john@example.com"})).await
+/// // -> Result<serde_json::Value, String>  (the inserted row, NOT rows-affected)
 /// ```
 #[proc_macro]
 pub fn create(input: TokenStream) -> TokenStream {

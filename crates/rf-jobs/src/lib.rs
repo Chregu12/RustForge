@@ -7,6 +7,26 @@
 //! - Retry logic with exponential backoff
 //! - Failed job handling (Dead Letter Queue)
 //!
+//! ## Backend note: Redis vs in-process
+//!
+//! **rf-jobs** (`QueueManager`, `WorkerPool`) unconditionally requires a live Redis
+//! connection.  If you need an **in-process, no-external-service** backend — for
+//! integration tests, offline development, or small workloads — use the
+//! **`rf-queue`** crate instead.  It ships a `MemoryQueue`, a `Worker` you can
+//! drain in-process, and a process-global `Jobs` facade, all without Redis:
+//!
+//! ```no_run
+//! use rf_queue::{Job, MemoryQueue, Worker, Jobs};
+//! use std::sync::Arc;
+//!
+//! // Works in tests and anywhere without Redis
+//! let queue = Arc::new(MemoryQueue::new());
+//! // dispatch jobs, then: Worker::new(queue).work_once().await
+//! ```
+//!
+//! See `examples/jobs-offline` for a runnable end-to-end example of the
+//! `rf-queue` in-process path.
+//!
 //! ## Quick Start
 //!
 //! ```ignore

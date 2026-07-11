@@ -1,4 +1,8 @@
-//! Queue management with Redis backend
+//! Queue management with Redis backend.
+//!
+//! Every method in this module requires a live Redis connection.  For an
+//! in-process alternative (useful in tests or offline development) see the
+//! `rf-queue` crate (`MemoryQueue` / `Worker` / `Jobs` facade).
 
 use crate::error::QueueError;
 use crate::job::{FailedJob, Job, JobPayload};
