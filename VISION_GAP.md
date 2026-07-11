@@ -811,3 +811,16 @@ Round 4 opened the never-before-stressed OPS/SECURITY surfaces (token auth, rate
 - **Mail residuals:** `MailQueue::process_report()` gives observable delivered/dead-lettered counts; async-push layering documented.
 
 **Verified:** `cargo check --workspace` default AND `--all-features` **0 warnings**; rf-sanctum 43 / rf-web 73 / rf-ratelimit 13 / rf-observability / rf-health / rf-mail 79 / rf-metrics tests green; probes axum08_route_params / security_headers / rate_limiting / mail_notify_gaps green. The ops/security surfaces are now at parity with the rest; loop continues with a round-5 confirmation.
+
+### Production loop — re-eval round 5 (ops/security re-verify + scaffolding) + fixes (commits `c55fa538`…`f20a8996`)
+
+Round 5: the seven round-4 ops/security fixes ALL HELD under independent re-verification (29 tests, 0 regressions) — that surface is converged. A new surface, SCAFFOLDING/CODEGEN, was stressed by generating code and compiling it: the low-level generators (rf-scaffold, rf-cli-gen) + forge-cli produce compiling code, but **foundry-cli (the primary app CLI) generated UNCOMPILABLE code** — two blockers now fixed:
+- **make:controller** emitted axum-0.7 `Route<AppState>` (0.8 needs `MethodRouter`) → fixed the routes template to the real axum-0.8 pattern.
+- **make:model** emitted `#[model]` which panics under SeaORM ("Struct name must be Model") → the template now emits the canonical, tested `Model!()` DSL (like the shipped examples); the legacy `#[model]` macro now fails with a clear `compile_error!` pointing to `Model!` instead of an opaque SeaORM panic (honestly deprecated).
+- **forge-cli make:request** referenced a non-existent validation API (`ValidationRule`/`Validator::new()`/`has_errors`) → rewritten against the real `rf_validation` API.
+- Generated-code hygiene: removed unused imports from rf-scaffold controller/service templates; rf-cli-gen routes now emit the lowercased plural (`/posts`, not `/Post`).
+- rf-sanctum ergonomics: `SanctumAuth` derives `Debug`; `DatabaseConnection` + `FromRequestParts` re-exported; a `:channel` doc-drift corrected to `{channel}`.
+
+**Each scaffolding fix is verified by actually GENERATING code and COMPILING it** — probes `scaffold_codegen_verify` (model + routes compile) + `make_request_template` (request compiles) pass. Verified: `cargo check --workspace` default AND `--all-features` **0 warnings**; forge-cli 54 / rf-scaffold 19 / rf-cli-gen 8 / rf-sanctum 43 tests green. Documented residual: the three generators use three migration backends (sea-orm-migration / sqlx-raw-SQL / plain-SQL) — a fragmentation to unify later, not a blocker.
+
+**Loop status:** three surface families now stressed + fixed + independently confirmed — web/data (rounds 1-3, converged), ops/security (round 4, held in round 5), scaffolding (round 5). Round 6 will re-verify scaffolding via the real CLI + a broad regression.
