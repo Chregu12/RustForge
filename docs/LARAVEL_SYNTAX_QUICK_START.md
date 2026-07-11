@@ -1,127 +1,103 @@
-# Laravel Syntax - Quick Start Guide
+# Laravel-Style Helpers — Quick Start
 
-Get started with Laravel-style syntax in RustForge in under 5 minutes.
+A 5-minute tour of the Laravel-inspired helpers that are fully functional today.
+For a complete working application guide, see [GETTING_STARTED.md](./GETTING_STARTED.md).
 
-## Installation
+---
 
-Add the consolidated `rf` crate to your `Cargo.toml`:
+## What works now
 
-```toml
-[dependencies]
-rf = "1.0"
-```
+| Helper | API | Notes |
+|--------|-----|-------|
+| Password hashing | `Hash::make(pw)` / `Hash::check(pw, hash)` | bcrypt |
+| CSRF tokens | `csrf_token()` | UUID v4 |
+| Validation rules | `rules! { field: rule \| rule }` | pipe syntax |
+| Typed validation DSL | `validate! { field: type.rule }` | preferred over rules! |
 
-## Basic Usage
+---
 
-### 1. Password Hashing
+## Password hashing
 
 ```rust
 use rf::Hash;
 
-// Hash a password
 let hash = Hash::make("my_password");
 
-// Verify a password
 if Hash::check("my_password", &hash) {
-    println!("Password correct!");
+    println!("Password is correct");
 }
 ```
 
-### 2. CSRF Protection
+## CSRF token
 
 ```rust
 use rf::csrf_token;
 
-// Generate a token
-let token = csrf_token();
-
-// Use in your forms
-html! {
-    <input type="hidden" name="_token" value={token} />
-}
+let token = csrf_token(); // unique UUID v4 string per call
 ```
 
-### 3. Validation Rules
+## Validation
+
+### Pipe-syntax rules! (functional, but has a caveat)
 
 ```rust
 use rf_macros::rules;
 
-// Define rules with Laravel-style pipes
-let validation = rules! {
-    email: required | email,
-    password: required | min(8),
-    age: integer | between(18, 120),
+let rules = rules! {
+    email:    required | email,
+    password: required | min(8) | max(72),
 };
 ```
 
-### 4. Routes
+**Caveat:** `min(8)` on a string field validates the numeric *value* (>=8) not the
+string *length*. For length validation use the typed `validate!` DSL.
+
+### Typed validate! DSL (preferred)
 
 ```rust
-use rf::Route;
+use rf::prelude::*;
 
-// Simple routes
-Route::get("/", "HomeController@index");
-Route::post("/users", "UserController@store");
-
-// Named routes
-Route::get("/dashboard", "DashboardController@index")
-    .name("dashboard");
-
-// Middleware
-Route::get("/admin", "AdminController@index")
-    .middleware("auth");
-
-// Groups
-Route::group()
-    .prefix("/api")
-    .middleware("api")
-    .routes(|group| {
-        group.get("/users", "UserController@index");
-        group.get("/posts", "PostController@index");
-    });
+// string.max = max length; int.min = min value — no ambiguity
+if validate! { title: string.max(100), age: int.min(18), email: email }.is_err() {
+    return json(serde_json::json!({"error": "validation failed"}));
+}
 ```
 
-## Running the Example
+---
 
-Try the complete working example:
+## Route facade — metadata only
+
+`Route::get("/path", "Controller@method")` registers route metadata but does NOT serve
+HTTP traffic. Use it for tooling/inspection only.
+
+For real HTTP handling, use the `rf::prelude::*` routing functions:
+
+```rust
+use rf::prelude::*;
+
+get("/users",     list_users);
+post("/users",    create_user);
+put("/users/{id}", update_user);
+
+let router = rf::global_router()
+    .build_router()
+    .layer(axum::middleware::from_fn(rf::web::capture_request));
+```
+
+---
+
+## Try it
+
+Run the standalone demonstration:
 
 ```bash
-cargo run --bin simple
+cargo run --bin simple   # in examples/laravel-syntax-simple/
 ```
 
-Expected output:
-```
-🚀 Laravel Syntax Simple Example
-=================================
-✅ Hash works!
-✅ CSRF token works!
-✅ Validation rules work!
-✅ Routes registered!
-=================================
-```
+---
 
-## What Works Now
+## Learn more
 
-✅ Hash::make() - Password hashing
-✅ Hash::check() - Password verification
-✅ csrf_token() - CSRF token generation
-✅ rules! - Validation rules
-✅ Route facade - Route registration
-
-## What's Coming
-
-- Route execution (not just registration)
-- Request validation integration
-- Response type system
-- Middleware execution
-- Named route resolution
-
-## Learn More
-
-- [Full Documentation](./LARAVEL_SYNTAX.md)
-- [Implementation Status](./LARAVEL_SYNTAX_FIXES_REPORT.md)
-- [Simple Example Code](../examples/laravel-syntax-simple/)
-
-## Need Help?
-
-Check the [wiki](../../wiki) or open an issue on GitHub.
+- [LARAVEL_SYNTAX.md](./LARAVEL_SYNTAX.md) — full feature reference and status table
+- [GETTING_STARTED.md](./GETTING_STARTED.md) — complete working application guide
+- [EXAMPLES.md](./EXAMPLES.md) — runnable, CI-tested example gallery

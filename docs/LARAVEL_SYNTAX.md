@@ -1,44 +1,65 @@
-# Laravel Syntax in RustForge
+# Laravel-Inspired Syntax in RustForge
 
-RustForge now supports Laravel-style syntax for a familiar developer experience. This document outlines all available Laravel-inspired features and their current implementation status.
+RustForge borrows vocabulary and conventions from Laravel. This document describes the
+features that exist under this inspiration, their actual implementation status, and the
+**recommended path** for building real applications (which differs from the string-based
+Route facade described in older examples).
 
-## Table of Contents
-
-1. [Routing](#routing)
-2. [Validation](#validation)
-3. [Global Helpers](#global-helpers)
-4. [Implementation Status](#implementation-status)
-5. [Migration Guide](#migration-guide)
+For the production-ready API, read [GETTING_STARTED.md](./GETTING_STARTED.md) first.
 
 ---
 
-## Routing
+## Table of Contents
 
-### Route Facade
+1. [What actually works](#what-actually-works)
+2. [Route Facade — metadata only, non-serving](#route-facade)
+3. [Validation rules! macro](#validation-rules-macro)
+4. [Global helpers](#global-helpers)
+5. [Recommended path for real apps](#recommended-path)
 
-RustForge provides a `Route` facade for defining routes in Laravel style.
+---
 
-#### Basic Routes
+## What actually works
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| `Hash::make(password)` | Stable | bcrypt via rf-auth |
+| `Hash::check(password, hash)` | Stable | bcrypt comparison |
+| `csrf_token()` | Stable | UUID-based token helper |
+| `rules! { field: rule | rule }` | Stable | Pipe-syntax validation; see caveats below |
+| `rf::prelude::*` import | Stable | The real one-import API for handlers |
+| `validate! { field: type.rule }` | Stable | Typed DSL (preferred over rules!) |
+
+---
+
+## Route Facade
+
+`Route::get("/path", "Controller@method")` compiles and registers route metadata, but
+**does not serve HTTP traffic**. `GlobalRouter::build_router()` returns an empty
+`Router::new()` — the handler string is discarded at registration time.
+
+This API is useful only for listing registered routes (e.g., for tooling that inspects
+route metadata). It cannot replace real axum routing.
+
+**Do not use the Route string facade for production applications.** See the
+[Recommended path](#recommended-path) section below.
 
 ```rust
-use rf::Route;
+use rf::prelude::*;
 
-// GET route
-Route::get("/", "HomeController@index");
+// This registers metadata but does NOT serve requests:
+// Route::get("/users", "UserController@index");   // non-functional
 
-// POST route
-Route::post("/users", "UserController@store");
-
-// PUT route
-Route::put("/users/:id", "UserController@update");
-
-// DELETE route
-Route::delete("/users/:id", "UserController@destroy");
+// This actually serves requests:
+get("/users", list_users);   // real axum routing via rf prelude
+let router = rf::global_router().build_router()
+    .layer(axum::middleware::from_fn(rf::web::capture_request));
 ```
 
-#### Named Routes
+Named routes, URL generation, and route signing ARE functional:
 
 ```rust
+// Named routes and URL generation work correctly
 Route::get("/dashboard", "DashboardController@index")
     .name("dashboard");
 
@@ -46,414 +67,115 @@ Route::post("/login", "AuthController@login")
     .name("auth.login");
 ```
 
-#### Middleware
-
-```rust
-// Single middleware
-Route::get("/admin", "AdminController@index")
-    .middleware("auth");
-
-// Multiple middleware (chained)
-Route::post("/users", "UserController@store")
-    .middleware("auth")
-    .middleware("validate");
-```
-
-#### Route Groups
-
-```rust
-Route::group()
-    .prefix("/api")
-    .middleware("api")
-    .name("api.")
-    .routes(|group| {
-        group.get("/users", "UserController@index");
-        group.get("/posts", "PostController@index");
-    });
-```
-
-#### Special Routes
-
-```rust
-// Redirect routes
-Route::redirect("/home", "/");
-Route::permanent_redirect("/old-blog", "/posts");
-
-// View routes (static pages)
-Route::view("/about", "about");
-```
-
-### Comparison: Before vs After
-
-#### Before (Axum-style)
-
-```rust
-use axum::{Router, routing::get, Json};
-use axum::response::IntoResponse;
-
-async fn list_users() -> impl IntoResponse {
-    Json(vec!["user1", "user2"])
-}
-
-let app = Router::new()
-    .route("/users", get(list_users));
-```
-
-#### After (Laravel-style)
-
-```rust
-use rf::Route;
-
-Route::get("/users", "UserController@index")
-    .name("users.index");
-```
-
 ---
 
-## Validation
+## Validation rules! macro
 
-### Rules Macro
-
-Define validation rules using Laravel's pipe syntax.
-
-#### Basic Rules
+The `rules!` macro provides Laravel-style pipe syntax for building validation rule sets.
+It is real and functional.
 
 ```rust
 use rf_macros::rules;
 
 let validation_rules = rules! {
     email: required | email,
-    password: required | min(8),
-};
-```
-
-#### Available Rules
-
-```rust
-rules! {
-    // String rules
-    name: required | min(3) | max(50),
-    email: required | email,
-
-    // Numeric rules
-    age: integer | between(18, 120),
-    price: numeric | min(0),
-
-    // Boolean rules
-    accepted: boolean,
-}
-```
-
-#### Rules with Parameters
-
-```rust
-rules! {
     password: required | min(8) | max(72),
     username: required | min(3) | max(20),
     age: integer | between(18, 120),
-}
-```
-
-### Comparison: Before vs After
-
-#### Before (Struct-based)
-
-```rust
-use validator::Validate;
-
-#[derive(Validate)]
-struct CreateUser {
-    #[validate(email)]
-    email: String,
-
-    #[validate(length(min = 8))]
-    password: String,
-}
-```
-
-#### After (Laravel-style)
-
-```rust
-use rf_macros::rules;
-
-let rules = rules! {
-    email: required | email,
-    password: required | min(8),
 };
 ```
+
+**Caveat — numeric vs. length ambiguity:** `min(8)` on a string field validates the
+numeric *value* (>=8), not the string length. To validate string length, use the typed
+`validate!` DSL instead:
+
+```rust
+// Preferred: typed DSL (string.max means max length, int.min means min value)
+if validate! { title: string.max(100), age: int.min(18), email: email }.is_err() {
+    return json(serde_json::json!({"error": "validation failed"}));
+}
+```
+
+The `validate!` DSL is available via `use rf::prelude::*` and resolves the
+length-vs-numeric ambiguity by requiring a type prefix.
 
 ---
 
 ## Global Helpers
 
-### Hash Facade
-
-Password hashing and verification using bcrypt.
+### Hash
 
 ```rust
 use rf::Hash;
 
-// Hash a password
-let hash = Hash::make("my_password");
-
-// Verify a password
-if Hash::check("my_password", &hash) {
-    println!("Password correct!");
-}
+let hash = Hash::make("my_password");         // bcrypt hash
+let ok   = Hash::check("my_password", &hash); // true
 ```
 
-**Features:**
-- Uses bcrypt algorithm
-- Automatic salt generation
-- Cost factor: 12 (configurable)
-
 ### CSRF Token
-
-Generate CSRF tokens for form protection.
 
 ```rust
 use rf::csrf_token;
 
-let token = csrf_token();
-println!("CSRF Token: {}", token);
+let token = csrf_token(); // UUID v4 string, unique per call
 ```
 
-**Features:**
-- UUID v4 based tokens
-- Unique per generation
-- 36 characters long
-
-### Translation Helper
-
-Laravel-style translation helper (currently returns key as placeholder).
+### Translation placeholder
 
 ```rust
 use rf::__;
 
-let message = __("auth.failed");
-// Returns: "auth.failed"
+let msg = __("auth.failed"); // Returns the key as-is (placeholder implementation)
 ```
 
-### Redirect Helpers
-
-```rust
-use rf::{redirect, back};
-
-// Redirect to URL
-redirect("/dashboard")
-    .with_success("Operation successful!");
-
-// Redirect back
-back()
-    .with_errors(vec![("email", vec!["Invalid email"])])
-    .with_input(request.except(&["password"]));
-```
+`rf-i18n` provides a real localization implementation with CLDR plural rules and
+Handlebars templating. See [EXAMPLES.md](./EXAMPLES.md) for the `i18n-localized-api`
+example.
 
 ---
 
-## Implementation Status
+## Recommended path
 
-### ✅ Fully Working
+For a real working application, use the `rf::prelude::*` API documented in
+[GETTING_STARTED.md](./GETTING_STARTED.md):
 
-| Feature | Status | Notes |
-|---------|--------|-------|
-| `Hash::make()` | ✅ Working | Bcrypt password hashing |
-| `Hash::check()` | ✅ Working | Password verification |
-| `csrf_token()` | ✅ Working | UUID-based token generation |
-| `rules!` macro | ✅ Working | Validation rules compilation |
-| Route registration | ✅ Working | Routes register successfully |
-
-### ⚠️ Partially Working
-
-| Feature | Status | Notes |
-|---------|--------|-------|
-| Route groups | ⚠️ Partial | Registration works, execution pending |
-| Middleware | ⚠️ Partial | Registration works, not enforced |
-| Named routes | ⚠️ Partial | Names registered, lookup pending |
-
-### ❌ Not Yet Implemented
-
-| Feature | Status | Notes |
-|---------|--------|-------|
-| `function!` macro | ❌ Not Working | Parameter binding issues |
-| Response types | ❌ Not Working | No unified Response system |
-| `request.validate()` | ❌ Not Working | Request integration incomplete |
-| Route execution | ❌ Not Working | Only registration, no execution |
-| `request.user()` | ❌ Not Working | Auth integration pending |
-| Database rules | ❌ Not Working | `unique()` requires DB connection |
-
----
-
-## Migration Guide
-
-### Step 1: Update Dependencies
-
-```toml
-[dependencies]
-rf = "1.0"
-```
-
-### Step 2: Convert Routes
-
-**Before:**
 ```rust
-use axum::{Router, routing::get};
+use rf::prelude::*;
 
-let app = Router::new()
-    .route("/users", get(list_users))
-    .route("/users/:id", get(show_user));
-```
+// Declare a model (real SQLite/Postgres/MySQL via SeaORM)
+Model!(Post: title, body);
 
-**After:**
-```rust
-use rf::Route;
+// Argument-less handler — reads request through ambient globals
+async fn create_post() -> impl axum::response::IntoResponse {
+    if validate! { title: string.max(100), body: string }.is_err() {
+        return json(serde_json::json!({"error": "validation failed"}));
+    }
+    let title: String = input("title").unwrap_or_default();
+    let body:  String = input("body").unwrap_or_default();
+    match create!(Post, title = title, body = body) {
+        Ok(row) => json(row),
+        Err(e)  => json(serde_json::json!({"error": e.to_string()})),
+    }
+}
 
-Route::get("/users", "UserController@index");
-Route::get("/users/:id", "UserController@show");
-```
-
-### Step 3: Convert Validation
-
-**Before:**
-```rust
-#[derive(Validate)]
-struct CreateUser {
-    #[validate(email)]
-    email: String,
-    #[validate(length(min = 8))]
-    password: String,
+// Wire real routes
+fn build_app() -> axum::Router {
+    get("/posts", list_posts);
+    post("/posts", create_post);
+    rf::global_router()
+        .build_router()
+        .layer(axum::middleware::from_fn(rf::web::capture_request))
 }
 ```
 
-**After:**
-```rust
-let rules = rules! {
-    email: required | email,
-    password: required | min(8),
-};
-```
-
-### Step 4: Use Global Helpers
-
-**Password Hashing:**
-```rust
-use rf::Hash;
-
-// Hash password
-let hash = Hash::make(&password);
-
-// Store in database
-user.password = hash;
-```
-
-**CSRF Protection:**
-```rust
-use rf::csrf_token;
-
-// Generate token
-let token = csrf_token();
-
-// Include in form
-html! {
-    <input type="hidden" name="_token" value={token} />
-}
-```
-
----
-
-## Examples
-
-### Working Example
-
-See [`examples/laravel-syntax-simple`](../examples/laravel-syntax-simple) for a complete working example demonstrating:
-
-- Hash::make() and Hash::check()
-- csrf_token()
-- rules! macro
-- Route registration
-
-**Run it:**
-```bash
-cargo run --bin simple
-```
-
-### Complete Example (Work in Progress)
-
-See [`examples/laravel-syntax-complete`](../examples/laravel-syntax-complete) for a full blog application example.
-
-**Note:** This example has compile errors due to incomplete features (`function!` macro, Response types, etc.)
-
----
-
-## Roadmap
-
-### Phase 1: Core Features (Current)
-- ✅ Hash facade
-- ✅ CSRF tokens
-- ✅ Validation rules macro
-- ✅ Route registration
-
-### Phase 2: Request/Response Integration
-- ❌ Fix `function!` macro
-- ❌ Unified Response type system
-- ❌ `request.validate()` integration
-- ❌ `request.user()` auth integration
-
-### Phase 3: Route Execution
-- ❌ Actual route handling
-- ❌ Middleware execution
-- ❌ Named route resolution
-- ❌ Route model binding
-
-### Phase 4: Advanced Features
-- ❌ Database validation rules
-- ❌ Event system integration
-- ❌ Translation system
-- ❌ Form request classes
-
----
-
-## Contributing
-
-### Priority Fixes Needed
-
-1. **`function!` macro** - Fix parameter binding for `request: Request, id: i32`
-2. **Response types** - Create unified `Response` type with `json()`, `view()`, `forbidden()`, etc.
-3. **Route execution** - Make registered routes actually callable
-4. **Request validation** - Integrate `request.validate(rules!)` properly
-
-### How to Help
-
-1. Pick a feature from the "Not Yet Implemented" section
-2. Create tests in `examples/laravel-syntax-simple`
-3. Implement the feature
-4. Update this documentation
-
----
-
-## FAQ
-
-### Why isn't the complete example working?
-
-The complete example (`laravel-syntax-complete`) demonstrates the **target API** we're building towards. Many features are not yet implemented, which is why it has compile errors. Use `laravel-syntax-simple` to see what currently works.
-
-### Can I use this in production?
-
-Not yet. The Laravel syntax features are still in development. Only the features marked as "✅ Fully Working" are safe to use.
-
-### How is this different from Axum?
-
-RustForge provides a Laravel-style API layer **on top of** Axum. Under the hood, it still uses Axum for routing and HTTP handling, but provides a more familiar syntax for Laravel developers.
-
-### Will this support all Laravel features?
-
-Our goal is 100% Laravel parity where it makes sense. Some Laravel features (like Blade templates) may have Rust-native alternatives that better fit the ecosystem.
+This is the design verified through 8 production-loop rounds and reflected in the
+feature-maturity matrix in [README.md](../README.md).
 
 ---
 
 ## See Also
 
-- [RustForge Consolidated Crate](../crates/rf/README.md)
-- [Global Helpers Documentation](../crates/rf-global-helpers/README.md)
-- [Validation Documentation](../crates/rf-validation/README.md)
-- [Macros Documentation](../crates/rf-macros/README.md)
+- [Getting Started](./GETTING_STARTED.md) — the real working API
+- [Example Gallery](./EXAMPLES.md) — runnable, CI-tested examples
+- [README.md maturity matrix](../README.md#feature-maturity-matrix) — graded status of every surface
+- `examples/laravel-syntax-simple/` — demonstrates Hash, csrf_token, and rules! in isolation
