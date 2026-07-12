@@ -49,15 +49,15 @@
 use std::sync::Arc;
 
 use axum::{
-    extract::{Extension, Multipart, Path, Request, State},
+    extract::{Extension, Multipart, Path, State},
     http::StatusCode,
-    middleware::{self, Next},
-    response::{IntoResponse, Json},
+    middleware,
+    response::IntoResponse,
     routing::{get, post, put},
     Router,
 };
 use rf::prelude::*;
-use rf_auth::{Claims, JwtManager, PasswordHasher};
+use rf_auth::{require_auth_with, Claims, JwtManager, PasswordHasher};
 use rf_health::{checks::MemoryCheck, health_router, HealthChecker};
 use rf_logging::{init_logging, LogConfig};
 use rf_metrics::metrics_router;
@@ -137,34 +137,9 @@ struct AppState {
     hasher: Arc<PasswordHasher>,
 }
 
-// ── JWT Auth Middleware ───────────────────────────────────────────────────────
-
-/// Extracts a `Bearer <jwt>` token from the `Authorization` header, validates it
-/// via `JwtManager`, and injects the resulting `Claims` into request extensions.
-/// Returns 401 JSON on missing or invalid tokens — before the handler runs.
-async fn jwt_auth(
-    State(state): State<Arc<AppState>>,
-    mut req: Request,
-    next: Next,
-) -> axum::response::Response {
-    let token = req
-        .headers()
-        .get(axum::http::header::AUTHORIZATION)
-        .and_then(|h| h.to_str().ok())
-        .and_then(|s| s.strip_prefix("Bearer "));
-
-    match token.and_then(|t| state.jwt.validate_token(t).ok()) {
-        Some(claims) => {
-            req.extensions_mut().insert(claims);
-            next.run(req).await
-        }
-        None => (
-            StatusCode::UNAUTHORIZED,
-            Json(serde_json::json!({"error": "Unauthorized — valid Bearer JWT required"})),
-        )
-            .into_response(),
-    }
-}
+// (jwt_auth removed — protected routes now use rf_auth::require_auth_with,
+// which validates JWTs, populates Auth::user(), and injects Extension<Claims>
+// all in one reusable framework middleware.)
 
 // ── Migrations ────────────────────────────────────────────────────────────────
 
@@ -588,12 +563,14 @@ async fn main() -> anyhow::Result<()> {
 
     // ── Router ────────────────────────────────────────────────────────────────
 
-    // Protected routes: jwt_auth runs as route_layer (inside capture_request).
+    // Protected routes: require_auth_with validates JWTs, sets up Auth:: scope,
+    // and injects Extension<Claims> — replacing the old hand-rolled jwt_auth.
+    let jwt_mw = require_auth_with(state.jwt.clone());
     let protected: Router<Arc<AppState>> = Router::new()
         .route("/me", get(me_handler))
         .route("/posts", post(create_post_handler))
         .route("/posts/{id}", put(update_post_handler).delete(delete_post_handler))
-        .route_layer(middleware::from_fn_with_state(state.clone(), jwt_auth));
+        .route_layer(middleware::from_fn(jwt_mw));
 
     // Main API router: capture_request buffers the body so input() / validate!
     // work in handlers (public + protected routes share the same middleware).
@@ -610,7 +587,7 @@ async fn main() -> anyhow::Result<()> {
     // Multipart extractor would see nothing. This route needs the raw body.
     let upload_router: Router<Arc<AppState>> = Router::new()
         .route("/upload", post(upload_handler))
-        .route_layer(middleware::from_fn_with_state(state.clone(), jwt_auth));
+        .route_layer(middleware::from_fn(require_auth_with(state.jwt.clone())));
 
     // Assemble: stateful routes first (with_state → Router<()>), then merge
     // the already-stateless health and metrics routers.

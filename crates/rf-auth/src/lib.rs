@@ -97,23 +97,48 @@ pub use auth_manager::{
 };
 pub use guard::Guard;
 
-/// Ready-made bearer-auth route guard. Apply it with
-/// `.route_layer(axum::middleware::from_fn(require_auth))` to reject requests
+/// Ready-made JWT bearer-auth route guard. Apply it with
+/// `.route_layer(axum::middleware::from_fn(require_auth))` combined with
+/// `.layer(Extension(Arc::new(JwtManager::new(secret)?)))` to reject requests
 /// that carry no valid JWT bearer token with a `401 Unauthorized` JSON response
 /// **before** the handler and its body extractors run (so auth precedes any 422).
 ///
+/// For apps that hold the [`JwtManager`] inside application state (rather than
+/// an `Extension`), use [`require_auth_with`] instead.
+///
 /// ```rust,ignore
 /// use rf::prelude::*;  // re-exports require_auth
-/// use axum::middleware::from_fn;
+/// use axum::{middleware::from_fn, Extension};
+/// use rf_auth::JwtManager;
+/// use std::sync::Arc;
+///
+/// let jwt = Arc::new(JwtManager::new("32-char-secret...")?);
 ///
 /// let protected = axum::Router::new()
 ///     .route("/profile", axum::routing::get(profile_handler))
-///     .route_layer(from_fn(require_auth));
+///     .route_layer(from_fn(require_auth))
+///     .layer(Extension(jwt));
 ///
-/// // Unauthenticated: {"error":"Unauthorized"} 401
-/// // Authenticated:   handler runs normally
+/// // Unauthenticated or invalid JWT: {"error":"Unauthorized"} 401
+/// // Valid JWT: handler runs; Auth::user() / Auth::id() work inside
 /// ```
 pub use middleware::require_auth;
+
+/// Alternative to [`require_auth`] when the [`JwtManager`] lives in app state
+/// rather than an Axum `Extension`. Returns a closure ready for
+/// `axum::middleware::from_fn`:
+///
+/// ```rust,ignore
+/// use rf_auth::{require_auth_with, JwtManager};
+/// use std::sync::Arc;
+///
+/// let jwt = Arc::new(JwtManager::new("32-char-secret...")?);
+///
+/// let protected = axum::Router::new()
+///     .route("/profile", axum::routing::get(profile_handler))
+///     .route_layer(axum::middleware::from_fn(require_auth_with(jwt)));
+/// ```
+pub use middleware::require_auth_with;
 
 // Re-export main authorization types
 pub use authorization::{
@@ -133,7 +158,7 @@ pub mod prelude {
     pub use crate::{
         error::{AuthError, AuthResult},
         jwt::{Claims, JwtManager},
-        middleware::{auth_layer, auth_middleware, require_auth, require_role},
+        middleware::{auth_layer, auth_middleware, require_auth, require_auth_with, require_role},
         password::{HashAlgorithm, PasswordHasher},
     };
 
