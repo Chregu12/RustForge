@@ -191,8 +191,8 @@ pub mod prelude {
     // reusing the real `get`/`post`/`put`/`patch`/`delete` registration above.
     pub use rf_routing::resource;
     // Implicit-request global helpers (behind the `capture_request` middleware):
-    // `file("image")`, `input("title")`, `has("title")`.
-    pub use rf_request::{file, has, input};
+    // `file("image")`, `input("title")`, `has("title")`, `all()`.
+    pub use rf_request::{all, file, has, input};
     pub use rf_auth::Auth;
     // Ready-made bearer-auth guard middleware for protected routes:
     // `.route_layer(axum::middleware::from_fn(require_auth))` returns a JSON 401

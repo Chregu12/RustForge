@@ -72,12 +72,12 @@ Real implementations with gaps, not fully integration-tested, or API not yet fro
 |-------|------|---------------|
 | `rf-inertia` | beta | Full Inertia.js protocol (X-Inertia-Location, SharedProps); not exhaustively load-tested |
 | `rf-deploy` | beta | DockerCompose serialization correct; forge deploy generate CLI wired; not prod-battle-tested |
-| `rf-config` | beta | AppConfig::from_env errors on unparseable values; dotenvy-backed; API may consolidate |
+| `rf-config` | stable | AppConfig::from_env + `Config` are re-exported in the rf prelude and are part of the 1.0 stable surface (see STABLE_CORE.md); dotenvy-backed. Internal consolidation must not break the exported surface. |
 | `rf-env` | beta | dotenvy-backed env loading; real implementation, API surface minimal |
 | `rf-graphql` | beta | async-graphql 7.0; per-request auth context injected; not load-tested against large schemas |
 | `rf-tenancy` | beta | Real axum Layer + Tenant::current() + isolation helpers + spawn_with_tenant(); not stress-tested |
 | `rf-api-resources` | beta | WrappedResource/WrappedCollection; manual Serialize; no silent wrapper drop — API may evolve |
-| `rf-routing` | beta | Named routes, signed URLs, route groups, resource routing (20 files/6.6k lines); parallel to rf-web routing |
+| `rf-routing` | stable | The routing facade the rf prelude exposes (`get/post/put/delete/patch/resource`, `Route`, `global_router`); part of the 1.0 stable surface (see STABLE_CORE.md). Named routes, signed URLs, route groups, resource routing (20 files/6.6k lines). |
 | `rf-requests` | beta | Validated form-request structs (ValidatedJson extractor); real but minimal coverage |
 | `rf-collections` | beta | Laravel-style Collection helpers; real map/filter/reduce/chunk impl |
 | `rf-authorization` | beta | Gates, policies, RBAC (9 files/2.8k lines); real but not exhaustively integration-tested |
@@ -189,8 +189,8 @@ recommendation is to delete them in a future cleanup pass.
 
 | Tier | Count |
 |------|-------|
-| stable | 32 |
-| beta | 73 |
+| stable | 34 |
+| beta | 71 |
 | experimental | 8 |
 | stub | 0 |
 | **Total workspace crates** | **113** |

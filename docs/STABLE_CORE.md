@@ -27,8 +27,9 @@ all items flow from the individual stable crates described in §Capabilities.
 
 ### 1. Routing
 
-**Crate:** `rf-routing` (beta tier per TIERS.md — **parallel router**, but the
-underlying HTTP verbs used by `rf-web` / `rf::prelude` are stable)
+**Crate:** `rf-routing` (**stable** tier — this is the routing facade the
+`rf::prelude` exposes: `get/post/put/delete/patch`, `resource`, `Route`,
+`global_router`)
 
 **Prelude entry points** (grep-verified in `crates/rf-routing/src/`):
 
@@ -160,7 +161,8 @@ Router::new()
 
 ### 6. Configuration
 
-**Crate:** `rf-config` (beta tier per TIERS.md, listed in stable surface in RELEASING.md)
+**Crate:** `rf-config` (**stable** tier — `Config` / `AppConfig::from_env` are
+re-exported in the prelude and covered by the 1.0 stable surface)
 
 | Item | Location | Description |
 |------|----------|-------------|
