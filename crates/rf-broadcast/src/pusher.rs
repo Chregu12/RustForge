@@ -380,7 +380,7 @@ impl Broadcaster for PusherBroadcaster {
     async fn subscribe(
         &self,
         channel: &Channel,
-        connection_id: ConnectionId,
+        _connection_id: ConnectionId,
         user_id: Option<UserId>,
     ) -> BroadcastResult<()> {
         // Pusher handles subscriptions on the client side
@@ -402,15 +402,15 @@ impl Broadcaster for PusherBroadcaster {
 
     async fn unsubscribe(
         &self,
-        channel: &Channel,
-        connection_id: &ConnectionId,
+        _channel: &Channel,
+        _connection_id: &ConnectionId,
     ) -> BroadcastResult<()> {
         // Pusher handles unsubscription on the client side
         // Just clean up our local cache
         Ok(())
     }
 
-    async fn connections(&self, channel: &Channel) -> BroadcastResult<Vec<ConnectionId>> {
+    async fn connections(&self, _channel: &Channel) -> BroadcastResult<Vec<ConnectionId>> {
         // Pusher API can query channel info
         // For simplicity, returning empty list (would need to implement channel_info API call)
         Ok(Vec::new())

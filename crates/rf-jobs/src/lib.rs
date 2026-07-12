@@ -15,7 +15,8 @@
 //! **`rf-queue`** crate instead.  It ships a `MemoryQueue`, a `Worker` you can
 //! drain in-process, and a process-global `Jobs` facade, all without Redis:
 //!
-//! ```no_run
+//! ```ignore
+//! // (from the `rf-queue` crate — see examples/jobs-offline)
 //! use rf_queue::{Job, MemoryQueue, Worker, Jobs};
 //! use std::sync::Arc;
 //!

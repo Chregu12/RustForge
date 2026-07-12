@@ -18,39 +18,38 @@
 //! - **Global Connection Pool**: Thread-safe global database state
 //! - **Laravel-Compatible**: Familiar API for Laravel developers
 //!
-//! ## Quick Start
+//! ## Quick Start — the `DB` query builder (this crate's real export)
 //!
 //! ```rust,no_run
-//! // Recommended: use rf::{DB, Model, model};
-//! use rf_db_facade::{DB, Model, model};  // Direct import also works
-//!
-//! // Define models using the macro - just like Laravel!
-//! model!(User, "users");
-//! model!(Post, "posts");
+//! use rf_db_facade::DB;
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-//! // Laravel-style Model queries!
-//! let users = User::filter("active", true).get().await?;
-//! let user = User::find(1).await?;
-//! let new_user = User::create(serde_json::json!({
-//!     "name": "John",
-//!     "email": "john@example.com"
-//! })).await?;
-//!
-//! // Chain queries like Laravel!
-//! let admins = User::filter("role", "admin")
+//! // Chain queries like Laravel's query builder:
+//! let admins = DB::table("users")
+//!     .filter("role", "admin")
 //!     .filter("active", true)
 //!     .order_by("name", "asc")
 //!     .limit(10)
 //!     .get().await?;
-//!
-//! // Or use DB::table() for raw queries
-//! let users = DB::table("users")
-//!     .filter("active", true)
-//!     .limit(10)
-//!     .get().await?;
+//! # let _ = admins;
 //! # Ok(())
 //! # }
+//! ```
+//!
+//! ## Laravel-style models
+//!
+//! Models are defined with the `Model!` macro (from the `rf` prelude) and then
+//! expose Eloquent-style static methods. The macro needs the ORM prelude in
+//! scope, so this snippet is illustrative rather than compiled here:
+//!
+//! ```ignore
+//! use rf::prelude::*;
+//!
+//! Model!(User: name, email);
+//!
+//! let users = User::filter("active", true).get().await?;
+//! let user  = User::find(1).await?;
+//! let new   = User::create(serde_json::json!({ "name": "John" })).await?;
 //! ```
 
 // This crate used to carry its OWN duplicate DB/DBManager/Model/QueryBuilder

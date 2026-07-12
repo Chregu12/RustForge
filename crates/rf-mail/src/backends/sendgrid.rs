@@ -49,6 +49,7 @@ use crate::{
     Mail, Mailer,
 };
 use async_trait::async_trait;
+use base64::Engine as _;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
@@ -233,7 +234,7 @@ impl SendGridMailer {
                 .iter()
                 .map(|att| {
                     json!({
-                        "content": base64::encode(&att.data),
+                        "content": base64::engine::general_purpose::STANDARD.encode(&att.data),
                         "type": att.content_type,
                         "filename": att.filename,
                     })

@@ -47,6 +47,7 @@ use crate::{
     Mail, Mailer,
 };
 use async_trait::async_trait;
+use base64::Engine as _;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
@@ -157,7 +158,7 @@ impl PostmarkMailer {
                     .map(|att| {
                         json!({
                             "Name": att.filename,
-                            "Content": base64::encode(&att.data),
+                            "Content": base64::engine::general_purpose::STANDARD.encode(&att.data),
                             "ContentType": att.content_type,
                         })
                     })
@@ -260,6 +261,7 @@ impl Mailer for PostmarkMailer {
 /// Postmark API response
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "PascalCase")]
+#[allow(dead_code)] // deserialize-only: mirrors the Postmark payload; not all fields are read
 pub struct PostmarkResponse {
     /// Postmark message ID
     pub message_id: String,

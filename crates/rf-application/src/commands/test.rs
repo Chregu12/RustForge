@@ -395,7 +395,12 @@ mod tests {
         assert_eq!(descriptor.category, CommandKind::Utility);
     }
 
+    // Ignored: this test invokes the real `cargo test` binary with no filter, which
+    // under `cargo test --workspace` recursively re-runs the entire suite (fork-bomb:
+    // each child spawns another workspace test run) and never terminates. Run manually
+    // with `cargo test -p rf-application -- --ignored test_execute_runs_tests`.
     #[tokio::test]
+    #[ignore = "spawns a recursive `cargo test`; would fork-bomb the workspace suite"]
     async fn test_execute_runs_tests() {
         let command = TestCommand::new();
         let ctx = create_test_context(vec![]);

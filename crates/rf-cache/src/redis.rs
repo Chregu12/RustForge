@@ -63,6 +63,8 @@ use tokio::sync::Mutex;
 pub struct RedisCache {
     pool: Pool,
     prefix: String,
+    // Reserved for per-key in-process lock coordination; constructed but not yet read.
+    #[allow(dead_code)]
     locks: Arc<Mutex<std::collections::HashMap<String, Arc<Mutex<()>>>>>,
 }
 

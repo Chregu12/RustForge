@@ -390,7 +390,6 @@ impl HealthCheck for RedisCheck {
     }
 
     async fn check(&self) -> CheckResult {
-        use redis::AsyncCommands;
 
         match self.pool.get().await {
             Ok(mut conn) => match redis::cmd("PING").query_async::<String>(&mut conn).await {

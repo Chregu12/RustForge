@@ -5,7 +5,7 @@
 use crate::{JobMetadata, Queue, QueueError, QueueResult};
 use async_trait::async_trait;
 use aws_config::BehaviorVersion;
-use aws_sdk_sqs::{Client, Error};
+use aws_sdk_sqs::Client;
 use std::collections::HashMap;
 
 /// SQS queue driver

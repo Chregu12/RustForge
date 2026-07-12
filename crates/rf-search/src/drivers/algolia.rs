@@ -5,7 +5,7 @@
 use crate::driver::{ConfigurableDriver, Result, SearchDriver, SearchError};
 use crate::searchable::{SearchHit, SearchOptions, SearchResult, Searchable};
 use async_trait::async_trait;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use serde_json::{json, Value};
 use std::collections::HashMap;
 
@@ -232,6 +232,7 @@ impl SearchDriver for AlgoliaDriver {
         #[derive(Deserialize)]
         struct AlgoliaHit<M> {
             #[serde(rename = "objectID")]
+            #[allow(dead_code)] // deserialize-only: present in the Algolia response, not read
             object_id: String,
             #[serde(flatten)]
             document: M,

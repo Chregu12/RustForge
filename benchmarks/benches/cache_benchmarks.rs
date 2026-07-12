@@ -13,7 +13,10 @@ use tokio::runtime::Runtime;
 // - Tag-based invalidation
 // - Cache warming strategies
 
-// Mock cache implementation for benchmarking
+// Mock cache implementation for benchmarking.
+// Clone is cheap + correct: the only field is an Arc, so clones share one store —
+// needed because criterion's batched FnMut closures move the cache into `async move`.
+#[derive(Clone)]
 struct MockCache {
     data: Arc<parking_lot::RwLock<HashMap<String, Vec<u8>>>>,
 }
@@ -88,8 +91,11 @@ fn benchmark_cache_set(c: &mut Criterion) {
                     let value = vec![0u8; size];
                     (format!("key_{}", size), value)
                 },
-                |(key, value)| async move {
-                    cache.set(key, value).await;
+                |(key, value)| {
+                    let cache = cache.clone();
+                    async move {
+                        cache.set(key, value).await;
+                    }
                 },
                 BatchSize::SmallInput,
             );
@@ -115,8 +121,11 @@ fn benchmark_cache_delete(c: &mut Criterion) {
                 });
                 key
             },
-            |key| async move {
-                cache.delete(&key).await;
+            |key| {
+                let cache = cache.clone();
+                async move {
+                    cache.delete(&key).await;
+                }
             },
             BatchSize::SmallInput,
         );
