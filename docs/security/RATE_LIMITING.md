@@ -7,75 +7,58 @@ Rate limiting protects your application from abuse by limiting the number of req
 ## Quick Start
 
 ```rust
-use foundry_application::middleware::rate_limit::{
-    RateLimitMiddleware, RateLimitConfig, InMemoryRateLimitStorage
-};
+use rf_ratelimit::{RateLimitLayer, RateLimitConfig, MemoryRateLimiter};
+use std::sync::Arc;
 
-// Create rate limiter: 60 requests per minute per IP
-let limiter = RateLimitMiddleware::in_memory(
-    RateLimitConfig::per_ip(60)
-        .exempt("/health")
-        .exempt("/metrics")
-);
+// Create rate limiter: 60 requests per minute
+let layer = RateLimitLayer::new(Arc::new(
+    MemoryRateLimiter::new(RateLimitConfig::per_minute(60))
+));
 
 // Add to router
-app = app.layer(axum::middleware::from_fn(move |req, next| {
-    limiter.handle(req, next)
-}));
+app = app.layer(layer);
 ```
 
 ## Strategies
 
-### 1. Per IP Address
+### 1. Per Minute (global)
 
-Limit requests based on client IP address:
+Limit total requests within a time window:
 
 ```rust
-let config = RateLimitConfig::per_ip(60); // 60 requests per minute
+use rf_ratelimit::RateLimitConfig;
+
+let config = RateLimitConfig::per_minute(60); // 60 requests per minute
 ```
 
 **Best for:** Public APIs, anonymous endpoints
 
-### 2. Per User
-
-Limit requests based on authenticated user:
+### 2. Per Hour
 
 ```rust
-let config = RateLimitConfig::per_user(100); // 100 requests per minute
+let config = RateLimitConfig::per_hour(1000); // 1000 requests per hour
 ```
 
-**Best for:** Authenticated APIs, user dashboards
+**Best for:** Resource-intensive or low-frequency operations
 
-### 3. Per Route
+### 3. Custom Key Extraction
 
-Limit requests to specific routes:
-
-```rust
-let config = RateLimitConfig::per_route(30); // 30 requests per minute per route
-```
-
-**Best for:** Resource-intensive endpoints
-
-### 4. Custom Strategy
-
-Define custom key extraction logic:
+Differentiate rate limits by client IP, user ID, or API key using `RateLimitLayer::with_key_extractor`:
 
 ```rust
-use foundry_application::middleware::rate_limit::RateLimitStrategy;
+use rf_ratelimit::{RateLimitLayer, RateLimitConfig, MemoryRateLimiter};
+use std::sync::Arc;
 
-let config = RateLimitConfig {
-    strategy: RateLimitStrategy::Custom(Arc::new(|req| {
-        // Extract API key from header
-        req.headers()
-            .get("X-API-Key")
-            .and_then(|h| h.to_str().ok())
-            .map(|key| format!("api_key:{}", key))
-            .unwrap_or_else(|| "anonymous".to_string())
-    })),
-    window: RateLimitWindow::per_minute(100),
-    exempt_routes: Arc::new(vec![]),
-    whitelisted_ips: Arc::new(vec![]),
-};
+let layer = RateLimitLayer::new(Arc::new(
+    MemoryRateLimiter::new(RateLimitConfig::per_minute(100))
+)).with_key_extractor(|req| {
+    // Use API key as the rate-limit bucket key
+    req.headers()
+        .get("X-API-Key")
+        .and_then(|h| h.to_str().ok())
+        .map(|key| format!("api_key:{}", key))
+        .unwrap_or_else(|| "anonymous".to_string())
+});
 ```
 
 ## Time Windows
@@ -83,22 +66,21 @@ let config = RateLimitConfig {
 ### Per Minute (Default)
 
 ```rust
-RateLimitWindow::per_minute(60)
+RateLimitConfig::per_minute(60)
 ```
 
 ### Per Hour
 
 ```rust
-RateLimitWindow::per_hour(1000)
+RateLimitConfig::per_hour(1000)
 ```
 
 ### Custom Window
 
 ```rust
-RateLimitWindow::custom(
-    500,    // requests
-    300     // seconds (5 minutes)
-)
+use std::time::Duration;
+
+RateLimitConfig::custom(500, Duration::from_secs(300)) // 500 requests per 5 minutes
 ```
 
 ## Advanced Configuration
@@ -108,48 +90,41 @@ RateLimitWindow::custom(
 Apply different limits to different route groups:
 
 ```rust
+use rf_ratelimit::{RateLimitLayer, RateLimitConfig, MemoryRateLimiter};
+use std::sync::Arc;
+
 // Strict limit for auth endpoints
-let auth_limiter = RateLimitMiddleware::in_memory(
-    RateLimitConfig::per_ip(5)  // Only 5 login attempts per minute
-);
+let auth_layer = RateLimitLayer::new(Arc::new(
+    MemoryRateLimiter::new(RateLimitConfig::per_minute(5))
+));
 
 // More relaxed for API
-let api_limiter = RateLimitMiddleware::in_memory(
-    RateLimitConfig::per_user(100)
-);
+let api_layer = RateLimitLayer::new(Arc::new(
+    MemoryRateLimiter::new(RateLimitConfig::per_minute(100))
+));
 
 // Apply to specific route groups
 let app = Router::new()
     .route("/login", post(login))
-    .layer(axum::middleware::from_fn(move |req, next| {
-        auth_limiter.handle(req, next)
-    }))
-    .route("/api/*", get(api_handler))
-    .layer(axum::middleware::from_fn(move |req, next| {
-        api_limiter.handle(req, next)
-    }));
+    .layer(auth_layer)
+    .route("/api/*path", get(api_handler))
+    .layer(api_layer);
 ```
 
-### Whitelist IPs
+### Exempt Health / Metrics Routes
 
-Exempt trusted IPs from rate limiting:
-
-```rust
-let config = RateLimitConfig::per_ip(60)
-    .whitelist_ip("127.0.0.1".parse().unwrap())
-    .whitelist_ip("::1".parse().unwrap())
-    .whitelist_ip("10.0.0.1".parse().unwrap());  // Internal service
-```
-
-### Exempt Routes
-
-Skip rate limiting for specific routes:
+Apply rate limiting only to specific nested routers and keep health / metrics routes outside that router:
 
 ```rust
-let config = RateLimitConfig::per_ip(60)
-    .exempt("/health")
-    .exempt("/metrics")
-    .exempt("/webhooks/*");  // Wildcard support
+// Wrap only the routes that should be rate-limited
+let protected = Router::new()
+    .route("/api/*path", get(api_handler))
+    .layer(api_layer);
+
+let app = Router::new()
+    .route("/health", get(health))
+    .route("/metrics", get(metrics))
+    .merge(protected);
 ```
 
 ## Storage Backends
@@ -157,23 +132,30 @@ let config = RateLimitConfig::per_ip(60)
 ### In-Memory (Development)
 
 ```rust
-let storage = InMemoryRateLimitStorage::new();
-let limiter = RateLimitMiddleware::new(storage, config);
+use rf_ratelimit::{MemoryRateLimiter, RateLimitConfig, RateLimitLayer};
+use std::sync::Arc;
+
+let layer = RateLimitLayer::new(Arc::new(
+    MemoryRateLimiter::new(RateLimitConfig::per_minute(60))
+));
 ```
 
-**Pros:** Fast, simple
-**Cons:** Not shared across instances, lost on restart
+**Pros:** Fast, simple, zero external dependencies
+**Cons:** Not shared across instances, counters reset on restart
 
 ### Redis (Production)
 
 ```rust
-// TODO: Redis backend implementation
-// let storage = RedisRateLimitStorage::new("redis://localhost:6379");
-// let limiter = RateLimitMiddleware::new(storage, config);
+use rf_ratelimit::{RedisRateLimiter, RateLimitConfig, RateLimitLayer};
+use std::sync::Arc;
+
+let layer = RateLimitLayer::new(Arc::new(
+    RedisRateLimiter::new("redis://localhost:6379", RateLimitConfig::per_minute(60))
+));
 ```
 
-**Pros:** Shared across instances, persistent
-**Cons:** Requires Redis server
+**Pros:** Shared across instances, persistent counters
+**Cons:** Requires Redis; `rf-ratelimit` must be compiled with the `redis` feature flag
 
 ## Response Headers
 
@@ -250,35 +232,30 @@ async function fetchWithBackoff(url, maxRetries = 3) {
 ### 1. Prevent Brute Force Attacks
 
 ```rust
-// Limit login attempts
-let auth_config = RateLimitConfig::per_ip(5)  // 5 attempts per minute
-    .window(RateLimitWindow::custom(5, 300)); // 5 attempts per 5 minutes
+use rf_ratelimit::{RateLimitLayer, RateLimitConfig, MemoryRateLimiter};
+use std::{sync::Arc, time::Duration};
+
+// 5 attempts per 5 minutes
+let auth_layer = RateLimitLayer::new(Arc::new(
+    MemoryRateLimiter::new(RateLimitConfig::custom(5, Duration::from_secs(300)))
+));
 ```
 
 ### 2. API Rate Limiting
 
 ```rust
-// Different tiers for different users
-let free_tier_config = RateLimitConfig::per_user(100);      // 100/min
-let pro_tier_config = RateLimitConfig::per_user(1000);     // 1000/min
-let enterprise_config = RateLimitConfig::per_user(10000);  // 10000/min
+// Different tiers — differentiate by user via key_extractor
+let free_layer  = RateLimitLayer::new(Arc::new(MemoryRateLimiter::new(RateLimitConfig::per_minute(100))));
+let pro_layer   = RateLimitLayer::new(Arc::new(MemoryRateLimiter::new(RateLimitConfig::per_minute(1000))));
 ```
 
-### 3. DDoS Protection
+### 3. Resource-Intensive Operations
 
 ```rust
-// Aggressive rate limiting for public endpoints
-let config = RateLimitConfig::per_ip(30)
-    .window(RateLimitWindow::per_minute(30))
-    .whitelist_ip("trusted-service-ip".parse().unwrap());
-```
-
-### 4. Resource-Intensive Operations
-
-```rust
-// Limit expensive operations
-let export_config = RateLimitConfig::per_user(5)
-    .window(RateLimitWindow::per_hour(5));  // 5 exports per hour
+// 5 exports per hour
+let export_layer = RateLimitLayer::new(Arc::new(
+    MemoryRateLimiter::new(RateLimitConfig::per_hour(5))
+));
 ```
 
 ## Best Practices
@@ -331,9 +308,11 @@ Track:
 ```rust
 #[tokio::test]
 async fn test_rate_limiting() {
-    let storage = InMemoryRateLimitStorage::new();
-    let config = RateLimitConfig::per_ip(5);
-    let limiter = RateLimitMiddleware::new(storage, config);
+    use rf_ratelimit::{RateLimitLayer, RateLimitConfig, MemoryRateLimiter};
+    use std::sync::Arc;
+
+    let limiter = Arc::new(MemoryRateLimiter::new(RateLimitConfig::per_minute(5)));
+    let layer = RateLimitLayer::new(limiter);
 
     // Make 5 requests (should succeed)
     for _ in 0..5 {
@@ -363,10 +342,14 @@ async fn test_rate_limiting() {
 
 **Problem:** Each instance has its own limits
 
-**Solution:** Use Redis backend instead of in-memory:
+**Solution:** Use the Redis-backed limiter instead of in-memory:
 ```rust
-// Use shared Redis storage
-let storage = RedisRateLimitStorage::new("redis://localhost");
+use rf_ratelimit::{RedisRateLimiter, RateLimitConfig, RateLimitLayer};
+use std::sync::Arc;
+
+let layer = RateLimitLayer::new(Arc::new(
+    RedisRateLimiter::new("redis://localhost", RateLimitConfig::per_minute(60))
+));
 ```
 
 ### Wrong IP Being Used

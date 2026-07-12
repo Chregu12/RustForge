@@ -2,12 +2,12 @@
 
 ## Overview
 
-Foundry provides OAuth 2.0 integration for social authentication with Google, GitHub, Facebook, and other providers.
+RustForge provides OAuth 2.0 integration for social authentication with Google, GitHub, Facebook, and other providers.
 
 ## Quick Start
 
 ```rust
-use foundry_oauth::{OAuthClient, GoogleProvider, GithubProvider};
+use rf_oauth::{OAuthClient, GoogleProvider, GithubProvider};
 
 // Create OAuth client
 let mut oauth_client = OAuthClient::new();
@@ -106,7 +106,7 @@ oauth_client.register_provider(Box::new(
 
 ```rust
 use axum::{Router, response::Redirect, extract::{Query, State}};
-use foundry_oauth::OAuthClient;
+use rf_oauth::OAuthClient;
 use serde::Deserialize;
 
 #[derive(Deserialize)]
@@ -171,7 +171,7 @@ fn oauth_routes() -> Router {
 ### User Management
 
 ```rust
-use foundry_oauth::OAuthUser;
+use rf_oauth::OAuthUser;
 
 async fn find_or_create_oauth_user(oauth_user: &OAuthUser) -> Result<User, AppError> {
     // Try to find existing user by OAuth provider and ID

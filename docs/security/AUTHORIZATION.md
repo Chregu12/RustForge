@@ -2,7 +2,7 @@
 
 ## Overview
 
-Foundry provides two complementary authorization systems:
+RustForge provides two complementary authorization systems:
 - **Gates**: General ability checks (e.g., "can manage users")
 - **Policies**: Resource-specific permissions (e.g., "can edit this post")
 
@@ -11,7 +11,7 @@ Foundry provides two complementary authorization systems:
 ### Gates
 
 ```rust
-use foundry_application::auth::{Gate, AuthorizationError};
+use rf_application::auth::{Gate, AuthorizationError};
 
 // Define a gate
 Gate::define("manage-users", |args| {
@@ -31,7 +31,8 @@ Gate::authorize("manage-users", &user).await?;
 ### Policies
 
 ```rust
-use foundry_application::auth::{Policy, ResourcePolicy};
+use rf_application::auth::Policy;
+use rf_application::auth::authorization::ResourcePolicy;
 
 struct PostPolicy;
 
@@ -139,7 +140,7 @@ Gate::after(|args, result| {
 
 ```rust
 use axum::{extract::Path, http::StatusCode};
-use foundry_application::auth::{Gate, RequireAuth};
+use rf_application::auth::{Gate, RequireAuth};
 
 async fn delete_user(
     RequireAuth(current_user): RequireAuth,
@@ -164,7 +165,7 @@ async fn delete_user(
 Implement the `ResourcePolicy` trait for each model:
 
 ```rust
-use foundry_application::auth::ResourcePolicy;
+use rf_application::auth::authorization::ResourcePolicy;
 
 struct CommentPolicy;
 

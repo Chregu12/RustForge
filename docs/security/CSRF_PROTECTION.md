@@ -6,7 +6,7 @@ Cross-Site Request Forgery (CSRF) protection prevents malicious websites from ma
 
 ## How It Works
 
-CSRF protection in Foundry uses a token-based approach:
+CSRF protection in RustForge uses a token-based approach:
 1. Server generates a unique token for each session
 2. Token is embedded in forms or sent via headers
 3. Server validates the token on state-changing requests (POST, PUT, DELETE, PATCH)
@@ -18,7 +18,7 @@ CSRF protection in Foundry uses a token-based approach:
 Add the CSRF middleware to your application:
 
 ```rust
-use foundry_application::middleware::csrf::CsrfMiddleware;
+use rf_web::CsrfMiddleware;
 
 let csrf = CsrfMiddleware::new()
     .exempt("/api/*")        // Exempt API endpoints
@@ -61,7 +61,7 @@ fetch('/api/posts', {
 ### 3. Generate Tokens in Handlers
 
 ```rust
-use foundry_application::middleware::csrf::CsrfMiddleware;
+use rf_web::CsrfMiddleware;
 use axum::extract::State;
 
 async fn show_form(
@@ -84,7 +84,7 @@ async fn show_form(
 ### Custom Error Messages
 
 ```rust
-use foundry_application::middleware::csrf::CsrfConfig;
+use rf_web::CsrfConfig;
 
 let config = CsrfConfig::new()
     .error_message("CSRF validation failed. Please refresh and try again.")

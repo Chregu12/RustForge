@@ -50,16 +50,22 @@
 ## Generating a secure APP_KEY
 
 ```sh
-foundry key:generate
+openssl rand -base64 32
 ```
 
-This writes a `base64:`-prefixed 256-bit random key to `.env`. Never commit `.env` to version control.
+Copy the output and prefix it with `base64:` in `.env`:
+
+```env
+APP_KEY=base64:<output-of-command-above>
+```
+
+Never commit `.env` to version control.
 
 ## Reporting a vulnerability
 
-If you discover a security vulnerability in RustForge, **do not open a public GitHub issue**. Instead, email:
+If you discover a security vulnerability in RustForge, **do not open a public GitHub issue**.
 
-**christian.heusser@icloud.com**
+**Please use GitHub's private vulnerability reporting:** navigate to the repository's **Security** tab and click **"Report a vulnerability"** to open a GitHub Security Advisory. This keeps disclosure private until a patch is ready.
 
 Please include:
 - A description of the vulnerability and its impact

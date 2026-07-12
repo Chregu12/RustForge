@@ -2,7 +2,7 @@
 
 ## Overview
 
-This guide covers essential security practices for building secure applications with the Foundry framework.
+This guide covers essential security practices for building secure applications with RustForge.
 
 ---
 
@@ -32,10 +32,11 @@ fn validate_password(password: &str) -> Result<(), ValidationError> {
 
 ✅ **Use Argon2 or BCrypt for hashing:**
 ```rust
-use foundry_application::auth::PasswordHash;
+use rf_auth::PasswordHasher;
 
-// Foundry uses Argon2 by default
-let hash = PasswordHash::hash("user_password")?;
+// RustForge supports Argon2 and BCrypt
+let hasher = PasswordHasher::argon2()?;
+let hash = hasher.hash("user_password")?;
 ```
 
 ❌ **Never:**
@@ -60,16 +61,13 @@ Implement MFA for sensitive accounts:
 ### Secure Session Configuration
 
 ```rust
-use foundry_application::auth::{SessionStore, Session};
+use rf_application::auth::{Session, SessionStore};
 use std::time::Duration;
 
-// Production session configuration
-let session_store = RedisSessionStore::new("redis://localhost:6379")
-    .ttl(Duration::from_secs(3600))        // 1 hour
-    .cookie_name("__Host-session")         // Secure prefix
-    .cookie_secure(true)                   // HTTPS only
-    .cookie_http_only(true)                // No JavaScript access
-    .cookie_same_site(SameSite::Strict);   // CSRF protection
+// Session is managed via session_scope in rf-web.
+// For production (multi-instance), back the session store with Redis via rf-cache.
+// See rf-web::session_facade::session_scope for the in-process default,
+// and SECURITY.md for the residual risks of in-memory session storage.
 ```
 
 ### Session Security Best Practices
@@ -113,13 +111,15 @@ async fn login(session: &mut Session, user: User) -> Result<()> {
 ### Enable CSRF Middleware
 
 ```rust
-use foundry_application::middleware::csrf::CsrfMiddleware;
+use rf_web::CsrfMiddleware;
 
 let csrf = CsrfMiddleware::new()
     .exempt("/api/*")        // API endpoints with token auth
     .exempt("/webhooks/*");  // External webhooks
 
-app = app.layer(csrf.into_layer());
+app = app.layer(axum::middleware::from_fn(move |req, next| {
+    csrf.handle(req, next)
+}));
 ```
 
 ### In Forms
@@ -223,17 +223,18 @@ fn add_security_headers(mut response: Response) -> Response {
 ### Implement Rate Limiting
 
 ```rust
-use foundry_application::middleware::rate_limit::{RateLimitMiddleware, RateLimitConfig};
+use rf_ratelimit::{RateLimitLayer, RateLimitConfig, MemoryRateLimiter};
+use std::sync::Arc;
 
-// Prevent brute force on login
-let login_limiter = RateLimitMiddleware::in_memory(
-    RateLimitConfig::per_ip(5)  // 5 attempts per minute
-);
+// Prevent brute force on login (5 attempts per minute)
+let login_limiter = RateLimitLayer::new(Arc::new(
+    MemoryRateLimiter::new(RateLimitConfig::per_minute(5))
+));
 
-// API rate limiting
-let api_limiter = RateLimitMiddleware::in_memory(
-    RateLimitConfig::per_user(100)  // 100 requests per minute
-);
+// API rate limiting (100 requests per minute)
+let api_limiter = RateLimitLayer::new(Arc::new(
+    MemoryRateLimiter::new(RateLimitConfig::per_minute(100))
+));
 ```
 
 ---
@@ -344,7 +345,7 @@ app.route("/files/:id", get(serve_file));
 ### API Authentication
 
 ```rust
-use foundry_application::auth::middleware::jwt_auth_middleware;
+use rf_application::auth::middleware::jwt_auth_middleware;
 
 // Protect API routes with JWT
 let api_routes = Router::new()

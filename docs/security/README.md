@@ -1,6 +1,6 @@
 # Security Documentation
 
-Welcome to the Foundry Framework security documentation. This directory contains comprehensive guides for implementing and understanding security features.
+Welcome to the RustForge security documentation. This directory contains comprehensive guides for implementing and understanding security features.
 
 ## Quick Links
 
@@ -51,7 +51,7 @@ Welcome to the Foundry Framework security documentation. This directory contains
 
 ## Getting Started
 
-If you're new to Foundry security features, we recommend this learning path:
+If you're new to RustForge security features, we recommend this learning path:
 
 1. **Read:** [Security Best Practices](./SECURITY_BEST_PRACTICES.md)
 2. **Implement:** [CSRF Protection](./CSRF_PROTECTION.md)
@@ -67,7 +67,7 @@ If you're new to Foundry security features, we recommend this learning path:
 Protect against Cross-Site Request Forgery attacks:
 
 ```rust
-use foundry_application::middleware::csrf::CsrfMiddleware;
+use rf_web::CsrfMiddleware;
 
 let csrf = CsrfMiddleware::new()
     .exempt("/api/*")
@@ -81,11 +81,12 @@ let csrf = CsrfMiddleware::new()
 Prevent abuse and DDoS attacks:
 
 ```rust
-use foundry_application::middleware::rate_limit::{RateLimitMiddleware, RateLimitConfig};
+use rf_ratelimit::{RateLimitLayer, RateLimitConfig, MemoryRateLimiter};
+use std::sync::Arc;
 
-let limiter = RateLimitMiddleware::in_memory(
-    RateLimitConfig::per_ip(60)  // 60 requests per minute
-);
+let layer = RateLimitLayer::new(Arc::new(
+    MemoryRateLimiter::new(RateLimitConfig::per_minute(60))
+));
 ```
 
 **[Full Guide →](./RATE_LIMITING.md)**
@@ -186,8 +187,7 @@ For security-related questions:
 
 For security vulnerabilities:
 - DO NOT open a public issue
-- Email: security@foundry.rs (TODO: Setup security email)
-- Use GitHub Security Advisories
+- Use **GitHub Security Advisories**: go to the repository's **Security** tab and click **"Report a vulnerability"**
 
 ## Additional Resources
 
