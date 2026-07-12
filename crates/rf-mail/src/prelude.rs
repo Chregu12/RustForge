@@ -17,5 +17,8 @@ pub use crate:: backends::{MailgunConfig, MailgunMailer, MailgunRegion};
 pub use crate:: backends::{SendGridConfig, SendGridMailer};
 pub use crate:: backends::{SesConfig, SesMailer};
 pub use crate:: builder::MessageBuilder;
-pub use crate:: config::{Encryption, MailConfig, MailDriver, SendmailConfig, SmtpConfig as SmtpMailConfig};
+pub use crate::config::{Encryption, MailConfig, MailDriver, SendmailConfig, SmtpEnvConfig};
+// Deprecated alias kept for backward compatibility — prefer SmtpEnvConfig.
+#[allow(deprecated)]
+pub use crate::SmtpMailConfig;
 pub use crate:: error::{MailError, MailResult};

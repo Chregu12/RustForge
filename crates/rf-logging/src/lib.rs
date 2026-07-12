@@ -10,6 +10,31 @@
 
 pub mod facade;
 
+/// Error returned when [`init_logging`] fails (e.g., no output configured).
+///
+/// `LogInitError` is `Send + Sync + 'static` and implements
+/// [`std::error::Error`], so it composes with `?` in any async context that
+/// returns `anyhow::Result<()>` without needing `.map_err`.
+///
+/// ```rust,no_run
+/// use rf_logging::{init_logging, LogConfig};
+///
+/// # async fn run() -> anyhow::Result<()> {
+/// init_logging(LogConfig::default())?;   // direct `?` — no map_err needed
+/// # Ok(())
+/// # }
+/// ```
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LogInitError(pub String);
+
+impl std::fmt::Display for LogInitError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "logging init failed: {}", self.0)
+    }
+}
+
+impl std::error::Error for LogInitError {}
+
 pub use facade::Log;
 
 use serde::{Deserialize, Serialize};
@@ -75,8 +100,30 @@ pub enum LogFormat {
     Compact,
 }
 
-/// Initialize logging with configuration
-pub fn init_logging(config: LogConfig) -> Result<(), Box<dyn std::error::Error>> {
+/// Initialize logging with configuration.
+///
+/// # Error type
+///
+/// Returns `Result<(), LogInitError>`. [`LogInitError`] is `Send + Sync +
+/// 'static` and implements [`std::error::Error`], so the result is directly
+/// propagatable via `?` into any `async fn` returning `anyhow::Result<()>`
+/// or any `Result<_, E>` where `From<LogInitError> for E` exists — no manual
+/// `map_err` adaptor required.
+///
+/// Callers using `.expect()` or `.unwrap()` continue to work unchanged.
+///
+/// # Example
+///
+/// ```rust,no_run
+/// use rf_logging::{init_logging, LogConfig};
+///
+/// # async fn start() -> anyhow::Result<()> {
+/// // Direct `?` — no .map_err(|e| anyhow::anyhow!("{e}")) needed.
+/// init_logging(LogConfig::default())?;
+/// # Ok(())
+/// # }
+/// ```
+pub fn init_logging(config: LogConfig) -> Result<(), LogInitError> {
     let env_filter =
         EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(&config.level));
 
@@ -90,7 +137,9 @@ pub fn init_logging(config: LogConfig) -> Result<(), Box<dyn std::error::Error>>
     };
 
     if !config.stdout && config.file.is_none() && config.log_dir.is_none() {
-        return Err("No log output configured: stdout is disabled and no file/log_dir specified".into());
+        return Err(LogInitError(
+            "stdout is disabled and no file/log_dir specified".to_string(),
+        ));
     }
 
     match config.format {
@@ -294,6 +343,68 @@ mod tests {
         // This should not panic
         // Note: We can't actually test output without capturing stderr
         // In real tests, you'd use a test subscriber
+        let _ = config; // suppress unused warning
+    }
+
+    /// Prove that `init_logging` now returns a concrete `Send + Sync + 'static`
+    /// error type (`LogInitError`) that composes with `?` in an async function
+    /// returning `anyhow::Result<()>` — no `.map_err` required.
+    ///
+    /// Before this fix the return type was `Result<(), Box<dyn Error>>`.
+    /// `Box<dyn Error>` is NOT `Send + Sync`, so anyhow's blanket
+    /// `impl<E: Error + Send + Sync + 'static> From<E>` did not apply, and
+    /// callers had to write `.map_err(|e| anyhow::anyhow!("{e}"))`.
+    ///
+    /// After the fix the return type is `Result<(), LogInitError>` where
+    /// `LogInitError: Error + Send + Sync + 'static`.  Anyhow's blanket impl
+    /// now applies, so `?` compiles directly.
+    ///
+    /// The `if false` guard keeps the dead-code path type-checked without
+    /// calling `init_logging` at runtime (calling it twice panics because the
+    /// global tracing subscriber is already set by the test harness).
+    #[tokio::test]
+    async fn test_init_logging_error_composes_with_anyhow() -> anyhow::Result<()> {
+        // Dead at runtime but fully type-checked. The `?` operator here requires
+        // `From<LogInitError> for anyhow::Error`, which is satisfied because
+        // `LogInitError: Error + Send + Sync + 'static`. If the return type were
+        // still `Box<dyn Error>` (not Send+Sync), this line would not compile.
+        if false {
+            let _ = init_logging(LogConfig::default())?;
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn test_log_init_error_is_send_and_sync() {
+        // Assert Send + Sync bounds at compile time.
+        fn assert_send_sync<T: Send + Sync>() {}
+        assert_send_sync::<LogInitError>();
+    }
+
+    #[test]
+    fn test_log_init_error_display() {
+        let err = LogInitError("stdout is disabled and no file/log_dir specified".to_string());
+        let msg = err.to_string();
+        assert!(msg.contains("logging init failed"), "display: {msg}");
+        assert!(msg.contains("stdout is disabled"), "display: {msg}");
+    }
+
+    #[test]
+    fn test_init_logging_fails_when_no_output_configured() {
+        // With stdout=false and no file/log_dir, init_logging must return Err.
+        let config = LogConfig {
+            stdout: false,
+            file: None,
+            log_dir: None,
+            ..LogConfig::default()
+        };
+        let result = init_logging(config);
+        assert!(result.is_err(), "expected Err when no output is configured");
+        let err = result.unwrap_err();
+        assert!(
+            err.to_string().contains("stdout is disabled"),
+            "error message should mention stdout: {err}"
+        );
     }
 
     #[test]

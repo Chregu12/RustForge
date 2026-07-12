@@ -13,8 +13,13 @@ pub struct MailConfig {
     /// Default from address
     pub from: Address,
 
-    /// SMTP configuration (if using SMTP driver)
-    pub smtp: Option<SmtpConfig>,
+    /// SMTP environment/connection configuration (if using SMTP driver).
+    ///
+    /// This is the application-level config read from environment variables or a
+    /// config file (optional auth, encryption, timeout, STARTTLS). It is **not**
+    /// the struct you pass to [`crate::MailFacade::smtp`] — for that use
+    /// [`crate::SmtpConfig`] from `rf_mail::backends::smtp`.
+    pub smtp: Option<SmtpEnvConfig>,
 
     /// Sendmail configuration (if using Sendmail driver)
     pub sendmail: Option<SendmailConfig>,
@@ -36,7 +41,7 @@ impl MailConfig {
     }
 
     /// Create SMTP configuration
-    pub fn smtp(from: Address, smtp: SmtpConfig) -> Self {
+    pub fn smtp(from: Address, smtp: SmtpEnvConfig) -> Self {
         Self {
             driver: MailDriver::Smtp,
             from,
@@ -113,9 +118,22 @@ pub enum MailDriver {
     Memory,
 }
 
-/// SMTP server configuration
+/// Application-level SMTP connection configuration, typically loaded from
+/// environment variables or a config file.
+///
+/// This struct is used to configure `MailConfig::smtp()`; it carries optional
+/// auth credentials, encryption settings, timeout, and STARTTLS flags.
+///
+/// **Do not confuse this with [`crate::SmtpConfig`]** (re-exported from
+/// `rf_mail::backends::smtp`), which is the lower-level config that
+/// [`crate::facade::Mail::smtp`] and [`crate::SmtpMailer::new`] consume.
+///
+/// | Struct | Required by | Non-optional fields |
+/// |--------|-------------|---------------------|
+/// | `SmtpEnvConfig` (this) | `MailConfig::smtp()` | `host`, `port` only |
+/// | `SmtpConfig` (backends) | `Mail::smtp()` / `SmtpMailer::new()` | `username`, `password`, `from_address` |
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SmtpConfig {
+pub struct SmtpEnvConfig {
     /// SMTP server host
     pub host: String,
 
@@ -140,7 +158,16 @@ pub struct SmtpConfig {
     pub starttls: bool,
 }
 
-impl SmtpConfig {
+/// Deprecated alias for [`SmtpEnvConfig`].
+///
+/// Use `SmtpEnvConfig` for application-level SMTP connection settings (loaded
+/// from env vars / config files). For the backend-facing config used with
+/// [`crate::facade::Mail::smtp`] and [`crate::SmtpMailer`], use
+/// [`crate::SmtpConfig`] instead.
+#[deprecated(since = "1.0.0-rc.2", note = "Use SmtpEnvConfig for application-level SMTP config or SmtpConfig (from rf_mail::backends) for Mail::smtp() / SmtpMailer::new()")]
+pub type SmtpMailConfig = SmtpEnvConfig;
+
+impl SmtpEnvConfig {
     /// Create a new SMTP configuration
     pub fn new(host: impl Into<String>, port: u16) -> Self {
         Self {
@@ -280,8 +307,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_smtp_config() {
-        let config = SmtpConfig::new("smtp.example.com", 587)
+    fn test_smtp_env_config() {
+        let config = SmtpEnvConfig::new("smtp.example.com", 587)
             .with_credentials("user", "pass")
             .with_encryption(Encryption::StartTls);
 
@@ -292,19 +319,19 @@ mod tests {
     }
 
     #[test]
-    fn test_smtp_presets() {
-        let gmail = SmtpConfig::gmail("user@gmail.com", "password");
+    fn test_smtp_env_config_presets() {
+        let gmail = SmtpEnvConfig::gmail("user@gmail.com", "password");
         assert_eq!(gmail.host, "smtp.gmail.com");
         assert_eq!(gmail.port, 587);
 
-        let sendgrid = SmtpConfig::sendgrid("api_key");
+        let sendgrid = SmtpEnvConfig::sendgrid("api_key");
         assert_eq!(sendgrid.host, "smtp.sendgrid.net");
         assert_eq!(sendgrid.username, Some("apikey".into()));
     }
 
     #[test]
     fn test_mail_config() {
-        let smtp = SmtpConfig::new("localhost", 1025);
+        let smtp = SmtpEnvConfig::new("localhost", 1025);
         let config = MailConfig::smtp(Address::new("test@example.com"), smtp);
 
         assert_eq!(config.driver, MailDriver::Smtp);
@@ -328,7 +355,22 @@ mod tests {
         assert!(config.validate().is_err());
 
         // SMTP with config should pass
-        config.smtp = Some(SmtpConfig::new("localhost", 1025));
+        config.smtp = Some(SmtpEnvConfig::new("localhost", 1025));
         assert!(config.validate().is_ok());
+    }
+
+    /// Verify that the deprecated `SmtpMailConfig` alias still resolves to
+    /// `SmtpEnvConfig` so existing callers compiled against the old name continue
+    /// to work.
+    #[allow(deprecated)]
+    #[test]
+    fn test_smtp_mail_config_deprecated_alias_resolves() {
+        // `SmtpMailConfig` is a deprecated type alias for `SmtpEnvConfig`.
+        // Creating one and calling its constructor proves the alias is live.
+        let via_alias: SmtpMailConfig = SmtpEnvConfig::new("mail.example.com", 465)
+            .with_encryption(Encryption::Tls);
+        assert_eq!(via_alias.host, "mail.example.com");
+        assert_eq!(via_alias.port, 465);
+        assert_eq!(via_alias.encryption, Encryption::Tls);
     }
 }

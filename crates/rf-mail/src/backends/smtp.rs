@@ -9,7 +9,39 @@ use lettre::{
 };
 use serde::{Deserialize, Serialize};
 
-/// SMTP mailer configuration
+/// Backend-level SMTP transport configuration — the struct to pass to
+/// [`crate::facade::Mail::smtp`] and [`crate::SmtpMailer::new`].
+///
+/// All credential fields (`username`, `password`, `from_address`) are
+/// **required** and non-optional here, because the SMTP transport needs them
+/// before the first connection attempt.
+///
+/// **Do not confuse this with [`crate::SmtpEnvConfig`]** (from
+/// `rf_mail::config`), which is the application-level, environment-variable
+/// friendly config used with `MailConfig::smtp()` and has optional auth fields.
+///
+/// | Struct | Required by | Auth fields |
+/// |--------|-------------|-------------|
+/// | `SmtpConfig` (this) | `Mail::smtp()` / `SmtpMailer::new()` | non-optional |
+/// | `SmtpEnvConfig` | `MailConfig::smtp()` | `Option<String>` |
+///
+/// # Example
+///
+/// ```rust,no_run
+/// use rf_mail::{facade::Mail, SmtpConfig};
+///
+/// # fn example() -> rf_mail::MailResult<()> {
+/// Mail::smtp(SmtpConfig {
+///     host: "smtp.example.com".into(),
+///     port: 587,
+///     username: "user@example.com".into(),
+///     password: "secret".into(),
+///     from_address: "noreply@example.com".into(),
+///     from_name: Some("MyApp".into()),
+/// })?;
+/// # Ok(())
+/// # }
+/// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SmtpConfig {
     /// SMTP server host
@@ -189,6 +221,37 @@ fn convert_to_lettre(mail: &Mail) -> Result<LettreMessage, MailError> {
 mod tests {
     use super::*;
     use crate::{Address, Mail, MessageBuilder};
+
+    /// Prove that `SmtpConfig` (the backend-facing struct) is the correct type to
+    /// construct for `Mail::smtp()` / `SmtpMailer::new()`, and that it is distinct
+    /// from `SmtpEnvConfig` (the application-level env-var config).
+    ///
+    /// This test closes the gap flagged in the cycle-6 audit: previously two
+    /// structs with confusingly similar names were both re-exported from rf-mail
+    /// with no guidance on which to use.
+    #[test]
+    fn test_smtp_config_is_the_facade_config_not_smtp_env_config() {
+        // `SmtpConfig` has non-optional username/password/from_address fields —
+        // correct for `SmtpMailer::new()` and `Mail::smtp()`.
+        let cfg = SmtpConfig {
+            host: "smtp.example.com".into(),
+            port: 587,
+            username: "user@example.com".into(),
+            password: "s3cr3t".into(),
+            from_address: "noreply@example.com".into(),
+            from_name: Some("MyApp".into()),
+        };
+        assert_eq!(cfg.host, "smtp.example.com");
+        assert_eq!(cfg.username, "user@example.com");
+        assert_eq!(cfg.from_address, "noreply@example.com");
+
+        // `SmtpEnvConfig` has optional auth fields and is for `MailConfig::smtp()`.
+        let env_cfg = crate::config::SmtpEnvConfig::new("smtp.example.com", 587)
+            .with_credentials("user@example.com", "s3cr3t");
+        assert_eq!(env_cfg.host, "smtp.example.com");
+        assert_eq!(env_cfg.username, Some("user@example.com".into()));
+        // SmtpEnvConfig does NOT have `from_address` — it's application config, not transport config.
+    }
 
     #[test]
     fn test_convert_to_lettre() {

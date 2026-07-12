@@ -123,9 +123,11 @@ pub use backends::{SesConfig, SesMailer};
 
 pub use bridge::{AsyncBridge, BridgedMailer, BridgedSmtpMailer};
 pub use builder::MessageBuilder;
-pub use config::{
-    Encryption, MailConfig, MailDriver, SendmailConfig, SmtpConfig as SmtpMailConfig,
-};
+pub use config::{Encryption, MailConfig, MailDriver, SendmailConfig, SmtpEnvConfig};
+// `SmtpMailConfig` is a deprecated alias for `SmtpEnvConfig`. Re-exported here
+// for backward compatibility; prefer `SmtpEnvConfig` in new code.
+#[allow(deprecated)]
+pub use config::SmtpMailConfig;
 pub use error::{MailError, MailResult};
 pub use mail::{Mail, MailBody};
 pub use mail_builder::MailBuilder;
@@ -172,7 +174,10 @@ pub mod prelude {
     pub use crate::{SesConfig, SesMailer};
 
     // Config
-    pub use crate::{Encryption, SendmailConfig, SmtpMailConfig};
+    pub use crate::{Encryption, SendmailConfig, SmtpEnvConfig};
+    // Deprecated — use SmtpEnvConfig for application-level config or SmtpConfig for the facade/mailer.
+    #[allow(deprecated)]
+    pub use crate::SmtpMailConfig;
 
     // Common mailables
     pub use crate::mailables::{InvoiceMail, OrderShippedMail, PasswordResetEmail, WelcomeEmail};
