@@ -128,7 +128,7 @@ impl Mailer for SendmailMailer {
         let formatted = lettre_msg.formatted();
 
         self.transport
-            .send_raw(&envelope, &formatted)
+            .send_raw(envelope, &formatted)
             .map_err(|e| MailError::SendFailed(e.to_string()))?;
 
         tracing::info!(

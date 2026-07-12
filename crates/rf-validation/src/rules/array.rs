@@ -81,7 +81,7 @@ impl InRule {
 
     pub fn from_ints(values: Vec<i64>) -> Self {
         Self {
-            allowed: values.into_iter().map(|i| Value::from(i)).collect(),
+            allowed: values.into_iter().map(Value::from).collect(),
         }
     }
 }
@@ -168,7 +168,7 @@ impl NotInRule {
 
     pub fn from_ints(values: Vec<i64>) -> Self {
         Self {
-            forbidden: values.into_iter().map(|i| Value::from(i)).collect(),
+            forbidden: values.into_iter().map(Value::from).collect(),
         }
     }
 }

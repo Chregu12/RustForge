@@ -33,7 +33,7 @@ pub fn query_impl(input: TokenStream) -> TokenStream {
 fn transform_where(input: TokenStream2) -> TokenStream2 {
     input.into_iter().map(|token| {
         match token {
-            TokenTree::Ident(ident) if ident.to_string() == "where" => {
+            TokenTree::Ident(ident) if ident == "where" => {
                 // Replace `where` with `r#where`
                 TokenTree::Ident(Ident::new_raw("where", ident.span()))
             }

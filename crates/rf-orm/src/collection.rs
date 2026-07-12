@@ -63,6 +63,7 @@ impl<T> Collection<T> {
     }
 
     /// Create a collection from an iterator
+    #[allow(clippy::should_implement_trait)] // Intentional: ergonomic alias; std::FromIterator is also implemented separately
     pub fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
         Self {
             items: iter.into_iter().collect(),
@@ -563,7 +564,7 @@ impl<T> Collection<T> {
         let last_page = if total == 0 {
             1
         } else {
-            (total + per_page - 1) / per_page
+            total.div_ceil(per_page)
         };
         let offset = page.saturating_sub(1) * per_page;
         let items = if offset >= total {

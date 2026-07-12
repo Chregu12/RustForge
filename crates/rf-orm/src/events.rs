@@ -126,7 +126,7 @@ impl EventObserver {
         let mut observers = self.observers.lock().unwrap();
         observers
             .entry(model_name.to_string())
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(Box::new(callback));
     }
 

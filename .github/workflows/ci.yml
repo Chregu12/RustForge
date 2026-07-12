@@ -189,7 +189,9 @@ jobs:
         run: cargo build -p rf-sse
 
   # ===========================================
-  # Admin & Monitoring
+  # Admin & Monitoring (stable crates only)
+  # rf-nova and rf-telescope are EXPERIMENTAL — they live in the
+  # separate `experimental` job below.
   # ===========================================
   admin:
     name: "📊 Admin & Monitoring"
@@ -199,10 +201,6 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
 
-      - name: rf-nova
-        run: cargo build -p rf-nova
-      - name: rf-telescope
-        run: cargo build -p rf-telescope
       - name: rf-health
         run: cargo build -p rf-health
       - name: rf-metrics
@@ -269,8 +267,7 @@ jobs:
         run: cargo build -p rf-blade
       - name: rf-views
         run: cargo build -p rf-views
-      - name: rf-vite
-        run: cargo build -p rf-vite
+      # rf-vite is EXPERIMENTAL — it lives in the separate `experimental` job
       - name: rf-assets
         run: cargo build -p rf-assets
 
@@ -363,6 +360,48 @@ jobs:
         run: cargo build -p rf-application
 
   # ===========================================
+  # Experimental Crates (NON-BLOCKING — excluded from 1.0 stability guarantee)
+  # ===========================================
+  #
+  # These crates are feature-gated and NOT part of the 1.0 public API:
+  #   rf-nova / rf-nova-macros  — Nova multi-resource admin UI dispatch
+  #   rf-swagger                — utoipa/OpenAPI integration
+  #   rf-telescope              — debugging dashboard
+  #   rf-cms                    — CMS features
+  #   rf-breeze                 — auth scaffolding generator
+  #   rf-vite                   — Vite asset pipeline
+  #   rf-livereload             — live-reload / HMR
+  #
+  # Failures here do NOT block any other job and do NOT block merging.
+  # They are visible as a separate "informational" job so regressions are
+  # noticed without creating false red CI on the stable surface.
+  experimental:
+    name: "🧪 Experimental (non-blocking, excluded from 1.0)"
+    runs-on: ubuntu-latest
+    continue-on-error: true  # Experimental crates are not 1.0 — failures are informational only
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: rf-nova
+        run: cargo build -p rf-nova
+      - name: rf-nova-macros
+        run: cargo build -p rf-nova-macros
+      - name: rf-swagger
+        run: cargo build -p rf-swagger
+      - name: rf-telescope
+        run: cargo build -p rf-telescope
+      - name: rf-cms
+        run: cargo build -p rf-cms
+      - name: rf-breeze
+        run: cargo build -p rf-breeze
+      - name: rf-vite
+        run: cargo build -p rf-vite
+      - name: rf-livereload
+        run: cargo build -p rf-livereload
+
+  # ===========================================
   # Full Workspace Test Suite (enforced — no || true, no continue-on-error)
   # ===========================================
   #
@@ -428,6 +467,29 @@ jobs:
         run: cargo check --workspace
         env:
           RUSTFLAGS: "-Dwarnings"
+
+      # Clippy gate: stable public surface with -D warnings.
+      # Covers the crates that form the 1.0 public API contract.
+      # Pre-existing lints were fixed in this cycle; any new lint introduced
+      # on these crates now fails CI immediately.
+      - name: cargo clippy — stable surface (-D warnings)
+        run: |
+          cargo clippy \
+            -p rf-config \
+            -p rf-core \
+            -p rf-web \
+            -p rf-request \
+            -p rf-response \
+            -p rf-validation \
+            -p rf-orm \
+            -p rf-eloquent \
+            -p rf-auth \
+            -p rf-cache \
+            -p rf-queue \
+            -p rf-mail \
+            -p rf-storage \
+            -p rf-facades \
+            -- -D warnings
 
       - name: rf-validation lib tests
         run: cargo test -p rf-validation --lib

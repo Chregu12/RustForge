@@ -79,7 +79,7 @@ impl Attachment {
 
 /// Guess content type from filename extension
 fn guess_content_type(filename: &str) -> String {
-    let extension = filename.split('.').last().unwrap_or("").to_lowercase();
+    let extension = filename.split('.').next_back().unwrap_or("").to_lowercase();
 
     match extension.as_str() {
         "pdf" => "application/pdf",

@@ -181,7 +181,7 @@ impl ResponseBuilder {
 
     /// Build the response
     pub fn build(self) -> AxumResponse {
-        let mut response = AxumResponse::new(self.body.unwrap_or_else(|| Body::empty()));
+        let mut response = AxumResponse::new(self.body.unwrap_or_else(Body::empty));
         *response.status_mut() = self.status;
         *response.headers_mut() = self.headers;
 

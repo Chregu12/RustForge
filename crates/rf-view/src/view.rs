@@ -116,8 +116,8 @@ impl View {
     ///     .with("posts", json!([]));
     /// ```
     pub fn with<T: Serialize>(mut self, key: impl Into<String>, value: T) -> Self {
-        let value = serde_json::to_value(value).unwrap_or_else(|_| json!(null));
-        self.data.insert(&key.into(), &value);
+        let value = serde_json::to_value(value).unwrap_or(serde_json::Value::Null);
+        self.data.insert(key.into(), &value);
         self
     }
 

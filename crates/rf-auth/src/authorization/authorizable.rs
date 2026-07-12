@@ -82,7 +82,7 @@ pub trait Authorizable: Sized + Send + Sync + 'static {
         let policy_opt = {
             let registry = global_registry().lock().unwrap();
             let type_id = TypeId::of::<R>();
-            registry.policies.get(&type_id).map(|arc| Arc::clone(arc))
+            registry.policies.get(&type_id).map(Arc::clone)
         };
 
         if let Some(policy_arc_any) = policy_opt {
@@ -186,7 +186,7 @@ pub trait Authorizable: Sized + Send + Sync + 'static {
         let policy_opt = {
             let registry = global_registry().lock().unwrap();
             let type_id = TypeId::of::<R>();
-            registry.policies.get(&type_id).map(|arc| Arc::clone(arc))
+            registry.policies.get(&type_id).map(Arc::clone)
         };
 
         if let Some(policy_arc_any) = policy_opt {

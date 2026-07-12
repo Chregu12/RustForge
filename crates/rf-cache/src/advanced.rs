@@ -175,7 +175,7 @@ mod rand {
     use std::cell::Cell;
 
     thread_local! {
-        static STATE: Cell<u64> = Cell::new(1);
+        static STATE: Cell<u64> = const { Cell::new(1) };
     }
 
     pub fn random() -> f64 {

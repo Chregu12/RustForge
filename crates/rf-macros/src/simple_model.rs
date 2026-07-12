@@ -657,6 +657,7 @@ pub fn simple_model_impl(input: TokenStream) -> TokenStream {
     }
 }
 
+#[allow(clippy::too_many_arguments)] // Macro generator: all args are independent model configuration knobs
 fn generate_full_model(
     name: Ident,
     table: Option<String>,
@@ -896,14 +897,14 @@ fn generate_full_model(
     // (`load_<name>_for`) generated further below alongside the plural accessors.
     let model_name_lower = to_snake_case(&name.to_string());
 
-    let relation_field_defs: Vec<TokenStream2> = relationships.iter().filter_map(|rel| {
+    let relation_field_defs: Vec<TokenStream2> = relationships.iter().map(|rel| {
         let field_name = &rel.name;
         let related_type = &rel.related;
         match rel.rel_type {
-            RelationType::BelongsTo | RelationType::HasOne => Some(quote! {
+            RelationType::BelongsTo | RelationType::HasOne => quote! {
                 #[serde(default, skip_serializing_if = "Option::is_none")]
                 pub #field_name: ::std::option::Option<#related_type>
-            }),
+            },
             // Eager plural relation FIELD: a populated `Vec<Child>` (default empty
             // vec, `serde(default)` so it deserializes from rows lacking the key
             // AND keeps `Default` derivable). Populated by the `load_<name>_for`
@@ -914,22 +915,22 @@ fn generate_full_model(
             // deserializes from rows lacking the key AND keeps `Default`
             // derivable) — the difference is purely how it is loaded (via the
             // pivot), not how it is stored.
-            RelationType::HasMany | RelationType::BelongsToMany => Some(quote! {
+            RelationType::HasMany | RelationType::BelongsToMany => quote! {
                 #[serde(default)]
                 pub #field_name: ::std::vec::Vec<#related_type>
-            }),
+            },
         }
     }).collect();
 
-    let relation_field_defaults: Vec<TokenStream2> = relationships.iter().filter_map(|rel| {
+    let relation_field_defaults: Vec<TokenStream2> = relationships.iter().map(|rel| {
         let field_name = &rel.name;
         match rel.rel_type {
-            RelationType::BelongsTo | RelationType::HasOne => Some(quote! {
+            RelationType::BelongsTo | RelationType::HasOne => quote! {
                 #field_name: ::std::option::Option::None
-            }),
-            RelationType::HasMany | RelationType::BelongsToMany => Some(quote! {
+            },
+            RelationType::HasMany | RelationType::BelongsToMany => quote! {
                 #field_name: ::std::vec::Vec::new()
-            }),
+            },
         }
     }).collect();
 
@@ -1242,7 +1243,7 @@ fn generate_full_model(
                 // snake-cased, sorted, joined by `_` (Laravel convention).
                 let pivot_table = rel.pivot_table.clone()
                     .unwrap_or_else(|| {
-                        let mut names = vec![model_name_lower.clone(), to_snake_case(&related_type.to_string())];
+                        let mut names = [model_name_lower.clone(), to_snake_case(&related_type.to_string())];
                         names.sort();
                         names.join("_")
                     });
@@ -1417,7 +1418,7 @@ fn generate_full_model(
     // belongsToMany) generates a field-populating loader, so all are
     // dispatchable. Unknown names are a clean error naming the offending
     // relation, matching Laravel's "call to undefined relationship".
-    let with_relations_arms: Vec<TokenStream2> = relationships.iter().filter_map(|rel| {
+    let with_relations_arms: Vec<TokenStream2> = relationships.iter().map(|rel| {
         match rel.rel_type {
             // Every eager relation FAMILY now generates a field-populating
             // `load_<name>_for` batch loader (belongsTo / hasOne / hasMany
@@ -1430,9 +1431,9 @@ fn generate_full_model(
             | RelationType::BelongsToMany => {
                 let name_str = rel.name.to_string();
                 let loader = syn::Ident::new(&format!("load_{}_for", rel.name), rel.name.span());
-                Some(quote! {
+                quote! {
                     #name_str => { Self::#loader(rows).await?; }
-                })
+                }
             }
         }
     }).collect();

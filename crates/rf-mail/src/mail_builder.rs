@@ -333,7 +333,7 @@ impl MailBuilder {
         };
 
         // Validate before returning
-        mail.validate().map_err(|e| MailError::InvalidMessage(e))?;
+        mail.validate().map_err(MailError::InvalidMessage)?;
 
         Ok(mail)
     }

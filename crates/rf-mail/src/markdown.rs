@@ -218,7 +218,6 @@ fn process_tables(markdown: &str) -> Result<String, MailError> {
 }
 
 /// Helper functions for creating components programmatically
-
 /// Create a button component
 pub fn button(text: &str, url: &str) -> String {
     format!("@button({})\n{}\n@endbutton", url, text)
@@ -239,7 +238,7 @@ pub fn table(headers: Vec<&str>, rows: Vec<Vec<&str>>) -> String {
     md.push_str(" |\n");
 
     // Separator
-    md.push_str("|");
+    md.push('|');
     for _ in &headers {
         md.push_str("---|");
     }

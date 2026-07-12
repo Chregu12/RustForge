@@ -414,7 +414,7 @@ where
 
     // Group the related rows by their parent's primary-key value.
     let mut grouped: HashMap<i64, Vec<R::Model>> = HashMap::new();
-    for (model, children) in models.iter().zip(related.into_iter()) {
+    for (model, children) in models.iter().zip(related) {
         if let Some(id) = primary_key_i64::<E>(model) {
             grouped.entry(id).or_default().extend(children);
         }

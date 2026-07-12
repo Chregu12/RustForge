@@ -307,8 +307,8 @@ where
 /// # Ok(())
 /// # }
 /// ```
-pub async fn has_many_through<'a, T, I>(
-    db: &'a DatabaseConnection,
+pub async fn has_many_through<T, I>(
+    db: &DatabaseConnection,
     parent_id: i64,
     first_key: &str,
     second_key: &str,

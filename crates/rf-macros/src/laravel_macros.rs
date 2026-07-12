@@ -493,7 +493,7 @@ impl Parse for MigrationInput {
 
         if input.peek(Ident) {
             let lookahead: Ident = input.fork().parse()?;
-            if lookahead.to_string() == "create_table" {
+            if lookahead == "create_table" {
                 input.parse::<Ident>()?; // consume "create_table"
                 let table_name: Ident = input.parse()?;
 
@@ -631,7 +631,7 @@ pub fn model_impl(input: TokenStream) -> TokenStream {
                 foreign_key,
             } => {
                 let method_name = Ident::new(
-                    &format!("{}", rel_model.to_string().to_lowercase()),
+                    &rel_model.to_string().to_lowercase(),
                     proc_macro2::Span::call_site(),
                 );
                 quote! {
@@ -982,7 +982,7 @@ impl Parse for RequestInput {
                 } else if content.peek(Token![|]) {
                     content.parse::<Token![|]>()?;
                     let opt: Ident = content.parse()?;
-                    if opt.to_string() == "optional" {
+                    if opt == "optional" {
                         validations.push(ValidationRule::Optional);
                     }
                     break;

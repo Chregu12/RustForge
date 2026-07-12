@@ -266,6 +266,7 @@ impl<'a> OptimizedEagerLoader<'a> {
     }
 
     /// Load a single relation with optimizations
+    #[allow(clippy::extra_unused_type_parameters)] // R was planned for future type-safe dispatch; removing it is a larger refactor
     async fn load_relation_optimized<M, R>(
         &self,
         models: &mut [M],
@@ -457,7 +458,7 @@ impl BufferPool {
         // Clear buffer but keep capacity
         buffer.clear();
 
-        let mut pool = self.pools.entry(capacity).or_insert_with(Vec::new);
+        let mut pool = self.pools.entry(capacity).or_default();
 
         if pool.len() < self.max_pool_size {
             pool.push(buffer);
@@ -493,7 +494,7 @@ impl QueryConsolidator {
     /// Add a query to be consolidated
     pub fn add_query(&self, table: String, id: String) {
         let mut pending = self.pending_queries.lock();
-        pending.entry(table).or_insert_with(Vec::new).push(id);
+        pending.entry(table).or_default().push(id);
     }
 
     /// Flush and execute consolidated queries

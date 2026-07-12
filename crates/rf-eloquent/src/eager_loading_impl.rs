@@ -74,7 +74,7 @@ impl<'a> ConcreteEagerLoader<'a> {
             .filter(foreign_key_column.is_in(values))
             .all(self.db)
             .await
-            .map_err(|e| EagerLoadError::DatabaseError(e))?;
+            .map_err(EagerLoadError::DatabaseError)?;
 
         tracing::debug!(
             "Loaded {} related models in single query (prevented {} additional queries)",
@@ -117,7 +117,7 @@ impl<'a> ConcreteEagerLoader<'a> {
             .filter(primary_key_column.is_in(values))
             .all(self.db)
             .await
-            .map_err(|e| EagerLoadError::DatabaseError(e))?;
+            .map_err(EagerLoadError::DatabaseError)?;
 
         tracing::debug!(
             "Loaded {} related models in single query",
@@ -185,7 +185,7 @@ impl<'a> ConcreteEagerLoader<'a> {
             .filter(foreign_pivot_key.is_in(parent_values.clone()))
             .all(self.db)
             .await
-            .map_err(|e| EagerLoadError::DatabaseError(e))?;
+            .map_err(EagerLoadError::DatabaseError)?;
 
         if pivot_rows.is_empty() {
             return Ok(HashMap::new());
@@ -220,7 +220,7 @@ impl<'a> ConcreteEagerLoader<'a> {
             .into_model::<M>()
             .all(self.db)
             .await
-            .map_err(|e| EagerLoadError::DatabaseError(e))?;
+            .map_err(EagerLoadError::DatabaseError)?;
 
         tracing::debug!(
             "Loaded {} related models in single query (prevented {} additional queries)",
@@ -257,7 +257,7 @@ where
 
     /// Add a model to a group
     pub fn add(&mut self, key: K, model: M) {
-        self.groups.entry(key).or_insert_with(Vec::new).push(model);
+        self.groups.entry(key).or_default().push(model);
     }
 
     /// Get all models for a key

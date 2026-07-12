@@ -82,7 +82,7 @@ fn transform_blade_tokens(input: TokenStream2) -> TokenStream2 {
                         "else" => {
                             // Check for @else if or just @else
                             if let Some(TokenTree::Ident(next)) = iter.peek() {
-                                if next.to_string() == "if" {
+                                if next == "if" {
                                     iter.next(); // consume "if"
                                     let condition = collect_until_brace(&mut iter);
                                     if let Some(TokenTree::Group(body)) = iter.next() {
@@ -115,7 +115,7 @@ fn transform_blade_tokens(input: TokenStream2) -> TokenStream2 {
                             let loop_var = collect_until_in(&mut iter);
                             // Skip "in"
                             if let Some(TokenTree::Ident(in_kw)) = iter.next() {
-                                if in_kw.to_string() == "in" {
+                                if in_kw == "in" {
                                     let collection = collect_until_brace(&mut iter);
                                     if let Some(TokenTree::Group(body)) = iter.next() {
                                         let body_transformed = transform_blade_tokens(body.stream());
@@ -373,7 +373,7 @@ fn transform_blade_tokens(input: TokenStream2) -> TokenStream2 {
             TokenTree::Punct(p) if p.as_char() == '<' => {
                 // Collect until > to form HTML tag
                 let mut tag_content = String::from("<");
-                while let Some(next) = iter.next() {
+                for next in iter.by_ref() {
                     match &next {
                         TokenTree::Punct(p) if p.as_char() == '>' => {
                             tag_content.push('>');
@@ -414,7 +414,7 @@ fn collect_until_brace(iter: &mut std::iter::Peekable<impl Iterator<Item = Token
 fn collect_until_in(iter: &mut std::iter::Peekable<impl Iterator<Item = TokenTree>>) -> TokenStream2 {
     let mut tokens = TokenStream2::new();
     while let Some(token) = iter.peek() {
-        if matches!(token, TokenTree::Ident(i) if i.to_string() == "in") {
+        if matches!(token, TokenTree::Ident(i) if i == "in") {
             break;
         }
         tokens.extend(iter.next());

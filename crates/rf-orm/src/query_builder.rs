@@ -1014,11 +1014,11 @@ where
             let mut chunk_query = Self::from_select(self.select.clone(), db.clone());
 
             if let Some(id) = last_id {
-                chunk_query = chunk_query.where_gt(id_column.clone(), id);
+                chunk_query = chunk_query.where_gt(id_column, id);
             }
 
             chunk_query = chunk_query
-                .order_by_asc(id_column.clone())
+                .order_by_asc(id_column)
                 .limit(chunk_size);
 
             let chunk = chunk_query.get().await?;

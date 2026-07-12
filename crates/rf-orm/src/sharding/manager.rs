@@ -252,7 +252,7 @@ impl ShardManager {
         }
 
         let mut results = Vec::new();
-        for (_name, shard) in &self.shards {
+        for shard in self.shards.values() {
             let result = f(shard.as_ref()).await?;
             results.push(result);
         }

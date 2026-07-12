@@ -431,7 +431,7 @@ fn transform_where_tokens(input: TokenStream) -> TokenStream {
     fn transform(stream: TokenStream2) -> TokenStream2 {
         stream.into_iter().map(|token| {
             match token {
-                TokenTree::Ident(ident) if ident.to_string() == "where" => {
+                TokenTree::Ident(ident) if ident == "where" => {
                     // Check if it's likely a method call (preceded by . or ::)
                     // We transform all `where` to `r#where` - Rust will error if misused
                     TokenTree::Ident(Ident::new_raw("where", ident.span()))

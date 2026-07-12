@@ -228,7 +228,7 @@ impl EagerLoader {
     /// Load relationships for a collection of models
     pub async fn load<M>(
         &self,
-        models: &mut Vec<M>,
+        models: &mut [M],
         relations: &[EagerLoadRelation],
     ) -> EagerLoadResult<()>
     where
@@ -244,7 +244,7 @@ impl EagerLoader {
     /// This is a generic implementation that requires models to implement EagerLoadable trait
     async fn load_relation<M>(
         &self,
-        models: &mut Vec<M>,
+        models: &mut [M],
         relation: &EagerLoadRelation,
     ) -> EagerLoadResult<()>
     where
@@ -375,25 +375,13 @@ impl Default for RelationshipCache {
 }
 
 /// Statistics for eager loading performance
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct EagerLoadStats {
     pub relations_loaded: usize,
     pub models_loaded: usize,
     pub queries_executed: usize,
     pub cache_hits: usize,
     pub cache_misses: usize,
-}
-
-impl Default for EagerLoadStats {
-    fn default() -> Self {
-        Self {
-            relations_loaded: 0,
-            models_loaded: 0,
-            queries_executed: 0,
-            cache_hits: 0,
-            cache_misses: 0,
-        }
-    }
 }
 
 impl EagerLoadStats {
