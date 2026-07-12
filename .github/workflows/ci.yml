@@ -457,7 +457,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      # Pin to the repo's rust-toolchain.toml version (1.96.0) AND install clippy
+      # for it — otherwise rust-toolchain.toml overrides @stable to 1.96.0 at cargo
+      # invocation time and `cargo clippy` fails ("clippy not installed for 1.96.0").
+      - uses: dtolnay/rust-toolchain@1.96.0
+        with:
+          components: clippy
       - uses: Swatinem/rust-cache@v2
 
       # -Dwarnings is scoped to the library check only: the workspace must build
