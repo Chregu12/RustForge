@@ -4,15 +4,19 @@
 
 RustForge is a full-stack web framework for Rust with a two-layer architecture:
 
+- **Laravel-style DX layer** — `Model!`, `validate!`, argument-less handlers using
+  `input()`/`file()`/`has()` globals, and the `Auth`/`Cache`/`Mail`/`Storage`/`Queue`
+  facades. This is the framework's identity and the default you write — Laravel-familiar
+  ergonomics with native-Rust performance. Some correctness surfaces at runtime
+  (documented caveats), not compile time.
 - **Explicit Rust-native core** — typed extractors, an explicit `Request` struct,
-  `Result`-returning handlers. Always available, compile-time safe, no middleware
-  dependencies. The recommended default.
-- **Laravel-style DX layer** — argument-less handlers using `input()`/`file()`/`has()`
-  globals, `SessionFacade`, facades. Opt-in via middleware. Trades some compile-time
-  guarantees for Laravel ergonomics. See [docs/API_PHILOSOPHY.md](docs/API_PHILOSOPHY.md).
+  `Result`-returning handlers. The honest foundation and escape-hatch beneath the DX
+  layer: always available, compile-time safe, no middleware dependency. Drop to it for
+  full strictness or outside a request scope (tests, CLI, jobs).
 
-Both layers coexist in the same router. Use the explicit core for library and test
-code; reach for the DX layer when you want familiar Laravel-style handler brevity.
+Both layers coexist in the same router. Write the DX layer by default; fall back to the
+explicit core when you want Rust's full compile-time guarantees.
+See [docs/API_PHILOSOPHY.md](docs/API_PHILOSOPHY.md).
 
 Its four design pillars are:
 
@@ -334,8 +338,8 @@ Read these before you build.
 
 ## Documentation
 
-- **[API Philosophy](docs/API_PHILOSOPHY.md)** — the two-layer design (explicit
-  Rust-native core vs. Laravel-style DX convenience), honest trade-offs, and when to
+- **[API Philosophy](docs/API_PHILOSOPHY.md)** — the two-layer design (Laravel-style DX
+  as the default identity, explicit Rust-native core as the foundation), trade-offs, and when to
   use each.
 - **[Getting Started](docs/GETTING_STARTED.md)** — 5-minute quickstart, full REST
   resource example, validated-DTO pattern, and a detailed Done/Partial/Deferred
