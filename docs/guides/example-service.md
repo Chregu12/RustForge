@@ -1,6 +1,6 @@
 # Beispiel-Service: Account-Verwaltung
 
-Dieses Beispiel demonstriert, wie Sie mit Foundry in wenigen Schritten einen vollständigen Account-Service aufsetzen – inklusive Domain-Modell, Migration, Seed-Daten und HTTP-Endpunkt.
+Dieses Beispiel demonstriert, wie Sie mit RustForge in wenigen Schritten einen vollständigen Account-Service aufsetzen – inklusive Domain-Modell, Migration, Seed-Daten und HTTP-Endpunkt.
 
 ## 1. Domain-Modell & Migration scaffolden
 ```bash
@@ -65,6 +65,6 @@ cargo run -p foundry-cli -- serve --addr 127.0.0.1:8080
 - Seeds erweitern, um Demo-Daten vorzubereiten
 - `make:migration` für weitere Tabellen nutzen
 - Middleware-Guards (`make:middleware`) in `app/http/middleware` ablegen und im Server via `with_middleware` aktivieren
-- Eigene Generatoren über `foundry-plugins` implementieren
+- Eigene Generatoren über `rf-plugins` implementieren
 
 Mit diesen Bausteinen steht ein funktionsfähiges Grundgerüst bereit, das deterministische Migrationen/Seeds, generierte Module und ein vollständiges Audit-Log umfasst.

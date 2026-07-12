@@ -6,12 +6,12 @@ This guide covers migrating from in-memory backends to production-ready Redis ba
 
 RustForge provides two production-ready backend systems:
 
-1. **Cache System** (`foundry-cache`)
+1. **Cache System** (`rf-cache`)
    - In-Memory (development)
    - Redis (production) ✅
    - File-based
 
-2. **Queue System** (`foundry-queue`)
+2. **Queue System** (`rf-queue`)
    - In-Memory (development)
    - Redis (production) ✅
 
@@ -116,35 +116,33 @@ REDIS_URL=redis://node1:6379,redis://node2:6379,redis://node3:6379
 #### Before (Development)
 
 ```rust
-use foundry_cache::prelude::*;
+use rf_cache::prelude::*;
 
 // In-memory cache (data lost on restart)
-let cache = MemoryStore::new();
+let cache = MemoryCache::new();
 ```
 
 #### After (Production)
 
 ```rust
-use foundry_cache::prelude::*;
+use rf_cache::RedisCache;
 
 // Redis cache (persistent, shared across instances)
-let cache = RedisStore::from_env()?;
-
-// Or with explicit configuration
-let cache = RedisStore::new("redis://127.0.0.1:6379")?;
+let cache = RedisCache::new("redis://127.0.0.1:6379", "myapp").await?;
 ```
 
-#### Using CacheManager (Recommended)
+#### Using the Cache Facade
 
 ```rust
-use foundry_cache::prelude::*;
+use rf_cache::prelude::*;
 
-// Automatically selects backend based on CACHE_DRIVER env var
-let cache = CacheManager::from_env()?;
+// Via the facade (uses the global GLOBAL_CACHE instance — MemoryCache by default)
+// For Redis in production, create a RedisCache instance explicitly:
+let redis_cache = RedisCache::new(&redis_url, "myapp").await?;
 
-// Works the same regardless of backend
-cache.set("key", &value, Some(Duration::from_secs(3600))).await?;
-let value: Option<String> = cache.get("key").await?;
+// Both MemoryCache and RedisCache implement the Cache trait
+redis_cache.set("key", &value, Some(Duration::from_secs(3600))).await?;
+let value: Option<String> = redis_cache.get("key").await?;
 ```
 
 ### Cache Features in Redis
@@ -195,37 +193,51 @@ cache.set_many(vec![
 #### Before (Development)
 
 ```rust
-use foundry_infra::InMemoryQueue;
+use rf_queue::MemoryQueue;
+use std::sync::Arc;
 
 // In-memory queue (jobs lost on restart)
-let queue = Arc::new(InMemoryQueue::default());
+let queue: Arc<dyn Queue> = Arc::new(MemoryQueue::new());
 ```
 
 #### After (Production)
 
 ```rust
-use foundry_infra::RedisQueue;
+use rf_queue::RedisQueue;
+use std::sync::Arc;
 
 // Redis queue (persistent, distributed)
-let queue = Arc::new(RedisQueue::from_env()?);
+let queue: Arc<dyn Queue> = Arc::new(
+    RedisQueue::new("redis://127.0.0.1:6379", "myapp").await?
+);
 ```
 
-#### Using QueueManager (Recommended)
+#### Dispatching Jobs
 
 ```rust
-use foundry_queue::prelude::*;
+use rf_queue::{Job, dispatch};
 
-// Automatically selects backend based on QUEUE_DRIVER env var
-let queue = QueueManager::from_env()?;
+// Define a job
+#[derive(serde::Serialize, serde::Deserialize)]
+struct SendEmailJob {
+    to: String,
+    subject: String,
+}
 
-// Dispatch jobs
-let job = Job::new("send_email")
-    .with_payload(json!({
-        "to": "user@example.com",
-        "subject": "Welcome!"
-    }));
+impl Job for SendEmailJob {
+    const JOB_TYPE: &'static str = "send_email";
+    async fn handle(self) -> anyhow::Result<()> {
+        // send email logic
+        Ok(())
+    }
+}
 
-queue.dispatch(job).await?;
+// Dispatch onto the queue
+let job = SendEmailJob {
+    to: "user@example.com".into(),
+    subject: "Welcome!".into(),
+};
+job.dispatch(&*queue).await?;
 ```
 
 ### Queue Features in Redis
@@ -264,62 +276,53 @@ queue.dispatch(report_job).await?;
 #### 4. Worker Process
 
 ```rust
-use foundry_queue::prelude::*;
-use foundry_queue::worker::WorkerConfig;
+use rf_queue::{Worker, MemoryQueue, RedisQueue, Queue};
+use std::sync::Arc;
 
-// Configure worker
-let config = WorkerConfig {
-    queues: vec!["emails".to_string(), "reports".to_string()],
-    max_retries: 3,
-    sleep_duration: Duration::from_secs(1),
-    ..Default::default()
-};
+// Create queue (use RedisQueue for production)
+let queue: Arc<dyn Queue> = Arc::new(
+    RedisQueue::new("redis://127.0.0.1:6379", "myapp").await?
+);
 
-// Create and run worker
-let worker = Worker::with_config(queue.clone(), config);
-let stats = worker.run().await?;
+// Build a worker, register typed job handlers, then run
+let worker = Worker::new(queue.clone())
+    .concurrency(4)                                      // process 4 jobs in parallel
+    .queues(vec!["emails".into(), "reports".into()])     // queues to drain
+    .register::<SendEmailJob>();
 
-println!("Processed: {}, Failed: {}", stats.processed, stats.failed);
+worker.run_until_stopped().await?;
 ```
 
-#### 5. Custom Job Handlers
+#### 5. Typed Job Implementation
 
 ```rust
-use async_trait::async_trait;
-use foundry_queue::worker::JobHandler;
+use rf_queue::Job;
 
-struct EmailHandler {
-    smtp_config: SmtpConfig,
+#[derive(serde::Serialize, serde::Deserialize)]
+struct SendEmailJob {
+    to: String,
+    subject: String,
 }
 
-#[async_trait]
-impl JobHandler for EmailHandler {
-    async fn handle(&self, job: &Job) -> QueueResult<Option<Value>> {
-        let to = job.payload["to"].as_str().unwrap();
-        let subject = job.payload["subject"].as_str().unwrap();
+impl Job for SendEmailJob {
+    const JOB_TYPE: &'static str = "send_email";
 
-        // Send email
-        self.send_email(to, subject).await?;
-
-        Ok(Some(json!({"sent": true, "to": to})))
+    async fn handle(self) -> anyhow::Result<()> {
+        // Send email logic here
+        println!("Sending to {}: {}", self.to, self.subject);
+        Ok(())
     }
 }
-
-// Register handler
-let mut worker = Worker::new(queue);
-worker.register_handler("send_email", EmailHandler {
-    smtp_config: SmtpConfig::from_env()
-});
 ```
 
 ### Queue Performance Tips
 
 1. **Use multiple workers for high throughput**
    ```bash
-   # Start multiple worker processes
-   foundry queue:work &
-   foundry queue:work &
-   foundry queue:work &
+   # Start multiple worker processes (using forge CLI)
+   forge queue:work &
+   forge queue:work &
+   forge queue:work &
    ```
 
 2. **Monitor queue depth**
@@ -515,8 +518,8 @@ If you need to rollback to in-memory backends:
 
 - [Redis Official Documentation](https://redis.io/documentation)
 - [Redis Best Practices](https://redis.io/topics/best-practices)
-- [Queue System README](../crates/foundry-queue/README.md)
-- [Cache System README](../crates/foundry-cache/README.md)
+- [Queue System README](../crates/rf-queue/README.md)
+- [Cache System README](../crates/rf-cache/README.md)
 
 ## Support
 

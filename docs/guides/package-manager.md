@@ -63,7 +63,7 @@ rustforge package:outdated
 ## Programmatische Verwendung
 
 ```rust
-use foundry_infra::PackageManager;
+use rf_infra::PackageManager;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {

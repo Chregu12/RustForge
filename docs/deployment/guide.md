@@ -79,7 +79,7 @@ cd rust-dx-framework
 cargo build --release
 
 # Binary location
-ls -lh target/release/foundry
+ls -lh target/release/forge
 ```
 
 ### 2. Create Environment Configuration
@@ -99,7 +99,7 @@ nano .env
 APP_NAME="RustForge Production"
 APP_ENV=production
 APP_DEBUG=false
-APP_KEY=base64:YOUR_GENERATED_KEY_HERE  # Generate with: foundry key:generate
+APP_KEY=base64:YOUR_GENERATED_KEY_HERE  # Generate with: forge key:generate
 
 # Server
 HOST=0.0.0.0
@@ -128,7 +128,7 @@ MAIL_ENCRYPTION=tls
 MAIL_FROM_ADDRESS=noreply@example.com
 MAIL_FROM_NAME="RustForge"
 
-# OAuth2 (if using foundry-oauth-server)
+# OAuth2 (if using rf-oauth-server)
 OAUTH_JWT_SECRET=YOUR_256_BIT_SECRET_HERE
 OAUTH_ACCESS_TOKEN_LIFETIME=3600  # seconds
 OAUTH_REFRESH_TOKEN_LIFETIME=2592000  # 30 days
@@ -167,10 +167,10 @@ postgres=# \q
 psql postgresql://rustforge:your_secure_password@localhost:5432/rustforge_prod
 
 # 3. Run migrations
-./target/release/foundry migrate
+./target/release/forge migrate
 
 # 4. Seed database (if needed)
-./target/release/foundry db:seed
+./target/release/forge db:seed
 ```
 
 ### SQLite (Development/Small Scale)
@@ -183,7 +183,7 @@ touch rustforge.db
 DATABASE_URL=sqlite:./rustforge.db
 
 # 3. Run migrations
-./target/release/foundry migrate
+./target/release/forge migrate
 ```
 
 ### MySQL/MariaDB
@@ -202,7 +202,7 @@ mysql> EXIT;
 DATABASE_URL=mysql://rustforge:your_secure_password@localhost:3306/rustforge_prod
 
 # 3. Run migrations
-./target/release/foundry migrate
+./target/release/forge migrate
 ```
 
 ---
@@ -213,7 +213,7 @@ DATABASE_URL=mysql://rustforge:your_secure_password@localhost:3306/rustforge_pro
 
 ```bash
 # Generate new encryption key
-./target/release/foundry key:generate
+./target/release/forge key:generate
 
 # This will update your .env file with APP_KEY
 ```
@@ -222,10 +222,10 @@ DATABASE_URL=mysql://rustforge:your_secure_password@localhost:3306/rustforge_pro
 
 ```bash
 # Install OAuth2 server
-./target/release/foundry passport:install
+./target/release/forge passport:install
 
 # Create OAuth2 client
-./target/release/foundry passport:client \
+./target/release/forge passport:client \
   --name "Production Client" \
   --redirect "https://yourdomain.com/callback"
 
@@ -236,13 +236,13 @@ DATABASE_URL=mysql://rustforge:your_secure_password@localhost:3306/rustforge_pro
 
 ```bash
 # Clear caches before deployment
-./target/release/foundry cache:clear
-./target/release/foundry config:clear
+./target/release/forge cache:clear
+./target/release/forge config:clear
 
 # Cache configuration for production
-./target/release/foundry config:cache
-./target/release/foundry route:cache
-./target/release/foundry optimize
+./target/release/forge config:cache
+./target/release/forge route:cache
+./target/release/forge optimize
 ```
 
 ---
@@ -256,10 +256,10 @@ DATABASE_URL=mysql://rustforge:your_secure_password@localhost:3306/rustforge_pro
 RUSTFLAGS='-C target-cpu=native' cargo build --release
 
 # Strip debug symbols to reduce binary size
-strip target/release/foundry
+strip target/release/forge
 
 # Check binary size
-ls -lh target/release/foundry
+ls -lh target/release/forge
 
 # Expected size: ~50-100 MB (depending on features)
 ```
@@ -271,7 +271,7 @@ ls -lh target/release/foundry
 RUSTFLAGS="-Cprofile-generate=/tmp/pgo-data" cargo build --release
 
 # Step 2: Run typical workload
-./target/release/foundry serve &
+./target/release/forge serve &
 # Run load tests or typical operations
 # Stop server
 
@@ -306,7 +306,7 @@ Group=rustforge
 WorkingDirectory=/opt/rustforge
 Environment="RUST_LOG=info"
 EnvironmentFile=/opt/rustforge/.env
-ExecStart=/opt/rustforge/foundry serve --addr 0.0.0.0:8080
+ExecStart=/opt/rustforge/forge serve --addr 0.0.0.0:8080
 Restart=always
 RestartSec=10
 StandardOutput=journal
@@ -329,7 +329,7 @@ WantedBy=multi-user.target
 # 2. Create user and setup directories
 sudo useradd -r -s /bin/false rustforge
 sudo mkdir -p /opt/rustforge/{storage,logs}
-sudo cp target/release/foundry /opt/rustforge/
+sudo cp target/release/forge /opt/rustforge/
 sudo cp .env /opt/rustforge/
 sudo chown -R rustforge:rustforge /opt/rustforge
 
@@ -461,7 +461,7 @@ COPY Cargo.toml Cargo.lock ./
 COPY crates ./crates
 
 # Build release binary
-RUN cargo build --release --bin foundry
+RUN cargo build --release --bin forge
 
 # Stage 2: Runtime
 FROM debian:bookworm-slim
@@ -478,7 +478,7 @@ RUN apt-get update && apt-get install -y \
 RUN useradd -m -u 1000 rustforge
 
 # Copy binary from builder
-COPY --from=builder /app/target/release/foundry /usr/local/bin/foundry
+COPY --from=builder /app/target/release/forge /usr/local/bin/forge
 COPY .env.example .env
 
 # Set ownership
@@ -492,10 +492,10 @@ EXPOSE 8080
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD ["/usr/local/bin/foundry", "health:check"] || exit 1
+  CMD ["/usr/local/bin/forge", "health:check"] || exit 1
 
 # Run application
-CMD ["/usr/local/bin/foundry", "serve", "--addr", "0.0.0.0:8080"]
+CMD ["/usr/local/bin/forge", "serve", "--addr", "0.0.0.0:8080"]
 ```
 
 ### docker-compose.yml
@@ -580,7 +580,7 @@ docker-compose up -d
 docker-compose logs -f app
 
 # Run migrations
-docker-compose exec app foundry migrate
+docker-compose exec app forge migrate
 
 # Scale application
 docker-compose up -d --scale app=3
@@ -841,7 +841,7 @@ QUERY_CACHE_TTL=300
 
 ```bash
 # Compile assets for production
-./foundry assets:compile --minify
+./forge assets:compile --minify
 
 # Enable CDN for static assets
 CDN_URL=https://cdn.yourdomain.com
@@ -890,7 +890,7 @@ sudo lsof -i :8080
 sudo kill -9 <PID>
 
 # Or use different port
-./foundry serve --addr 0.0.0.0:3000
+./forge serve --addr 0.0.0.0:3000
 ```
 
 #### 3. Permission Denied
@@ -935,7 +935,7 @@ export RUST_LOG=trace
 export RUST_BACKTRACE=1
 
 # Run in foreground
-./foundry serve --verbose
+./forge serve --verbose
 ```
 
 ### Health Checks
@@ -945,10 +945,10 @@ export RUST_BACKTRACE=1
 curl http://localhost:8080/health
 
 # Detailed health check
-./foundry health:check --detailed
+./forge health:check --detailed
 
 # Database connectivity
-./foundry db:show
+./forge db:show
 ```
 
 ---

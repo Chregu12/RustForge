@@ -1,4 +1,4 @@
-# Foundry Quickstart
+# foundry-cli Quickstart
 
 ## Voraussetzungen
 - Rust `1.78+` mit installiertem `cargo`

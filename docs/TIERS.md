@@ -124,7 +124,7 @@ Real implementations with gaps, not fully integration-tested, or API not yet fro
 | `rf-package-dev` | beta | Package development tools (4 files/814 lines); real |
 | `rf-providers` | beta | Service provider pattern (3 files/453 lines); real |
 | `rf-plugins` | beta | Plugin system (2 files/463 lines); real but undocumented |
-| `rf-application` | beta | DDD application layer (50 files/16.3k lines); real Foundry-Core architecture layer |
+| `rf-application` | beta | DDD application layer (50 files/16.3k lines); real RustForge Core architecture layer |
 | `rf-domain` | beta | DDD domain value objects/descriptors (2 files/369 lines); real but minimal |
 | `rf-infra` | beta | DDD infrastructure layer (16 files/2.9k lines); real adapters for cache/db/queue/storage |
 | `rf-api` | beta | DDD API layer (31 files/6.9k lines); real HTTP/artisan/event integration |

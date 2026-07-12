@@ -36,7 +36,7 @@ Authentication System:
 
 ### 2. Repository Pattern Implementation
 
-**OAuth2 Repositories** (`crates/foundry-oauth-server/src/repositories/`)
+**OAuth2 Repositories** (`crates/rf-oauth-server/src/repositories/`)
 
 - `client_repository.rs`
   - `ClientRepository` trait (already existed)
@@ -47,7 +47,7 @@ Authentication System:
   - `TokenRepository` trait - Access tokens, refresh tokens, auth codes, PATs
   - `PostgresTokenRepository` - PostgreSQL implementation
 
-**Auth Repositories** (`crates/foundry-auth-scaffolding/src/repositories/`)
+**Auth Repositories** (`crates/rf-auth-scaffolding/src/repositories/`)
 
 - `user_repository.rs`
   - `UserRepository` trait
@@ -145,8 +145,8 @@ JWT_SECRET=your-generated-secret-here
 **OAuth2 with Database:**
 
 ```rust
-use foundry_oauth_server::{OAuth2Server, OAuth2Config};
-use foundry_oauth_server::repositories::PostgresClientRepository;
+use rf_oauth_server::{OAuth2Server, OAuth2Config};
+use rf_oauth_server::repositories::PostgresClientRepository;
 use sqlx::PgPool;
 
 async fn setup_oauth(pool: PgPool) -> OAuth2Server<PostgresClientRepository> {
@@ -166,8 +166,8 @@ async fn setup_oauth(pool: PgPool) -> OAuth2Server<PostgresClientRepository> {
 **Authentication with Database:**
 
 ```rust
-use foundry_auth_scaffolding::{AuthService, AuthConfig};
-use foundry_auth_scaffolding::repositories::{
+use rf_auth_scaffolding::{AuthService, AuthConfig};
+use rf_auth_scaffolding::repositories::{
     PostgresUserRepository,
     PostgresSessionRepository,
 };
@@ -191,8 +191,8 @@ async fn setup_auth(pool: PgPool) -> (AuthService, PostgresUserRepository, Postg
 ### User Registration with Database
 
 ```rust
-use foundry_auth_scaffolding::{AuthService, RegisterData};
-use foundry_auth_scaffolding::repositories::PostgresUserRepository;
+use rf_auth_scaffolding::{AuthService, RegisterData};
+use rf_auth_scaffolding::repositories::PostgresUserRepository;
 
 async fn register_user(
     auth_service: &AuthService,
@@ -220,8 +220,8 @@ async fn register_user(
 ### OAuth2 Client Registration with Database
 
 ```rust
-use foundry_oauth_server::models::Client;
-use foundry_oauth_server::repositories::PostgresClientRepository;
+use rf_oauth_server::models::Client;
+use rf_oauth_server::repositories::PostgresClientRepository;
 
 async fn register_oauth_client(
     client_repo: &PostgresClientRepository,
@@ -290,8 +290,8 @@ The repositories include in-memory implementations perfect for testing:
 ```rust
 #[cfg(test)]
 mod tests {
-    use foundry_auth_scaffolding::repositories::InMemoryUserRepository;
-    use foundry_auth_scaffolding::models::User;
+    use rf_auth_scaffolding::repositories::InMemoryUserRepository;
+    use rf_auth_scaffolding::models::User;
 
     #[tokio::test]
     async fn test_user_registration() {
@@ -316,8 +316,8 @@ mod tests {
 
 ```bash
 # Test with in-memory storage
-cargo test --package foundry-oauth-server
-cargo test --package foundry-auth-scaffolding
+cargo test --package rf-oauth-server
+cargo test --package rf-auth-scaffolding
 
 # Test with real database (requires test DB setup)
 DATABASE_URL=postgresql://user:pass@localhost:5432/test_db cargo test
@@ -329,7 +329,7 @@ DATABASE_URL=postgresql://user:pass@localhost:5432/test_db cargo test
 
 ```rust
 // Export users from in-memory to JSON
-use foundry_auth_scaffolding::repositories::InMemoryUserRepository;
+use rf_auth_scaffolding::repositories::InMemoryUserRepository;
 
 async fn export_users(repo: &InMemoryUserRepository) -> Vec<User> {
     repo.list(1000, 0).await.unwrap()
@@ -346,7 +346,7 @@ psql -U username -d production_db < migrations/002_create_auth_tables.sql
 ### Step 3: Import Data (if needed)
 
 ```rust
-use foundry_auth_scaffolding::repositories::PostgresUserRepository;
+use rf_auth_scaffolding::repositories::PostgresUserRepository;
 
 async fn import_users(repo: &PostgresUserRepository, users: Vec<User>) {
     for user in users {

@@ -19,11 +19,11 @@ Replace standard container with FxHashMap-based fast container:
 
 ```rust
 // Before
-use foundry_service_container::Container;
+use rf_service_container::Container;
 let container = Container::new();
 
 // After (15% faster)
-use foundry_service_container::FastContainer;
+use rf_service_container::FastContainer;
 let container = FastContainer::new();
 ```
 
@@ -33,11 +33,11 @@ Use SmallVec-based parser for zero heap allocations:
 
 ```rust
 // Before
-use foundry_api::input::InputParser;
+use rf_api::input::InputParser;
 let parser = InputParser::from_args(&args);
 
 // After (62% faster, stack-allocated)
-use foundry_api::optimized_input::OptimizedInputParser;
+use rf_api::optimized_input::OptimizedInputParser;
 let parser = OptimizedInputParser::from_args(&args);
 
 // Check if fully optimized
@@ -54,7 +54,7 @@ let cmd_id = "migrate:run".to_string();
 let cloned = cmd_id.clone(); // Heap allocation
 
 // After (zero allocation)
-use foundry_domain::cow_identifiers::CommandId;
+use rf_domain::cow_identifiers::CommandId;
 let cmd_id = CommandId::borrowed("migrate:run");
 let cloned = cmd_id.clone(); // Just copies pointer
 ```
@@ -64,7 +64,7 @@ let cloned = cmd_id.clone(); // Just copies pointer
 Initialize connection pool at startup:
 
 ```rust
-use foundry_infra::database::{DatabasePool, PoolConfig};
+use rf_infra::database::{DatabasePool, PoolConfig};
 
 // Create pool once
 let pool = DatabasePool::new("postgresql://localhost/mydb").await?;
@@ -88,24 +88,13 @@ let conn = pool.acquire().await?;
 Enable ultra-fast cache deserializat:
 
 ```rust
-use foundry_cache::zero_copy::{ZeroCopyCache, CachedData};
-use rkyv::Archive;
+// ZeroCopyCache is not yet available in rf-cache.
+// Use rf_cache::MemoryCache or rf_cache::RedisCache for caching:
+use rf_cache::MemoryCache;
 
-#[derive(Archive, rkyv::Serialize, rkyv::Deserialize)]
-struct UserData {
-    id: u64,
-    name: String,
-}
-
-let cache = ZeroCopyCache::new();
-
-// Serialize once
-let user = UserData { id: 123, name: "John".to_string() };
-let bytes = cache.serialize(&user)?;
-
-// Deserialize with zero-copy (100x faster!)
-let archived = cache.deserialize_zero_copy::<UserData>(&bytes)?;
-println!("User ID: {}", archived.id); // Direct memory access
+let cache = MemoryCache::new();
+cache.set("user:123", &user, Some(Duration::from_secs(3600))).await?;
+let user: Option<User> = cache.get("user:123").await?;
 ```
 
 ### Lazy Configuration
@@ -117,7 +106,7 @@ Replace eager config loading:
 let config = AppConfig::load()?;
 
 // After (loaded on first use)
-use foundry_application::lazy_config::config;
+use rf_application::lazy_config::config;
 
 fn main() {
     // Config loaded lazily on first access
@@ -157,9 +146,9 @@ dh_view.py dhat-heap.json
 ### Full Application Setup
 
 ```rust
-use foundry_application::lazy_config::config;
-use foundry_service_container::FastContainer;
-use foundry_infra::database::DatabasePool;
+use rf_application::lazy_config::config;
+use rf_service_container::FastContainer;
+use rf_infra::database::DatabasePool;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -185,12 +174,12 @@ async fn main() -> anyhow::Result<()> {
 ### Command with Optimized Input
 
 ```rust
-use foundry_api::optimized_input::OptimizedInputParser;
-use foundry_plugins::{Command, CommandContext, CommandResult};
+use rf_api::optimized_input::OptimizedInputParser;
+use rf_plugins::{FoundryCommand, CommandContext, CommandResult, CommandError};
 
 #[async_trait]
-impl Command for MyCommand {
-    async fn execute(&self, ctx: CommandContext) -> Result<CommandResult> {
+impl FoundryCommand for MyCommand {
+    async fn execute(&self, ctx: CommandContext) -> Result<CommandResult, CommandError> {
         // Parse with zero allocations
         let parser = OptimizedInputParser::from_args(&ctx.args);
 
@@ -213,7 +202,7 @@ impl Command for MyCommand {
 - [ ] Replace `InputParser` with `OptimizedInputParser` (62% faster)
 - [ ] Use `CommandId::borrowed()` for static strings (70% fewer allocations)
 - [ ] Initialize `DatabasePool` at startup (99% faster connections)
-- [ ] Use `ZeroCopyCache` for large objects (100x faster reads)
+- [ ] Use `rf_cache::MemoryCache` or `rf_cache::RedisCache` for caching
 - [ ] Load config with `lazy_config::config()` (40% faster startup)
 
 ## Measuring Impact

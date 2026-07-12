@@ -781,7 +781,7 @@ This release completes all 4 critical workstreams plus comprehensive Phase 2 adv
 #### Production-Ready Foundation
 - **37 Production Crates** - Comprehensive modular architecture
   - Modern Architecture (rf-*): core, web, config, container, orm, auth, validation, jobs, mail, storage, broadcasting, notifications
-  - Legacy Support (foundry-*): domain, application, infra, api, plugins, cli, queue, cache
+  - Core Crates (rf-*): domain, application, infra, api, plugins, cli, queue, cache
   - Enterprise Features: notifications, broadcast, search, admin, export, i18n, oauth, ratelimit
   - Testing & Observability: testing, health, metrics, logging, audit
 - **148,500+ Lines of Production Code** - Enterprise-grade implementation
@@ -793,7 +793,7 @@ This release completes all 4 critical workstreams plus comprehensive Phase 2 adv
 ### Workstream 1: Production Backends
 
 #### Redis Queue Backend
-**Location:** `crates/foundry-queue/src/backends/redis.rs`
+**Location:** `crates/rf-queue/src/redis.rs`
 
 Production-grade distributed job processing with persistence, reliability, and horizontal scalability.
 
@@ -837,15 +837,17 @@ Production-grade distributed job processing with persistence, reliability, and h
 
 **API Examples:**
 ```rust
-use foundry_queue::{QueueManager, Job};
+use rf_queue::{RedisQueue, Queue, Job};
+use std::sync::Arc;
 
 // Initialize Redis Queue
-let queue = QueueManager::redis("redis://localhost:6379").await?;
+let queue: Arc<dyn Queue> = Arc::new(
+    RedisQueue::new("redis://localhost:6379", "myapp").await?
+);
 
-// Dispatch immediate job
-let job = Job::new("send_email")
-    .with_payload(json!({"to": "user@example.com", "subject": "Welcome"}));
-queue.dispatch(job).await?;
+// Dispatch a typed job
+let job = SendEmailJob { to: "user@example.com".into(), subject: "Welcome".into() };
+job.dispatch(&*queue).await?;
 
 // Dispatch delayed job (5 minutes)
 queue.dispatch_delayed(job, Duration::from_secs(300)).await?;
@@ -872,7 +874,7 @@ QUEUE_RETRY_DELAY=5
 ```
 
 #### Redis Cache Backend
-**Location:** `crates/foundry-cache/src/backends/redis.rs`
+**Location:** `crates/rf-cache/src/redis.rs`
 
 Distributed caching with advanced features for high-performance applications and horizontal scaling.
 
@@ -916,10 +918,11 @@ Distributed caching with advanced features for high-performance applications and
 
 **API Examples:**
 ```rust
-use foundry_cache::{CacheManager, Duration};
+use rf_cache::RedisCache;
+use std::time::Duration;
 
 // Initialize Redis Cache
-let cache = CacheManager::redis("redis://localhost:6379").await?;
+let cache = RedisCache::new("redis://localhost:6379", "myapp").await?;
 
 // Basic operations
 cache.put("user:1", &user, Some(Duration::from_secs(3600))).await?;
@@ -2050,7 +2053,7 @@ All Phase 2 features are production-ready with comprehensive testing and documen
 - **Issue**: Job trait signature mismatch after Queue refactor
   - rf-mail crate failed to compile with new async Job trait
   - Job trait signature changed to return Result<(), JobError>
-  - Breaking change in foundry-queue v1.0.0
+  - Breaking change in rf-queue v1.0.0
 
 - **Fix**: Updated Job trait implementation
   - Matched new async signature: async fn execute(&self, ctx: &JobContext) -> Result<(), JobError>
@@ -2076,7 +2079,7 @@ All Phase 2 features are production-ready with comprehensive testing and documen
 - **Impact**: Clean compilation on Rust 1.75+, Rust 2024 ready
 - **Location**: `crates/rf-jobs/src/lib.rs`, `crates/rf-jobs/src/worker.rs`
 
-#### foundry-auth-scaffolding TOTP API
+#### rf-auth-scaffolding TOTP API
 - **Issue**: TOTP library API breaking changes
   - totp-rs crate updated with breaking API changes
   - TOTP::new() signature changed
@@ -2089,7 +2092,7 @@ All Phase 2 features are production-ready with comprehensive testing and documen
   - Updated all tests to match new API
 
 - **Impact**: 2FA functionality restored and all tests passing
-- **Location**: `crates/foundry-auth-scaffolding/src/totp.rs`
+- **Location**: `crates/rf-auth-scaffolding/src/totp.rs`
 
 ### Performance Fixes
 
@@ -2196,14 +2199,14 @@ All Phase 2 features are production-ready with comprehensive testing and documen
 - **Reason**: Not production-ready, single-instance only
 - **Migration**: See MIGRATION_GUIDE.md for Redis setup
 - **Timeline**: Will be removed in v2.0.0
-- **Code**: `foundry-queue/src/backends/memory.rs`
+- **Code**: `rf-queue/src/memory.rs`
 
 #### In-Memory Cache
 - **Status**: Deprecated in favor of Redis backend
 - **Reason**: Not distributed, doesn't scale horizontally
 - **Migration**: See MIGRATION_GUIDE.md for Redis setup
 - **Timeline**: Will be removed in v2.0.0
-- **Code**: `foundry-cache/src/backends/memory.rs`
+- **Code**: `rf-cache/src/lib.rs` (see `MemoryCache`)
 
 ### Old API Patterns
 
@@ -2223,7 +2226,7 @@ All Phase 2 features are production-ready with comprehensive testing and documen
 #### OAuth Partial Implementation
 - **Removed**: Incomplete OAuth 2.0 implementation
 - **Reason**: Security concerns with partial implementation
-- **Replacement**: Complete OAuth implementation in foundry-oauth
+- **Replacement**: Complete OAuth implementation in rf-oauth
 - **Impact**: Breaking change for users of old API
 
 #### GraphQL Incomplete Features
@@ -2235,7 +2238,7 @@ All Phase 2 features are production-ready with comprehensive testing and documen
 #### Admin Panel Placeholders
 - **Removed**: Stub admin UI components
 - **Reason**: Incomplete and outdated
-- **Replacement**: Complete admin panel in foundry-admin
+- **Replacement**: Complete admin panel in rf-admin
 - **Impact**: Full featured replacement available
 
 ### Dead Code
@@ -2270,8 +2273,8 @@ rf-orm = "1.0"
 rf-auth = "1.0"
 
 # Infrastructure
-foundry-queue = "1.0"
-foundry-cache = "1.0"
+rf-queue = "1.0"
+rf-cache = "1.0"
 
 # Features
 rf-notifications = "1.0"

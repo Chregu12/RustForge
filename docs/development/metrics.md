@@ -15,7 +15,7 @@ RustForge bietet ein umfassendes Performance Monitoring System zur Überwachung 
 ### 1. Metrics sammeln
 
 ```rust
-use foundry_infra::{PerformanceMonitor, Metric};
+use rf_infra::{PerformanceMonitor, Metric};
 
 let monitor = PerformanceMonitor::new();
 
@@ -47,7 +47,7 @@ monitor.collect(metric).await;
 ### 3. System Metrics
 
 ```rust
-use foundry_infra::SystemMetrics;
+use rf_infra::SystemMetrics;
 
 let sys_metrics = SystemMetrics {
     cpu_usage_percent: 45.5,
@@ -201,7 +201,7 @@ async fn execute_query<T>(
 ## WebSocket Metrics
 
 ```rust
-use foundry_api::websocket::WebSocketManager;
+use rf_api::websocket::WebSocketManager;
 
 async fn track_websocket_metrics(
     ws_manager: &WebSocketManager,
@@ -325,7 +325,7 @@ println!("Available metrics: {:?}", names);
 ## Beispiel: Complete Monitoring Setup
 
 ```rust
-use foundry_infra::{PerformanceMonitor, SystemMetrics, Metric};
+use rf_infra::{PerformanceMonitor, SystemMetrics, Metric};
 use std::sync::Arc;
 use tokio::time::{interval, Duration};
 

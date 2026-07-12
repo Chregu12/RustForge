@@ -114,13 +114,13 @@ Feature suggestions are welcome! Please:
 ```
 RustForge/
 ├── crates/
-│   ├── foundry-application/  # Application layer (commands)
-│   ├── foundry-cli/          # CLI interface
-│   ├── foundry-domain/       # Core domain models
-│   ├── foundry-infra/        # Infrastructure (DB, cache)
-│   ├── foundry-plugins/      # Plugin interfaces
-│   ├── foundry-api/          # API layer
-│   └── foundry-storage/      # File storage
+│   ├── rf-application/       # Application layer (commands)
+│   ├── foundry-cli/          # CLI interface (legacy scaffolding; kept for backward compat)
+│   ├── rf-domain/            # Core domain models
+│   ├── rf-infra/             # Infrastructure (DB, cache)
+│   ├── rf-plugins/           # Plugin interfaces
+│   ├── rf-api/               # API layer
+│   └── rf-storage/           # File storage (feature-gated)
 ├── migrations/               # Database migrations
 ├── seeds/                    # Database seeders
 ├── tests/                    # Integration tests
@@ -129,7 +129,7 @@ RustForge/
 
 ## Key Components to Know
 
-### Commands Layer (`foundry-application/src/commands/`)
+### Commands Layer (`rf-application/src/commands/`)
 - Each command implements `FoundryCommand` trait
 - CommandDescriptor defines metadata
 - Execute method handles the logic
@@ -139,7 +139,7 @@ RustForge/
 - Query parsing and execution
 - Session management
 
-### Database (`foundry-infra`)
+### Database (`rf-infra`)
 - Sea-ORM integration
 - Connection pooling
 - Migration/seeding logic

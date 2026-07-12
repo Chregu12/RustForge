@@ -16,8 +16,8 @@ RustForge bietet vollständige WebSocket-Unterstützung für Echtzeit-Kommunikat
 ### 1. WebSocket-Routen hinzufügen
 
 ```rust
-use foundry_api::websocket;
-use foundry_api::HttpServer;
+use rf_api::websocket;
+use rf_api::HttpServer;
 use axum::Router;
 
 let server = HttpServer::new(invoker)
@@ -57,7 +57,7 @@ ws.onmessage = (event) => {
 ### Server-seitig
 
 ```rust
-use foundry_api::websocket::{WebSocketManager, WebSocketMessage};
+use rf_api::websocket::{WebSocketManager, WebSocketMessage};
 
 // Manager abrufen
 let manager = websocket::handler::get_websocket_manager().await.unwrap();
@@ -110,7 +110,7 @@ ws.send(JSON.stringify({
 ## Message Types
 
 ```rust
-use foundry_api::websocket::WebSocketMessage;
+use rf_api::websocket::WebSocketMessage;
 
 // Text-Nachricht
 let msg = WebSocketMessage::text("Hello");
@@ -139,7 +139,7 @@ let msg = WebSocketMessage::text("Hello")
 Channels erlauben es, Clients in Gruppen zu organisieren:
 
 ```rust
-use foundry_api::websocket::{Channel, ChannelManager};
+use rf_api::websocket::{Channel, ChannelManager};
 
 let manager = WebSocketManager::new();
 let channel_mgr = manager.channel_manager();
@@ -166,7 +166,7 @@ channel_mgr.delete_channel("chat:general").await;
 ## Broadcasting mit Optionen
 
 ```rust
-use foundry_api::websocket::BroadcastOptions;
+use rf_api::websocket::BroadcastOptions;
 
 // Nur an spezifische Connections
 let opts = BroadcastOptions::new()
@@ -189,7 +189,7 @@ manager.broadcast(msg, Some(opts)).await;
 ### 1. Real-Time Chat
 
 ```rust
-use foundry_api::websocket::examples::chat::{ChatService, ChatMessage};
+use rf_api::websocket::examples::chat::{ChatService, ChatMessage};
 
 let chat = ChatService::new(manager);
 
@@ -212,7 +212,7 @@ let rooms = chat.list_rooms().await;
 ### 2. Live Updates / Dashboard
 
 ```rust
-use foundry_api::websocket::examples::live_updates::{
+use rf_api::websocket::examples::live_updates::{
     LiveUpdateService, LiveUpdate, UpdateAction, DashboardService, DashboardMetrics
 };
 
@@ -318,7 +318,7 @@ tracing::debug!("Sending: {}", json_str);
 ## Integration mit Events
 
 ```rust
-use foundry_plugins::{DomainEvent, EventPort};
+use rf_plugins::{DomainEvent, EventPort};
 
 // WebSocket-Updates von Domain-Events
 async fn on_domain_event(event: DomainEvent, manager: &WebSocketManager) {

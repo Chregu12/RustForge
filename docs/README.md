@@ -37,7 +37,7 @@ certification beyond what is graded Stable/Usable in those sources.
 |------|---------|
 | [ERROR_CODES.md](./ERROR_CODES.md) | RF001–RF999 error code reference for all framework domains. |
 | [DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md) | Production deployment: environment config, Docker, Kubernetes, monitoring. |
-| [PRODUCTION_BACKENDS.md](./PRODUCTION_BACKENDS.md) | Migrating from in-memory backends to Redis for cache and queue. Uses older `foundry-cache`/`foundry-queue` crate names — the current crates are `rf-cache` / `rf-queue`. Concept is accurate; API signatures may differ. |
+| [PRODUCTION_BACKENDS.md](./PRODUCTION_BACKENDS.md) | Migrating from in-memory backends to Redis for cache (`rf-cache`) and queue (`rf-queue`). |
 
 ---
 
@@ -64,7 +64,6 @@ certification beyond what is graded Stable/Usable in those sources.
 |----------|---------|
 | [architecture.md](./architecture.md) | Current architecture: four pillars, crate map by layer, request flow, AsyncBridge pattern, design ceilings, ADR summary. Supersedes the old v0.2.0 "Foundry Core" blueprint. |
 | [adr/](./adr/) | Architecture Decision Records: web framework (axum 0.8), error handling (RFC 7807), DI, observability, config, ORM (SeaORM), queue (Redis). All active; none contradicts current implementation. |
-| [architecture/roadmap.md](./architecture/roadmap.md) | Early roadmap from the "Foundry" naming era. Superseded by `VISION_GAP.md` for current priorities. |
 
 ---
 
@@ -156,3 +155,4 @@ The following files were removed because they contradicted the honest verified s
 - `METRICS.md` — used obsolete `foundry_infra` crate names; written in German
 - `PERFORMANCE.md` — stale benchmarks and claims, superseded by `development/benchmarks.md`
 - `LARAVEL_SYNTAX_FIXES_REPORT.md` — stale development notes about a superseded design direction
+- `architecture/roadmap.md` — wholesale "Foundry" era crate names throughout; superseded by `VISION_GAP.md` for current priorities

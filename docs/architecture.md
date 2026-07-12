@@ -221,7 +221,7 @@ than worked around.
 | `VISION_GAP.md` (repo root) | Full per-area audit (16 areas); Re-audit 1 and Re-audit 2 scoring; gap analysis; remaining roadmap. | **Primary grounding document.** Read alongside this file. |
 | `README.md` (repo root) | North-star; quickstart; graded maturity matrix. | Current and accurate. |
 | `docs/adr/` | Architecture Decision Records for key framework choices. | Current; see table below. |
-| `docs/architecture/roadmap.md` | Predates the current crate naming ("Foundry" era); superseded by `VISION_GAP.md`. | Stale — do not cite for current state. |
+| `docs/architecture/roadmap.md` | Deleted (cycle-3 cleanup): used "Foundry" era crate names throughout; superseded by `VISION_GAP.md`. | Removed — see tombstone in `docs/README.md`. |
 
 ### ADR summary
 

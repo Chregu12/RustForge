@@ -98,7 +98,7 @@ async fn test_user_registration_to_authentication_flow() {
 cargo test --workspace --all-features
 
 # Run tests for a specific crate
-cargo test -p foundry-application
+cargo test -p rf-application
 
 # Run a specific test
 cargo test test_database_connection

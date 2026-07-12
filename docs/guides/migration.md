@@ -14,9 +14,9 @@ This guide documents all breaking changes and migration steps for Phase 1: Criti
 ## Table of Contents
 
 1. [Breaking Changes Summary](#breaking-changes-summary)
-2. [foundry-health Fixes](#foundry-health-fixes)
-3. [foundry-application Registry Changes](#foundry-application-registry-changes)
-4. [foundry-signal-handler Fixes](#foundry-signal-handler-fixes)
+2. [rf-health Fixes](#rf-health-fixes)
+3. [rf-application Registry Changes](#rf-application-registry-changes)
+4. [rf-signal-handler Fixes](#rf-signal-handler-fixes)
 5. [Error Handling Improvements](#error-handling-improvements)
 6. [Tracing Instrumentation](#tracing-instrumentation)
 7. [Migration Steps](#migration-steps)
@@ -39,14 +39,14 @@ This guide documents all breaking changes and migration steps for Phase 1: Criti
 
 ---
 
-## foundry-health Fixes
+## rf-health Fixes
 
 ### Problem
 
-The `foundry-health` crate had multiple compilation errors:
+The `rf-health` crate had multiple compilation errors:
 
 1. Missing `chrono` dependency
-2. Incorrect imports from `foundry-plugins` (using old trait names)
+2. Incorrect imports from `rf-plugins` (using old trait names)
 3. Incompatible `sysinfo` API usage (v0.31 changes)
 4. Lifetime issues with `tokio::join!` macro
 
@@ -54,7 +54,7 @@ The `foundry-health` crate had multiple compilation errors:
 
 #### 1. Added Missing Dependencies
 
-**File:** `/crates/foundry-health/Cargo.toml`
+**File:** `/crates/rf-health/Cargo.toml`
 
 ```diff
 [dependencies]
@@ -64,20 +64,20 @@ serde.workspace = true
 serde_json.workspace = true
 tokio.workspace = true
 +chrono.workspace = true
-+foundry-domain = { path = "../foundry-domain" }
++rf-domain = { path = "../rf-domain" }
 +once_cell = "1.19"
-foundry-plugins = { path = "../foundry-plugins" }
+rf-plugins = { path = "../rf-plugins" }
 colored = "2.1"
 sysinfo = "0.31"
 ```
 
 #### 2. Updated Command Implementation
 
-**File:** `/crates/foundry-health/src/command.rs`
+**File:** `/crates/rf-health/src/command.rs`
 
 **Before:**
 ```rust
-use foundry_plugins::{CommandExecutor, CommandResult, ExecutionContext};
+use rf_plugins::{CommandExecutor, CommandResult, ExecutionContext};
 
 #[async_trait]
 impl CommandExecutor for HealthCheckCommand {
@@ -97,8 +97,8 @@ impl CommandExecutor for HealthCheckCommand {
 
 **After:**
 ```rust
-use foundry_plugins::{CommandContext, CommandResult, ResponseFormat, FoundryCommand, CommandError};
-use foundry_domain::CommandDescriptor;
+use rf_plugins::{CommandContext, CommandResult, ResponseFormat, FoundryCommand, CommandError};
+use rf_domain::CommandDescriptor;
 
 #[async_trait]
 impl FoundryCommand for HealthCheckCommand {
@@ -125,7 +125,7 @@ impl FoundryCommand for HealthCheckCommand {
 
 #### 3. Fixed sysinfo API Usage
 
-**File:** `/crates/foundry-health/src/checks.rs`
+**File:** `/crates/rf-health/src/checks.rs`
 
 **Before:**
 ```rust
@@ -149,7 +149,7 @@ let available_gb = available_mb / 1024;
 
 #### 4. Fixed Lifetime Issues
 
-**File:** `/crates/foundry-health/src/lib.rs`
+**File:** `/crates/rf-health/src/lib.rs`
 
 **Before:**
 ```rust
@@ -179,7 +179,7 @@ let (rust, disk, memory, env, files) = tokio::join!(
 
 ---
 
-## foundry-application Registry Changes
+## rf-application Registry Changes
 
 ### Problem
 
@@ -189,7 +189,7 @@ The `CommandRegistry` used `.expect("registry poisoned")` in multiple places, wh
 
 #### 1. Updated Error Types
 
-**File:** `/crates/foundry-application/src/error.rs`
+**File:** `/crates/rf-application/src/error.rs`
 
 ```diff
 #[derive(Debug, thiserror::Error)]
@@ -211,7 +211,7 @@ pub enum ApplicationError {
 
 #### 2. Updated Registry Methods
 
-**File:** `/crates/foundry-application/src/registry.rs`
+**File:** `/crates/rf-application/src/registry.rs`
 
 All registry methods now return `Result` types instead of panicking:
 
@@ -272,7 +272,7 @@ pub fn is_empty(&self) -> Result<bool, ApplicationError> {
 
 #### 3. Updated Callsites
 
-**File:** `/crates/foundry-application/src/lib.rs`
+**File:** `/crates/rf-application/src/lib.rs`
 
 **Before:**
 ```rust
@@ -299,7 +299,7 @@ pub async fn dispatch(...) -> Result<CommandResult, ApplicationError> {
 }
 ```
 
-**File:** `/crates/foundry-application/src/commands/list.rs`
+**File:** `/crates/rf-application/src/commands/list.rs`
 
 **Before:**
 ```rust
@@ -322,11 +322,11 @@ async fn execute(&self, ctx: CommandContext) -> Result<CommandResult, CommandErr
 
 ---
 
-## foundry-signal-handler Fixes
+## rf-signal-handler Fixes
 
 ### Problem
 
-The `foundry-signal-handler` crate had compilation errors:
+The `rf-signal-handler` crate had compilation errors:
 
 1. Missing `tokio::sync` feature for `RwLock`
 2. Missing `Hash` derive on `ShutdownPhase`
@@ -336,7 +336,7 @@ The `foundry-signal-handler` crate had compilation errors:
 
 #### 1. Added Missing Tokio Feature
 
-**File:** `/crates/foundry-signal-handler/Cargo.toml`
+**File:** `/crates/rf-signal-handler/Cargo.toml`
 
 ```diff
 [dependencies]
@@ -353,7 +353,7 @@ futures.workspace = true
 
 #### 2. Fixed Hash Derive
 
-**File:** `/crates/foundry-signal-handler/src/shutdown.rs`
+**File:** `/crates/rf-signal-handler/src/shutdown.rs`
 
 ```diff
 -#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -367,7 +367,7 @@ pub enum ShutdownPhase {
 
 #### 3. Fixed Borrow Checker Issues
 
-**File:** `/crates/foundry-signal-handler/src/handler.rs`
+**File:** `/crates/rf-signal-handler/src/handler.rs`
 
 **Before:**
 ```rust
@@ -461,7 +461,7 @@ let value = do_something()
 
 All critical code paths now have proper tracing instrumentation for observability:
 
-**File:** `/crates/foundry-application/src/registry.rs`
+**File:** `/crates/rf-application/src/registry.rs`
 
 ```rust
 use tracing::{debug, instrument};
@@ -485,7 +485,7 @@ pub fn resolve(&self, command: &str) -> Result<Option<DynCommand>, ApplicationEr
 }
 ```
 
-**File:** `/crates/foundry-application/src/lib.rs`
+**File:** `/crates/rf-application/src/lib.rs`
 
 ```rust
 #[instrument(skip(self, args), fields(command, num_args = args.len()))]
@@ -548,7 +548,7 @@ If you have custom health check commands, update them to use `FoundryCommand`:
 
 ```rust
 // 1. Add dependencies
-use foundry_domain::CommandDescriptor;
+use rf_domain::CommandDescriptor;
 use once_cell::sync::Lazy;
 
 // 2. Update trait implementation
@@ -610,12 +610,12 @@ async fn my_critical_function(&self, param: String) -> Result<()> {
 
 New regression tests have been added to ensure error handling works correctly:
 
-**File:** `/crates/foundry-application/tests/test_registry_error_handling.rs`
+**File:** `/crates/rf-application/tests/test_registry_error_handling.rs`
 
 Run these tests with:
 
 ```bash
-cargo test --package foundry-application test_registry
+cargo test --package rf-application test_registry
 ```
 
 ### Test Your Changes
@@ -723,9 +723,9 @@ For questions or issues related to this migration:
 ### Phase 1: Critical Fixes (2025-11-03)
 
 #### Fixed
-- foundry-health compilation errors (missing dependencies, wrong API usage)
-- foundry-application CommandRegistry panic on poisoned mutex
-- foundry-signal-handler compilation errors (missing features, borrow checker)
+- rf-health compilation errors (missing dependencies, wrong API usage)
+- rf-application CommandRegistry panic on poisoned mutex
+- rf-signal-handler compilation errors (missing features, borrow checker)
 
 #### Changed
 - **BREAKING:** CommandRegistry methods now return `Result` types

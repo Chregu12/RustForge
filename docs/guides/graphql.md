@@ -382,7 +382,7 @@ This creates:
 ### Custom Type Example
 
 ```rust
-// crates/foundry-graphql/src/types/order.rs
+// crates/rf-graphql/src/types/order.rs
 use async_graphql::{InputObject, SimpleObject};
 
 #[derive(SimpleObject)]
@@ -403,7 +403,7 @@ pub struct OrderInput {
 ### Custom Resolver Example
 
 ```rust
-// crates/foundry-graphql/src/resolvers/order.rs
+// crates/rf-graphql/src/resolvers/order.rs
 use async_graphql::{Context, Object, Result};
 
 #[derive(Default)]
@@ -423,8 +423,8 @@ impl OrderQuery {
 ### Add GraphQL Routes
 
 ```rust
-use foundry_graphql::{build_schema, graphql_routes};
-use foundry_infra::db::connect;
+use rf_graphql::{build_schema, graphql_routes};
+use rf_infra::db::connect;
 
 #[tokio::main]
 async fn main() {
@@ -455,7 +455,7 @@ async fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use foundry_graphql::build_schema;
+    use rf_graphql::build_schema;
 
     #[tokio::test]
     async fn test_product_query() {
