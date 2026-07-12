@@ -1,0 +1,67 @@
+# =============================================================================
+# RustForge Reference Application — Kubernetes Service
+# =============================================================================
+#
+# ClusterIP Service: internal cluster traffic on port 80 → pod port 3000.
+# Add a LoadBalancer or Ingress (see the comment below) for external access.
+#
+# Apply:  kubectl apply -f examples/reference-app/k8s/service.yaml
+#
+# Verify: kubectl get svc reference-app
+#         kubectl describe svc reference-app
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: reference-app
+  namespace: default
+  labels:
+    app: reference-app
+  annotations:
+    # Prometheus will scrape /metrics through the Deployment pod annotations.
+    # The Service annotation here is a hint for service-mesh / Prometheus
+    # operator setups that discover targets via Service annotations.
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "3000"
+    prometheus.io/path: "/metrics"
+spec:
+  selector:
+    app: reference-app
+  ports:
+    - name: http
+      port: 80
+      targetPort: 3000
+      protocol: TCP
+  type: ClusterIP
+
+---
+# ── OPTIONAL: Ingress ─────────────────────────────────────────────────────────
+# Uncomment and adjust for your ingress controller (nginx, traefik, ALB, etc.)
+# to expose the reference app externally.
+#
+# apiVersion: networking.k8s.io/v1
+# kind: Ingress
+# metadata:
+#   name: reference-app
+#   namespace: default
+#   labels:
+#     app: reference-app
+#   annotations:
+#     kubernetes.io/ingress.class: "nginx"
+#     # cert-manager.io/cluster-issuer: "letsencrypt-prod"
+# spec:
+#   rules:
+#     - host: reference-app.example.com
+#       http:
+#         paths:
+#           - path: /
+#             pathType: Prefix
+#             backend:
+#               service:
+#                 name: reference-app
+#                 port:
+#                   number: 80
+#   # tls:
+#   #   - hosts:
+#   #       - reference-app.example.com
+#   #     secretName: reference-app-tls

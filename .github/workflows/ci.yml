@@ -804,6 +804,48 @@ jobs:
           SMOKE_WAIT: "30"
 
   # ===========================================
+  # Reference App Smoke — hermetic binary probe
+  # ===========================================
+  #
+  # Builds the reference-app release binary (examples/reference-app), starts it
+  # with SQLite in-memory + MemoryCache + MemoryStorage + FileMailer (no external
+  # services), waits for readiness, and asserts:
+  #
+  #   GET /health  → 200  (rf-health MemoryCheck — always healthy)
+  #   GET /posts   → 200  (public route; returns [] from fresh in-memory DB)
+  #   GET /metrics → 200  (rf-metrics Prometheus text endpoint)
+  #
+  # HERMETIC — no Postgres, Redis, S3, or SMTP secrets needed.
+  # Delegates all logic to scripts/reference-app-smoke.sh.
+  #
+  # What is proved:
+  #   - Release binary compiles from the workspace (0-warning gate runs first)
+  #   - Server boots with zero external services
+  #   - /health, /posts, /metrics all return 200
+  # What needs real services (not proved here):
+  #   - Auth round-trip (register → login → JWT); hermetic but BCrypt cost=12
+  #     is slow — excluded from the sub-60s smoke test
+  #   - SMTP delivery (needs MailHog or real relay)
+  #   - Postgres persistence (DB facade is SQLite-only; tracked in VISION_GAP.md)
+  #   - Redis cache / S3 storage backends (future wiring work)
+  reference-app-smoke:
+    name: "Reference App Smoke (SQLite + memory, hermetic)"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Install curl
+        run: sudo apt-get install -y curl
+
+      - name: Build + boot + probe reference-app (hermetic)
+        run: bash scripts/reference-app-smoke.sh
+        env:
+          SMOKE_PORT: "3838"
+          SMOKE_WAIT: "60"
+
+  # ===========================================
   # Supply Chain — cargo audit + cargo deny
   # ===========================================
   #

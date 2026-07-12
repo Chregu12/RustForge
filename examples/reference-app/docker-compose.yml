@@ -1,0 +1,183 @@
+# =============================================================================
+# RustForge Reference Application — Docker Compose
+# =============================================================================
+#
+# Provides all production-grade backing services for the reference app.
+#
+# Usage (from repo root):
+#   docker compose -f examples/reference-app/docker-compose.yml up
+#   docker compose -f examples/reference-app/docker-compose.yml up --build
+#
+# Or from examples/reference-app/:
+#   docker compose up
+#
+# HONEST CAPABILITY MAP — what is wired today vs future work:
+#
+#   Service   | Env wired to app           | What the app does today
+#   ----------|----------------------------|--------------------------------------------
+#   mailhog   | SMTP_HOST + SMTP_PORT      | FULLY WIRED — SmtpMailer delivers to MailHog
+#   postgres  | (not wired — see note)     | DB facade is rusqlite (SQLite only); Postgres
+#             |                            | service is here for future rf-orm SeaORM work
+#   redis     | (not wired — see note)     | Cache uses MemoryCache; wiring Redis needs
+#             |                            | rf-cache RedisManager config (future work)
+#   minio     | (not wired — see note)     | Storage uses MemoryStorage; wiring S3 needs
+#             |                            | rf-storage S3Manager config (future work)
+#
+# The app is wired to:
+#   - SQLite file at /app/data/blog.db (persisted via volume)
+#   - MailHog for SMTP (SMTP_HOST=mailhog, SMTP_PORT=1025)
+#   - MemoryCache (in-process, no Redis env set)
+#   - MemoryStorage (in-process, no S3 env set)
+#
+# MailHog web UI:  http://localhost:8025  (view emails sent by the app)
+# MinIO console:   http://localhost:9001  (admin / miniopassword)
+# App API:         http://localhost:3000
+#
+# See examples/reference-app/README.md for full API documentation.
+
+version: "3.9"
+
+services:
+  # ── Application ─────────────────────────────────────────────────────────────
+  app:
+    build:
+      # Build context is the repo root so the workspace Cargo.toml is included.
+      context: ../..
+      dockerfile: examples/reference-app/Dockerfile
+    image: rustforge/reference-app:latest
+    container_name: reference-app
+    ports:
+      - "${APP_PORT:-3000}:3000"
+    environment:
+      PORT: "3000"
+      # SQLite file in a mounted volume (persists across restarts).
+      # Remove DATABASE_URL to use in-memory SQLite (data lost on exit).
+      DATABASE_URL: "/app/data/blog.db"
+      JWT_SECRET: "${JWT_SECRET:-rustforge-reference-app-jwt-secret-key-32ch!!}"
+      # SMTP → MailHog (fully wired today)
+      SMTP_HOST: "mailhog"
+      SMTP_PORT: "1025"
+      # SMTP_USER / SMTP_PASS not needed for MailHog (no auth)
+      MAIL_MAILBOX: "/tmp/rustforge-mailbox"
+      # Redis / S3 intentionally NOT set: app uses MemoryCache + MemoryStorage.
+      # Set REDIS_URL here when rf-cache RedisManager wiring is implemented.
+      # Set S3_* vars here when rf-storage S3Manager wiring is implemented.
+    depends_on:
+      mailhog:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    volumes:
+      - app-data:/app/data
+      - app-mailbox:/tmp/rustforge-mailbox
+    networks:
+      - reference-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:3000/health"]
+      interval: 10s
+      timeout: 3s
+      start_period: 15s
+      retries: 3
+
+  # ── PostgreSQL ───────────────────────────────────────────────────────────────
+  # Included for production completeness and future rf-orm SeaORM integration.
+  # The DB facade (rusqlite) does NOT connect to Postgres today; it falls back
+  # to in-memory SQLite when DATABASE_URL starts with "postgres://". This service
+  # is here so the full production stack is available as the framework matures.
+  postgres:
+    image: postgres:16-alpine
+    container_name: reference-app-postgres
+    environment:
+      POSTGRES_DB: "${POSTGRES_DB:-referenceapp}"
+      POSTGRES_USER: "${POSTGRES_USER:-referenceapp}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-referenceapp_secret}"
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - reference-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-referenceapp}"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  # ── Redis ────────────────────────────────────────────────────────────────────
+  # Included for production completeness and future rf-cache RedisManager work.
+  # App currently uses MemoryCache (in-process); Redis is not wired yet.
+  redis:
+    image: redis:7-alpine
+    container_name: reference-app-redis
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - reference-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  # ── MinIO (S3-compatible storage) ────────────────────────────────────────────
+  # Included for production completeness and future rf-storage S3Manager work.
+  # App currently uses MemoryStorage (in-process); MinIO is not wired yet.
+  # Console: http://localhost:9001  (admin / miniopassword)
+  minio:
+    image: minio/minio:latest
+    container_name: reference-app-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: "${MINIO_ROOT_USER:-admin}"
+      MINIO_ROOT_PASSWORD: "${MINIO_ROOT_PASSWORD:-miniopassword}"
+    ports:
+      - "${MINIO_API_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - minio-data:/data
+    networks:
+      - reference-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  # ── MailHog (SMTP trap) ──────────────────────────────────────────────────────
+  # FULLY WIRED — the app's SmtpMailer sends to MailHog when SMTP_HOST is set.
+  # Web UI at http://localhost:8025 lets you inspect emails the app sends.
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: reference-app-mailhog
+    ports:
+      - "${MAILHOG_SMTP_PORT:-1025}:1025"   # SMTP (app → MailHog)
+      - "${MAILHOG_UI_PORT:-8025}:8025"     # Web UI (browser)
+    networks:
+      - reference-net
+    restart: unless-stopped
+
+volumes:
+  app-data:
+    driver: local
+  app-mailbox:
+    driver: local
+  postgres-data:
+    driver: local
+  redis-data:
+    driver: local
+  minio-data:
+    driver: local
+
+networks:
+  reference-net:
+    driver: bridge

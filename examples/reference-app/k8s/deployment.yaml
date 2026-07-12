@@ -1,0 +1,147 @@
+# =============================================================================
+# RustForge Reference Application — Kubernetes Deployment
+# =============================================================================
+#
+# 2-replica Deployment with:
+#   - ConfigMap + Secret env injection
+#   - Readiness probe on /health/ready  (gates traffic; blocks pod rollout)
+#   - Liveness probe  on /health/live   (restarts the pod on hang)
+#   - Persistent SQLite volume          (1 Gi RWO — single-writer)
+#   - Resource requests/limits sized for a small reference workload
+#
+# NOTE ON SQLITE + REPLICAS: SQLite with a RWO volume supports only one writer
+# at a time. For >1 replica set DATABASE_URL to a network-accessible store
+# (Postgres via rf-orm SeaORM, tracked in VISION_GAP.md) or use a ReadWriteMany
+# NFS/CephFS PVC. The 2-replica count here assumes a shared RWX volume or that
+# only one replica actually writes (the others serve from the in-memory cache).
+#
+# Apply:
+#   kubectl apply -f examples/reference-app/k8s/
+#
+# Watch rollout:
+#   kubectl rollout status deployment/reference-app
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: reference-app
+  namespace: default
+  labels:
+    app: reference-app
+    version: "1.0.0-rc.1"
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: reference-app
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: reference-app
+        version: "1.0.0-rc.1"
+      annotations:
+        # Redeploy on config change: `kubectl rollout restart deployment/reference-app`
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "3000"
+        prometheus.io/path: "/metrics"
+    spec:
+      # Non-root security context (mirrors the Dockerfile USER appuser / uid 1000)
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+
+      containers:
+        - name: reference-app
+          image: rustforge/reference-app:latest
+          imagePullPolicy: IfNotPresent
+
+          ports:
+            - name: http
+              containerPort: 3000
+              protocol: TCP
+
+          # Inject non-secret config from ConfigMap
+          envFrom:
+            - configMapRef:
+                name: reference-app-config
+            - secretRef:
+                name: reference-app-secrets
+
+          # ── Readiness Probe ───────────────────────────────────────────────
+          # rf-health /health/ready — Kubernetes routes traffic here only when
+          # this returns 200. Fails during startup (schema migration) so
+          # initialDelaySeconds gives the migration a head start.
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+            successThreshold: 1
+
+          # ── Liveness Probe ────────────────────────────────────────────────
+          # rf-health /health/live — Kubernetes restarts the pod if this fails.
+          # Higher initialDelaySeconds than readiness to avoid restart loops
+          # while migrations run.
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: 3000
+            initialDelaySeconds: 15
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+
+          # ── Resources ─────────────────────────────────────────────────────
+          # Sized for a reference / demo workload. Adjust for production traffic.
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "64Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
+
+          # ── Volume mounts ─────────────────────────────────────────────────
+          volumeMounts:
+            # Persistent SQLite database (single-writer; see note above)
+            - name: app-data
+              mountPath: /app/data
+            # FileMailer writes .eml files here (fallback when SMTP_HOST absent)
+            - name: mailbox
+              mountPath: /tmp/rustforge-mailbox
+
+      volumes:
+        - name: app-data
+          persistentVolumeClaim:
+            claimName: reference-app-data
+        - name: mailbox
+          emptyDir: {}
+
+      restartPolicy: Always
+
+---
+# PersistentVolumeClaim for SQLite data directory.
+# Single-writer (ReadWriteOnce). Adjust storageClassName for your cluster.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: reference-app-data
+  namespace: default
+  labels:
+    app: reference-app
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+  # storageClassName: standard  # Uncomment and set for your cluster

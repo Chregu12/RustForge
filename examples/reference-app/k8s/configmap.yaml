@@ -1,0 +1,40 @@
+# =============================================================================
+# RustForge Reference Application — Kubernetes ConfigMap
+# =============================================================================
+#
+# Non-sensitive runtime configuration. All env vars here are safe to commit.
+# Secrets (JWT_SECRET, SMTP_PASS, etc.) live in secret.yaml (TEMPLATE only —
+# fill in real values or use a secrets manager before applying to a cluster).
+#
+# Apply:  kubectl apply -f examples/reference-app/k8s/configmap.yaml
+# Update: kubectl apply -f examples/reference-app/k8s/configmap.yaml
+#         (pods pick up changes on next restart or via Deployment rollout)
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: reference-app-config
+  namespace: default
+  labels:
+    app: reference-app
+    component: config
+data:
+  # HTTP listen port (must match the containerPort in deployment.yaml)
+  PORT: "3000"
+
+  # SQLite database path inside the container.
+  # Backed by a PersistentVolumeClaim (see deployment.yaml volumeMounts).
+  # Set to "" or remove to use in-memory SQLite (data lost on pod restart).
+  # NOTE: The DB facade uses rusqlite (SQLite only). Postgres support requires
+  # the rf-orm SeaORM DatabaseManager (tracked in VISION_GAP.md).
+  DATABASE_URL: "/app/data/blog.db"
+
+  # SMTP configuration — wired to whatever SMTP relay you deploy alongside.
+  # For local dev set SMTP_HOST to the MailHog service name.
+  # Remove SMTP_HOST to fall back to FileMailer (writes .eml files).
+  SMTP_PORT: "587"
+  MAIL_MAILBOX: "/tmp/rustforge-mailbox"
+
+  # Log level passed to the tracing-subscriber env-filter.
+  # Valid values: error, warn, info, debug, trace
+  LOG_LEVEL: "info"
