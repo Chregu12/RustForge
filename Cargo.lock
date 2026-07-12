@@ -6880,6 +6880,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "reference-app"
+version = "1.0.0-rc.1"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "axum 0.8.7",
+ "rf",
+ "rf-auth",
+ "rf-health",
+ "rf-logging",
+ "rf-mail",
+ "rf-metrics",
+ "rf-queue",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "regex"
 version = "1.12.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"

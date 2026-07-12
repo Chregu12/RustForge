@@ -117,6 +117,8 @@ members = [
     "examples/realtime-chat",
     "examples/taskflow",
     "examples/i18n-localized-api",
+    # Cycle-4 flagship reference application (exercises every stable-core surface)
+    "examples/reference-app",
     # Benchmarks
     "benchmarks",
     # Legacy CLI (kept as foundry-cli)
@@ -287,6 +289,8 @@ default-members = [
     "examples/realtime-chat",
     "examples/taskflow",
     "examples/i18n-localized-api",
+    # Cycle-4 flagship reference application (exercises every stable-core surface)
+    "examples/reference-app",
     # Benchmarks
     "benchmarks",
     # Legacy CLI (kept as foundry-cli)

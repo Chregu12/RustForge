@@ -1,0 +1,45 @@
+[package]
+name = "reference-app"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+publish = false
+description = "RustForge flagship reference application — exercises every stable-core surface end-to-end"
+
+[dependencies]
+# The rf umbrella: prelude with Model!, validate!, create!/find!/update!/delete!,
+# input(), json(), Cache (CacheFacade), Storage (StorageFacade), DB, Mail facade
+rf = { path = "../../crates/rf" }
+
+# Auth: JwtManager (JWT issue/verify), PasswordHasher (bcrypt), Claims
+rf-auth = { path = "../../crates/rf-auth" }
+
+# Health: HealthChecker, health_router, MemoryCheck
+rf-health = { path = "../../crates/rf-health" }
+
+# Metrics: metrics_router, Prometheus /metrics endpoint
+rf-metrics = { path = "../../crates/rf-metrics" }
+
+# Logging: init_logging, LogConfig (tracing-subscriber setup)
+rf-logging = { path = "../../crates/rf-logging" }
+
+# Queue: Job trait, MemoryQueue, Worker, Jobs facade (dispatch_now, set_queue)
+rf-queue = { path = "../../crates/rf-queue" }
+
+# Mail: Mailable, MailBuilder, Address, MailFacade (FileMailer default)
+rf-mail = { path = "../../crates/rf-mail" }
+
+# axum 0.8: Router, routing, middleware, extract (Multipart, Path, State, …)
+axum = { workspace = true }
+# Async runtime
+tokio = { workspace = true }
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+# Async trait support (for Job impl)
+async-trait = { workspace = true }
+# Top-level error handling in main()
+anyhow = { workspace = true }
+# Structured logging macros (info!, warn!, …)
+tracing = { workspace = true }
