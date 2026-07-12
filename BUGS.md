@@ -192,18 +192,15 @@ as the canonical implementation.
 
 ---
 
-### `rf-auth` - `attempt()` Authenticates Any Credentials
-**Severity**: Critical (security stub)
-**File**: `crates/rf-auth/src/auth_manager.rs:84-104`
+### ✅ RESOLVED — `rf-auth` - `attempt()` now verifies credentials (fail-closed)
+**Was**: Critical (security stub)
+**Now fixed in**: `crates/rf-auth/src/auth_manager.rs:240` (`attempt`)
 
-The `attempt()` method is an unfinished stub: it logs in any user that provides an email and
-password field, regardless of whether the password is correct. No database lookup, no password
-hash verification is performed. Any caller with both fields present is granted authenticated
-access.
-
-**Fix needed**: Integrate with the ORM layer to query the user by email and verify the provided
-password against the stored hash using a password-hashing crate (e.g. `argon2` or `bcrypt`).
-Until then, this crate must not be used in production.
+The `attempt()` method is no longer a stub. It looks up the user via
+`UserProvider::retrieve_by_credentials`, verifies the submitted password against the
+stored hash (bcrypt/argon2 auto-detected) via `PasswordHasher`, strips the password
+hash before setting the current user, and returns `Ok(false)` on a missing provider,
+missing user, or missing/invalid hash — fail-closed. Verified by cycle-5 audit.
 
 ---
 

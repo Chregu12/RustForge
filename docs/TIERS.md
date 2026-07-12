@@ -16,10 +16,12 @@ propagate the change.
 | `experimental` | Exists and compiles but is excluded from `default-members` and the 1.0 supported surface. API may change or be removed without a version bump. | None |
 | `stub` | Placeholder crate with no real implementation beyond type definitions or forwarding. | None |
 
-> **Machine-check convention:** Each crate's `Cargo.toml` contains
-> `[package.metadata.rustforge] tier = "<tier>"`. Stable-core and experimental
-> crates carry this key today; beta crates will be annotated incrementally.
-> Run `grep -r 'tier = ' crates/*/Cargo.toml` to inspect.
+> **Machine-check convention (partial today):** A crate's `Cargo.toml` may carry
+> `[package.metadata.rustforge] tier = "<tier>"`. This is populated for the
+> stable-core and experimental crates so far (~42 of the ~127 members); the
+> remaining beta crates are annotated incrementally, so **this table — not the
+> Cargo metadata — is the authoritative source** until annotation is complete.
+> Run `grep -rl 'metadata.rustforge' crates/*/Cargo.toml | wc -l` to see coverage.
 
 ---
 

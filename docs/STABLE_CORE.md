@@ -129,6 +129,14 @@ Grep-verified in `crates/rf-response/src/`:
 | `SoftDelete` | `rf_orm::SoftDelete` | Soft-delete mixin |
 | `migration! { … }` | `rf_macros::migration` | Schema migration DSL |
 
+> **Database support caveat (important):** the `Model!` / `create!` / `find!` /
+> `update!` / `delete!` DX macros and the `DB` facade run on the **rusqlite-backed
+> SQLite** engine — they are **SQLite-only today**. Production **Postgres** currently
+> requires the `rf-orm` SeaORM path (`DatabaseManager`), which does **not** go through
+> the DX macros (different API + ergonomics; no macro bridge yet). A `postgres://`
+> `DATABASE_URL` is detected and falls back to SQLite with a warning. Bridging the DX
+> macros to Postgres is a tracked roadmap item (see `docs/REVIEW_RESPONSE.md`).
+
 **Example:** `examples/blog-slice/` · `examples/phase12-blog/` · `examples/rest-crud-resource/`
 
 ---

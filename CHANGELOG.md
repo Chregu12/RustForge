@@ -61,35 +61,40 @@ Excluded per the `default-members` policy in `Cargo.toml`. See
   `rf-livereload`, `rf-socialite`, `rf-cashier`, `rf-mcp`, `rf-nightwatch`,
   `rf-ai`, `rf-vector`, `rf-graphql`, `rf-dusk`, `rf-sail`, `rf-spark`.
 
-### Known Limitations (Tier 4 — engine-before-sugar backlog)
+### Known Limitations (current, verified 2026-07-12 by the cycle-5 audit)
 
-These gaps are documented honestly in VISION_GAP.md:
+The earlier engine-before-sugar backlog is largely resolved: the DB facade now
+hits a real database (rusqlite), the `Cache`/`Mail`/`Storage` facades wire real
+backends over the deadlock-safe `AsyncBridge` (no `block_on`-in-async panic),
+`build_router()` serves real routes, and auth state is per-request via
+`tokio::task_local!` (no cross-request bleed). The honest remaining gaps are:
 
-- **Model/DB facade returns mock data.** `rf-db-facade::QueryBuilder::get()`
-  returns `Ok(vec![])`. The real ORM engine (`rf-orm`, SeaORM) is not yet
-  bridged to the facade sugar. `Post::all().await` compiles and runs but hits
-  no database.
-- **Storage/Cache/Mail facades use in-memory mocks.** `rf-storage-facade`,
-  `rf-cache-facade`, and `rf-mail-facade` all default to `HashMap`/
-  `MemoryMailer` / `MemoryCache`. Real S3, Redis, and SMTP engines exist in
-  `rf-storage`, `rf-cache`, `rf-mail` but are not wired to the sync facade
-  layer. Wiring via runtime-thread bridge (not `block_on`) is the fix.
-- **`build_router()` returns an empty Router.** The routing sugar facade wraps
-  axum route registration but the current implementation returns an
-  uninhabited `Router`. Wire axum route methods directly for now.
-- **Process-global auth state.** A single `static GLOBAL_AUTH` stores the
-  current user across all requests — a real cross-request security bug for
-  multi-user servers. Use `rf-auth`'s per-request JWT extractor instead.
-- **Several advertised macros do not compile.** `job!` references a
-  nonexistent `rf-job-facade` crate; `mailable!` / `send_mail!` / `view!` /
-  `back!` reference nonexistent types or methods. Fix or delete before 1.0.0.
-- **Relationship stubs.** `HasRelationships::load_has_one/has_many/belongs_to`
-  are `panic!("placeholder")` stubs. The `#[relations]` proc-macro discards
-  method bodies. Use `rf-orm` builders directly for relationships.
-- **`block_on`-in-async panics.** Several sync facade methods call
-  `Handle::current().block_on()` from inside Tokio workers (i.e. axum
-  handlers), which panics at runtime. Safe bridge = dedicated runtime thread +
-  channel.
+- **`require_auth` reads a numeric Bearer user id, not a JWT.** The stable
+  `rf_auth::require_auth` middleware parses `Authorization: Bearer <u64>` as a
+  user id. For JWT-protected APIs you must supply your own middleware calling
+  `JwtManager::validate_token` (see `examples/reference-app` `jwt_auth`). Making
+  `require_auth` JWT-capable is the top stable-surface fix.
+- **CSRF validates the header, not the form-body `_token`.** `rf-web`'s CSRF
+  middleware checks the `X-CSRF-TOKEN` header; the `_token` form-body field is
+  not yet extracted, so raw HTML forms without JS cannot self-submit the token.
+- **The Laravel-DX `Model!`/`create!`/`find!` macros are SQLite-only.** They run
+  on the rusqlite-backed DB facade. Production Postgres currently requires the
+  `rf-orm` SeaORM path (`DatabaseManager`), which does not go through the DX
+  macros — no bridge yet. A `postgres://` `DATABASE_URL` is detected and the app
+  falls back to SQLite with a warning.
+- **`capture_request` drains multipart bodies.** A route using both
+  `capture_request` and an `axum::Multipart` extractor needs a split router
+  (the reference app does this for its upload route).
+- **`rf-mail` exports two similarly-named `SmtpConfig` types** (`backends::` vs
+  `config::`), which is easy to confuse; **`init_logging`** returns a non-
+  `Send+Sync` error needing a `map_err` when propagated via `anyhow`.
+- **Live cloud round-trips are unproven in CI.** The `live-cloud` job is
+  secrets-gated and skips green until the maintainer adds `AWS_*` / `REDIS_URL`
+  / SMTP secrets; the `live-backends` job does exercise real Redis/MailHog/MinIO
+  via Docker Compose.
+- **Experimental crates** (`rf-nova`, `rf-swagger`, `rf-telescope`, `rf-cms`,
+  `rf-breeze`, `rf-vite`, `rf-livereload`) are excluded from the 1.0 surface;
+  see `docs/TIERS.md`.
 
 ### Release engineering changes in this RC
 
