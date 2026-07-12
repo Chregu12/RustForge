@@ -96,8 +96,15 @@ macro_rules! register_scopes {
 mod tests {
     use super::*;
 
+    // ScopeRepository is process-global; these tests each clear() then assert on
+    // count()/exists(). Run in parallel they race (one test's clear() interleaves
+    // with the other's asserts). Serialize them on a shared lock. Poison-tolerant:
+    // a panicking test must not wedge the sibling.
+    static TEST_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
     #[test]
     fn test_global_scope_repository() {
+        let _guard = TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         ScopeRepository::clear();
 
         ScopeRepository::register(Scope::new("read:posts", "Read posts"));
@@ -112,6 +119,7 @@ mod tests {
 
     #[test]
     fn test_scope_macro() {
+        let _guard = TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         ScopeRepository::clear();
 
         register_scopes! {
