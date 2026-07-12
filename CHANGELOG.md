@@ -61,22 +61,36 @@ Excluded per the `default-members` policy in `Cargo.toml`. See
   `rf-livereload`, `rf-socialite`, `rf-cashier`, `rf-mcp`, `rf-nightwatch`,
   `rf-ai`, `rf-vector`, `rf-graphql`, `rf-dusk`, `rf-sail`, `rf-spark`.
 
-### Known Limitations (current, verified 2026-07-12 by the cycle-5 audit)
+### Fixed — cycle-6 code hardening (2026-07-12)
+
+Four gaps the cycle-5 audit found are now closed, each with a proving test:
+
+- **`require_auth` is now JWT-capable.** `rf_auth::require_auth` (and the new
+  `require_auth_with(manager)` companion for state-owned managers) validates a
+  real JWT via `JwtManager::validate_token`, sets the per-request `Auth` scope
+  (`Auth::user()`/`check()`/`id()` work in handlers), and returns a JSON 401 on
+  missing/invalid/expired/tampered tokens. The old numeric-`Bearer <u64>`
+  behavior is removed. `examples/reference-app` now uses `require_auth_with`
+  instead of a hand-rolled middleware. (rf-auth: 92 tests green.)
+- **CSRF now extracts the form-body `_token`.** `rf-web`'s CSRF middleware parses
+  the `_token` field from `application/x-www-form-urlencoded` bodies (buffered +
+  re-inserted so the downstream handler still sees the payload), in addition to
+  the `X-CSRF-TOKEN` header. (rf-web: 30 CSRF tests green.)
+- **`rf-mail` SMTP config names disambiguated.** `SmtpEnvConfig` (application-
+  level) vs `SmtpConfig` (mailer-level, `Mail::smtp()`); the old `SmtpMailConfig`
+  remains as a `#[deprecated]` alias.
+- **`init_logging` error is now `Send + Sync`** (`anyhow::Result<()>`), so it
+  composes with `?` into an async `anyhow::Result` main.
+
+### Known Limitations (current, verified 2026-07-12; updated after cycle 6)
 
 The earlier engine-before-sugar backlog is largely resolved: the DB facade now
 hits a real database (rusqlite), the `Cache`/`Mail`/`Storage` facades wire real
 backends over the deadlock-safe `AsyncBridge` (no `block_on`-in-async panic),
-`build_router()` serves real routes, and auth state is per-request via
-`tokio::task_local!` (no cross-request bleed). The honest remaining gaps are:
+`build_router()` serves real routes, auth state is per-request via
+`tokio::task_local!` (no cross-request bleed), `require_auth` validates JWTs, and
+CSRF covers the form-body `_token`. The honest remaining gaps are:
 
-- **`require_auth` reads a numeric Bearer user id, not a JWT.** The stable
-  `rf_auth::require_auth` middleware parses `Authorization: Bearer <u64>` as a
-  user id. For JWT-protected APIs you must supply your own middleware calling
-  `JwtManager::validate_token` (see `examples/reference-app` `jwt_auth`). Making
-  `require_auth` JWT-capable is the top stable-surface fix.
-- **CSRF validates the header, not the form-body `_token`.** `rf-web`'s CSRF
-  middleware checks the `X-CSRF-TOKEN` header; the `_token` form-body field is
-  not yet extracted, so raw HTML forms without JS cannot self-submit the token.
 - **The Laravel-DX `Model!`/`create!`/`find!` macros are SQLite-only.** They run
   on the rusqlite-backed DB facade. Production Postgres currently requires the
   `rf-orm` SeaORM path (`DatabaseManager`), which does not go through the DX
@@ -85,9 +99,6 @@ backends over the deadlock-safe `AsyncBridge` (no `block_on`-in-async panic),
 - **`capture_request` drains multipart bodies.** A route using both
   `capture_request` and an `axum::Multipart` extractor needs a split router
   (the reference app does this for its upload route).
-- **`rf-mail` exports two similarly-named `SmtpConfig` types** (`backends::` vs
-  `config::`), which is easy to confuse; **`init_logging`** returns a non-
-  `Send+Sync` error needing a `map_err` when propagated via `anyhow`.
 - **Live cloud round-trips are unproven in CI.** The `live-cloud` job is
   secrets-gated and skips green until the maintainer adds `AWS_*` / `REDIS_URL`
   / SMTP secrets; the `live-backends` job does exercise real Redis/MailHog/MinIO

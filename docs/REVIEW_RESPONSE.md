@@ -4,6 +4,13 @@
 **Cycles completed since baseline:** C1 (release-gate hardening), C2 (stable-core contract), C3 (doc purge + security contact), C4 (reference-app)  
 **Reconciler note:** An independent auditor and an adversarial skeptic scored cycles 1–4 against the same baseline. This document is the synthesized honest re-score. Where the two reviewers disagreed, this reconciliation leans toward the skeptic when they produced code-verified findings with line numbers, and toward the auditor when the skeptic's deduction was not supported by a concrete artifact. The goal is accuracy, not flattery.
 
+**Update — cycle-6 code hardening (2026-07-12, after this synthesis).** Roadmap items 1 and 2 below (the two most damaging code gaps) are now CLOSED with tests, plus two of the DX friction items:
+- **`require_auth` is JWT-capable** — it validates a real JWT via `JwtManager::validate_token`, sets the per-request `Auth` scope, and returns 401 on missing/invalid/expired/tampered tokens; `require_auth_with(manager)` added for state-owned managers; the reference app switched off its hand-rolled `jwt_auth`. (rf-auth: 92 tests green.)
+- **CSRF form-body `_token`** — now parsed from `x-www-form-urlencoded` bodies (buffered + re-inserted). (rf-web: 30 CSRF tests green.)
+- **rf-mail `SmtpConfig`** disambiguated (`SmtpEnvConfig` vs `SmtpConfig`, deprecated alias); **`init_logging`** now returns a `Send+Sync` error.
+
+The scores in this document reflect the state *as audited* (before cycle 6). A future re-score should reflect these closures — most directly on Laravel-DX and Production-Readiness. Still open after cycle 6: DB-facade→Postgres bridge (item 3, code half), crates.io publication, TIERS annotation coverage (item 6), live-cloud CI secrets (item 5), and the time/adoption-bound open-source-maturity dimension (item 7).
+
 **Post-synthesis corrections applied (2026-07-12).** The documentation-inconsistency findings below (roadmap item 4) were fixed immediately after this synthesis, in the same change that added this document: `BUGS.md` now marks `attempt()` **RESOLVED** (real fail-closed impl at `auth_manager.rs:240`); `CHANGELOG.md` "Known Limitations" was rewritten to reflect the current state (real router, real DB facade, per-request auth) and list the genuinely-remaining gaps; `TIERS.md` no longer overclaims machine-checkability (it states ~42/127 crates are annotated and that the table itself is authoritative); and `STABLE_CORE.md` now prominently discloses the SQLite-only DX-macro / Postgres-needs-SeaORM caveat (roadmap item 3, doc half). The **code** gaps (roadmap items 1, 2, 5, 6) remain open and are the subject of a future hardening cycle. The scores below reflect the state *as audited*, before these doc corrections.
 
 ---

@@ -148,7 +148,8 @@ Grep-verified in `crates/rf-response/src/`:
 | Item | Location | Description |
 |------|----------|-------------|
 | `Auth` | `rf_auth::Auth` | Facade: `Auth::user()`, `Auth::check()`, `Auth::login(user)`, `Auth::logout()` |
-| `require_auth` | `rf_auth::require_auth` | axum middleware; rejects unauthenticated requests with JSON 401 before body extraction |
+| `require_auth` | `rf_auth::require_auth` | axum middleware; validates the `Authorization: Bearer <jwt>` token via `JwtManager`, sets the per-request `Auth` scope, rejects with JSON 401 on missing/invalid/expired token |
+| `require_auth_with` | `rf_auth::require_auth_with` | Same, taking an explicit `JwtManager` (for state-owned managers) instead of reading one from extensions |
 | `JwtManager` | `rf_auth::JwtManager` | Issue and verify JWT tokens |
 | `Claims` | `rf_auth::Claims` | JWT claims struct |
 | `PasswordHasher` | `rf_auth::PasswordHasher` | bcrypt/argon2 password hashing (wraps `rf-global-helpers::Hash`) |

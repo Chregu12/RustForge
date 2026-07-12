@@ -26,7 +26,7 @@
 
 ### What RustForge does NOT protect against (residual risk)
 
-- **CSRF via form-body tokens** — The current `CsrfLayer` reads the token from the `X-CSRF-TOKEN` header only. Form-body (`_token` field) parsing requires consuming the request body, which is not yet wired. APIs using JSON or headers are fully protected; traditional HTML form submissions must use the `X-CSRF-TOKEN` header (e.g., via a `<meta>` tag and JavaScript).
+- ~~**CSRF via form-body tokens**~~ — Resolved (2026-07-12): the CSRF middleware now parses the `_token` field from `application/x-www-form-urlencoded` bodies (buffered and re-inserted so the downstream handler still receives the payload), in addition to the `X-CSRF-TOKEN` header. Traditional HTML form submissions are now protected without JavaScript.
 - **TLS / certificate management** — The framework does not terminate TLS. Deploy behind a TLS-terminating reverse proxy (nginx, Caddy, AWS ALB) or use `rustls` directly in the application.
 - **Secure cookie in development** — Session cookies are set with `Secure` only when `APP_ENV=production` or `SESSION_SECURE=true`. Local development runs without `Secure` so plaintext `localhost` works. Set `SESSION_SECURE=true` if your staging environment uses HTTPS.
 - **In-memory session store** — The default `session_scope` stores sessions in a process-local `RwLock<HashMap>`. Multi-process / multi-pod deployments will not share sessions. Use `rf-cache` (Redis) as the backing store for horizontal scaling.

@@ -230,22 +230,17 @@ connection failures should be retried with exponential backoff before failing a 
 
 ---
 
-### `rf-web/src/csrf.rs` - CSRF Form Body Token Not Extracted
-**Severity**: Medium
-**File**: `crates/rf-web/src/csrf.rs:168-181`
+### ✅ RESOLVED — `rf-web/src/csrf.rs` - CSRF form-body `_token` now extracted
+**Was**: Medium
+**Now fixed in**: `crates/rf-web/src/csrf.rs` (`extract_token`)
 
-The `extract_token()` method explicitly comments that form body parsing is not implemented:
-```rust
-// Then try to get from form data
-// Note: This is simplified - in production, you'd need to properly parse the body
-// while preserving it for the handler
-None
-```
-This means form-based CSRF (e.g. `<input type="hidden" name="_token">`) is never validated,
-only `X-CSRF-TOKEN` headers work.
-
-**Fix needed**: Implement multipart/form-data and `application/x-www-form-urlencoded` body
-parsing that preserves the body for downstream handlers.
+`extract_token()` now parses the `_token` field from `application/x-www-form-urlencoded`
+bodies: the body is swapped out with `mem::replace`, read via `axum::body::to_bytes`, and
+re-inserted as `Body::from(bytes)` so the downstream handler still receives the full
+payload; the token is percent-decoded from the form field (`field_name`, default `_token`).
+Both the `from_fn` and tower-service paths share this. Proven by
+`test_csrf_form_body_valid_token_passes`, `_absent_token_rejected`, `_wrong_token_rejected`,
+and `_preserved_for_downstream_handler` (rf-web, 30 CSRF tests green). Fixed in cycle 6.
 
 ---
 
