@@ -11,18 +11,13 @@ use argon2::{
 };
 
 /// Hash algorithm to use
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub enum HashAlgorithm {
     /// BCrypt hashing (default)
+    #[default]
     Bcrypt,
     /// Argon2 hashing (recommended for new applications)
     Argon2,
-}
-
-impl Default for HashAlgorithm {
-    fn default() -> Self {
-        HashAlgorithm::Bcrypt
-    }
 }
 
 /// The Hash facade providing password hashing utilities.

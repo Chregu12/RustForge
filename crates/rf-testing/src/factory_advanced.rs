@@ -76,6 +76,7 @@ impl Default for Sequence {
 pub struct FactoryState<F: Factory> {
     base_factory: F,
     state_name: String,
+    #[allow(clippy::type_complexity)]
     state_modifiers: Arc<Mutex<HashMap<String, Box<dyn Fn(&mut F::Model) + Send + Sync>>>>,
 }
 
@@ -123,6 +124,12 @@ pub struct EnhancedFactory<F: Factory> {
     states: HashMap<String, Box<dyn Fn(&mut F::Model) + Send + Sync>>,
     after_create: Vec<AfterCreateCallback<F::Model>>,
     count: usize,
+}
+
+impl<F: Factory + Default> Default for EnhancedFactory<F> {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl<F: Factory + Default> EnhancedFactory<F> {

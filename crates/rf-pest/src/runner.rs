@@ -123,7 +123,7 @@ impl TestRunner {
         let result = if let Ok(reg) = registry().lock() {
             reg.tests().iter().find(|t| t.name == name).map(|t| {
                 match &t.test_fn {
-                    TestFn::Sync(f) => catch_unwind(AssertUnwindSafe(|| f())),
+                    TestFn::Sync(f) => catch_unwind(AssertUnwindSafe(f.as_ref())),
                     TestFn::Async(f) => {
                         let rt = tokio::runtime::Runtime::new().unwrap();
                         catch_unwind(AssertUnwindSafe(|| {

@@ -114,12 +114,12 @@ impl EventDispatcher {
 
         listeners
             .entry(type_id)
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(boxed);
 
         // Sort by priority (descending)
         if let Some(list) = listeners.get_mut(&type_id) {
-            list.sort_by(|a, b| b.priority().cmp(&a.priority()));
+            list.sort_by_key(|l| std::cmp::Reverse(l.priority()));
         }
     }
 

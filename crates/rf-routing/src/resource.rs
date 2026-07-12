@@ -265,6 +265,7 @@ impl ResourceCollection {
     }
 
     /// Add a resource to the collection.
+    #[allow(clippy::should_implement_trait)]
     pub fn add(mut self, resource: ResourceRouter) -> Self {
         self.resources.push(resource);
         self

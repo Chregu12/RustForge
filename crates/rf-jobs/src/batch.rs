@@ -101,6 +101,7 @@ impl JobBatch {
     }
 
     /// Add a single job to the batch
+    #[allow(clippy::should_implement_trait)]
     pub fn add<J: Job + 'static>(mut self, job: J) -> Result<Self, serde_json::Error> {
         let serialized = SerializedJob {
             job_type: std::any::type_name::<J>().to_string(),

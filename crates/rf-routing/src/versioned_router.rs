@@ -53,7 +53,7 @@ impl VersionedRouterBuilder {
     where
         F: FnOnce(Router) -> Router,
     {
-        let router = self.versions.remove(&version).unwrap_or_else(Router::new);
+        let router = self.versions.remove(&version).unwrap_or_default();
         let configured = configure(router);
         self.versions.insert(version, configured);
         self

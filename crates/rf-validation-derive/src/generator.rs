@@ -109,8 +109,7 @@ fn generate_rule_validation(field: &FieldInfo, rule: &ValidationRule) -> TokenSt
     let error_code = rule.error_code();
     let error_message = field
         .custom_message
-        .as_ref()
-        .map(|m| m.clone())
+        .clone()
         .unwrap_or_else(|| rule.error_message(&field_name_str));
 
     // Determine the value expression based on whether field is optional

@@ -307,7 +307,20 @@ pub mod prelude {
     // (a language ceiling) — it makes the idiomatic `?` path ergonomic.
     pub use rf_core::{AppError, AppResult, OrNotFound};
 
+    // ── Stable Queue surface (rf-queue is a stable-tier crate, TIERS.md §Stable)
+    // These four items are the minimum a newcomer needs to define and dispatch
+    // background jobs without leaving `use rf::prelude::*` + a direct rf-queue dep.
+    //   `Queue`      — the driver trait (MemoryQueue / RedisQueue implement it)
+    //   `Job`        — the trait to impl for each job struct
+    //   `Worker`     — spawns async workers that drain a Queue
+    //   `MemoryQueue`— the zero-config development driver (panic-isolated, DLQ-capable)
+    pub use rf_queue::{Job as QueueJob, MemoryQueue, Queue, Worker};
+
     // New packages (Phase 22)
+    // NOTE: rf-pest (beta), rf-cashier (beta), rf-mcp (beta), rf-nightwatch (beta)
+    // are NOT part of the v1 stable surface (see TIERS.md). They are retained here
+    // for backward compatibility with existing users but will be moved behind an
+    // opt-in feature flag in a future minor release.
     pub use rf_pest::Pest;
     pub use rf_cashier::Cashier;
     pub use rf_mcp::Mcp;

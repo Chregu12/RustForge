@@ -90,7 +90,7 @@ pub trait BillableExt: Billable {
             .await
             .map_err(|e| CashierError::StripeError(e.to_string()))?;
 
-        self.set_stripe_id(&customer.id.to_string()).await?;
+        self.set_stripe_id(customer.id.as_ref()).await?;
 
         Ok(customer)
     }

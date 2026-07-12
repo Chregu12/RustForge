@@ -114,7 +114,7 @@ where
         if let Some(bearer_token) = extract_bearer_token(parts) {
             // Prefer database path when a connection is available
             if let Some(ref db) = db_opt {
-                return authenticate_via_token(bearer_token, &**db, &config, parts).await;
+                return authenticate_via_token(bearer_token, db, &config, parts).await;
             }
 
             // Fall back to transient store (DB-free / test deployments)
@@ -137,7 +137,7 @@ where
         // --- SPA cookie / session path (requires database) ---
         if let Some(ref db) = db_opt {
             if let Some(user_id) = extract_session_user_id(parts) {
-                return authenticate_via_cookie(user_id, &**db).await;
+                return authenticate_via_cookie(user_id, db).await;
             }
         }
 

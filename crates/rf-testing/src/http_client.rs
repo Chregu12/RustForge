@@ -144,7 +144,7 @@ impl<'a> RequestBuilder<'a> {
             request = request.header(key, value);
         }
 
-        let body = self.body.unwrap_or_else(|| Bytes::new());
+        let body = self.body.unwrap_or_default();
         let request = request
             .body(Body::from(body))
             .map_err(|e| TestError::Other(format!("Failed to build request: {}", e)))?;
@@ -192,7 +192,7 @@ impl TestResponseBuilder {
     pub async fn body_bytes(&mut self) -> TestResult<&Bytes> {
         if self.body.is_none() {
             let body = axum::body::to_bytes(
-                std::mem::replace(&mut self.response.body_mut(), Body::empty()),
+                std::mem::replace(self.response.body_mut(), Body::empty()),
                 usize::MAX,
             )
             .await
@@ -325,7 +325,7 @@ impl TestResponseBuilder {
         let results = jsonpath_lib::select(&body, path).expect("Invalid JSON path");
         let actual = results
             .first()
-            .expect(&format!("Path '{}' not found", path));
+            .unwrap_or_else(|| panic!("Path '{}' not found", path));
 
         assert_eq!(
             *actual, &expected,
@@ -346,7 +346,7 @@ impl TestResponseBuilder {
             for part in parts {
                 current = current
                     .get(part)
-                    .expect(&format!("JSON path '{}' not found at '{}'", path, part));
+                    .unwrap_or_else(|| panic!("JSON path '{}' not found at '{}'", path, part));
             }
         }
 
@@ -383,7 +383,7 @@ mod base64 {
 
     pub fn encode(input: String) -> String {
         let bytes = input.as_bytes();
-        let mut result = String::with_capacity((bytes.len() + 2) / 3 * 4);
+        let mut result = String::with_capacity(bytes.len().div_ceil(3) * 4);
 
         for chunk in bytes.chunks(3) {
             let b0 = chunk[0] as u32;

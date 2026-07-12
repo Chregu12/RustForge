@@ -100,8 +100,8 @@ impl MemoryBroadcaster {
         let connections = {
             let subs = self.subscriptions.lock().unwrap();
             subs.get(channel)
-                .map(|s| s.iter().cloned().collect())
-                .unwrap_or_else(Vec::new)
+                .map(|s| s.iter().cloned().collect::<Vec<_>>())
+                .unwrap_or_default()
         };
 
         let message = BroadcastMessage {
@@ -134,7 +134,7 @@ impl MemoryBroadcaster {
         {
             let mut subs = self.subscriptions.lock().unwrap();
             subs.entry(channel.clone())
-                .or_insert_with(HashSet::new)
+                .or_default()
                 .insert(connection_id.clone());
         }
 
@@ -147,7 +147,7 @@ impl MemoryBroadcaster {
             if let Some(ref uid) = user_id {
                 let mut pres = self.presence.lock().unwrap();
                 pres.entry(channel.clone())
-                    .or_insert_with(HashMap::new)
+                    .or_default()
                     .insert(uid.clone(), PresenceInfo::new(uid.clone()));
             }
         }

@@ -157,6 +157,7 @@ pub struct BladeEngine {
     cache: Arc<RwLock<HashMap<String, CompiledTemplate>>>,
 
     /// Custom directives
+    #[allow(clippy::type_complexity)]
     directives: Arc<RwLock<HashMap<String, Box<dyn Fn(&str) -> String + Send + Sync>>>>,
 
     /// Component paths

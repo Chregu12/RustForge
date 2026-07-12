@@ -161,11 +161,9 @@ impl FriendlyError for ValidationError {
     }
 
     fn current_config(&self) -> Option<Vec<(String, String)>> {
-        if let Some(ref val) = self.value {
-            Some(vec![("Current Value".to_string(), val.clone())])
-        } else {
-            None
-        }
+        self.value
+            .as_ref()
+            .map(|val| vec![("Current Value".to_string(), val.clone())])
     }
 }
 

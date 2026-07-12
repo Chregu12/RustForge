@@ -13,20 +13,15 @@ use std::marker::PhantomData;
 use std::sync::Arc;
 
 /// Backoff strategy for failed jobs
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub enum BackoffStrategy {
     /// Fixed delay between retries
     Fixed,
     /// Exponential backoff (delay doubles each retry)
+    #[default]
     Exponential,
     /// Linear backoff (delay increases linearly)
     Linear,
-}
-
-impl Default for BackoffStrategy {
-    fn default() -> Self {
-        Self::Exponential
-    }
 }
 
 impl BackoffStrategy {
@@ -142,7 +137,7 @@ impl<J: JobWithRegistry + 'static> JobHandlerImpl<J> {
 impl<J: JobWithRegistry + 'static> JobHandler for JobHandlerImpl<J> {
     async fn deserialize_and_execute(&self, payload: &str, ctx: JobContext) -> JobResult {
         // Deserialize the job from JSON
-        let job: J = serde_json::from_str(payload).map_err(|e| JobError::SerializationError(e))?;
+        let job: J = serde_json::from_str(payload).map_err(JobError::SerializationError)?;
 
         // Execute the job
         match job.handle(ctx.clone()).await {

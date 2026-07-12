@@ -94,6 +94,7 @@ pub enum DirectiveType {
 
 impl DirectiveType {
     /// Parse directive type from string
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Self {
         match s {
             "if" => Self::If,
@@ -446,23 +447,21 @@ impl Lexer {
             }
 
             // Stop at {{ or {!!
-            if ch == '{' {
-                if self.peek() == Some('{')
-                    || (self.peek() == Some('!') && self.peek_ahead(2) == Some('!'))
-                {
-                    break;
-                }
+            if ch == '{'
+                && (self.peek() == Some('{')
+                    || (self.peek() == Some('!') && self.peek_ahead(2) == Some('!')))
+            {
+                break;
             }
 
             // Stop at component tags <x- or </x-
-            if ch == '<' {
-                if (self.peek() == Some('x') && self.peek_ahead(2) == Some('-'))
+            if ch == '<'
+                && ((self.peek() == Some('x') && self.peek_ahead(2) == Some('-'))
                     || (self.peek() == Some('/')
                         && self.peek_ahead(2) == Some('x')
-                        && self.peek_ahead(3) == Some('-'))
-                {
-                    break;
-                }
+                        && self.peek_ahead(3) == Some('-')))
+            {
+                break;
             }
 
             text.push(ch);

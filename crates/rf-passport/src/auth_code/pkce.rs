@@ -3,6 +3,7 @@
 use crate::errors::{PassportError, PassportResult};
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
 use sha2::{Digest, Sha256};
+use std::fmt;
 
 /// PKCE code challenge method
 #[derive(Debug, Clone, PartialEq)]
@@ -13,8 +14,18 @@ pub enum CodeChallengeMethod {
     S256,
 }
 
+impl fmt::Display for CodeChallengeMethod {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Plain => f.write_str("plain"),
+            Self::S256 => f.write_str("S256"),
+        }
+    }
+}
+
 impl CodeChallengeMethod {
     /// Parse from string
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> PassportResult<Self> {
         match s {
             "plain" => Ok(Self::Plain),
@@ -26,13 +37,6 @@ impl CodeChallengeMethod {
         }
     }
 
-    /// Convert to string
-    pub fn to_string(&self) -> String {
-        match self {
-            Self::Plain => "plain".to_string(),
-            Self::S256 => "S256".to_string(),
-        }
-    }
 }
 
 /// Generate a code challenge from a code verifier

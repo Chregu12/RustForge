@@ -227,6 +227,7 @@ impl MiddlewareGroup {
     }
 
     /// Add middleware to the group.
+    #[allow(clippy::should_implement_trait)]
     pub fn add(mut self, middleware: impl Into<String>) -> Self {
         self.middleware.push(middleware.into());
         self

@@ -15,21 +15,11 @@ static FLASH_MESSAGES: Lazy<RwLock<HashMap<String, FlashData>>> = Lazy::new(|| {
 });
 
 /// Flash data stored in session
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct FlashData {
     pub messages: HashMap<String, String>,
     pub old_input: HashMap<String, String>,
     pub errors: HashMap<String, Vec<String>>,
-}
-
-impl Default for FlashData {
-    fn default() -> Self {
-        Self {
-            messages: HashMap::new(),
-            old_input: HashMap::new(),
-            errors: HashMap::new(),
-        }
-    }
 }
 
 /// A redirect response with fluent API for adding flash data.

@@ -2,6 +2,7 @@
 
 use chrono::{DateTime, Duration, Utc};
 use sha2::{Digest, Sha256};
+use std::fmt;
 
 /// A signed URL.
 #[derive(Debug, Clone)]
@@ -36,18 +37,6 @@ impl SignedUrl {
 
         let result = hasher.finalize();
         hex::encode(result)
-    }
-
-    /// Get the full signed URL with query parameters.
-    pub fn to_string(&self) -> String {
-        let separator = if self.url.contains('?') { '&' } else { '?' };
-        let mut url = format!("{}{}signature={}", self.url, separator, self.signature);
-
-        if let Some(expires) = self.expires_at {
-            url.push_str(&format!("&expires={}", expires.timestamp()));
-        }
-
-        url
     }
 
     /// Verify the signature.
@@ -98,6 +87,20 @@ impl SignedUrl {
     }
 }
 
+/// Display the full signed URL string (base URL + `?signature=…[&expires=…]`).
+/// Calling `.to_string()` on a `SignedUrl` uses this impl via the blanket
+/// `Display → ToString` derivation.
+impl fmt::Display for SignedUrl {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let separator = if self.url.contains('?') { '&' } else { '?' };
+        write!(f, "{}{}signature={}", self.url, separator, self.signature)?;
+        if let Some(expires) = self.expires_at {
+            write!(f, "&expires={}", expires.timestamp())?;
+        }
+        Ok(())
+    }
+}
+
 /// Builder for creating signed URLs.
 pub struct SignedUrlBuilder {
     url: String,
@@ -137,13 +140,9 @@ impl SignedUrlBuilder {
 
     /// Build the signed URL.
     pub fn build(self) -> SignedUrl {
-        let expires_at = if let Some(expires) = self.expires_at {
-            Some(expires)
-        } else if let Some(minutes) = self.expires_in_minutes {
-            Some(Utc::now() + Duration::minutes(minutes))
-        } else {
-            None
-        };
+        let expires_at = self
+            .expires_at
+            .or_else(|| self.expires_in_minutes.map(|minutes| Utc::now() + Duration::minutes(minutes)));
 
         SignedUrl::new(self.url, &self.secret, expires_at)
     }
@@ -178,7 +177,7 @@ pub fn parse_signed_url(url: &str, _secret: &str) -> Option<SignedUrl> {
         .iter()
         .find(|(k, _)| k == "expires")
         .and_then(|(_, s)| s.parse::<i64>().ok())
-        .map(|timestamp| DateTime::from_timestamp(timestamp, 0).unwrap_or_else(|| Utc::now()));
+        .map(|timestamp| DateTime::from_timestamp(timestamp, 0).unwrap_or_else(Utc::now));
 
     // Reconstruct the original URL preserving the original parameter order.
     let original_params: Vec<String> = params_ordered

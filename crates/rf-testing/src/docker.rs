@@ -154,7 +154,7 @@ impl DockerCompose {
                 "postgresql://rustforge:testpass@localhost:{}/rustforge_test",
                 Service::Postgres.port()
             )),
-            Service::MailHog => Some(format!("http://localhost:8025")),
+            Service::MailHog => Some("http://localhost:8025".to_string()),
             Service::MinIO => Some(format!("http://localhost:{}", Service::MinIO.port())),
         }
     }

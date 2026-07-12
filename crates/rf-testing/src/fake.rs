@@ -421,7 +421,7 @@ impl Fake {
     pub fn file_name() -> String {
         let extensions = ["txt", "pdf", "jpg", "png", "doc", "xlsx"];
         let name = Self::word().to_lowercase();
-        let ext = Self::random_element(&extensions).unwrap_or(&"txt");
+        let ext = Self::random_element(&extensions).unwrap_or("txt");
         format!("{}.{}", name, ext)
     }
 
@@ -431,7 +431,7 @@ impl Fake {
             "txt", "pdf", "jpg", "png", "doc", "xlsx", "csv", "json", "xml",
         ];
         Self::random_element(&extensions)
-            .unwrap_or(&"txt")
+            .unwrap_or("txt")
             .to_string()
     }
 

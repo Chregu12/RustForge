@@ -93,7 +93,7 @@ pub trait Tokenable: Send + Sync + Sized {
 
         Ok(models
             .into_iter()
-            .map(|m| PersonalAccessToken::from_model(m))
+            .map(PersonalAccessToken::from_model)
             .collect())
     }
 

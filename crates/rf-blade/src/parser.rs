@@ -61,6 +61,12 @@ pub enum Directive {
 /// Blade template parser
 pub struct BladeParser;
 
+impl Default for BladeParser {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl BladeParser {
     pub fn new() -> Self {
         Self
