@@ -153,6 +153,5 @@ The following files were removed because they contradicted the honest verified s
 - `COMMANDS.md` — used obsolete `foundry` CLI command names
 - `BEST_PRACTICES.md` — contained incorrect API signatures and unreachable crate names
 - `METRICS.md` — used obsolete `foundry_infra` crate names; written in German
-- `PERFORMANCE.md` — stale benchmarks and claims, superseded by `development/benchmarks.md`
 - `LARAVEL_SYNTAX_FIXES_REPORT.md` — stale development notes about a superseded design direction
 - `architecture/roadmap.md` — wholesale "Foundry" era crate names throughout; superseded by `VISION_GAP.md` for current priorities

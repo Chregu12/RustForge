@@ -23,7 +23,7 @@ propagate the change.
 
 ---
 
-## Stable Crates (32)
+## Stable Crates (34)
 
 These form the **v1.0 supported surface**. APIs here will not break without a major-version bump.
 
@@ -61,10 +61,12 @@ These form the **v1.0 supported surface**. APIs here will not break without a ma
 | `rf` | stable | Simplified-import umbrella (use rf::Route, rf::Hash, etc.) |
 | `forge-cli` | stable | Forge CLI — make:model/controller/request/migration generates compiling code; forge deploy generate |
 | `foundry-cli` | stable | Foundry CLI — legacy scaffolding commands; kept for backward compatibility |
+| `rf-config` | stable | AppConfig::from_env + `Config` are re-exported in the rf prelude and are part of the 1.0 stable surface (see STABLE_CORE.md); dotenvy-backed. Internal consolidation must not break the exported surface. |
+| `rf-routing` | stable | The routing facade the rf prelude exposes (`get/post/put/delete/patch/resource`, `Route`, `global_router`); part of the 1.0 stable surface (see STABLE_CORE.md). Named routes, signed URLs, route groups, resource routing (20 files/6.6k lines). |
 
 ---
 
-## Beta Crates (73)
+## Beta Crates (71)
 
 Real implementations with gaps, not fully integration-tested, or API not yet frozen.
 
@@ -72,12 +74,10 @@ Real implementations with gaps, not fully integration-tested, or API not yet fro
 |-------|------|---------------|
 | `rf-inertia` | beta | Full Inertia.js protocol (X-Inertia-Location, SharedProps); not exhaustively load-tested |
 | `rf-deploy` | beta | DockerCompose serialization correct; forge deploy generate CLI wired; not prod-battle-tested |
-| `rf-config` | stable | AppConfig::from_env + `Config` are re-exported in the rf prelude and are part of the 1.0 stable surface (see STABLE_CORE.md); dotenvy-backed. Internal consolidation must not break the exported surface. |
 | `rf-env` | beta | dotenvy-backed env loading; real implementation, API surface minimal |
 | `rf-graphql` | beta | async-graphql 7.0; per-request auth context injected; not load-tested against large schemas |
 | `rf-tenancy` | beta | Real axum Layer + Tenant::current() + isolation helpers + spawn_with_tenant(); not stress-tested |
 | `rf-api-resources` | beta | WrappedResource/WrappedCollection; manual Serialize; no silent wrapper drop — API may evolve |
-| `rf-routing` | stable | The routing facade the rf prelude exposes (`get/post/put/delete/patch/resource`, `Route`, `global_router`); part of the 1.0 stable surface (see STABLE_CORE.md). Named routes, signed URLs, route groups, resource routing (20 files/6.6k lines). |
 | `rf-requests` | beta | Validated form-request structs (ValidatedJson extractor); real but minimal coverage |
 | `rf-collections` | beta | Laravel-style Collection helpers; real map/filter/reduce/chunk impl |
 | `rf-authorization` | beta | Gates, policies, RBAC (9 files/2.8k lines); real but not exhaustively integration-tested |
