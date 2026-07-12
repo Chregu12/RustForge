@@ -86,27 +86,97 @@ pub(crate) fn coerce_value<T: DeserializeOwned>(v: &Value) -> Option<T> {
     None
 }
 
-/// Get a field from the current request (query or body). `None` outside a request
-/// scope, or when the key is absent / cannot deserialize to `T`.
+/// Get a field from the current request (query, body, or path param).
 ///
 /// String query/form fields are coerced into the requested numeric/bool scalar
 /// (so `input::<usize>("page")` reads `?page=2` as `Some(2)`), matching how path
 /// params already coerce; `input::<String>` still returns the raw string.
+///
+/// # DX-layer convenience — task-local caveat
+///
+/// This function is part of RustForge's **optional** Laravel-style DX layer. It reads
+/// the per-request task-local context populated by the [`capture_request`] middleware.
+///
+/// **When called outside a request handler** — in unit tests, background tasks, CLI
+/// code, or any async task that is not wrapped by [`capture_request`] — it returns
+/// `None` **silently**. This is a *runtime* condition, not a compile error; the
+/// compiler cannot warn you.
+///
+/// **Explicit alternative (recommended for library and test code):** accept the
+/// [`Request`](crate::Request) struct (or a typed extractor) as a handler argument
+/// and call [`Request::input`](crate::Request::input) on it. The explicit API is
+/// always available, never context-dependent, and gives the compiler full visibility
+/// over which fields a handler reads:
+///
+/// ```ignore
+/// // Explicit Rust-native core API — compile-time safe, no middleware dependency:
+/// async fn handler(req: rf_request::Request) -> impl axum::response::IntoResponse {
+///     let title: Option<String> = req.input("title");
+/// }
+///
+/// // DX-layer shorthand — ergonomic, but requires capture_request middleware in the
+/// // router and returns None silently when called outside that scope:
+/// async fn handler_dx() -> impl axum::response::IntoResponse {
+///     let title: Option<String> = rf_request::input("title");
+/// }
+/// ```
+///
+/// See [`docs/API_PHILOSOPHY.md`](https://github.com/your-org/rustforge/blob/main/docs/API_PHILOSOPHY.md)
+/// for the full two-layer design rationale.
 pub fn input<T: DeserializeOwned>(key: &str) -> Option<T> {
     with_ctx(|c| c.fields.get(key).and_then(coerce_value)).flatten()
 }
 
-/// True if the current request has a field named `key`.
+/// Returns `true` if the current request has a field named `key`.
+///
+/// # DX-layer convenience — task-local caveat
+///
+/// This function is part of RustForge's **optional** Laravel-style DX layer. It reads
+/// the per-request task-local context populated by the [`capture_request`] middleware.
+///
+/// **When called outside a request handler** — in unit tests, background tasks, CLI
+/// code, or any async task that is not wrapped by [`capture_request`] — it returns
+/// `false` **silently**. This is a *runtime* condition, not a compile error.
+///
+/// **Explicit alternative:** use [`Request::has`](crate::Request::has) on an
+/// explicitly-received [`Request`](crate::Request) argument. See
+/// [`docs/API_PHILOSOPHY.md`](https://github.com/your-org/rustforge/blob/main/docs/API_PHILOSOPHY.md).
 pub fn has(key: &str) -> bool {
     with_ctx(|c| c.fields.contains_key(key)).unwrap_or(false)
 }
 
-/// Get an uploaded file from the current request by field name, e.g. `file("image")`.
+/// Get an uploaded file from the current request by form-field name, e.g. `file("image")`.
+///
+/// # DX-layer convenience — task-local caveat
+///
+/// This function is part of RustForge's **optional** Laravel-style DX layer. It reads
+/// the per-request task-local context populated by the [`capture_request`] middleware.
+///
+/// **When called outside a request handler** — in unit tests, background tasks, CLI
+/// code, or any async task that is not wrapped by [`capture_request`] — it returns
+/// `None` **silently**. This is a *runtime* condition, not a compile error.
+///
+/// **Explicit alternative:** use [`Request::file`](crate::Request::file) on an
+/// explicitly-received [`Request`](crate::Request) argument. See
+/// [`docs/API_PHILOSOPHY.md`](https://github.com/your-org/rustforge/blob/main/docs/API_PHILOSOPHY.md).
 pub fn file(name: &str) -> Option<UploadedFile> {
     with_ctx(|c| c.files.get(name).cloned()).flatten()
 }
 
-/// All fields of the current request.
+/// Returns all fields of the current request as `HashMap<String, Value>`.
+///
+/// # DX-layer convenience — task-local caveat
+///
+/// This function is part of RustForge's **optional** Laravel-style DX layer. It reads
+/// the per-request task-local context populated by the [`capture_request`] middleware.
+///
+/// **When called outside a request handler** — in unit tests, background tasks, CLI
+/// code, or any async task that is not wrapped by [`capture_request`] — it returns
+/// an **empty map silently**. This is a *runtime* condition, not a compile error.
+///
+/// **Explicit alternative:** use [`Request::all`](crate::Request::all) on an
+/// explicitly-received [`Request`](crate::Request) argument. See
+/// [`docs/API_PHILOSOPHY.md`](https://github.com/your-org/rustforge/blob/main/docs/API_PHILOSOPHY.md).
 pub fn all() -> HashMap<String, Value> {
     with_ctx(|c| c.fields.clone()).unwrap_or_default()
 }

@@ -239,6 +239,24 @@ pub async fn session_scope(req: Request, next: Next) -> Response {
 /// session; without it the facade operates on a single process-local fallback
 /// (fine for tests/CLI, not for concurrent HTTP serving).
 ///
+/// # DX-layer convenience — task-local caveat
+///
+/// `SessionFacade` is part of RustForge's **optional** Laravel-style DX layer. Every
+/// method reads/writes the per-client session identified by the task-local set by the
+/// [`session_scope`] middleware.
+///
+/// **When called outside a request handler** — in unit tests, CLI code, or any async
+/// task not wrapped by [`session_scope`] — it falls back to a **single
+/// process-local session** shared across all code paths in that process. This is
+/// intentionally permissive for offline test/CLI use, but means multiple concurrent
+/// callers in that mode share state. It is a **runtime** condition, not a compile
+/// error.
+///
+/// For request handling always add [`session_scope`] as a router layer so each HTTP
+/// client gets its own isolated session. See
+/// [`docs/API_PHILOSOPHY.md`](https://github.com/your-org/rustforge/blob/main/docs/API_PHILOSOPHY.md)
+/// for the full two-layer design rationale.
+///
 /// # Examples
 ///
 /// ```rust
