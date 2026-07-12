@@ -30,3 +30,6 @@ database = ["sea-orm"]
 sms = ["reqwest"]
 slack = ["reqwest"]
 full = ["mail", "database", "sms", "slack"]
+
+[package.metadata.rustforge]
+tier = "stable"

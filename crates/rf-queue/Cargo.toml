@@ -46,3 +46,6 @@ redis-backend = ["redis", "deadpool-redis"]
 database = ["sea-orm"]
 sqs = ["aws-config", "aws-sdk-sqs"]
 all-backends = ["redis-backend", "database", "sqs"]
+
+[package.metadata.rustforge]
+tier = "stable"

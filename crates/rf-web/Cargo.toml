@@ -40,3 +40,6 @@ futures = "0.3"
 tokio-test = "0.4"
 tower = { workspace = true, features = ["util"] }
 anyhow.workspace = true
+
+[package.metadata.rustforge]
+tier = "stable"

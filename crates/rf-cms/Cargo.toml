@@ -46,3 +46,6 @@ regex = { workspace = true }
 [dev-dependencies]
 tokio = { workspace = true }
 tempfile = "3.8"
+
+[package.metadata.rustforge]
+tier = "experimental"

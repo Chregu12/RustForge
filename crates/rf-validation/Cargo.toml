@@ -47,3 +47,6 @@ rf-validation-derive = { path = "../rf-validation-derive", optional = true }
 tokio = { workspace = true, features = ["full"] }
 tokio-test = "0.4"
 tower = { workspace = true }
+
+[package.metadata.rustforge]
+tier = "stable"

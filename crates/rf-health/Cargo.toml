@@ -32,3 +32,6 @@ tokio = { workspace = true, features = ["test-util", "macros"] }
 default = []
 database = ["sqlx"]
 redis-check = ["redis", "deadpool-redis"]
+
+[package.metadata.rustforge]
+tier = "stable"

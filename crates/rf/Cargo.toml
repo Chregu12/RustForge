@@ -120,3 +120,6 @@ rf-mcp = { path = "../rf-mcp" }
 [features]
 default = []
 full = []
+
+[package.metadata.rustforge]
+tier = "stable"

@@ -50,3 +50,6 @@ mail = ["rf-mail"]
 [dev-dependencies]
 tokio-test = "0.4"
 rf-mail = { path = "../rf-mail" }
+
+[package.metadata.rustforge]
+tier = "stable"

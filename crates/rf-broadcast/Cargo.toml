@@ -39,3 +39,6 @@ tokio = { workspace = true, features = ["test-util", "macros"] }
 default = []
 redis-backend = ["redis", "deadpool-redis"]
 pusher = ["reqwest", "hmac", "sha2", "hex", "md5"]
+
+[package.metadata.rustforge]
+tier = "stable"

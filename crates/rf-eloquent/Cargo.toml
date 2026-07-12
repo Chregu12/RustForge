@@ -58,3 +58,6 @@ tokio = { workspace = true, features = ["macros", "rt", "test-util"] }
 # 
 [features]
 default = []
+
+[package.metadata.rustforge]
+tier = "stable"

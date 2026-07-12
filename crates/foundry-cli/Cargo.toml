@@ -30,3 +30,6 @@ rf-console = { path = "../rf-console" }
 
 [dev-dependencies]
 tempfile = "3.8"
+
+[package.metadata.rustforge]
+tier = "stable"

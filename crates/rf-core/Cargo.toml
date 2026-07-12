@@ -46,3 +46,6 @@ version = "0.8"
 optional = true
 default-features = false
 features = ["json"]
+
+[package.metadata.rustforge]
+tier = "stable"

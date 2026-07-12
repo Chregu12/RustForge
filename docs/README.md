@@ -5,11 +5,17 @@ reflects the **verified state** documented in `VISION_GAP.md` and the maturity m
 in the top-level `README.md`. No document here claims 100% completion or production
 certification beyond what is graded Stable/Usable in those sources.
 
+> **Feature-tier taxonomy:** [`docs/TIERS.md`](./TIERS.md) is the **single canonical
+> source** for every workspace crate's maturity tier (`stable` / `beta` /
+> `experimental` / `stub`). The README maturity matrix is a user-facing summary that
+> maps onto the same tier definitions. Consult `TIERS.md` before making any maturity
+> claim in documentation.
+
 > **Experimental crates** (`rf-nova`, `rf-nova-macros`, `rf-swagger`, `rf-telescope`,
 > `rf-cms`, `rf-breeze`, `rf-vite`, `rf-livereload`) are **not covered by SemVer
 > guarantees** and are excluded from the workspace `default-members`. They compile
 > under `cargo check --workspace` (no bitrot) but are skipped by plain `cargo check`.
-> See the "Experimental surfaces" table in the top-level `README.md`.
+> See the "Experimental crates" table in [`docs/TIERS.md`](./TIERS.md).
 
 ---
 
@@ -17,6 +23,7 @@ certification beyond what is graded Stable/Usable in those sources.
 
 | File | Purpose |
 |------|---------|
+| [TIERS.md](./TIERS.md) | **Canonical tier taxonomy** — every workspace crate (113 total) with its `stable`/`beta`/`experimental`/`stub` tier and one-line justification. Read before making any maturity claim. |
 | [GETTING_STARTED.md](./GETTING_STARTED.md) | 5-minute quickstart, full REST resource example, validated-DTO pattern, maturity matrix with per-surface notes. **Read this first.** |
 | [COOKBOOK.md](./COOKBOOK.md) | Task-oriented recipes for every verified surface (routing, ORM, auth, jobs, broadcast, mail, i18n, health, CLI, deploy…). Every snippet is grep-verified against the source. |
 | [EXAMPLES.md](./EXAMPLES.md) | Gallery of runnable, CI-tested examples with descriptions. |

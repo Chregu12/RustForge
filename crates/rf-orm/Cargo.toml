@@ -69,3 +69,6 @@ integration-tests = []
 [dependencies.sea-orm-migration]
 version = "0.12"
 optional = true
+
+[package.metadata.rustforge]
+tier = "stable"

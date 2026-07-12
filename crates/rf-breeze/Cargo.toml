@@ -33,3 +33,6 @@ tempfile = "3.8"
 # [[example]]
 # name = "basic_rf_breeze"
 # path = "examples/basic.rs"
+
+[package.metadata.rustforge]
+tier = "experimental"

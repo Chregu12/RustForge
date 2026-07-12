@@ -9,3 +9,6 @@ authors.workspace = true
 once_cell.workspace = true
 
 [dev-dependencies]
+
+[package.metadata.rustforge]
+tier = "stable"

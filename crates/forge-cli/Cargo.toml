@@ -52,3 +52,6 @@ queue = []
 tempfile = "3.8"
 assert_cmd = "2.0"
 predicates = "3.0"
+
+[package.metadata.rustforge]
+tier = "stable"

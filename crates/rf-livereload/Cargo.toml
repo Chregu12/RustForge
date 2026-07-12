@@ -34,3 +34,6 @@ tracing = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true }
+
+[package.metadata.rustforge]
+tier = "experimental"

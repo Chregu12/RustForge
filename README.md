@@ -212,12 +212,18 @@ async fn update_post() -> AppResult<impl IntoResponse> {
 
 ## Feature-maturity matrix
 
+> **Canonical tier source:** [`docs/TIERS.md`](docs/TIERS.md) lists **every**
+> workspace crate (113 total) with its tier and one-line justification. This
+> matrix is a user-facing summary of the highlighted surfaces; if the two files
+> ever conflict, fix `docs/TIERS.md` first, then propagate here.
+
 Graded against the verified state after 8 production-loop rounds (documented in
 `VISION_GAP.md`). **Stable** = real engine, CI-tested or probe-verified, used in a
-shipped example. **Usable** = real core, documented minor gaps. **Experimental** =
-exists in the repo but NOT part of the 1.0 supported surface — SemVer guarantees do
-NOT apply; API may change or be removed without a bump. **Deferred** = intentionally
-not built, with a reason.
+shipped example (maps to `stable` tier in `docs/TIERS.md`). **Usable** = real core,
+documented minor gaps (maps to `beta` tier). **Experimental** = exists in the repo
+but NOT part of the 1.0 supported surface — SemVer guarantees do NOT apply; API may
+change or be removed without a bump (maps to `experimental` tier). **Deferred** =
+intentionally not built, with a reason (not a crate; a language/design ceiling).
 
 > **SemVer scope:** Only the Stable and Usable surfaces listed below are covered by
 > SemVer guarantees starting at 1.0. Experimental crates are excluded from the
