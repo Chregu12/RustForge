@@ -43,9 +43,13 @@ pub fn escape_like(input: &str) -> String {
 /// Render a single `column op value` condition, appending the value (if any) to
 /// `bindings` as a `?` placeholder. `NULL` values become `IS`/`IS NOT NULL`.
 ///
-/// The pseudo-operators `LIKE ESCAPE` / `NOT LIKE ESCAPE` render a
-/// `column LIKE ? ESCAPE '\'` clause so that wildcards escaped by
-/// [`escape_like`] are matched literally.
+/// Special operator handling:
+/// - `LIKE ESCAPE` / `NOT LIKE ESCAPE` → `column LIKE ? ESCAPE '\'`
+/// - `IN` / `NOT IN` with a `Value::Array` → `column IN (?, ?, …)` with
+///   individual bindings (empty array → always-false / always-true predicate).
+/// - `NOT BETWEEN` with a two-element `Value::Array([min, max])` →
+///   `column NOT BETWEEN ? AND ?` (atomic; no precedence issue when ANDed with
+///   other conditions).
 fn push_condition(out: &mut String, column: &str, op: &str, value: &Value, bindings: &mut Vec<Value>) {
     if value.is_null() {
         let op = if op == "IS NOT" || op == "!=" || op == "<>" {
@@ -58,6 +62,36 @@ fn push_condition(out: &mut String, column: &str, op: &str, value: &Value, bindi
         bindings.push(value.clone());
         let like_op = if op == "NOT LIKE ESCAPE" { "NOT LIKE" } else { "LIKE" };
         out.push_str(&format!("{} {} ? ESCAPE '{}'", column, like_op, LIKE_ESCAPE_CHAR));
+    } else if op == "IN" || op == "NOT IN" {
+        // An IN/NOT IN value must be a JSON array; expand into individual `?`
+        // placeholders so the SQL is valid across all backends.
+        if let Value::Array(arr) = value {
+            if arr.is_empty() {
+                // Empty IN → always-false; empty NOT IN → always-true.
+                if op == "IN" {
+                    out.push_str("1 = 0");
+                } else {
+                    out.push_str("1 = 1");
+                }
+            } else {
+                let placeholders = vec!["?"; arr.len()].join(", ");
+                for v in arr {
+                    bindings.push(v.clone());
+                }
+                out.push_str(&format!("{} {} ({})", column, op, placeholders));
+            }
+        }
+    } else if op == "NOT BETWEEN" {
+        // Packed as Value::Array([min, max]) to keep it as a single AND
+        // condition (avoids the precedence bug that arises when splitting into
+        // wheres + or_wheres).
+        if let Value::Array(arr) = value {
+            if arr.len() == 2 {
+                bindings.push(arr[0].clone());
+                bindings.push(arr[1].clone());
+                out.push_str(&format!("{} NOT BETWEEN ? AND ?", column));
+            }
+        }
     } else {
         bindings.push(value.clone());
         out.push_str(&format!("{} {} ?", column, op));
@@ -907,6 +941,11 @@ impl QueryBuilder {
 
     /// Laravel-style whereNotBetween - value NOT between min and max
     ///
+    /// Generates `column NOT BETWEEN ? AND ?` as a single AND condition so it
+    /// composes correctly when chained with other `.where_*` / `.filter` calls
+    /// (earlier versions incorrectly split across the AND-wheres and OR-wheres
+    /// lists, producing a wrong precedence when mixed with other conditions).
+    ///
     /// # Examples
     ///
     /// ```rust,ignore
@@ -914,10 +953,13 @@ impl QueryBuilder {
     /// ```
     #[allow(non_snake_case)]
     pub fn whereNotBetween<V: Into<Value> + Clone>(mut self, column: impl Into<String>, min: V, max: V) -> Self {
-        let col = column.into();
-        // NOT BETWEEN is: value < min OR value > max
-        self.wheres.push((col.clone(), "<".to_string(), min.into()));
-        self.or_wheres.push((col, ">".to_string(), max.into()));
+        // Pack [min, max] into a JSON array so push_condition can emit the
+        // atomic `NOT BETWEEN ? AND ?` form in a single AND slot.
+        self.wheres.push((
+            column.into(),
+            "NOT BETWEEN".to_string(),
+            Value::Array(vec![min.into(), max.into()]),
+        ));
         self
     }
 
@@ -1763,6 +1805,29 @@ impl QueryBuilder {
             current_page: page,
             last_page: total.div_ceil(per_page),
         })
+    }
+
+    /// Build the raw SQL query string and its bound values for inspection.
+    ///
+    /// Returns `(sql, bindings)` where `sql` uses `?` placeholders and
+    /// `bindings` contains the values in the order they appear. Useful for
+    /// asserting exact query structure in tests and for debugging.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rf_orm::QueryBuilderFacade as QB;
+    /// use serde_json::json;
+    ///
+    /// let (sql, bindings) = QB::new("users")
+    ///     .filter("active", true)
+    ///     .limit(10)
+    ///     .build_sql();
+    /// assert_eq!(sql, "SELECT * FROM users WHERE active = ? LIMIT 10");
+    /// assert_eq!(bindings, vec![json!(true)]);
+    /// ```
+    pub fn build_sql(&self) -> (String, Vec<Value>) {
+        self.build_select_sql()
     }
 
     /// Get the table name
