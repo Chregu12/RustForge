@@ -1,4 +1,4 @@
-//! # RustForge Reference Application — cycle 4
+//! # RustForge Reference Application — cycle 7
 //!
 //! A realistic blog-post API that exercises every stable-core surface end-to-end:
 //!
@@ -18,33 +18,34 @@
 //!
 //! ## Environment switches (CI vs production)
 //!
-//! | Env var             | Absent / default           | Present                      |
-//! |---------------------|----------------------------|------------------------------|
-//! | `DATABASE_URL`      | in-memory SQLite (rusqlite)| SQLite file path (e.g. `./app.db`) |
-//! | `JWT_SECRET`        | built-in dev secret        | custom secret (>= 32 chars)  |
-//! | `SMTP_HOST`         | FileMailer → writes .eml   | real SMTP (+ PORT/USER/PASS) |
-//! | `SMTP_PORT`         | 587                        | custom SMTP port             |
-//! | `SMTP_USER`         | (none)                     | SMTP username                |
-//! | `SMTP_PASS`         | (none)                     | SMTP password                |
-//! | `MAIL_MAILBOX`      | /tmp/rustforge-mailbox     | custom .eml directory        |
-//! | `PORT`              | 3000                       | custom listen port           |
+//! | Env var             | Absent / default              | Present                                          |
+//! |---------------------|-------------------------------|--------------------------------------------------|
+//! | `DATABASE_URL`      | in-memory SQLite (rusqlite)   | SQLite file path OR `postgres://...` URL         |
+//! | `JWT_SECRET`        | built-in dev secret           | custom secret (>= 32 chars)                      |
+//! | `SMTP_HOST`         | FileMailer → writes .eml      | real SMTP (+ PORT/USER/PASS)                     |
+//! | `SMTP_PORT`         | 587                           | custom SMTP port                                 |
+//! | `SMTP_USER`         | (none)                        | SMTP username                                    |
+//! | `SMTP_PASS`         | (none)                        | SMTP password                                    |
+//! | `MAIL_MAILBOX`      | /tmp/rustforge-mailbox        | custom .eml directory                            |
+//! | `PORT`              | 3000                          | custom listen port                               |
 //!
-//! **Postgres note:** The `DB` facade (used by `Model!`, `create!`, etc.) uses
-//! rusqlite — SQLite only. A `DATABASE_URL` starting with `postgres://` is
-//! detected and logged as a warning; the app falls back to in-memory SQLite.
-//! Production Postgres would require switching to rf-orm's SeaORM `DatabaseManager`
-//! (a framework-level gap tracked in VISION_GAP.md).
+//! ## Postgres support
+//!
+//! Set `DATABASE_URL` to a `postgres://` URL and the `DB` facade — and all
+//! ORM macros (`Model!`, `create!`, `find!`, `update!`, `delete!`) — will use
+//! Postgres via `rf-orm`'s `DBManager` Postgres backend.  The backend rewrites
+//! `?` placeholders to `$1`/`$2`/… and appends `RETURNING id` on INSERT so the
+//! Laravel-DX macros work identically on both databases.
+//!
+//! ```sh
+//! cargo run -p reference-app          # in-memory SQLite, FileMailer, MemoryCache
+//! DATABASE_URL=./blog.db cargo run -p reference-app   # persistent SQLite
+//! DATABASE_URL=postgres://user:pass@localhost/db cargo run -p reference-app  # Postgres
+//! ```
 //!
 //! **Redis / S3 note:** The cache (CacheFacade) and storage (StorageFacade) use
 //! in-process memory backends by default. Switching to Redis or S3 requires
 //! configuring the global manager at startup — straightforward future work.
-//!
-//! ## Run it
-//!
-//! ```sh
-//! cargo run -p reference-app          # in-memory SQLite, FileMailer, MemoryCache
-//! DATABASE_URL=./blog.db cargo run -p reference-app  # persistent SQLite
-//! ```
 
 use std::sync::Arc;
 
@@ -143,33 +144,51 @@ struct AppState {
 
 // ── Migrations ────────────────────────────────────────────────────────────────
 
-/// Run schema migrations using `DB::statement()` — the canonical rusqlite DDL
-/// runner. `IF NOT EXISTS` makes this idempotent on every startup.
+/// Run schema migrations using `DB::statement()`.
+///
+/// `IF NOT EXISTS` makes this idempotent on every startup.  The DDL is
+/// generated to match the active backend: `BIGSERIAL` on Postgres,
+/// `INTEGER PRIMARY KEY AUTOINCREMENT` on SQLite.
 fn run_migrations() {
-    DB::statement(
-        "CREATE TABLE IF NOT EXISTS users (\
-             id INTEGER PRIMARY KEY AUTOINCREMENT, \
-             email TEXT NOT NULL UNIQUE, \
-             password_hash TEXT NOT NULL)",
-    )
-    .expect("migration: create users table");
+    let pg = DB::connection_name().starts_with("postgres");
 
-    DB::statement(
-        "CREATE TABLE IF NOT EXISTS posts (\
-             id INTEGER PRIMARY KEY AUTOINCREMENT, \
-             title TEXT NOT NULL, \
-             body TEXT NOT NULL, \
-             user_id INTEGER NOT NULL)",
-    )
-    .expect("migration: create posts table");
+    let (users_ddl, posts_ddl, files_ddl) = if pg {
+        (
+            "CREATE TABLE IF NOT EXISTS users (\
+                 id BIGSERIAL PRIMARY KEY, \
+                 email TEXT NOT NULL UNIQUE, \
+                 password_hash TEXT NOT NULL)",
+            "CREATE TABLE IF NOT EXISTS posts (\
+                 id BIGSERIAL PRIMARY KEY, \
+                 title TEXT NOT NULL, \
+                 body TEXT NOT NULL, \
+                 user_id BIGINT NOT NULL)",
+            "CREATE TABLE IF NOT EXISTS files (\
+                 id BIGSERIAL PRIMARY KEY, \
+                 path TEXT NOT NULL, \
+                 filename TEXT NOT NULL)",
+        )
+    } else {
+        (
+            "CREATE TABLE IF NOT EXISTS users (\
+                 id INTEGER PRIMARY KEY AUTOINCREMENT, \
+                 email TEXT NOT NULL UNIQUE, \
+                 password_hash TEXT NOT NULL)",
+            "CREATE TABLE IF NOT EXISTS posts (\
+                 id INTEGER PRIMARY KEY AUTOINCREMENT, \
+                 title TEXT NOT NULL, \
+                 body TEXT NOT NULL, \
+                 user_id INTEGER NOT NULL)",
+            "CREATE TABLE IF NOT EXISTS files (\
+                 id INTEGER PRIMARY KEY AUTOINCREMENT, \
+                 path TEXT NOT NULL, \
+                 filename TEXT NOT NULL)",
+        )
+    };
 
-    DB::statement(
-        "CREATE TABLE IF NOT EXISTS files (\
-             id INTEGER PRIMARY KEY AUTOINCREMENT, \
-             path TEXT NOT NULL, \
-             filename TEXT NOT NULL)",
-    )
-    .expect("migration: create files table");
+    DB::statement(users_ddl).expect("migration: create users table");
+    DB::statement(posts_ddl).expect("migration: create posts table");
+    DB::statement(files_ddl).expect("migration: create files table");
 }
 
 // ── Auth Handlers ─────────────────────────────────────────────────────────────
@@ -204,7 +223,9 @@ async fn register_handler(State(state): State<Arc<AppState>>) -> impl IntoRespon
     // Persist via the ORM macro — real INSERT into `users` table.
     let user = match create!(User, email = email.clone(), password_hash = hash) {
         Ok(u) => u,
-        Err(e) if e.contains("UNIQUE") => {
+        // SQLite:   "UNIQUE constraint failed: users.email"
+        // Postgres: "duplicate key value violates unique constraint …"
+        Err(e) if e.contains("UNIQUE") || e.contains("duplicate key value") => {
             return json(serde_json::json!({"error": "Email already registered"}))
                 .status(StatusCode::CONFLICT)
         }
@@ -489,16 +510,27 @@ async fn main() -> anyhow::Result<()> {
     info!("RustForge Reference App — cycle 4 — starting up");
 
     // ── Database ─────────────────────────────────────────────────────────────
-    // DATABASE_URL controls which SQLite database file is used (or in-memory).
-    // The DB facade (rusqlite) supports SQLite only; see module-level doc for
-    // the Postgres gap. The `connection()` call silently falls through on error.
+    // DATABASE_URL selects the backend and connection target:
+    //   - absent / empty     → in-memory SQLite (hermetic, data lost on exit)
+    //   - SQLite path        → persistent SQLite file
+    //   - postgres://...     → Postgres via rf-orm DBManager (sqlx PgPool,
+    //                          AsyncBridge). Placeholders (?) are rewritten
+    //                          automatically; RETURNING id is appended on INSERT.
     match std::env::var("DATABASE_URL") {
-        Ok(url) if url.starts_with("postgres") => {
-            warn!(
-                "DATABASE_URL looks like a Postgres URL; the DB facade uses rusqlite \
-                 (SQLite only) — falling back to in-memory SQLite. \
-                 See examples/reference-app/README.md for the Postgres gap."
-            );
+        Ok(url) if url.starts_with("postgres://") || url.starts_with("postgresql://") => {
+            // Actually connect — DB::connection calls set_connection which builds
+            // a sqlx PgPool. On failure the backend stays SQLite (silent fallback).
+            let _ = DB::connection(&url);
+            if DB::connection_name().starts_with("postgres") {
+                info!(url = %url, "Postgres database connected via DB facade (rf-orm backend)");
+            } else {
+                warn!(
+                    url = %url,
+                    "DATABASE_URL is a Postgres URL but connection failed — \
+                     falling back to in-memory SQLite. Check the URL and that \
+                     the server is reachable."
+                );
+            }
         }
         Ok(url) => {
             let _ = DB::connection(&url);

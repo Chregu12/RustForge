@@ -625,15 +625,16 @@ jobs:
       - name: Start backend services
         run: |
           docker compose -f docker-compose.test.yml -f docker-compose.ci.yml \
-            up -d redis mailhog minio
+            up -d redis mailhog minio postgres
 
       # Wait on the raw TCP ports rather than the compose healthchecks: the
       # MailHog / MinIO images do not all ship nc/curl, and the tests probe the
       # ports directly anyway. If a port never opens we fail here (rather than
       # silently letting the test skip and defeat the purpose of this job).
+      # Postgres (5432) is included so RF_PG_TEST_URL can be used without race.
       - name: Wait for service ports
         run: |
-          for hostport in 127.0.0.1:6379 127.0.0.1:1025 127.0.0.1:9000; do
+          for hostport in 127.0.0.1:6379 127.0.0.1:1025 127.0.0.1:9000 127.0.0.1:5432; do
             host=${hostport%:*}; port=${hostport#*:}
             echo "Waiting for ${hostport} ..."
             ok=""
@@ -680,6 +681,16 @@ jobs:
         run: |
           cargo test -p rf-storage test_signed_url -- --nocapture
           cargo test -p rf-storage test_s3_operations -- --nocapture
+
+      # rf-orm Postgres integration — exercises the full Laravel-DX cycle
+      # (DB::statement DDL, INSERT RETURNING id, SELECT with ? placeholders,
+      # UPDATE affected-rows, DELETE) against the real container started above.
+      # The test is always compiled; it gates at runtime on RF_PG_TEST_URL.
+      - name: rf-orm Postgres backend integration (live)
+        env:
+          RF_PG_TEST_URL: postgres://rustforge:testpass@127.0.0.1:5432/rustforge_test
+        run: |
+          cargo test -p rf-orm test_postgres_integration_full_cycle -- --nocapture
 
       - name: Tear down backend services
         if: always()
@@ -826,7 +837,8 @@ jobs:
   #   - Auth round-trip (register → login → JWT); hermetic but BCrypt cost=12
   #     is slow — excluded from the sub-60s smoke test
   #   - SMTP delivery (needs MailHog or real relay)
-  #   - Postgres persistence (DB facade is SQLite-only; tracked in VISION_GAP.md)
+  #   - Postgres persistence (live path; exercised in live-backends with
+  #     RF_PG_TEST_URL — the hermetic smoke uses the default in-memory SQLite)
   #   - Redis cache / S3 storage backends (future wiring work)
   reference-app-smoke:
     name: "Reference App Smoke (SQLite + memory, hermetic)"

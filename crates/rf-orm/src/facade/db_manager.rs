@@ -211,13 +211,34 @@ fn push_pg_arg(args: &mut PgArguments, value: &Value) -> Result<(), String> {
 /// Postgres type name in UPPER CASE (e.g. `"INT8"`, `"TEXT"`, `"BOOL"`).
 fn pg_col_to_json(row: &PgRow, idx: usize, type_name: &str) -> Value {
     match type_name {
-        // Integer types
-        "INT2" | "INT4" | "INT8" | "OID" => match row.try_get::<Option<i64>, _>(idx) {
+        // Integer types — each wire type needs its matching Rust width.
+        // sqlx/postgres will reject a width mismatch (e.g. i64 for INT4),
+        // so we decode at the correct native width and widen to i64 for JSON.
+        "INT2" => match row.try_get::<Option<i16>, _>(idx) {
+            Ok(Some(v)) => Value::from(v as i64),
+            _ => Value::Null,
+        },
+        "INT4" => match row.try_get::<Option<i32>, _>(idx) {
+            Ok(Some(v)) => Value::from(v as i64),
+            _ => Value::Null,
+        },
+        "INT8" => match row.try_get::<Option<i64>, _>(idx) {
             Ok(Some(v)) => Value::from(v),
             _ => Value::Null,
         },
-        // Floating-point types
-        "FLOAT4" | "FLOAT8" => match row.try_get::<Option<f64>, _>(idx) {
+        // OID is a 32-bit unsigned type; sqlx exposes it as i32 on PG.
+        "OID" => match row.try_get::<Option<i32>, _>(idx) {
+            Ok(Some(v)) => Value::from(v as i64),
+            _ => Value::Null,
+        },
+        // Floating-point types — FLOAT4 is a 32-bit wire type; widen to f64 for JSON.
+        "FLOAT4" => match row.try_get::<Option<f32>, _>(idx) {
+            Ok(Some(v)) => {
+                serde_json::Number::from_f64(v as f64).map_or(Value::Null, Value::Number)
+            }
+            _ => Value::Null,
+        },
+        "FLOAT8" => match row.try_get::<Option<f64>, _>(idx) {
             Ok(Some(v)) => {
                 serde_json::Number::from_f64(v).map_or(Value::Null, Value::Number)
             }
@@ -854,6 +875,124 @@ mod tests {
         assert_eq!(m.connection_name(), "default");
         m.set_connection(":memory:".to_string());
         assert_eq!(m.connection_name(), ":memory:");
+    }
+
+    // ── Postgres integration test — env-var gated, always compiled ────────────
+    //
+    // Run with:
+    //   RF_PG_TEST_URL=postgres://rustforge:testpass@127.0.0.1:5432/rustforge_test \
+    //     cargo test -p rf-orm test_postgres_integration_full_cycle -- --nocapture
+    //
+    // The test skips cleanly (passes green) when RF_PG_TEST_URL is absent so
+    // normal `cargo test -p rf-orm` (no env var) is hermetic and never touches
+    // a network.
+    #[test]
+    fn test_postgres_integration_full_cycle() {
+        // ── Gate: skip when RF_PG_TEST_URL is not set ─────────────────────────
+        let url = match std::env::var("RF_PG_TEST_URL") {
+            Ok(u) if !u.is_empty() => u,
+            _ => {
+                println!(
+                    "SKIP test_postgres_integration_full_cycle \
+                     — set RF_PG_TEST_URL=postgres://... to run"
+                );
+                return;
+            }
+        };
+
+        // ── Connect ───────────────────────────────────────────────────────────
+        // Use a fresh local DBManager (not GLOBAL_DB) so this test does not
+        // interfere with the SQLite-backed tests running concurrently.
+        let mut m = DBManager::new();
+        m.set_connection(url.clone());
+        assert!(
+            m.connection_name().starts_with("postgres"),
+            "set_connection({url}) did not switch to Postgres backend — \
+             is the server reachable?"
+        );
+        println!("Connected to Postgres: {url}");
+
+        // ── DDL — CREATE TABLE (idempotent via DROP IF EXISTS) ─────────────────
+        m.statement("DROP TABLE IF EXISTS rf_pg_integ_test CASCADE")
+            .expect("DROP TABLE IF EXISTS failed");
+        m.statement(
+            "CREATE TABLE rf_pg_integ_test (\
+                 id    BIGSERIAL PRIMARY KEY, \
+                 name  TEXT NOT NULL, \
+                 score INTEGER NOT NULL DEFAULT 0\
+             )",
+        )
+        .expect("CREATE TABLE failed");
+        println!("CREATE TABLE rf_pg_integ_test OK");
+
+        // ── INSERT — RETURNING id must come back as a positive integer ─────────
+        let id = m
+            .insert(
+                "INSERT INTO rf_pg_integ_test (name, score) VALUES (?, ?)",
+                &[serde_json::json!("Alice"), serde_json::json!(42i64)],
+            )
+            .expect("INSERT failed");
+        assert!(id > 0, "INSERT RETURNING id should be > 0, got {id}");
+        println!("INSERT returned id={id}");
+
+        // ── SELECT — row must exist with correct values ────────────────────────
+        let rows = m
+            .select(
+                "SELECT id, name, score FROM rf_pg_integ_test WHERE id = ?",
+                &[serde_json::json!(id as i64)],
+            )
+            .expect("SELECT failed");
+        assert_eq!(rows.len(), 1, "SELECT should return exactly 1 row");
+        assert_eq!(rows[0]["name"], serde_json::json!("Alice"));
+        assert_eq!(rows[0]["score"], serde_json::json!(42i64));
+        println!("SELECT OK: {:?}", rows[0]);
+
+        // ── UPDATE — affected rows must be 1 ──────────────────────────────────
+        let affected = m
+            .update(
+                "UPDATE rf_pg_integ_test SET score = ? WHERE id = ?",
+                &[serde_json::json!(99i64), serde_json::json!(id as i64)],
+            )
+            .expect("UPDATE failed");
+        assert_eq!(affected, 1, "UPDATE should affect 1 row, got {affected}");
+
+        // Verify the update landed.
+        let after_update = m
+            .select(
+                "SELECT score FROM rf_pg_integ_test WHERE id = ?",
+                &[serde_json::json!(id as i64)],
+            )
+            .expect("SELECT after UPDATE failed");
+        assert_eq!(
+            after_update[0]["score"],
+            serde_json::json!(99i64),
+            "score should be 99 after UPDATE"
+        );
+        println!("UPDATE OK: score -> 99");
+
+        // ── DELETE — row must disappear ────────────────────────────────────────
+        let deleted = m
+            .delete(
+                "DELETE FROM rf_pg_integ_test WHERE id = ?",
+                &[serde_json::json!(id as i64)],
+            )
+            .expect("DELETE failed");
+        assert_eq!(deleted, 1, "DELETE should affect 1 row, got {deleted}");
+
+        let remaining = m
+            .select("SELECT id FROM rf_pg_integ_test", &[])
+            .expect("SELECT after DELETE failed");
+        assert!(
+            remaining.is_empty(),
+            "Table should be empty after DELETE, got {} rows",
+            remaining.len()
+        );
+        println!("DELETE OK: table is empty");
+
+        // ── Cleanup ───────────────────────────────────────────────────────────
+        m.statement("DROP TABLE IF EXISTS rf_pg_integ_test CASCADE")
+            .expect("DROP TABLE cleanup failed");
+        println!("PASS: test_postgres_integration_full_cycle completed (id={id})");
     }
 
     // ── Postgres integration tests (require a live server) ────────────────────
