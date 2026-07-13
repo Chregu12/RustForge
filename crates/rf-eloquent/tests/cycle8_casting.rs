@@ -411,8 +411,15 @@ fn test_custom_caster_not_found_returns_err() {
 
 // ── Encrypted cast (AES-GCM round-trip) ───────────────────────────────────────
 
+// `set_encryption_key` mutates a PROCESS-GLOBAL key. These tests each install a
+// different random key and then encrypt+decrypt, so run in parallel they race
+// (test A encrypts with key1, test B swaps in key2, test A decrypts with key2 →
+// panic). Serialize them on a shared, poison-tolerant lock held for the whole test.
+static ENC_KEY_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 #[test]
 fn test_encrypted_round_trip_with_explicit_key() {
+    let _guard = ENC_KEY_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     set_encryption_key(rf_encryption::Encryptor::generate_key());
 
     let plaintext = "sensitive-data-12345";
@@ -432,6 +439,7 @@ fn test_encrypted_round_trip_with_explicit_key() {
 
 #[test]
 fn test_encrypted_two_encryptions_differ() {
+    let _guard = ENC_KEY_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     set_encryption_key(rf_encryption::Encryptor::generate_key());
 
     let ct1 = uncast_value(
