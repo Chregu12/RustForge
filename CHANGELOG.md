@@ -61,6 +61,25 @@ Excluded per the `default-members` policy in `Cargo.toml`. See
   `rf-livereload`, `rf-socialite`, `rf-cashier`, `rf-mcp`, `rf-nightwatch`,
   `rf-ai`, `rf-vector`, `rf-graphql`, `rf-dusk`, `rf-sail`, `rf-spark`.
 
+### Fixed — cycle-8 test depth (2026-07-14)
+
+Added **201 real unit/integration tests** across the stable core (rf-orm,
+rf-eloquent, rf-validation, rf-auth, rf-queue) — targeting the audit's "~0%
+coverage on critical paths = false-green CI" finding. The tests earned their keep
+by catching **three genuine framework bugs**, each now fixed with a regression test:
+
+- **rf-orm `where_in`/`where_not_in`** bound the whole JSON array as one value
+  (`col IN ?`), so **every `IN` query returned 0 rows**. Now expands to
+  `col IN (?, ?, …)`.
+- **rf-orm `whereNotBetween`** had an AND/OR precedence bug that silently included
+  extra rows when chained; now emits an atomic `col NOT BETWEEN ? AND ?`.
+- **rf-validation `BetweenLengthRule`** counted UTF-8 bytes instead of characters
+  (rejected `"café"`); now counts Unicode scalars, consistent with min/max.
+
+Coverage was measured with `cargo llvm-cov` and recorded honestly in
+`docs/COVERAGE.md` (e.g. rf-validation ~79–82%, rf-orm ~49% — the rest of rf-orm
+needs live Postgres). No blocking CI coverage gate was added (informational).
+
 ### Fixed — cycle-7 Postgres bridge (2026-07-13)
 
 - **The Laravel-DX DB facade now works on Postgres, not just SQLite.** `DBManager`
