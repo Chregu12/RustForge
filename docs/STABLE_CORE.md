@@ -129,13 +129,19 @@ Grep-verified in `crates/rf-response/src/`:
 | `SoftDelete` | `rf_orm::SoftDelete` | Soft-delete mixin |
 | `migration! { … }` | `rf_macros::migration` | Schema migration DSL |
 
-> **Database support caveat (important):** the `Model!` / `create!` / `find!` /
-> `update!` / `delete!` DX macros and the `DB` facade run on the **rusqlite-backed
-> SQLite** engine — they are **SQLite-only today**. Production **Postgres** currently
-> requires the `rf-orm` SeaORM path (`DatabaseManager`), which does **not** go through
-> the DX macros (different API + ergonomics; no macro bridge yet). A `postgres://`
-> `DATABASE_URL` is detected and falls back to SQLite with a warning. Bridging the DX
-> macros to Postgres is a tracked roadmap item (see `docs/REVIEW_RESPONSE.md`).
+> **Database support (SQLite + Postgres):** the `Model!` / `create!` / `find!` /
+> `update!` / `delete!` DX macros and the `DB` facade run on **SQLite** (rusqlite,
+> the default/in-memory) **or Postgres** (sqlx `PgPool`, bridged to the sync facade
+> via `AsyncBridge`). The backend is selected by the connection target: a
+> `postgres://` / `postgresql://` `DATABASE_URL` routes to Postgres, anything else
+> stays SQLite. The full CRUD cycle (`create!`→`find!`→`update!`→`delete!`, with
+> `RETURNING id`) is verified against real Postgres 16 in CI (the `live-backends`
+> job). **Caveats on the Postgres path:** (1) the primary key column must be named
+> `id` (the framework convention; `RETURNING id`); (2) `NUMERIC`/`DECIMAL` columns
+> are not decoded to JSON yet — cast to `TEXT` in the query (`col::TEXT`) or use
+> `FLOAT8`; (3) the sync facade's `begin/commit/rollback` are per-call over a pool,
+> so they are **not** guaranteed ACID-atomic on Postgres — use a single-connection
+> transaction for multi-statement atomicity (tracked).
 
 **Example:** `examples/blog-slice/` · `examples/phase12-blog/` · `examples/rest-crud-resource/`
 

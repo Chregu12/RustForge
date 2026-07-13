@@ -61,6 +61,20 @@ Excluded per the `default-members` policy in `Cargo.toml`. See
   `rf-livereload`, `rf-socialite`, `rf-cashier`, `rf-mcp`, `rf-nightwatch`,
   `rf-ai`, `rf-vector`, `rf-graphql`, `rf-dusk`, `rf-sail`, `rf-spark`.
 
+### Fixed — cycle-7 Postgres bridge (2026-07-13)
+
+- **The Laravel-DX DB facade now works on Postgres, not just SQLite.** `DBManager`
+  gained an additive Postgres backend (sqlx `PgPool` bridged to the sync facade via
+  `AsyncBridge`), selected when the connection target is a `postgres://` /
+  `postgresql://` URL; SQLite (rusqlite) remains the default and byte-identical. The
+  `?`→`$N` placeholder translation, `RETURNING id` on INSERT, and JSON↔Postgres type
+  mapping are handled. A full `create!`→`find!`→`update!`→`delete!` cycle is verified
+  against real Postgres 16 in the `live-backends` CI job (gated on `RF_PG_TEST_URL`),
+  and `examples/reference-app` now uses real Postgres for a `postgres://` `DATABASE_URL`
+  (no more SQLite-fallback warning). Caveats: PK must be named `id`; `NUMERIC`/`DECIMAL`
+  needs a `::TEXT` cast; pooled `begin/commit/rollback` are not ACID-atomic on Postgres
+  (single-connection transactions are the tracked follow-up).
+
 ### Fixed — cycle-6 code hardening (2026-07-12)
 
 Four gaps the cycle-5 audit found are now closed, each with a proving test:
@@ -91,11 +105,11 @@ backends over the deadlock-safe `AsyncBridge` (no `block_on`-in-async panic),
 `tokio::task_local!` (no cross-request bleed), `require_auth` validates JWTs, and
 CSRF covers the form-body `_token`. The honest remaining gaps are:
 
-- **The Laravel-DX `Model!`/`create!`/`find!` macros are SQLite-only.** They run
-  on the rusqlite-backed DB facade. Production Postgres currently requires the
-  `rf-orm` SeaORM path (`DatabaseManager`), which does not go through the DX
-  macros — no bridge yet. A `postgres://` `DATABASE_URL` is detected and the app
-  falls back to SQLite with a warning.
+- **Postgres transactions via the sync DB facade are not ACID-atomic.** The DX
+  macros now run on Postgres (cycle 7), but the facade's pooled `begin`/`commit`/
+  `rollback` may land on different pooled connections; multi-statement atomicity
+  needs a single-connection transaction (tracked). Also: PK must be named `id`, and
+  `NUMERIC`/`DECIMAL` columns need a `::TEXT` cast to decode.
 - **`capture_request` drains multipart bodies.** A route using both
   `capture_request` and an `axum::Multipart` extractor needs a split router
   (the reference app does this for its upload route).
