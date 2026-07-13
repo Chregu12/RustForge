@@ -425,13 +425,21 @@ impl Rule for BetweenLengthRule {
         }
 
         match value.as_str() {
-            Some(s) if s.len() >= self.min && s.len() <= self.max => Ok(()),
-            Some(s) => Err(format!(
-                "This field must be between {} and {} characters (currently {})",
-                self.min,
-                self.max,
-                s.len()
-            )),
+            // Use chars().count() for Unicode-correct length (same as MinLengthRule /
+            // MaxLengthRule). The previous s.len() counted UTF-8 *bytes*, making the
+            // between_length boundary inconsistent with min_length / max_length for
+            // any string containing multi-byte characters.
+            Some(s) => {
+                let len = s.chars().count();
+                if len >= self.min && len <= self.max {
+                    Ok(())
+                } else {
+                    Err(format!(
+                        "This field must be between {} and {} characters (currently {})",
+                        self.min, self.max, len
+                    ))
+                }
+            }
             None => Err("Value must be a string".to_string()),
         }
     }
