@@ -157,6 +157,15 @@ The items below are listed in descending order of impact. The first three are en
 
 ---
 
+> **Update — cycle-11 cleanup (2026-07-14).** Remaining agent-fixable audit findings
+> closed: TIERS annotation is now 127/127 with a CI enforcement gate (`scripts/check-tiers.sh`
+> in `workspace-gate`) — the "single source of truth is aspirational at 42/127" finding is
+> resolved; 37 false-green `assert!(true)`/empty-body tests removed or made real; rf-2fa TOTP
+> gained a `RateLimitedVerifier` (lockout after N failures, (N+1)th correct code rejected);
+> OAuth-crate canonical/deprecated guidance added to TIERS.md. What now remains is
+> essentially adoption/time-bound (crates.io release, external users, bus-factor) plus a few
+> beta-surface items (rf-application admin CRUD TODOs, NUMERIC/DECIMAL PG decode).
+
 > **Update — cycle-10 correctness (2026-07-14, after this re-score).** The two
 > unrefuted gaps that held the C9 overall flat at 6.0 are now BOTH CLOSED, each with
 > a proving test, *without* an offsetting new gap:

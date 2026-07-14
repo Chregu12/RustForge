@@ -61,6 +61,23 @@ Excluded per the `default-members` policy in `Cargo.toml`. See
   `rf-livereload`, `rf-socialite`, `rf-cashier`, `rf-mcp`, `rf-nightwatch`,
   `rf-ai`, `rf-vector`, `rf-graphql`, `rf-dusk`, `rf-sail`, `rf-spark`.
 
+### Fixed — cycle-11 cleanup (2026-07-14)
+
+Closed the remaining agent-fixable audit findings:
+
+- **TIERS is now complete + CI-enforced.** All 127 `crates/*` carry
+  `[package.metadata.rustforge] tier`; `scripts/check-tiers.sh` (wired into the
+  `workspace-gate` CI job) fails the build if any crate is missing or has an invalid
+  tier. TIERS.md also adds an OAuth-crate honesty note (rf-passport canonical;
+  rf-oauth-server / rf-oauth2-server deprecated). Counts: 34 stable / 76 beta /
+  8 experimental / 9 stub.
+- **False-green tests removed.** 37 `assert!(true)`/empty-body placeholder tests
+  across the workspace were either made real (assert actual behavior) or deleted —
+  green CI no longer counts vacuous tests on the stable-adjacent crates.
+- **rf-2fa TOTP brute-force protection.** A new `RateLimitedVerifier` locks out after
+  N failed attempts per window (default 5 / 30 s); the (N+1)th attempt is rejected
+  even with a correct code. The pure `verify` API is unchanged.
+
 ### Fixed — cycle-10 correctness (2026-07-14)
 
 Closed the two correctness gaps the cycle-9 re-score surfaced, each with a

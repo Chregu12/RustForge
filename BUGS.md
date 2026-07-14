@@ -282,16 +282,18 @@ effectively limiting precision to 1-minute granularity. Sub-minute cron expressi
 
 ---
 
-### `rf-2fa` - No Rate Limiting on TOTP Verification
-**Severity**: High (security)
-**File**: `crates/rf-2fa/src/lib.rs:85-90`
+### ✅ RESOLVED — `rf-2fa` - TOTP verification now rate-limited (cycle 11)
+**Was**: High (security)
+**Now fixed in**: `crates/rf-2fa/src/lib.rs` (`RateLimitedVerifier`)
 
-The `verify()` method has no rate limiting or attempt throttling. A 6-digit TOTP code has
-only 1,000,000 possible values; without brute-force protection, an attacker can enumerate
-all codes within a short window.
-
-**Fix needed**: Implement per-user attempt counting (e.g. in Redis with TTL) and lock out
-after N failed attempts within the TOTP window.
+Added a `RateLimitedVerifier` that enforces a configurable per-identity failure cap
+(default 5 failures / 30 s sliding window). After the threshold, the next attempt —
+**even a correct code** — returns `TwoFactorError::TooManyAttempts` without touching the
+TOTP verifier; a success or window expiry resets the counter. The pure `TotpManager::verify`
+API is unchanged (backward-compatible); the rate-limited path is the recommended one.
+Proven by `test_rate_limit_lockout_after_threshold` (the (N+1)th correct code is rejected)
++ 5 more tests. Honest note: the attempt state is in-process (not shared across processes);
+multi-node deployments should back it with a shared store.
 
 ---
 
