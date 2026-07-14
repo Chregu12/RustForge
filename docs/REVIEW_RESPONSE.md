@@ -128,6 +128,13 @@ The honest reason the score does not climb higher is that four confirmed gaps cu
 
 ## What Would It Take to Genuinely Move the Needle Further
 
+> **Status note (2026-07-14):** items **1** (require_auth JWT), **2** (CSRF form-body
+> `_token`), and the code half of **3** (Postgres via the DX macros) were CLOSED in
+> cycles 6–7, and **4** (doc inconsistency) was fixed. See the **Cycle-9 Re-Score**
+> section below for the current state and the two gaps that re-scoring surfaced
+> (Postgres pooled-transaction atomicity; CSRF `multipart/form-data`). The list below
+> is the original cycle-5 roadmap, kept for history.
+
 The items below are listed in descending order of impact. The first three are engineering work the maintainer controls. The last two are functions of time and external adoption that cannot be manufactured.
 
 **1. Fix `require_auth` for JWT (required to move Laravel-DX and Production-Readiness above 7).** Replace the `.parse::<u64>()` Bearer parsing with a real JWT validation path. The reference app has already written `jwt_auth()` — the work is extracting that into the stable surface and making it the canonical middleware. Until `require_auth` can validate a JWT, it should not be declared stable in `rf::prelude`.
@@ -147,3 +154,155 @@ The items below are listed in descending order of impact. The first three are en
 ---
 
 *Document generated as the cycle-5 synthesis. Prepared 2026-07-12.*
+
+---
+
+## Cycle-9 Re-Score (2026-07-14)
+
+**Cycles since C5 baseline:** C6 (code hardening), C7 (Postgres bridge), C8 (test depth)
+**Baseline:** Cycle-5 reconciled score (2026-07-12): Overall 6.0/10
+**Reconciler note:** An independent auditor and an adversarial skeptic scored cycles 6–8 against the C5 baseline. This section applies the same protocol as the C5 synthesis: lean to the skeptic when they produce code-verified findings with line numbers; lean to the auditor only when the skeptic's lower score is not supported by a concrete artifact. Two skeptic findings — Postgres transaction ACID-atomicity violation (db_manager.rs:543–597) and CSRF silent failure on `multipart/form-data` (csrf.rs:323) — are treated as unrefuted. The auditor's specific code citations are independently accurate; the disagreement is on how much weight to give to newly surfaced structural issues versus confirmed closures.
+
+---
+
+### 1. Vision / Positioning
+
+| | Score |
+|---|---|
+| C5 Reconciled | 8.0 / 10 |
+| Auditor (C6–C8) | 8.5 / 10 |
+| Skeptic (C6–C8) | 8.0 / 10 |
+| **Reconciled** | **8.0 / 10** |
+| **Delta from C5** | **0.0** |
+
+**What cycles 6–8 concretely changed.** Three of the four production-blocking gaps that had limited the north-star's internal credibility at C5 are now closed with code. `require_auth` / `require_auth_with` validate real JWTs via `JwtManager::validate_token` (middleware.rs:61); the reference-app's main.rs:598–605 now calls `require_auth_with(state.jwt.clone())` natively with a comment "(jwt_auth removed)" — the framework's own flagship example no longer bypasses its stable auth surface. CSRF form-body extraction is real: csrf.rs:307–346 buffers the body, parses `_token` via `parse_form_token()`, and reinserts the original bytes, backed by 17 integration tests. The DB facade now routes `Model!`/`create!`/`find!`/`update!`/`delete!` through `sqlx::PgPool` on `postgres://` URLs, with the full CRUD cycle verified against Postgres 16 in the live-backends CI job. These closures make the north-star better exemplified by a reference app that uses the canonical stable surface without workarounds.
+
+**What still holds it back.** The skeptic's ceiling of 8.0 is correct; the auditor's 8.5 is not yet earned. VISION_GAP.md still contains pre-cycle audit language — the document's "verdict" section ("30–40% of the vision is genuinely working") was not updated to reflect any of cycles 1–8, leaving the project's own gap-analysis document contradicted by its own codebase. TIERS annotation coverage is confirmed at ~42/127 crates by grep — the "machine-checkable single source of truth" claim in TIERS.md is aspirational at 67% unannotated and without a CI gate. Most importantly, the vision requires external adoption to be validated. "Write less code than Laravel" is still an internal claim, not a demonstrated outcome with real users. The Postgres schema coupling (PK must be named `id`, `NUMERIC`/`DECIMAL` needs `::TEXT` cast) means the DX promise silently breaks at edge-case schema boundaries without user-visible errors.
+
+---
+
+### 2. Laravel-DX
+
+| | Score |
+|---|---|
+| C5 Reconciled | 6.5 / 10 |
+| Auditor (C6–C8) | 7.5 / 10 |
+| Skeptic (C6–C8) | 7.0 / 10 |
+| **Reconciled** | **7.0 / 10** |
+| **Delta from C5** | **+0.5** |
+
+**What cycles 6–8 concretely changed.** All five C5 DX friction items identified by the skeptic are now closed with code evidence. `require_auth` validates real JWTs at middleware.rs:61 with comprehensive tests (valid Bearer → 200, tampered → 401, expired → 401, missing manager → fail-closed 401). CSRF `extract_token()` no longer returns hardcoded `None` for the form-body path — it buffers, parses `_token`, and reinserts the original bytes. `rf-mail` `SmtpConfig` is disambiguated into `SmtpEnvConfig` / `SmtpConfig` with a deprecated alias (commit e2ba1533). `init_logging` now returns a `Send+Sync` error. The DB facade dispatches through `sqlx::PgPool` when `DATABASE_URL` is `postgres://` (db_manager.rs:616–628). The C8 `where_in` bug fix is a genuine DX win: every ORM query using `WHERE column IN (...)` had returned 0 rows in every prior version — a silent data-loss trap that is now fixed.
+
+**What still holds it back.** The auditor's 7.5 overclaims; the skeptic's 7.0 is the defensible ceiling because two gaps found this cycle are unrefuted. First, CSRF middleware only reads `_token` from `application/x-www-form-urlencoded` bodies (csrf.rs:323: `content_type.starts_with('application/x-www-form-urlencoded')`). File upload forms using `multipart/form-data` — a very common real-world pattern — are silently unprotected. This is a security gap on a declared-stable surface, not a future nice-to-have. Second, Postgres transactions are not ACID-atomic: `begin_transaction()` sends `BEGIN` to the pool; each subsequent `pool.execute()` call may check out a different connection from `PgPool`, breaking atomicity — confirmed in db_manager.rs:543–597. Applications relying on DB transactions for correctness on Postgres will silently have no atomicity. Additional persistent gaps: ORM query builder returns `Result<_, String>` throughout making precise error handling impossible; rf-2fa TOTP has no rate-limiting (brute force of 1,000,000 codes is unconstrained); rf-application admin CRUD has 6 TODO stubs; three overlapping OAuth crates (rf-oauth, rf-oauth-server, rf-oauth2-server) present an unresolved DX choice on a security-critical feature with no consolidation guidance.
+
+---
+
+### 3. Technical Architecture
+
+| | Score |
+|---|---|
+| C5 Reconciled | 6.5 / 10 |
+| Auditor (C6–C8) | 7.0 / 10 |
+| Skeptic (C6–C8) | 6.5 / 10 |
+| **Reconciled** | **6.5 / 10** |
+| **Delta from C5** | **0.0** |
+
+**What cycles 6–8 concretely changed.** The auth system is now architecturally coherent: a single middleware path (`require_auth` / `require_auth_with`) handles JWT signature validation, per-request `Auth` scope injection, and 401 with a JSON envelope before any body extractor runs — confirmed at middleware.rs:45–85. Three query-engine bugs were caught by C8 tests and fixed: `where_in` expanded values into individual bindings (fixed at query_builder.rs:65–83); `whereNotBetween` now uses a packed `Value::Array([min,max])` so `NOT BETWEEN` is atomic (query_builder.rs:84–93); `BetweenLengthRule` switched from `s.len()` byte count to `s.chars().count()` character count (string.rs:428–429). These are genuine improvements to the query engine's correctness.
+
+**What still holds it back.** The skeptic's score of 6.5 (no change from C5) is the honest verdict, and the auditor's 7.0 is not supported by the architectural evidence. The Postgres backend introduced by C7 actively reveals a design-level flaw rather than cleanly solving the gap: `GLOBAL_DB` is a `Mutex<DBManager>` containing a `PgPool`. Sending `BEGIN`, DML statements, and `COMMIT` via separate `pool.execute()` calls means each may acquire a different connection — atomicity is structurally impossible at this layer. This is not a bug that can be fixed with a patch; it requires redesigning how transactions acquire and hold connections. C7 added a feature whose transaction API is architecturally broken. Structural sprawl is unchanged from C5: `rf-stub-system/src/stub.rs` still has 11 live `todo!()` macros (lines 111–239); four competing OAuth crates exist with no consolidation or deprecation plan; two DI containers (rf-container, rf-service-container) and two schedulers (rf-scheduler, rf-scheduling) remain undocumented as complementary vs. overlapping; nine dead facade crates under `crates/` remain as "unmaintained dead-code directories" per TIERS.md. The ORM layer has three overlapping implementations (rf-orm SeaORM wrapper, rf-eloquent trait-based macros, rf-macros query-builder DX) with no documented migration path between them.
+
+---
+
+### 4. CI & Test Strategy
+
+| | Score |
+|---|---|
+| C5 Reconciled | 6.5 / 10 |
+| Auditor (C6–C8) | 7.0 / 10 |
+| Skeptic (C6–C8) | 7.0 / 10 |
+| **Reconciled** | **7.0 / 10** |
+| **Delta from C5** | **+0.5** |
+
+**What cycles 6–8 concretely changed.** Both reviewers independently converged on 7.0, which is the reconciled score without adjudication. Cycle 8 added 201 tests that caught and fixed 3 genuine framework bugs (`where_in`, `whereNotBetween`, `BetweenLengthRule`) — tests that produced real signal rather than box-ticking. Coverage was measured with `cargo llvm-cov` and documented in docs/COVERAGE.md: rf-web 88.8%, rf-auth 79.5%, rf-cache 82.4%, rf-validation 78.7%, rf-queue 76.9%, rf-orm 48.9%. The C5 "near-zero coverage" finding is materially refuted on the stable core. A live-backends CI job now runs real Postgres 16 via a GitHub Actions service container and executes `test_postgres_integration_full_cycle` with `RF_PG_TEST_URL` — a genuine round-trip. Total test function counts are substantial: rf-orm 187, rf-auth 183, rf-eloquent 104, rf-validation 70, rf-queue 28.
+
+**What still holds it back.** The live-cloud CI job is confirmed always-skip theater: ci.yml line 724 self-admits "CURRENT STATUS: secrets not yet added to this repo — every step below takes the skip path and passes green." No real AWS S3, Redis, or SMTP round-trip has ever executed in GitHub Actions. 43 `assert!(true)` instances remain across 9+ crates (rf-passport: 11 across handlers.rs and grant files; rf-macros: 4; rf-scaffold: 2; rf-eloquent: 3; rf-validation database.rs: 2; and others). Three empty-body test functions in rf-auth/src/remember_me/middleware.rs (test_remember_me_authentication, test_invalid_token_graceful_degradation, test_missing_cookie_graceful_degradation) compile but assert nothing — they inflate the test count without providing coverage signal. rf-orm line coverage at 49% is honest, but query_builder.rs (10.8%) and transaction.rs (13.2%) — the most-used ORM paths in production — are structurally untested in hermetic CI. clippy `-D warnings` still covers only ~14 of 127 crates. No coverage gate is enforced in CI, so uncovered paths can accumulate silently.
+
+---
+
+### 5. Production-Readiness
+
+| | Score |
+|---|---|
+| C5 Reconciled | 5.0 / 10 |
+| Auditor (C6–C8) | 6.0 / 10 |
+| Skeptic (C6–C8) | 5.5 / 10 |
+| **Reconciled** | **5.5 / 10** |
+| **Delta from C5** | **+0.5** |
+
+**What cycles 6–8 concretely changed.** Three of the C5 production blockers are closed with code evidence. `require_auth` validates real JWTs — the "declared stable but bypassed in the framework's own reference app" finding is directly refuted by main.rs:598–605. CSRF form-body extraction is real with buffer/reinsert and 17 tests — the silent security gap on HTML form submissions is closed. The DB facade has a Postgres path — the "postgres:// URL silently falls back to in-memory SQLite" production cliff is gone. The C8 `where_in` fix is the most production-critical improvement: every ORM `IN` query had returned 0 rows in all prior versions; this would have caused silent data loss in any production application using that query pattern. BUGS.md now logs 69 fixed issues including security fixes (XSS, SQL injection, HMAC timing, integer overflow).
+
+**What still holds it back.** The skeptic's 5.5 is the defensible score; the auditor's 6.0 does not adequately weight the newly confirmed Postgres transaction ACID violation, which is a production-correctness issue, not a future caveat. Any production application calling `begin_transaction()` / DML / `commit()` on Postgres may silently have each operation land on a different pool connection, breaking atomicity (db_manager.rs:543–597). An application that relies on transaction rollback to prevent partial writes will silently fail to do so. Separately, CSRF protection is silent for `multipart/form-data` requests — file upload endpoints are a classic CSRF attack surface that is now unprotected even though the URL-encoded path is fixed. rf-2fa TOTP verification has no rate-limiting (brute force of 6-digit window unconstrained). rf-application admin CRUD has 6 TODO stubs confirmed at admin.rs:85–116 — any admin panel use-case is incomplete at the framework level. In-memory CSRF token store and session store make horizontal scaling unsupported without Redis wiring absent from any getting-started path. Live-cloud CI has never validated real cloud paths. No crates.io publication means the framework cannot be adopted without cloning the monorepo.
+
+---
+
+### 6. Open-Source Maturity
+
+| | Score |
+|---|---|
+| C5 Reconciled | 2.5 / 10 |
+| Auditor (C6–C8) | 2.5 / 10 |
+| Skeptic (C6–C8) | 2.5 / 10 |
+| **Reconciled** | **2.5 / 10** |
+| **Delta from C5** | **0.0** |
+
+**What cycles 6–8 concretely changed.** Nothing measurable changed on any external-engagement metric. All 9 commits since the C5 baseline come from the same maintainer (ChristianHeusser / noreply@anthropic.com). CONTRIBUTING.md, issue templates, CODE_OF_CONDUCT.md, and SECURITY.md were in place at C5 and are unchanged. Both reviewers independently assigned 2.5 with no disagreement; there is nothing to adjudicate.
+
+**What still holds it back.** This dimension is adoption-bound and time-bound; no engineering cycle changes it. Zero external contributors, zero external users. All dependencies in rf/Cargo.toml are `path = "../.."` (50 path dependencies confirmed) — the framework cannot be published to crates.io without a coordinated multi-crate release workflow that does not exist. TIERS.md machine-readable annotation remains at 42/127 crates (33%) with the same "annotated incrementally" caveat unchanged across multiple cycles. CHANGELOG tracks internal cycle milestones, not semver releases with user-migration notes. Bus factor remains 1. The community infrastructure exists but has received zero external use. No docs.rs coverage, no live badges, no external issue activity.
+
+---
+
+### Overall: Cycle-9
+
+| | Score |
+|---|---|
+| C5 Baseline | 6.0 / 10 |
+| Auditor (C6–C8) | 6.5 / 10 |
+| Skeptic (C6–C8) | 6.0 / 10 |
+| **Reconciled** | **6.0 / 10** |
+| **Delta from C5** | **0.0** |
+
+Cycles 6–8 delivered exactly what their briefs claimed and the code verifies it. The three most damaging C5 findings are all closed: `require_auth` validates real JWTs and is used natively by the reference app (no hand-rolled bypass); CSRF form-body extraction is real with buffer/reinsert and 17 tests; the DB facade routes through `sqlx::PgPool` on `postgres://` URLs with a verified CI round-trip. Cycle 8 added 201 tests that caught 3 genuine framework bugs that would have caused silent data loss in production. Coverage on the stable core is now meaningful, not zero. Individually, Laravel-DX, CI/Tests, and Production-Readiness each earned +0.5 from their C5 positions, and those dimension scores reflect that.
+
+The reason the overall score does not follow those individual gains is twofold. First, the Postgres backend introduced a design-level ACID violation — `GLOBAL_DB`'s `Mutex<DBManager>` containing a `PgPool` means `BEGIN`, DML, and `COMMIT` each go to arbitrary pool connections, making transaction atomicity structurally impossible without a redesign. A feature that breaks the transaction contract while appearing to support it is a production-correctness regression that offsets the DX gain. Second, the open-source dimension is flat at 2.5 and is adoption-bound regardless of internal quality, which pulls the weighted average down. The honest picture is: genuine, code-verified gains on the stable-core engineering surface are offset by a newly surfaced architectural flaw in the Postgres transaction model and by an immovable adoption floor. The score stays at 6.0 for the same reason a ledger stays flat when gains and losses are equal — the work was real, but so were the newly found gaps.
+
+---
+
+### What Would Move the Needle: Cycle-9 Assessment
+
+**Agent-fixable in future engineering cycles:**
+
+1. **Fix Postgres transaction ACID atomicity** — `begin_transaction()` must acquire a single dedicated connection from the pool (via `pool.acquire()`) and hold it for the full transaction lifecycle (BEGIN → DML → COMMIT/ROLLBACK → release). The current design of sending each SQL statement as an independent `pool.execute()` call cannot provide atomicity. This is the highest-priority fix: it is a silent production data-correctness issue, and the current API makes callers believe they have atomicity when they do not. Fixing this would move Technical Architecture and Production-Readiness each +0.5.
+
+2. **Fix CSRF for `multipart/form-data`** — `extract_token()` must handle `multipart/form-data` bodies in addition to `application/x-www-form-urlencoded`. File upload forms with CSRF tokens are a real attack surface left unprotected. This is a bounded engineering task on a security-critical surface.
+
+3. **Add TOTP rate-limiting to rf-2fa** — the absence of brute-force protection on a 6-digit TOTP (1,000,000 codes) is an active security gap. A token bucket or fixed-window limiter per user per TOTP window is a bounded implementation.
+
+4. **Configure live-cloud CI secrets** — adding `REDIS_URL`, `AWS_*` (or a MinIO equivalent), and `RF_SMTP_TEST_ADDR` to GitHub Actions secrets and verifying the live-cloud job actually passes at least one real run is a configuration task, not an engineering cycle. The job infrastructure already exists; the "confirmed theater" finding closes the moment secrets are added and the job goes green on real infra.
+
+5. **Clean up `assert!(true)` and empty-body tests** — 43 `assert!(true)` instances and 3 empty-body test functions inflate coverage signals without providing correctness guarantees. Replacing or removing them would make the 7.0 CI/Tests score trustworthy rather than discounted.
+
+6. **Add a CI coverage gate** — a `cargo llvm-cov --fail-under` threshold (even at 50%) would prevent uncovered paths from accumulating silently. With rf-orm's query_builder.rs at 10.8%, a gate would immediately surface the gap and incentivize ORM test investment.
+
+7. **Update VISION_GAP.md** — the document's "verdict" section still contradicts the current codebase. Updating it to reflect the actual state after C1–C8 is a documentation task that removes a credibility gap for any external reviewer.
+
+**Adoption/time-bound (cannot be accelerated by engineering cycles):**
+
+8. **Publish to crates.io** — the 50 `path = "../.."` dependencies in rf/Cargo.toml must become version-pinned published crates in a coordinated release workflow. Until published, the framework is cargo-add-inaccessible to any external developer. This is the prerequisite for Open-Source Maturity moving above 2.5; without it, no internal engineering quality improvement changes the external accessibility score.
+
+9. **External users and contributors** — bus-factor-1 and zero-external-contributor status cannot change through internal cycles. They require the framework to be publicly installable (crates.io), then real developers adopting it, filing issues, and contributing fixes. This takes time, a published crate, and user-facing documentation at the getting-started level, not cycle briefs.
+
+10. **Complete TIERS annotation with a CI gate** — annotating the remaining 85/127 crates and adding a CI check that fails on missing `[package.metadata.rustforge]` entries would make the machine-checkable taxonomy mandate real. Currently it is a stated convention with 67% non-compliance and no enforcement. This is technically agent-fixable but only pays off after publication and adoption give external contributors a reason to care about tier semantics.
+
+---
+
+*Cycle-9 re-score synthesized 2026-07-14. Auditor and skeptic inputs reconciled per the C5 protocol: lean skeptic on code-verified unrefuted findings; lean auditor only where the skeptic's lower score lacks a concrete artifact. Two skeptic findings treated as unrefuted: Postgres transaction ACID violation (db_manager.rs:543–597) and CSRF silence on multipart/form-data (csrf.rs:323).*
