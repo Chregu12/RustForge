@@ -7,9 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [1.0.0-rc.1] - 2026-07-11
+## [1.0.0-rc.2] - 2026-07-14
 
-### Release candidate — honest state assessment
+### Second release candidate — hardening + honesty cycles
+
+Builds on rc.1 with eleven review-driven hardening cycles (all landed CI-green):
+`require_auth` is now JWT-capable; CSRF covers header + urlencoded + multipart;
+the Laravel-DX DB macros run on Postgres (with ACID-atomic transactions) as well
+as SQLite; +201 real tests caught and fixed 3 genuine query/validation bugs; TIERS
+tiering is 100% annotated and CI-enforced; rf-2fa TOTP is rate-limited; the README
+and the entire wiki were rewritten from the actual code (fabricated APIs removed).
+An honest independent+adversarial re-score (docs/REVIEW_RESPONSE.md) puts the
+project at ~6.0–6.5/10 overall: strong DX and honest docs, not yet production-proven
+(0 external users). This is a release candidate — pin to a final tag for production.
+The `Fixed — cycle-N` sections below detail every change since rc.1.
+
+### Release candidate — honest state assessment (from rc.1)
 
 This is the first formal release candidate for RustForge 1.0. It establishes
 the release engineering infrastructure (versioning, MSRV policy, deprecation
@@ -434,7 +447,7 @@ v1.0.0 marks the stable foundation. Future releases will focus on:
 
 ---
 
-## [1.0.0-rc.2] - 2025-11-18
+## [1.0.0-rc.2-legacy] - 2025-11-18 (superseded pre-1.0 lineage)
 
 ### 🎉 API & AUTHENTICATION - Laravel Sanctum Parity Complete
 

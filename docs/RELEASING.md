@@ -185,9 +185,9 @@ Add to your project's `Cargo.toml`:
 
 ```toml
 [dependencies]
-rf = { git = "https://github.com/Chregu12/RustForge", tag = "v1.0.0-rc.1" }
+rf = { git = "https://github.com/Chregu12/RustForge", tag = "v1.0.0-rc.2" }
 # — or the umbrella crate —
-rustforge = { git = "https://github.com/Chregu12/RustForge", tag = "v1.0.0-rc.1" }
+rustforge = { git = "https://github.com/Chregu12/RustForge", tag = "v1.0.0-rc.2" }
 ```
 
 To track `main` (unstable, not recommended for production):
@@ -213,9 +213,9 @@ You can depend on individual crates directly rather than the umbrella:
 
 ```toml
 [dependencies]
-rf-validation = { git = "https://github.com/Chregu12/RustForge", tag = "v1.0.0-rc.1" }
-rf-auth       = { git = "https://github.com/Chregu12/RustForge", tag = "v1.0.0-rc.1" }
-rf-cache      = { git = "https://github.com/Chregu12/RustForge", tag = "v1.0.0-rc.1" }
+rf-validation = { git = "https://github.com/Chregu12/RustForge", tag = "v1.0.0-rc.2" }
+rf-auth       = { git = "https://github.com/Chregu12/RustForge", tag = "v1.0.0-rc.2" }
+rf-cache      = { git = "https://github.com/Chregu12/RustForge", tag = "v1.0.0-rc.2" }
 ```
 
 ### Version scheme
