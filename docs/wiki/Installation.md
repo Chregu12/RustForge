@@ -1,396 +1,183 @@
-# Installation Guide
-
-This guide will help you install RustForge and set up your development environment.
-
-## Prerequisites
-
-Before installing RustForge, ensure you have the following installed:
-
-### Required
-
-- **Rust 1.75 or higher**
-  ```bash
-  # Check your Rust version
-  rustc --version
-
-  # Update Rust if needed
-  rustup update
-  ```
-
-- **Cargo** (comes with Rust)
-  ```bash
-  cargo --version
-  ```
-
-### Optional (Recommended)
-
-- **Database**:
-  - PostgreSQL 12+ (recommended)
-  - MySQL 8+
-  - SQLite 3.35+ (for development)
-
-- **Cache Server**:
-  - Redis 6+ (recommended)
-  - Memcached 1.6+
-
-- **Git** (for version control)
-
-## Installation Methods
-
-### Method 1: Using the `rf` Crate (Recommended)
-
-The easiest way to use RustForge is with the unified `rf` crate:
-
-```toml
-[dependencies]
-# All-in-one RustForge
-rf = "1.0.0"
-
-# Async runtime
-tokio = { version = "1.37", features = ["full"] }
-
-# Serialization
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-```
-
-This gives you access to everything with simplified imports:
-
-```rust
-use rf::{Route, Auth, DB, Hash, Collection};
-// Or use prelude for all common imports
-use rf::prelude::*;
-```
-
-Then run:
-
-```bash
-cargo build
-```
-
-### Method 2: Individual Crates (Advanced)
-
-For more control, you can add individual crates:
-
-```toml
-[dependencies]
-# Core framework
-rf-core = "1.0.0"
-
-# Database & ORM
-rf-orm = "1.0.0"
-rf-eloquent = "1.0.0"
-
-# HTTP & Routing
-rf-web = "1.0.0"
-rf-routing = "1.0.0"
-
-# Authentication
-rf-auth = "1.0.0"
-rf-sanctum = "1.0.0"
-
-# Validation
-rf-validation = "1.0.0"
-
-# Caching
-rf-cache = "1.0.0"
-
-# Queue & Jobs
-rf-queue = "1.0.0"
-rf-jobs = "1.0.0"
-
-# Additional features (optional)
-rf-mail = "1.0.0"
-rf-storage = "1.0.0"
-rf-broadcast = "1.0.0"
-
-# Phase 21 features (optional)
-rf-dusk = "1.0.0"      # Browser testing
-rf-echo = "1.0.0"      # Broadcasting client
-rf-envoy = "1.0.0"     # SSH deployment
-rf-sail = "1.0.0"      # Docker environment
-rf-spark = "1.0.0"     # SaaS billing
-
-# Async runtime
-tokio = { version = "1.37", features = ["full"] }
-
-# Serialization
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-```
-
-Then run:
-
-```bash
-cargo build
-```
-
-### Method 3: Clone from GitHub
-
-Clone the repository and build from source:
-
-```bash
-# Clone the repository
-git clone https://github.com/Chregu12/RustForge.git
-cd RustForge
-
-# Build the workspace
-cargo build --release
-
-# Install the CLI tool
-cargo install --path crates/forge-cli
-```
-
-## Setting Up Your Project
-
-### 1. Create a New Project
-
-```bash
-# Create a new Rust project
-cargo new my-rustforge-app
-cd my-rustforge-app
-```
-
-### 2. Configure Dependencies
-
-Edit your `Cargo.toml` to include RustForge dependencies (see Method 1 above).
-
-### 3. Set Up Environment Variables
-
-Create a `.env` file in your project root:
-
-```env
-# Application
-APP_NAME=MyRustForgeApp
-APP_ENV=local
-APP_DEBUG=true
-APP_URL=http://localhost:8000
-
-# Database
-DATABASE_URL=sqlite://database.db
-# Or for PostgreSQL:
-# DATABASE_URL=postgres://user:password@localhost:5432/myapp
-# Or for MySQL:
-# DATABASE_URL=mysql://user:password@localhost:3306/myapp
-
-# Cache
-CACHE_DRIVER=file
-# Or for Redis:
-# CACHE_DRIVER=redis
-# REDIS_URL=redis://localhost:6379
-
-# Queue
-QUEUE_DRIVER=sync
-# Or for Redis queue:
-# QUEUE_DRIVER=redis
-
-# Mail
-MAIL_DRIVER=smtp
-MAIL_HOST=smtp.mailtrap.io
-MAIL_PORT=2525
-MAIL_USERNAME=your_username
-MAIL_PASSWORD=your_password
-MAIL_FROM_ADDRESS=noreply@example.com
-MAIL_FROM_NAME="${APP_NAME}"
-
-# Storage
-FILESYSTEM_DRIVER=local
-# Or for S3:
-# FILESYSTEM_DRIVER=s3
-# AWS_ACCESS_KEY_ID=your_key
-# AWS_SECRET_ACCESS_KEY=your_secret
-# AWS_DEFAULT_REGION=us-east-1
-# AWS_BUCKET=your_bucket
-
-# Session
-SESSION_DRIVER=file
-SESSION_LIFETIME=120
-
-# Logging
-LOG_LEVEL=info
-```
-
-### 4. Initialize the Database
-
-For SQLite (development):
-```bash
-# The database file will be created automatically
-```
-
-For PostgreSQL:
-```bash
-# Create the database
-createdb myapp
-
-# Update DATABASE_URL in .env
-DATABASE_URL=postgres://user:password@localhost:5432/myapp
-```
-
-For MySQL:
-```bash
-# Create the database
-mysql -u root -p -e "CREATE DATABASE myapp;"
-
-# Update DATABASE_URL in .env
-DATABASE_URL=mysql://user:password@localhost:3306/myapp
-```
-
-## Installing the CLI Tool (Forge)
-
-RustForge comes with a powerful CLI tool called `forge`:
-
-```bash
-# If you cloned the repository
-cargo install --path crates/forge-cli
-
-# Verify installation
-forge --version
-```
-
-### CLI Commands Available
-
-```bash
-forge make:model User --migration      # Create model with migration
-forge make:controller UserController   # Create controller
-forge make:migration create_users      # Create migration
-forge migrate                          # Run migrations
-forge migrate:rollback                 # Rollback last migration
-forge db:seed                          # Seed database
-forge route:list                       # List all routes
-forge cache:clear                      # Clear cache
-forge queue:work                       # Start queue worker
-```
-
-See [CLI Commands](CLI-Commands) for full documentation.
-
-## Verifying Installation
-
-Create a simple test file to verify your installation:
-
-The handler is written AWAIT-FREE: `#[auto_await]` goes once on the `async fn` and
-the macro inserts `.await` after framework calls such as `get`. You never write
-`.await` yourself. The `Hash` facade is a genuinely-sync facade (no `.await` either
-way).
-
-```rust
-// src/main.rs
-use rf::prelude::*;          // Auth, DB, Hash, Response, ...
-use serde_json::json;        // `json!` is not part of `rf::prelude`
-
-#[tokio::main]
-#[auto_await]                // <- inserts `.await` on framework calls like `get`
-async fn main() {
-    // Hash facade (synchronous) — make() returns a String, check() returns a bool
-    let hashed = Hash::make("secret");
-    assert!(Hash::check("secret", &hashed));
-    println!("Hash facade works");
-
-    // DB facade query builder — written await-free; the macro awaits `get`
-    let users = DB::table("users").get().unwrap();
-    println!("Fetched {} user row(s)", users.len());
-
-    // Response builder — json() takes a reference and returns a ResponseBuilder
-    let _response = Response::json(&json!({ "message": "Hello, RustForge!" }));
-    println!("Response facade works");
-
-    println!("RustForge is installed correctly!");
-}
-```
-
-Run your application:
-
-```bash
-cargo run
-```
-
-You should see the facade checks print successfully, confirming RustForge is
-installed and the core facades (`Hash`, `DB`, `Response`) are available.
-
-## Troubleshooting
-
-### Common Issues
-
-#### Issue: "Cannot find crate rf-core"
-
-**Solution**: Ensure you've added all dependencies to `Cargo.toml` and run `cargo build`.
-
-#### Issue: "Database connection failed"
-
-**Solution**:
-1. Check your `DATABASE_URL` in `.env`
-2. Ensure database server is running
-3. Verify credentials and database exists
-
-#### Issue: "Redis connection failed"
-
-**Solution**:
-1. Install Redis: `brew install redis` (macOS) or `apt install redis` (Linux)
-2. Start Redis: `redis-server`
-3. Check `REDIS_URL` in `.env`
-
-#### Issue: "Permission denied" when installing CLI
-
-**Solution**: Use `cargo install --path crates/forge-cli` without sudo, or install to user directory.
-
-### Getting Help
-
-If you encounter issues:
-
-1. Check the [FAQ](FAQ)
-2. Search existing [GitHub Issues](https://github.com/Chregu12/RustForge/issues)
-3. Create a new issue with details about your problem
-
-## Next Steps
-
-Now that you have RustForge installed, continue with:
-
-1. **[Quick Start Guide](Quick-Start)** - Build your first application
-2. **[Features](Features)** - Learn about available features
-3. **[Examples](Examples)** - See code examples
-4. **[API Documentation](API-Documentation)** - Detailed API reference
-
-## Updating RustForge
-
-To update to the latest version:
-
-```bash
-# Update dependencies in Cargo.toml to latest version
-[dependencies]
-rf-core = "1.0.0"  # Update to latest version
-
-# Update cargo
-cargo update
-
-# Rebuild
-cargo build
-```
-
-## Development vs Production
-
-### Development Setup
-
-```env
-APP_ENV=local
-APP_DEBUG=true
-DATABASE_URL=sqlite://database.db
-CACHE_DRIVER=file
-QUEUE_DRIVER=sync
-```
-
-### Production Setup
-
-```env
-APP_ENV=production
-APP_DEBUG=false
-DATABASE_URL=postgres://user:password@localhost:5432/myapp
-CACHE_DRIVER=redis
-REDIS_URL=redis://localhost:6379
-QUEUE_DRIVER=redis
-LOG_LEVEL=warning
-```
-
-**Important**: Never commit your `.env` file to version control. Use `.env.example` as a template.
+# Installation
+
+RustForge is a **git monorepo** — it is not published to crates.io.
+You consume it as a git dependency (pinned to a release tag) or as a path
+dependency when working inside the repository itself.
 
 ---
 
-Ready to build? Continue to the [Quick Start Guide](Quick-Start).
+## Prerequisites
+
+### Rust toolchain
+
+| Requirement | Value |
+|---|---|
+| Minimum Supported Rust Version (MSRV) | **1.79.0** |
+| Tested / pinned toolchain (CI and local dev) | **1.96.0** |
+
+The workspace ships a `rust-toolchain.toml` that pins the toolchain to 1.96.0.
+When you work inside the repository or use a path dependency, this pin is picked
+up automatically by `cargo`. When you consume RustForge as a git dependency from
+your own project, your own toolchain is used — you need Rust >= 1.79.0.
+
+Install or update Rust via [rustup](https://rustup.rs/):
+
+```sh
+# Install rustup (if you don't have it)
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+
+# Check your version
+rustc --version   # must be >= 1.79.0
+
+# Update to the latest stable if needed
+rustup update stable
+```
+
+### Database (optional)
+
+The ORM macros (`Model!`, `create!`, `find!`, `update!`, `delete!`) and the `DB`
+facade default to **in-memory SQLite** (rusqlite, zero-config). For Postgres, set
+`DATABASE_URL` to a `postgres://` URL — see [database support](#database-support).
+MySQL is not supported.
+
+---
+
+## Adding RustForge to your project
+
+### Option A — Git dependency (recommended)
+
+Pin to the latest release tag in your project's `Cargo.toml`:
+
+```toml
+[dependencies]
+# Umbrella crate — pulls in the full stable surface via `use rf::prelude::*`
+rf = { git = "https://github.com/Chregu12/RustForge", tag = "v1.0.0-rc.1" }
+
+# Async runtime (required)
+tokio = { version = "1", features = ["full"] }
+
+# Serialization (required for Model! derive)
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# HTTP layer (required; must match rf-routing's axum version)
+axum = "0.8"
+```
+
+To track `main` instead (unstable, not recommended for production):
+
+```toml
+rf = { git = "https://github.com/Chregu12/RustForge", branch = "main" }
+```
+
+### Option B — Path dependency (contributors / monorepo)
+
+If you have cloned the repository or embedded it as a git submodule:
+
+```toml
+[dependencies]
+rf = { path = "../RustForge/crates/rf" }
+
+tokio = { version = "1", features = ["full"] }
+serde  = { version = "1", features = ["derive"] }
+serde_json = "1"
+axum   = "0.8"
+```
+
+### Option C — Individual crates
+
+You can depend on individual stable crates rather than the umbrella:
+
+```toml
+[dependencies]
+rf-validation = { git = "https://github.com/Chregu12/RustForge", tag = "v1.0.0-rc.1" }
+rf-auth       = { git = "https://github.com/Chregu12/RustForge", tag = "v1.0.0-rc.1" }
+rf-cache      = { git = "https://github.com/Chregu12/RustForge", tag = "v1.0.0-rc.1" }
+```
+
+See [docs/STABLE_CORE.md](../STABLE_CORE.md) for the full list of stable crates and
+[docs/TIERS.md](../TIERS.md) for their maturity status.
+
+---
+
+## Verifying the setup
+
+Run an example from the repo to confirm everything builds and links correctly:
+
+```sh
+git clone https://github.com/Chregu12/RustForge.git
+cd RustForge
+
+# Build and run the blog-slice example (serves on http://127.0.0.1:3000)
+cargo run -p blog-slice
+
+# In a second terminal:
+curl -X POST http://127.0.0.1:3000/posts \
+  -H "Content-Type: application/json" \
+  -d '{"title":"Hello","body":"World"}'
+
+curl http://127.0.0.1:3000/posts
+```
+
+You should see a JSON array containing the post you just created. If that works,
+your toolchain and the dependency graph are correct.
+
+---
+
+## Database support
+
+The `DB` facade and all ORM macros default to **SQLite** and require no
+configuration. To use Postgres, set the `DATABASE_URL` environment variable
+before starting your app:
+
+```sh
+# In-memory SQLite (default — data is lost when the process exits)
+cargo run -p my-app
+
+# Persistent SQLite file
+DATABASE_URL=./app.db cargo run -p my-app
+
+# Postgres
+DATABASE_URL=postgres://user:pass@localhost/mydb cargo run -p my-app
+```
+
+The backend is selected automatically at runtime: a `postgres://` or
+`postgresql://` URL routes to Postgres via sqlx; anything else stays SQLite.
+
+**Postgres caveats:**
+- The primary key column must be named `id` (framework convention; `RETURNING id` is appended on INSERT).
+- `NUMERIC`/`DECIMAL` columns are not decoded to JSON yet — cast to `TEXT` or `FLOAT8` in the query.
+
+---
+
+## Installing the forge CLI (optional)
+
+The `forge` CLI generates compiling scaffold code (`make:model`, `make:controller`,
+`make:request`, `make:migration`, `forge deploy generate`). It is part of the
+monorepo and must be installed from the cloned repository:
+
+```sh
+git clone https://github.com/Chregu12/RustForge.git
+cd RustForge
+cargo install --path crates/forge-cli
+forge --version
+```
+
+---
+
+## Experimental crates
+
+The following crates are **excluded from the v1.0 stable surface** and carry no
+compatibility guarantee: `rf-nova`, `rf-swagger`, `rf-telescope`, `rf-cms`,
+`rf-breeze`, `rf-vite`, `rf-livereload`. They are not pulled in by `rf` (the
+umbrella) or by a plain `cargo build` inside the workspace. See
+[docs/TIERS.md](../TIERS.md) for the full tier taxonomy.
+
+---
+
+## Next steps
+
+- [Quick Start](Quick-Start) — build and run your first app end-to-end
+- [docs/STABLE_CORE.md](../STABLE_CORE.md) — the v1 API contract and every entry point
+- [docs/TIERS.md](../TIERS.md) — maturity tier for every crate
+- [docs/COOKBOOK.md](../COOKBOOK.md) — task-oriented recipes with real snippets

@@ -1,1031 +1,558 @@
 # Examples
 
-This page contains practical code examples for common use cases in RustForge.
+A curated tour of the real example applications under `examples/`. Every
+directory listed here was verified to exist on disk at the time of writing.
+Each example is runnable with `cargo run -p <name>` (some require environment
+variables such as `DATABASE_URL` or `REDIS_URL`).
 
-## Table of Contents
-
-- [REST API](#rest-api)
-- [Authentication](#authentication)
-- [File Upload](#file-upload)
-- [Real-time Chat](#real-time-chat)
-- [Job Queue](#job-queue)
-- [Email System](#email-system)
-- [Caching Strategy](#caching-strategy)
-- [GraphQL API](#graphql-api)
-- [Testing](#testing)
+For API details, see `docs/STABLE_CORE.md`. For maturity of specific crates,
+see `docs/TIERS.md`.
 
 ---
 
-## REST API
+## Table of Contents
 
-Complete CRUD API for a blog application.
+- [Flagship](#flagship)
+  - [reference-app](#reference-app)
+- [Core Primitives](#core-primitives)
+  - [blog-slice](#blog-slice)
+  - [rest-crud-resource](#rest-crud-resource)
+  - [validated-signup](#validated-signup)
+- [Authentication](#authentication)
+  - [auth-demo](#auth-demo)
+  - [auth-paginated-search](#auth-paginated-search)
+- [Real-World App](#real-world-app)
+  - [taskflow](#taskflow)
+- [Facades](#facades)
+  - [facades-demo](#facades-demo)
+- [Queues and Jobs](#queues-and-jobs)
+  - [jobs-offline](#jobs-offline)
+  - [jobs-demo](#jobs-demo)
+- [Mail](#mail)
+  - [mail-demo](#mail-demo)
+- [Internationalization](#internationalization)
+  - [i18n-localized-api](#i18n-localized-api)
+- [Real-Time](#real-time)
+  - [realtime-chat](#realtime-chat)
+- [Database — Explicit SeaORM](#database--explicit-seaorm)
+  - [database-demo](#database-demo)
+- [Getting Started](#getting-started)
+  - [hello](#hello)
+- [Syntax Showcase](#syntax-showcase)
+  - [laravel-syntax-simple](#laravel-syntax-simple)
+  - [laravel-syntax-complete](#laravel-syntax-complete)
+  - [macros-demo](#macros-demo)
+- [Tools and Scaffolding](#tools-and-scaffolding)
+  - [scaffold-demo](#scaffold-demo)
+- [Frontend Patterns](#frontend-patterns)
+  - [htmx-livewire-alternative](#htmx-livewire-alternative)
+  - [phase12-blog](#phase12-blog)
+- [README-Only References](#readme-only-references)
 
-### Project Structure
+---
 
-```
-src/
-├── main.rs
-├── models/
-│   ├── mod.rs
-│   ├── user.rs
-│   └── post.rs
-├── controllers/
-│   ├── mod.rs
-│   └── post_controller.rs
-└── requests/
-    ├── mod.rs
-    └── post_request.rs
-```
+## Flagship
 
-### Models (src/models/post.rs)
+### reference-app
 
-```rust
-use rf_orm::prelude::*;
-use serde::{Deserialize, Serialize};
-use chrono::{DateTime, Utc};
+**Path:** `examples/reference-app/`
 
-#[derive(Clone, Debug, PartialEq, DeriveEntityModel, Serialize, Deserialize)]
-#[sea_orm(table_name = "posts")]
-pub struct Model {
-    #[sea_orm(primary_key)]
-    pub id: i32,
+The canonical end-to-end application that exercises every stable-core surface
+in a single runnable binary: JWT auth (register + login + `GET /me`), full
+CRUD with `Model!`/`create!`/`find!`/`update!`/`delete!`, inline migrations via
+`DB::statement()`, `validate!` DSL, `Cache` facade (MemoryCache default),
+`Storage` facade (MemoryStorage default), `MemoryQueue` + `Worker` for
+background jobs, `Mail` facade (FileMailer default), health check (`GET /health`
+via `rf-health`), and Prometheus metrics (`GET /metrics` via `rf-metrics`).
 
-    pub user_id: i32,
-    pub title: String,
-    pub slug: String,
-    pub content: String,
-    pub published: bool,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
-}
+**Surfaces:** routing, request globals, validation, ORM, auth/JWT, cache, storage,
+queue, mail, health, metrics, logging.
 
-#[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
-pub enum Relation {
-    #[sea_orm(
-        belongs_to = "super::user::Entity",
-        from = "Column::UserId",
-        to = "super::user::Column::Id"
-    )]
-    User,
-}
+**Backends:** defaults to in-memory SQLite, MemoryCache, MemoryStorage, and FileMailer
+— runs with zero external services. Switch backends by setting environment variables:
+`DATABASE_URL=postgres://...` for Postgres, `SMTP_HOST=...` for real SMTP.
 
-impl Related<super::user::Entity> for Entity {
-    fn to() -> RelationDef {
-        Relation::User.def()
-    }
-}
-
-impl ActiveModelBehavior for ActiveModel {}
-
-impl Model {
-    pub fn generate_slug(title: &str) -> String {
-        title
-            .to_lowercase()
-            .replace(" ", "-")
-            .chars()
-            .filter(|c| c.is_alphanumeric() || *c == '-')
-            .collect()
-    }
-}
+```bash
+cargo run -p reference-app
+# or with Postgres:
+DATABASE_URL=postgres://user:pass@localhost/db cargo run -p reference-app
 ```
 
-### Request Validation (src/requests/post_request.rs)
-
-```rust
-use rf_validation::Validate;
-use serde::Deserialize;
-
-#[derive(Debug, Deserialize, Validate)]
-pub struct CreatePostRequest {
-    #[validate(length(min = 3, max = 200))]
-    pub title: String,
-
-    #[validate(length(min = 50))]
-    pub content: String,
-
-    pub published: Option<bool>,
-}
-
-#[derive(Debug, Deserialize, Validate)]
-pub struct UpdatePostRequest {
-    #[validate(length(min = 3, max = 200))]
-    pub title: Option<String>,
-
-    #[validate(length(min = 50))]
-    pub content: Option<String>,
-
-    pub published: Option<bool>,
-}
+```
+POST   /auth/register   {"email":"x@example.com","password":"secret123"}
+POST   /auth/login      {"email":"x@example.com","password":"secret123"}
+GET    /me              Authorization: Bearer <token>
+GET    /posts
+POST   /posts           Authorization: Bearer <token>
+GET    /posts/{id}
+PUT    /posts/{id}      Authorization: Bearer <token>
+DELETE /posts/{id}      Authorization: Bearer <token>
+POST   /upload          multipart/form-data, field "file"
+GET    /health
+GET    /metrics
 ```
 
-### Controller (src/controllers/post_controller.rs)
+---
 
-```rust
-use rf::prelude::*;
-use rf_jobs::{dispatch, QueueManager};
-use axum::extract::{Extension, Json, Path, Query};
-use axum::http::StatusCode;
-use rf_orm::DatabaseConnection;
-use std::time::Duration;
-use serde::{Deserialize, Serialize};
-use crate::requests::post_request::*;
+## Core Primitives
 
-#[derive(Debug, Deserialize)]
-pub struct ListQuery {
-    page: Option<usize>,
-    per_page: Option<usize>,
-    published: Option<bool>,
-}
+### blog-slice
 
-// `#[auto_await]` once on the impl block: every model/facade call below
-// (`remember`, `find`, `all`, `create`, `update_by_id`, `delete`, `flush`,
-// `dispatch`, `id`, ...) is awaited for you, so the bodies read await-free.
-#[auto_await]
-impl PostController {
-    pub async fn index(
-        Query(params): Query<ListQuery>,
-    ) -> Result<Response> {
-        let page = params.page.unwrap_or(1);
-        let per_page = params.per_page.unwrap_or(15);
+**Path:** `examples/blog-slice/`
 
-        let cache_key = format!(
-            "posts:page:{}:{}:{}",
-            page, per_page, params.published.unwrap_or(true)
-        );
+The minimal vertical slice: HTTP request → `validate!` → `Model!`/`create!` → `json()`
+response, written with only high-level primitives and no plumbing leaking into
+handlers. Demonstrates the `capture_request` middleware enabling argument-less
+handlers that call `input("field")` directly.
 
-        // `remember` is in the auto-await set — no `.await`.
-        let posts: Vec<Post> = Cache::remember(&cache_key, Duration::from_secs(300), || async {
-            let mut query = Post::query().order_by_desc("created_at");
+**Surfaces:** routing (`get`/`post`), request globals (`input`), `validate!` DSL,
+`Model!`/`create!`/`find!` ORM macros, `json()` response helper.
 
-            if let Some(published) = params.published {
-                query = query.r#where("published", published);
-            }
-
-            Ok(query.get()?)
-        })?;
-
-        Ok(Response::json(&posts))
-    }
-
-    pub async fn show(
-        Path(id): Path<i32>,
-        Extension(queue): Extension<QueueManager>,
-    ) -> Result<Response> {
-        let post = Post::find_or_fail(id)?;
-
-        // Dispatch a job (in the auto-await set).
-        dispatch(&queue, IncrementViewsJob { post_id: id })?;
-
-        Ok(Response::json(&post))
-    }
-
-    pub async fn store(
-        Json(payload): Json<CreatePostRequest>,
-    ) -> Result<Response> {
-        payload.validate()?;
-
-        let user_id = Auth::id().ok_or_else(|| anyhow::anyhow!("Not logged in"))?;
-
-        // Laravel-style create — `create` is in the auto-await set.
-        let post = Post::create(json!({
-            "user_id": user_id as i32,
-            "title": payload.title.clone(),
-            "slug": Model::generate_slug(&payload.title),
-            "content": payload.content,
-            "published": payload.published.unwrap_or(false),
-        }))?;
-
-        // Clear tagged cache. `flush` is in the auto-await set.
-        Cache::tags(&["posts"]).flush()?;
-
-        Ok(Response::json(&post).status(StatusCode::CREATED))
-    }
-
-    pub async fn update(
-        Path(id): Path<i32>,
-        Json(payload): Json<UpdatePostRequest>,
-    ) -> Result<Response> {
-        payload.validate()?;
-
-        let user_id = Auth::id().ok_or_else(|| anyhow::anyhow!("Not logged in"))?;
-
-        let post = Post::find_or_fail(id)?;
-
-        if post.user_id != user_id as i32 {
-            return Err(anyhow::anyhow!("Not authorized").into());
-        }
-
-        let mut changes = json!({});
-        if let Some(title) = payload.title {
-            changes["slug"] = json!(Model::generate_slug(&title));
-            changes["title"] = json!(title);
-        }
-        if let Some(content) = payload.content {
-            changes["content"] = json!(content);
-        }
-        if let Some(published) = payload.published {
-            changes["published"] = json!(published);
-        }
-
-        // `update_by_id` is in the auto-await set.
-        let post = Post::update_by_id(id, changes)?;
-
-        Cache::tags(&["posts"]).flush()?;
-
-        Ok(Response::json(&post))
-    }
-
-    pub async fn destroy(
-        Path(id): Path<i32>,
-    ) -> Result<Response> {
-        let user_id = Auth::id().ok_or_else(|| anyhow::anyhow!("Not logged in"))?;
-
-        let post = Post::find_or_fail(id)?;
-
-        if post.user_id != user_id as i32 {
-            return Err(anyhow::anyhow!("Not authorized").into());
-        }
-
-        // `delete` is in the auto-await set.
-        post.delete()?;
-
-        Cache::tags(&["posts"]).flush()?;
-
-        Ok(Response::no_content())
-    }
-}
+```bash
+cargo run -p blog-slice
+# POST /posts  {"title":"Hello","body":"World"}
+# GET  /posts
+# GET  /posts/{id}
 ```
 
-> **Note:** With `#[auto_await]` on the `impl` block you write Laravel-style, await-free code:
-> the macro inserts `.await` after model/facade calls like `find_or_fail`, `create`,
-> `update_by_id`, `delete`, `remember`, `flush`, `dispatch`, and `id`, and rewrites
-> `where(...)` to `r#where(...)`. `Response::json` takes a reference (`&post`) and
-> `.status(...)` takes a `StatusCode`, not an integer.
+---
 
-### Routes (src/main.rs)
+### rest-crud-resource
 
-```rust
-mod models;
-mod controllers;
-mod requests;
+**Path:** `examples/rest-crud-resource/`
 
-use rf::prelude::*;
-use rf_orm::Database;
+The canonical five-verb REST CRUD lifecycle for an `Article` resource with an
+`Author` relation, eager-loaded via `Article::with(&["author"]).get()` (one
+batched loader, no N+1). Shows correct REST status codes (201/200/204/404/422)
+from argument-less handlers reading input via globals.
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    dotenvy::dotenv()?;
+**Surfaces:** routing, `capture_request`, `validate!`, `Model!` with `belongsTo`
+relation, `create!`/`find!`/`update!`/`delete!`, eager loading, `json()`.
 
-    let app = Application::new();
-    // `Database::connect` is infra/bootstrap (not in the auto-await set), so it keeps `.await`.
-    let db = Database::connect(&std::env::var("DATABASE_URL")?).await?;
+```bash
+cargo run -p rest-crud-resource
+# POST   /articles        {"title":"...","body":"...","author_id":1}
+# GET    /articles
+# GET    /articles/{id}
+# PUT    /articles/{id}   {"title":"...","body":"...","author_id":1}
+# DELETE /articles/{id}
+```
 
-    // Public routes using Laravel-style Route facade
-    Route::get("/posts", PostController::index);
-    Route::get("/posts/:id", PostController::show);
+---
 
-    // Protected routes
-    Route::middleware(&["auth"]).group(|| {
-        Route::post("/posts", PostController::store);
-        Route::put("/posts/:id", PostController::update);
-        Route::delete("/posts/:id", PostController::destroy);
-    });
+### validated-signup
 
-    // `app.serve(...)` is bootstrap infra (not in the auto-await set), so it keeps `.await`.
-    app.serve(Route::router()).with_database(db).await?;
+**Path:** `examples/validated-signup/`
 
-    Ok(())
-}
+Demonstrates the `ValidatedJson<T>` extractor path: the `Model!` macro's `@`
+rule DSL attaches per-field validation constraints (`@ email`, `@ min(N)`,
+`@ alphanumeric`, `@ regex("...")`, `@ message("custom")`) that generate a real
+`Validate` impl. Deserialization and validation both run inside the extractor —
+there is no manual `validate!()` call in the handler body. Invalid input returns
+`422 Unprocessable Entity` with structured per-field errors; valid input returns
+`201 Created`.
+
+**Surfaces:** `Model!` with `@ rule` DSL, `ValidatedJson<T>`, `rf-validation-derive`,
+`create!`, `json()`, `rf::post` + `global_router()`.
+
+```bash
+cargo run -p validated-signup
+# POST /signup  {"username":"ada42","email":"ada@example.com","password":"hunter2!","zipcode":"12345"}
 ```
 
 ---
 
 ## Authentication
 
-Complete authentication system with registration, login, and password reset using Laravel-style facades.
+### auth-demo
 
-### Auth Controller
+**Path:** `examples/auth-demo/`
 
-```rust
-use rf::prelude::*;
-use rf_validation::Validate;
-use axum::extract::Json;
-use axum::http::StatusCode;
-use serde::{Deserialize, Serialize};
+A standalone auth demonstration covering password hashing with bcrypt, JWT
+token generation and validation, user registration and login flows, protected
+routes, and role-based access control using `require_role`. Uses an in-memory
+user store (not a database) to keep the example self-contained.
 
-#[derive(Debug, Deserialize, Validate)]
-pub struct RegisterRequest {
-    #[validate(email)]
-    pub email: String,
+**Surfaces:** `rf-auth` (`JwtManager`, `PasswordHasher`, `Claims`, `require_auth`,
+`require_role`), `axum::Router`, structured JSON responses.
 
-    #[validate(length(min = 3))]
-    pub name: String,
-
-    #[validate(length(min = 8), regex = "^(?=.*[A-Z])(?=.*[0-9]).*$")]
-    pub password: String,
-
-    #[validate(confirmed)]
-    pub password_confirmation: String,
-}
-
-#[derive(Debug, Serialize)]
-pub struct AuthResponse {
-    pub message: String,
-    pub user: User,
-}
-
-// `#[auto_await]` once on the impl block. Model lookups (`first`, `create`),
-// `Mail::send`/`send`, and `Auth::login`/`logout`/`user`/`id` are all in the
-// auto-await set, and `where(...)` is rewritten to `r#where(...)`.
-#[auto_await]
-impl AuthController {
-    pub async fn register(
-        Json(payload): Json<RegisterRequest>,
-    ) -> Result<Response> {
-        payload.validate()?;
-
-        // Check if email exists — `first` is in the auto-await set.
-        let existing = User::query()
-            .r#where("email", &payload.email)
-            .first()?;
-
-        if existing.is_some() {
-            return Err(anyhow::anyhow!("Email already registered").into());
-        }
-
-        // Hash password — `Hash::make` returns a String directly (no Result, no `?`).
-        let password_hash = Hash::make(&payload.password);
-
-        // Create user — `create` is in the auto-await set.
-        let user = User::create(json!({
-            "email": payload.email.clone(),
-            "name": payload.name,
-            "password": password_hash,
-            "email_verified_at": null,
-        }))?;
-
-        // Send verification email using a Mailable (see the Email System section).
-        Mail::send(VerifyEmail { user: user.clone() })?;
-
-        // Login using the Auth facade — `login` is in the auto-await set.
-        Auth::login(user.clone()).map_err(|e| anyhow::anyhow!(e))?;
-
-        Ok(Response::json(&AuthResponse {
-            message: "Registration successful".to_string(),
-            user
-        }).status(StatusCode::CREATED))
-    }
-
-    pub async fn login(
-        Json(payload): Json<LoginRequest>,
-    ) -> Result<Response> {
-        payload.validate()?;
-
-        let user = User::query()
-            .r#where("email", &payload.email)
-            .first()?
-            .ok_or_else(|| anyhow::anyhow!("Invalid credentials"))?;
-
-        // `Hash::check` returns a bool directly (no Result, no `?`).
-        if !Hash::check(&payload.password, &user.password) {
-            return Err(anyhow::anyhow!("Invalid credentials").into());
-        }
-
-        Auth::login(user.clone()).map_err(|e| anyhow::anyhow!(e))?;
-
-        Ok(Response::json(&AuthResponse {
-            message: "Login successful".to_string(),
-            user
-        }))
-    }
-
-    pub async fn logout() -> Result<Response> {
-        // `logout` is in the auto-await set.
-        Auth::logout();
-        Ok(Response::json(&json!({ "message": "Logged out successfully" })))
-    }
-
-    pub async fn me() -> Result<Response> {
-        // `user` is in the auto-await set.
-        if let Some(user) = Auth::user::<User>() {
-            Ok(Response::json(&user))
-        } else {
-            Err(anyhow::anyhow!("Not authenticated").into())
-        }
-    }
-
-    pub async fn forgot_password(
-        Json(payload): Json<ForgotPasswordRequest>,
-    ) -> Result<Response> {
-        payload.validate()?;
-
-        let user = User::query()
-            .r#where("email", &payload.email)
-            .first()?;
-
-        if let Some(user) = user {
-            // Generate reset token
-            let token = uuid::Uuid::new_v4().to_string();
-
-            // Store token — `create` is in the auto-await set.
-            PasswordReset::create(json!({
-                "email": user.email.clone(),
-                "token": token.clone(),
-                "created_at": Utc::now(),
-            }))?;
-
-            // Send email via a Mailable — `send` is in the auto-await set.
-            Mail::to(&user.email)
-                .send(PasswordResetMail { user: user.clone(), token: token.clone() })?;
-        }
-
-        Ok(Response::json(&json!({
-            "message": "If the email exists, a reset link will be sent"
-        })))
-    }
-}
+```bash
+cargo run -p auth-demo
+# POST /register  {"email":"...","name":"...","password":"..."}
+# POST /login     {"email":"...","password":"..."}
+# GET  /profile   Authorization: Bearer <token>
+# GET  /admin     Authorization: Bearer <token with admin role>
 ```
 
 ---
 
-## File Upload
+### auth-paginated-search
 
-Handle file uploads with validation and storage.
+**Path:** `examples/auth-paginated-search/`
 
-RustForge uses axum's `Multipart` extractor for uploads, and the `Storage` facade
-(`rf::Storage` = `rf_storage::StorageFacade`) to persist the bytes. Every `Storage`
-facade call is **synchronous** — no `.await` — and `Auth::id()` is await-free too, so the
-business logic reads await-free without needing `#[auto_await]`. `Storage::exists` returns
-a bool, and `Storage::put` takes the path plus a `Vec<u8>` and returns `Result<(), String>`.
-(The only remaining `.await` calls are on axum's `Multipart` reader — `next_field`, `text`,
-`bytes` — which are transport infra, not RustForge facade calls.)
+Ties together per-request auth scope isolation (`with_auth_scope`), the `Auth`
+facade (`Auth::check()`, `Auth::id()`), request globals (`input("q")`,
+`input("page")`), and `QueryBuilder` search + pagination
+(`DB::table("posts").where_eq("user_id", ...).where_like("title", ...)
+.paginate(per_page, page)`). The handler returns `401` for unauthenticated
+callers and `200` with the filtered paginated result for authenticated ones.
+Documents an honest limitation: the current `QueryBuilder` renders OR without
+parentheses, so the search is scoped to `title` only to keep user isolation
+correct.
 
-```rust
-use rf::prelude::*;          // brings in Storage, Response, Auth, json!
-use axum::extract::Multipart;
-use axum::http::StatusCode;
+**Surfaces:** `rf-auth` (`with_auth_scope`, `Auth`), request globals, `DB`
+`QueryBuilder` (search + pagination), `json()`.
 
-pub async fn upload_image(mut multipart: Multipart) -> Result<Response> {
-    let user_id = Auth::id().ok_or_else(|| anyhow::anyhow!("Not logged in"))?;
+---
 
-    let mut title = None;
-    let mut stored_path = None;
+## Real-World App
 
-    while let Some(field) = multipart.next_field().await
-        .map_err(|e| anyhow::anyhow!(e.to_string()))?
-    {
-        match field.name().unwrap_or_default() {
-            "title" => {
-                title = Some(
-                    field.text().await.map_err(|e| anyhow::anyhow!(e.to_string()))?,
-                );
-            }
-            "image" => {
-                let filename = field
-                    .file_name()
-                    .ok_or_else(|| anyhow::anyhow!("No filename"))?
-                    .to_string();
+### taskflow
 
-                if !filename.ends_with(".jpg") && !filename.ends_with(".png") {
-                    return Err(anyhow::anyhow!("Only JPG/PNG allowed").into());
-                }
+**Path:** `examples/taskflow/`
 
-                let data = field
-                    .bytes()
-                    .await
-                    .map_err(|e| anyhow::anyhow!(e.to_string()))?
-                    .to_vec();
+A small project/task manager that serves as a permanent regression guard for
+six framework edges that were once broken and are now fixed. Specifically: (1)
+bidirectional `hasMany`/`belongsTo` relations that previously caused an opaque-
+type inference cycle (`E0391`), now resolved by generating concrete boxed futures;
+(2) a `belongsTo` relation with a `foreign_key` override
+(`Task belongsTo assignee: User (foreign_key = "user_id")`); (3) a single
+`build_router` where argument-less `capture_request`-global handlers and
+`ValidatedJson<T>` body extractors coexist; and three additional edges. The
+`cargo test -p taskflow` suite guards all six regressions.
 
-                let path = format!(
-                    "uploads/{}/{}/{}",
-                    user_id,
-                    Utc::now().timestamp(),
-                    filename
-                );
+**Surfaces:** `Model!` with bidirectional relations and `foreign_key` override,
+`ValidatedJson<T>`, request globals, `create!`/`find!`/`update!`/`delete!`,
+`require_auth`, `json()`.
 
-                // Storage facade: synchronous, takes a Vec<u8>, returns Result<(), String>.
-                Storage::put(&path, data).map_err(|e| anyhow::anyhow!(e))?;
+---
 
-                stored_path = Some(path);
-            }
-            _ => {}
-        }
-    }
+## Facades
 
-    let path = stored_path.ok_or_else(|| anyhow::anyhow!("No file uploaded"))?;
-    let title = title.ok_or_else(|| anyhow::anyhow!("No title provided"))?;
+### facades-demo
 
-    // `Storage::exists` returns a bool — no `?`.
-    let exists = Storage::exists(&path);
+**Path:** `examples/facades-demo/`
 
-    Ok(Response::json(&json!({
-        "path": path,
-        "title": title,
-        "stored": exists,
-    })).status(StatusCode::CREATED))
-}
+A non-HTTP binary that exercises every Laravel-style facade in sequence —
+`Auth`, `Cache`, `Storage`, `Mail`, `Event` — demonstrating that all facades
+are synchronous (no `.await` needed anywhere). Uses the default in-process
+backends (MemoryCache, MemoryStorage, etc.) so there is nothing to install.
+
+**Surfaces:** `rf-facades` (`Auth`, `Cache`, `Storage`, `Mail`, `Event`),
+`rf::prelude::*`, in-process backends.
+
+```bash
+cargo run -p facades-demo
 ```
 
 ---
 
-## Real-time Chat
+## Queues and Jobs
 
-Broadcasting in RustForge is built on `rf_broadcast`, which exposes a `Broadcaster`
-trait (with the in-memory `MemoryBroadcaster`), a `Channel` type, and `SimpleEvent`.
-The synchronous `broadcast`, `subscribe`, and `presence` free functions wrap the async
-broadcaster, so the public API reads cleanly.
+### jobs-offline
 
-```rust
-use rf_broadcast::{
-    broadcast, subscribe, Channel, MemoryBroadcaster, SimpleEvent,
-};
-use serde_json::json;
-use std::sync::Arc;
+**Path:** `examples/jobs-offline/`
 
-// A shared broadcaster is created once (e.g. stored in app state).
-let broadcaster = Arc::new(MemoryBroadcaster::new());
+The batteries-included, no-Redis job queue path: dispatches a real job onto
+`MemoryQueue`, drains it with a `Worker`, and exits — nothing to install. This
+is the recommended starting point for apps that do not need Redis. Shows the
+`rf-queue` API: `Jobs::set_queue(queue)`, `job.dispatch_now()`, `Worker::new(queue).run()`.
 
-// Presence channel for a chat room.
-let channel = Channel::presence("chat.42");
+**Surfaces:** `rf-queue` (`MemoryQueue`, `Jobs`, `Worker`, `Job` trait),
+`async_trait`, no external services.
 
-// Subscribe a connection (the user_id is optional presence info).
-subscribe(
-    broadcaster.clone(),
-    &channel,
-    "conn-123".to_string(),
-    Some("user-7".to_string()),
-)?;
-
-// Broadcast a chat message to everyone on the channel.
-let event = SimpleEvent::new(
-    "chat.message",
-    json!({
-        "user_id": 7,
-        "username": "alice",
-        "message": "Hello, room!",
-    }),
-    vec![channel.clone()],
-);
-broadcast(broadcaster.clone(), &channel, &event)?;
-```
-
-For the WebSocket transport itself, `rf_broadcasting` provides `WebSocketServer` and
-`WebSocketConfig`:
-
-```rust
-use rf_broadcasting::{WebSocketConfig, WebSocketServer};
-
-let server = WebSocketServer::new(WebSocketConfig::default());
-
-// Fan a message out to all connections on a channel.
-server.registry().broadcast("chat.42", "Hello, room!".to_string()).await?;
-```
-
-> **Note:** There is no `Broadcast` facade and no `WebSocket`/`Message` HTTP extractor.
-> The real primitives are `rf_broadcast::{Broadcaster, Channel, SimpleEvent}` plus the
-> sync `broadcast`/`subscribe`/`presence` helpers, and `rf_broadcasting::WebSocketServer`
-> for the transport.
-
----
-
-## Job Queue
-
-Background job processing with email notifications.
-
-```rust
-use rf::prelude::*;
-use rf_jobs::{dispatch, dispatch_later, Job, JobContext, JobResult, QueueManager};
-use rf::Mail;
-use axum::extract::{Extension, Json};
-use axum::http::StatusCode;
-use async_trait::async_trait;
-use serde::{Serialize, Deserialize};
-use std::time::Duration;
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ProcessOrderJob {
-    pub order_id: i32,
-}
-
-#[async_trait]
-#[auto_await]
-impl Job for ProcessOrderJob {
-    // `handle` takes `JobContext` BY VALUE and returns `JobResult`.
-    async fn handle(&self, ctx: JobContext) -> JobResult {
-        ctx.log(&format!("Processing order {}", self.order_id));
-
-        // Load order (`find_or_fail` is in the auto-await set).
-        let order = Order::find_or_fail(self.order_id)?;
-
-        // Send confirmation email via a Mailable — `send` is in the auto-await set.
-        Mail::send(OrderConfirmation {
-            order: order.clone(),
-            customer: order.customer.clone(),
-        })?;
-
-        Ok(())
-    }
-
-    fn queue(&self) -> &str {
-        "orders"
-    }
-
-    // Maximum retry attempts (Laravel's `tries`).
-    fn max_attempts(&self) -> u32 {
-        3
-    }
-
-    // `timeout` and `backoff` both return `Duration`.
-    fn timeout(&self) -> Duration {
-        Duration::from_secs(300) // 5 minutes
-    }
-
-    fn backoff(&self) -> Duration {
-        Duration::from_secs(60)
-    }
-}
-
-// Dispatch jobs. With `#[auto_await]` on the handler, `Order::create`, `dispatch`,
-// and `Auth::id` are all awaited for you. `dispatch`/`dispatch_later` are free
-// functions that take a `&QueueManager` and return the job's `Uuid`.
-#[auto_await]
-pub async fn checkout(
-    Extension(queue): Extension<QueueManager>,
-    Json(payload): Json<CheckoutRequest>,
-) -> Result<Response> {
-    let user_id = Auth::id().ok_or_else(|| anyhow::anyhow!("Not logged in"))?;
-
-    // `create` is in the auto-await set.
-    let order = Order::create(json!({
-        "user_id": user_id,
-        "items": payload.items,
-    }))?;
-
-    // Queue immediate processing — `dispatch` is in the auto-await set.
-    dispatch(&queue, ProcessOrderJob { order_id: order.id })?;
-
-    // Queue a follow-up 24 hours later.
-    dispatch_later(
-        &queue,
-        SendFeedbackRequestJob { order_id: order.id },
-        Duration::from_secs(86_400),
-    )?;
-
-    Ok(Response::json(&order).status(StatusCode::CREATED))
-}
-```
-
-> **Note:** There is no `Queue` facade in RustForge. To dispatch jobs use the sync free
-> functions `rf_jobs::dispatch(&qm, job)` / `dispatch_to(&qm, job, "queue")` /
-> `dispatch_later(&qm, job, delay)`, or the methods on `QueueManager` / `SyncQueueManager`.
-> The `Job` trait signature is `async fn handle(&self, ctx: JobContext) -> JobResult`
-> (`JobContext` is taken by value), and `Job::backoff()` / `Job::timeout()` both return
-> `std::time::Duration`. Retry count comes from `Job::max_attempts() -> u32`.
-
-### Routing jobs to queues with `JobRouter`
-
-Laravel-13-style queue routing lets the application centrally assign a job *type* to a
-specific queue at boot, instead of each job hard-coding its queue via `Job::queue`. A route
-registered for a type wins over that job's own `queue()` when dispatched:
-
-```rust
-use rf_jobs::JobRouter;
-
-// During application boot:
-fn register_queue_routes() {
-    // Every ProcessOrderJob goes to the "orders" queue
-    JobRouter::route::<ProcessOrderJob>("orders");
-
-    // Route to a queue on a specific connection
-    JobRouter::route_to::<SendFeedbackRequestJob>("emails", "redis");
-}
+```bash
+cargo run -p jobs-offline
 ```
 
 ---
 
-## Email System
+### jobs-demo
 
-Mailable classes for reusable email templates.
+**Path:** `examples/jobs-demo/`
 
-The `Mailable` trait has a single required method, `fn build(&self) -> MailBuilder`.
-`MailBuilder` is a fluent builder (`.to`, `.from`, `.subject`, `.html`/`.text`/`.markdown`,
-`.attach`). To send, hand the mailable to the `Mail` facade — `Mail::send(mailable)` and
-`Mail::to(addr).send(mailable)` are both synchronous and return `MailResult<()>`.
+The Redis-backed job queue path using `rf-jobs`: defines multiple job types
+(`SendEmailJob`, etc.), shows `BackoffStrategy`, `JobRegistry`, `WorkerConfig`,
+`WorkerPool`, `Scheduler`, and the `dispatch` free function. Requires a live
+Redis instance; exits with a clear error message if Redis is unreachable.
 
-```rust
-use rf_mail::{Address, MailBuilder, Mailable};
-use rf::Mail;
-use serde::Serialize;
+**Surfaces:** `rf-jobs` (`QueueManager`, `WorkerPool`, `Job` trait, `dispatch`,
+`BackoffStrategy`, `Scheduler`), Redis.
 
-#[derive(Debug, Clone, Serialize)]
-pub struct OrderConfirmation {
-    pub order: Order,
-    pub customer: User,
-}
-
-impl Mailable for OrderConfirmation {
-    fn build(&self) -> MailBuilder {
-        MailBuilder::new()
-            .from(Address::new("orders@example.com"))
-            .to(Address::new(&self.customer.email))
-            .subject(format!("Order Confirmation #{}", self.order.id))
-            .markdown(format!(
-                "# Thanks, {name}!\n\nYour order **#{id}** totalling ${total:.2} is confirmed.",
-                name = self.customer.name,
-                id = self.order.id,
-                total = self.order.total,
-            ))
-    }
-}
-
-// Usage (inside an `#[auto_await]` fn/impl/mod — `find_or_fail` is awaited for you).
-let order = Order::find_or_fail(123)?;
-let customer = User::find_or_fail(order.user_id)?;
-
-let email = OrderConfirmation { order, customer };
-
-// Send synchronously (no `.await` on the facade call).
-Mail::send(email.clone())?;
-
-// Or address it explicitly:
-Mail::to(&email.customer.email).send(email)?;
+```bash
+REDIS_URL=redis://127.0.0.1:6379 cargo run -p jobs-demo
 ```
 
 ---
 
-## Caching Strategy
+## Mail
 
-Implement cache-aside pattern with Laravel-style Cache facade.
+### mail-demo
 
-```rust
-use rf::Cache;
-use std::time::Duration;
+**Path:** `examples/mail-demo/`
 
-pub struct PostRepository;
+A standalone demonstration of `rf-mail`: basic email sending, `Mailable` trait
+usage, template rendering, attachments, and switching between `MemoryMailer`
+(captures emails in RAM for inspection) and `SmtpMailer`. No HTTP server —
+runs as a binary that sends demo emails and prints a summary.
 
-// `#[auto_await]` once on the impl: `get`, `find`, `all`, `remember`, `forget`,
-// and `flush` are all in the auto-await set, so the bodies stay await-free.
-#[auto_await]
-impl PostRepository {
-    pub async fn find(id: i32) -> Result<Option<Post>> {
-        let cache_key = format!("post:{}", id);
+**Surfaces:** `rf-mail` (`MailBuilder`, `Mailable`, `MemoryMailer`, `SmtpMailer`,
+`Address`, attachments).
 
-        // `get` is in the auto-await set.
-        if let Some(post) = Cache::get::<Post>(&cache_key)? {
-            return Ok(Some(post));
-        }
-
-        // Query database — `find` is in the auto-await set.
-        let post = Post::find(id)?;
-
-        // Cache result with tags. `TaggedCache::set` is NOT in the auto-await set,
-        // so it keeps its `.await`.
-        if let Some(ref post) = post {
-            let tagged = Cache::tags(&["posts"]);
-            tagged.set(&cache_key, post, Duration::from_secs(3600)).await?;
-        }
-
-        Ok(post)
-    }
-
-    pub async fn all_published() -> Result<Vec<Post>> {
-        // `remember` is in the auto-await set; the closure body uses `get` (also in the set).
-        let posts = Cache::remember("posts:published", Duration::from_secs(300), || async {
-            Ok(Post::query()
-                .r#where("published", true)
-                .order_by_desc("created_at")
-                .get()?)
-        })?;
-
-        Ok(posts)
-    }
-
-    pub async fn update(id: i32, data: UpdatePost) -> Result<Post> {
-        // `update_by_id` is in the auto-await set.
-        let post = Post::update_by_id(id, data)?;
-
-        // Invalidate cache — `forget` and `flush` are in the auto-await set.
-        Cache::forget(&format!("post:{}", id))?;
-        Cache::tags(&["posts"]).flush()?;
-
-        Ok(post)
-    }
-}
-```
-
-> **Note:** Under `#[auto_await]` the `Cache` facade calls (`get`, `remember`, `forget`,
-> `flush`) and model lookups (`find`) are awaited for you, so the code reads Laravel-style.
-> The one exception here is `TaggedCache::set`, which is not in the auto-await set and keeps
-> its explicit `.await`.
-
-### Extending TTL with `Cache::touch`
-
-Extend a key's expiration to `now + ttl` without re-reading or rewriting its value.
-Accepts seconds (integer) or a `Duration`, and returns `true` if the key existed:
-
-```rust
-use rf::Cache;
-use std::time::Duration;
-
-// Refresh a session's TTL on each request (sliding expiration)
-fn keep_session_alive(session_id: &str) -> rf_cache::CacheResult<()> {
-    let key = format!("session:{session_id}");
-
-    // Laravel style - pass seconds directly...
-    let touched = Cache::touch(&key, 3600)?;
-
-    // ...or a Duration
-    if !touched {
-        Cache::touch(&key, Duration::from_secs(3600))?;
-    }
-
-    Ok(())
-}
+```bash
+cargo run -p mail-demo
 ```
 
 ---
 
-## GraphQL API
+## Internationalization
 
-Complete GraphQL API with queries, mutations, and subscriptions.
+### i18n-localized-api
 
-```rust
-use rf_graphql::{Schema, Object, Subscription, Context, ID};
-use async_graphql::SimpleObject;
+**Path:** `examples/i18n-localized-api/`
 
-#[derive(SimpleObject)]
-struct Post {
-    id: ID,
-    title: String,
-    content: String,
-    author: User,
-}
+Showcases `rf-i18n`: the `AcceptLanguage` axum extractor negotiates a locale
+from (1) a `?locale=` query parameter, (2) the `Accept-Language` header, or
+(3) falls back to `"en"`. A shared `Arc<I18n>` injected via `Extension` provides
+per-request views via `I18n::for_locale()`. Demonstrates `I18n::t_plural()` with
+CLDR plural rules for German and English (`one`/`other`, `zero`/`one`/`other`).
 
-struct Query;
+**Surfaces:** `rf-i18n` (`AcceptLanguage`, `I18n`, `I18n::t_plural()`), axum
+`Extension`, `Arc`.
 
-// `#[auto_await]` on the resolver impl: `all`, `find`, and `create` are awaited for you.
-#[Object]
-#[auto_await]
-impl Query {
-    async fn posts(&self, _ctx: &Context<'_>) -> Result<Vec<Post>> {
-        Ok(Post::all()?)
-    }
-
-    async fn post(&self, _ctx: &Context<'_>, id: ID) -> Result<Option<Post>> {
-        let id: i32 = id.parse()?;
-        Ok(Post::find(id)?)
-    }
-}
-
-struct Mutation;
-
-#[Object]
-#[auto_await]
-impl Mutation {
-    async fn create_post(
-        &self,
-        ctx: &Context<'_>,
-        title: String,
-        content: String,
-    ) -> Result<Post> {
-        let auth = ctx.data::<AuthGuard>()?;
-
-        // `create` is in the auto-await set.
-        let post = Post::create(json!({
-            "user_id": auth.user_id(),
-            "title": title,
-            "content": content,
-        }))?;
-
-        // Publish subscription event
-        SimpleBroker::publish(PostCreated { post: post.clone() });
-
-        Ok(post)
-    }
-}
-
-struct Subscription;
-
-#[Subscription]
-impl Subscription {
-    async fn post_created(&self) -> impl Stream<Item = Post> {
-        SimpleBroker::<PostCreated>::subscribe().map(|event| event.post)
-    }
-}
-
-// Schema
-let schema = Schema::build(Query, Mutation, Subscription)
-    .data(db)
-    .finish();
-
-// Route
-router.post("/graphql", async move |req: GraphQLRequest| {
-    schema.execute(req.into_inner()).await.into()
-});
+```bash
+cargo run -p i18n-localized-api
+curl -H 'Accept-Language: de' http://127.0.0.1:3009/greet
+curl -H 'Accept-Language: fr' 'http://127.0.0.1:3009/items?count=5'
 ```
 
 ---
 
-## Testing
+## Real-Time
 
-Comprehensive test examples.
+### realtime-chat
 
-`rf_testing` provides `HttpTester` (driven from an axum `Router`) plus `TestResponse`,
-`TestClient`, and `TestDatabase`. `HttpTester::get`/`post`/`put`/`delete` are async,
-status assertions take a `StatusCode` (not an integer), and `TestResponse::json::<T>()`
-is async and borrows `&mut self`.
+**Path:** `examples/realtime-chat/`
 
-```rust
-use rf_testing::{HttpTester, TestDatabase};
-use axum::http::StatusCode;
-use serde_json::json;
+A runnable WebSocket broadcasting example using `rf-broadcast`'s
+`MemoryBroadcaster` and `websocket_router`. Clients connect to
+`ws://127.0.0.1:3030/ws`, subscribe to a channel with a JSON frame, and receive
+every event broadcast to that channel. A background task periodically broadcasts
+a "chat message" to `room-1` so you can watch events flow with any WebSocket
+client. The `#[tokio::test]` at the bottom binds a real port, connects three
+`tokio-tungstenite` clients (two on `room-1`, one on `room-2`), fires a
+broadcast, and asserts isolation.
 
-async fn make_tester() -> HttpTester {
-    // Build the application's axum Router however your app exposes it.
-    HttpTester::new(crate::build_router())
-}
+**Surfaces:** `rf-broadcast` (`MemoryBroadcaster`, `Channel`, `websocket_router`,
+`SimpleEvent`), axum `Router`, `tokio-tungstenite` (test).
 
-#[tokio::test]
-async fn test_post_crud() {
-    // Spin up an isolated test database (migrations + cleanup handled by TestDatabase).
-    let db = TestDatabase::new().await.unwrap();
-    db.migrate().await.unwrap();
-
-    let tester = make_tester().await;
-
-    // Create post
-    let mut post_response = tester
-        .post(
-            "/posts",
-            json!({
-                "title": "Test Post",
-                "content": "This is a test post with enough content to pass validation.",
-                "published": true
-            }),
-        )
-        .await
-        .assert_status(StatusCode::CREATED);
-
-    // `json::<T>()` is async and borrows the response.
-    let post: Post = post_response.json().await;
-
-    // Get post
-    tester
-        .get(&format!("/posts/{}", post.id))
-        .await
-        .assert_status(StatusCode::OK)
-        .assert_json(json!({ "title": "Test Post" }))
-        .await;
-
-    // Update post
-    tester
-        .put(&format!("/posts/{}", post.id), json!({ "title": "Updated Title" }))
-        .await
-        .assert_status(StatusCode::OK);
-
-    // Delete post
-    tester
-        .delete(&format!("/posts/{}", post.id))
-        .await
-        .assert_status(StatusCode::NO_CONTENT);
-
-    // Verify deleted
-    tester
-        .get(&format!("/posts/{}", post.id))
-        .await
-        .assert_status(StatusCode::NOT_FOUND);
-
-    db.cleanup().await.unwrap();
-}
-
-#[tokio::test]
-async fn test_caching() {
-    let tester = make_tester().await;
-
-    // First request (database query)
-    let start = Instant::now();
-    tester.get("/posts").await.assert_status(StatusCode::OK);
-    let duration1 = start.elapsed();
-
-    // Second request (served from cache)
-    let start = Instant::now();
-    tester.get("/posts").await.assert_status(StatusCode::OK);
-    let duration2 = start.elapsed();
-
-    // Cache should be faster
-    assert!(duration2 < duration1);
-}
+```bash
+cargo run -p realtime-chat
+# Then: websocat ws://127.0.0.1:3030/ws
+# Send: {"type":"subscribe","channel":"room-1"}
 ```
+
+---
+
+## Database — Explicit SeaORM
+
+### database-demo
+
+**Path:** `examples/database-demo/`
+
+Shows the explicit SeaORM path below the `Model!` macro abstraction: defining
+entities with `DeriveEntityModel`, `DeriveRelation`, `ActiveValue`, raw
+`ConnectionTrait::execute` for DDL, and soft deletes. Useful when you need
+SeaORM's full query API that the macro layer does not surface. Uses an in-memory
+SQLite connection; no external services.
+
+**Surfaces:** `rf-orm` (SeaORM entity API, `ActiveModel`, `ConnectionTrait`),
+soft deletes, transactions, filtering, ordering.
+
+```bash
+cargo run -p database-demo
+```
+
+---
+
+## Getting Started
+
+### hello
+
+**Path:** `examples/hello/`
+
+The minimal "hello world" that shows the low-level integration points: `rf-core`
+(`AppError`), `rf-web` (axum routing + middleware), `rf-config`
+(`AppConfig::from_env`), and `rf-container` (dependency injection with
+`ServiceRegistry`). No database, no ORM macros — useful as a starting point for
+understanding how the layers wire together.
+
+**Surfaces:** `rf-core`, `rf-web`, `rf-config`, `rf-container`.
+
+```bash
+cargo run -p hello
+# GET  /           → "Hello, RustForge!"
+# GET  /health
+# POST /echo       → echoes the JSON body
+```
+
+---
+
+## Syntax Showcase
+
+### laravel-syntax-simple
+
+**Path:** `examples/laravel-syntax-simple/`
+
+A CLI binary (no HTTP server) demonstrating the framework's core helpers in
+isolation: `Hash::make()` / `Hash::check()` (bcrypt), `csrf_token()`,
+the `rules!` validation macro, and `Route` facade registration. Good for
+understanding what these utilities do without the noise of a full server setup.
+
+**Surfaces:** `rf::Hash`, `rf::csrf_token`, `rf::rules!`, `rf::Route`.
+
+```bash
+cargo run -p laravel-syntax-simple
+```
+
+---
+
+### laravel-syntax-complete
+
+**Path:** `examples/laravel-syntax-complete/`
+
+A larger Laravel-style blog example demonstrating `Route::get/post/put/delete`,
+the `rules!` pipe-syntax validation, `Hash::make()`, `csrf_token()`, and a real
+`models/` + `database/` module structure. Shows how to organize a multi-file
+project that uses the DX layer throughout.
+
+**Surfaces:** `rf_global_helpers` (`Hash`, `csrf_token`, `__`), `rf::Route`,
+`rules!`, multi-module project layout.
+
+```bash
+cargo run --bin blog -p laravel-syntax-complete
+```
+
+---
+
+### macros-demo
+
+**Path:** `examples/macros-demo/`
+
+A showcase of the `rf-macros` crate's lower-level building blocks: the
+`#[controller]` attribute macro, the `function!` macro for route handler
+conversion, and the `rules!` validation macro. Demonstrates the macro API
+surface without a running HTTP server. Most of the items it shows are used
+internally by the higher-level DX layer.
+
+**Surfaces:** `rf-macros` (`controller` attribute, `function!` macro, `rules!`),
+`rf-request`, `rf-response`.
+
+```bash
+cargo run -p macros-demo
+```
+
+---
+
+## Tools and Scaffolding
+
+### scaffold-demo
+
+**Path:** `examples/scaffold-demo/`
+
+Exercises `rf-scaffold`'s `ScaffoldEngine` API: generating a model, controller,
+migration, and request struct for a given entity definition — the same operations
+that `forge make:model`/`make:controller` perform under the hood. Writes files to
+a temporary directory and prints what was generated. Not an HTTP server; runs as
+a binary.
+
+**Surfaces:** `rf-scaffold` (`ScaffoldEngine`, `ModelOptions`).
+
+```bash
+cargo run -p scaffold-demo
+```
+
+---
+
+## Frontend Patterns
+
+### htmx-livewire-alternative
+
+**Path:** `examples/htmx-livewire-alternative/`
+
+Demonstrates Livewire-style patterns (interactive counter, form validation,
+file upload, real-time polling, loading states, lazy loading) using htmx and
+server-side HTML fragments from RustForge — no JavaScript framework required.
+Uses `tower-sessions` for state and returns HTML fragments directly. A useful
+reference for anyone preferring hypermedia over an SPA frontend.
+
+**Surfaces:** axum `Router` with HTML fragment handlers, `tower-sessions`
+(`Session`, `SessionManagerLayer`), `axum::extract::Multipart`, `axum::response::Html`.
+
+```bash
+cargo run -p htmx-livewire-alternative
+# Open http://localhost:3000
+```
+
+---
+
+### phase12-blog
+
+**Path:** `examples/phase12-blog/`
+
+A full-stack blog application that demonstrates `rf-blade` (template inheritance,
+`@extends`/`@section`, `{{ }}` interpolation, `@if`/`@foreach`), `rf-vite`
+(asset pipeline with HMR), `rf-livereload` (WebSocket-based live reload), and
+`rf-cms` (media library and content storage).
+
+**Maturity note:** `rf-blade` is **beta** tier. `rf-vite`, `rf-livereload`, and
+`rf-cms` are **experimental** tier — excluded from the 1.0 stable surface, with
+no SemVer guarantees. This example is a preview of those capabilities, not a
+stable reference. See `docs/TIERS.md`.
+
+**Surfaces:** `rf-blade`, `rf-vite` (experimental), `rf-livereload` (experimental),
+`rf-cms` (experimental).
+
+---
+
+## README-Only References
+
+The following directories contain a `README.md` describing intended features but
+do not have a runnable `src/` implementation. They are concept references, not
+working examples.
+
+| Directory | Notes |
+|-----------|-------|
+| `examples/blog-complete/` | README describing a "production-ready" blog feature set |
+| `examples/phase12-admin/` | README describing an admin panel using Phase 12 features |
+
+Do not run `cargo run` on these; there is no binary to build.
+
+---
+
+## Running Any Example
+
+```bash
+# In the repo root, run by package name:
+cargo run -p reference-app
+cargo run -p blog-slice
+cargo run -p rest-crud-resource
+# etc.
+
+# Run an example's tests:
+cargo test -p taskflow
+cargo test -p reference-app
+```
+
+Most examples bind to a port in the `3000–3030` range and print it on startup.
+Set `PORT=<n>` to override where supported (reference-app respects `PORT`).
 
 ---
 
 ## Next Steps
 
-- **[API Documentation](API-Documentation)** - Detailed API reference
-- **[Features](Features)** - Explore all features
-- **[Quick Start](Quick-Start)** - Build your first app
-- **[Migration Guide](Migration-Guide)** - Migrate from other frameworks
-
----
-
-*More examples coming soon! Contribute on [GitHub](https://github.com/Chregu12/RustForge).*
+- **[Migration Guide](Migration-Guide)** — Laravel concept → RustForge equivalent
+- **[Quick Start](Quick-Start)** — build your first app
+- **[API Documentation](API-Documentation)** — detailed API reference
+- `docs/STABLE_CORE.md` — the definitive v1 API contract with entry points per capability
+- `docs/COOKBOOK.md` — task-oriented recipes with CI-verified code snippets
