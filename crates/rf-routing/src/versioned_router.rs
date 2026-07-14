@@ -198,14 +198,40 @@ mod tests {
         "v2"
     }
 
-    #[test]
-    fn test_versioned_router_builder() {
+    #[tokio::test]
+    async fn test_versioned_router_builder() {
+        use axum::body::Body;
+        use axum::http::{Request, StatusCode};
+        use tower::ServiceExt;
+
         let router = VersionedRouterBuilder::new()
             .version(1, |r| r.route("/test", get(handler_v1)))
             .version(2, |r| r.route("/test", get(handler_v2)))
             .default_version(2)
             .build();
 
-        assert!(true); // Compilation test
+        // build_with_prefix nests each version under /vN.
+        let resp_v1 = router
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/v1/test")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp_v1.status(), StatusCode::OK);
+
+        let resp_v2 = router
+            .oneshot(
+                Request::builder()
+                    .uri("/v2/test")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp_v2.status(), StatusCode::OK);
     }
 }

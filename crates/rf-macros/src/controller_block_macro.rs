@@ -168,13 +168,6 @@ pub fn controller_block_impl(input: TokenStream) -> TokenStream {
     TokenStream::from(expanded)
 }
 
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn test_controller_block_macro_exists() {
-        // Proc-macro functions cannot be invoked directly in unit tests; the
-        // behaviour is proven by the sandbox probe (controller_macro), which
-        // registers the generated handlers and drives real requests through them.
-        assert!(true);
-    }
-}
+// Proc-macro expansion is verified by compilation; unit tests cannot call
+// proc-macro functions directly.  The sandbox probe (controller_macro) drives
+// real requests through the generated handlers.

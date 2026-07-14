@@ -89,8 +89,9 @@ mod tests {
     }
 
     #[test]
-    fn test_trait_compiles() {
-        // Compilation test
-        assert!(true);
+    fn test_has_api_tokens_get_id_returns_correct_value() {
+        let user = User { id: 42 };
+        // HasApiTokens::get_id must return the struct's own id field.
+        assert_eq!(user.get_id(), 42);
     }
 }

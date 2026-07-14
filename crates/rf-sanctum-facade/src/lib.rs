@@ -155,13 +155,4 @@ pub use rf_sanctum::{
     TransientTokenStore,
 };
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_sanctum_facade_compiles() {
-        // Basic compilation test
-        assert!(true);
-    }
-}
+// The facade re-exports types from rf-sanctum; real behaviour is tested there.

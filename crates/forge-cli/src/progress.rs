@@ -306,7 +306,7 @@ mod tests {
     #[test]
     fn test_seed_progress_creation() {
         let progress = SeedProgress::new("UserSeeder", 1000);
-        // Just verify it doesn't panic
-        assert!(true);
+        // The spinner is active (not yet finished) right after construction.
+        assert!(!progress.spinner.is_finished());
     }
 }

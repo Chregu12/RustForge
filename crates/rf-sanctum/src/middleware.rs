@@ -99,13 +99,6 @@ macro_rules! require_any_ability {
     };
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_middleware_compiles() {
-        let _middleware = require_abilities(vec!["read:posts"]);
-        assert!(true);
-    }
-}
+// The middleware requires a full axum request context with an injected
+// PersonalAccessToken extension to exercise the ability-check path; covered by
+// integration tests.  Ability-checking logic is unit-tested in token.rs.

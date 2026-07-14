@@ -30,13 +30,5 @@ pub async fn execute(name: String, skip_wizard: bool) -> Result<()> {
     Ok(())
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_module_exists() {
-        // Simple test to verify module compiles
-        assert!(true);
-    }
-}
+// Module-level behaviour (project directory generation) is exercised via
+// integration tests that write to a temporary directory.

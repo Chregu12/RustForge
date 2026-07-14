@@ -206,12 +206,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_passport_compiles() {
-        // Basic compilation test
-        assert!(true);
-    }
-
-    #[test]
     fn test_config_builder() {
         let config = PassportConfig::new()
             .access_token_lifetime(7200)

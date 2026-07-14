@@ -165,9 +165,18 @@ mod tests {
         }
     }
 
-    #[test]
-    fn test_grant_compiles() {
-        // Compilation test
-        assert!(true);
+    #[tokio::test]
+    async fn test_mock_verifier_accepts_correct_credentials() {
+        let verifier = MockVerifier;
+        let result = verifier.verify("test", "password").await;
+        assert!(result.is_ok(), "correct credentials must succeed");
+        assert_eq!(result.unwrap(), 1, "returned user_id must be 1");
+    }
+
+    #[tokio::test]
+    async fn test_mock_verifier_rejects_wrong_credentials() {
+        let verifier = MockVerifier;
+        let result = verifier.verify("test", "wrong").await;
+        assert!(result.is_err(), "wrong password must be rejected");
     }
 }

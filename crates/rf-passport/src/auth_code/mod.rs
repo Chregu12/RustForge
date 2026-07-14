@@ -113,13 +113,5 @@ impl<'a> AuthCodeRepository<'a> {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_pkce_compiles() {
-        // Compilation test
-        assert!(true);
-    }
-}
+// Auth-code flow requires a full grant pipeline with token storage;
+// covered by integration tests.

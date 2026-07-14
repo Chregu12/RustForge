@@ -627,28 +627,113 @@ impl<E: EntityTrait> Default for GlobalScopeRegistry<E> {
 mod tests {
     use super::*;
 
-    // Mock entity for testing
-    #[derive(Clone, Debug, PartialEq, Eq)]
-    struct TestModel {
-        id: i32,
-        active: bool,
-        views: i64,
+    // Minimal sea-orm entity used only in these unit tests (no DB required).
+    mod test_entity {
+        use sea_orm::entity::prelude::*;
+
+        #[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel)]
+        #[sea_orm(table_name = "scope_test_items")]
+        pub struct Model {
+            #[sea_orm(primary_key)]
+            pub id: i32,
+            pub active: bool,
+        }
+
+        #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
+        pub enum Relation {}
+
+        impl ActiveModelBehavior for ActiveModel {}
+    }
+    use test_entity::Entity as TestEntity;
+
+    // ── ScopeBuilder ──────────────────────────────────────────────────────────
+
+    #[test]
+    fn test_scope_builder_starts_with_empty_applied_list() {
+        let builder = ScopeBuilder::<TestEntity>::new();
+        assert!(
+            builder.get_applied_scopes().is_empty(),
+            "A fresh ScopeBuilder must report zero applied scopes"
+        );
     }
 
     #[test]
-    fn test_scope_builder_tracks_applied_scopes() {
-        // This is a conceptual test - would need actual entity implementation
-        // to fully test, but demonstrates the API
-        assert!(true);
+    fn test_scope_builder_tracks_applied_scope_name() {
+        let builder = ScopeBuilder::<TestEntity>::new()
+            .scope("active", |q| q.filter(test_entity::Column::Active.eq(true)));
+        assert_eq!(
+            builder.get_applied_scopes(),
+            &["active"],
+            "Applied scope name must appear in the list"
+        );
     }
 
     #[test]
-    fn test_global_scope_registry() {
-        // Test the basic registry API without requiring a full Entity implementation
-        // The registry stores scope closures and provides methods to manage them
+    fn test_scope_builder_when_true_applies_scope() {
+        let builder = ScopeBuilder::<TestEntity>::new()
+            .when(true, "active", |q| q.filter(test_entity::Column::Active.eq(true)));
+        assert_eq!(builder.get_applied_scopes(), &["active"]);
+    }
 
-        // Test that we can conceptually use the registry
-        // In practice, this would be used with real entities
-        assert!(true); // Placeholder - full test requires integration with actual entities
+    #[test]
+    fn test_scope_builder_when_false_skips_scope() {
+        let builder = ScopeBuilder::<TestEntity>::new()
+            .when(false, "active", |q| q.filter(test_entity::Column::Active.eq(true)));
+        assert!(
+            builder.get_applied_scopes().is_empty(),
+            "when(false, ...) must not add the scope name"
+        );
+    }
+
+    #[test]
+    fn test_scope_builder_unless_false_applies_scope() {
+        let builder = ScopeBuilder::<TestEntity>::new()
+            .unless(false, "active", |q| q.filter(test_entity::Column::Active.eq(true)));
+        assert_eq!(builder.get_applied_scopes(), &["active"]);
+    }
+
+    // ── GlobalScopeRegistry ───────────────────────────────────────────────────
+
+    #[test]
+    fn test_global_scope_registry_starts_empty() {
+        let registry = GlobalScopeRegistry::<TestEntity>::new();
+        assert_eq!(registry.count(), 0);
+        assert!(!registry.has("active"));
+    }
+
+    #[test]
+    fn test_global_scope_registry_register_and_has() {
+        let mut registry = GlobalScopeRegistry::<TestEntity>::new();
+        registry.register("active", |q| q.filter(test_entity::Column::Active.eq(true)));
+        assert!(registry.has("active"), "registered scope must be found by has()");
+        assert_eq!(registry.count(), 1);
+    }
+
+    #[test]
+    fn test_global_scope_registry_remove() {
+        let mut registry = GlobalScopeRegistry::<TestEntity>::new();
+        registry.register("active", |q| q.filter(test_entity::Column::Active.eq(true)));
+        let removed = registry.remove("active");
+        assert!(removed, "remove() must return true for a known scope");
+        assert!(!registry.has("active"));
+        assert_eq!(registry.count(), 0);
+    }
+
+    #[test]
+    fn test_global_scope_registry_remove_unknown_returns_false() {
+        let mut registry = GlobalScopeRegistry::<TestEntity>::new();
+        let removed = registry.remove("nonexistent");
+        assert!(!removed, "remove() must return false for an unknown scope");
+    }
+
+    #[test]
+    fn test_global_scope_registry_clear() {
+        let mut registry = GlobalScopeRegistry::<TestEntity>::new();
+        registry.register("active", |q| q.filter(test_entity::Column::Active.eq(true)));
+        registry.register("verified", |q| q);
+        assert_eq!(registry.count(), 2);
+        registry.clear();
+        assert_eq!(registry.count(), 0);
+        assert!(!registry.has("active"));
     }
 }

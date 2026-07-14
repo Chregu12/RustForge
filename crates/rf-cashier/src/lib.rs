@@ -114,12 +114,5 @@ impl Cashier {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_cashier_compiles() {
-        assert!(true);
-    }
-}
+// No unit-testable pure logic in this crate; billing flows require a payment
+// gateway stub and are covered by integration tests.

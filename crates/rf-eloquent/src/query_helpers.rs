@@ -616,13 +616,5 @@ where
     Ok(final_models)
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_query_helpers_module_exists() {
-        // This test ensures the module compiles
-        assert!(true);
-    }
-}
+// All query helper functions require a live DatabaseConnection; they are
+// exercised through integration tests and sandbox probes, not unit tests.

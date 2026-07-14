@@ -110,13 +110,4 @@ impl<'a> ClientCredentialsGrant<'a> {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_grant_compiles() {
-        // Compilation test
-        assert!(true);
-    }
-}
+// Grant logic requires a live token store; covered by integration tests.

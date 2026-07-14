@@ -373,12 +373,25 @@ mod tests {
 
     #[tokio::test]
     async fn test_route_group_apply() {
-        let group = RouteGroup::new().prefix("/api");
-        let router: Router = Router::new().route("/users", get(dummy_handler));
-        let _router = group.apply(router);
+        use axum::body::Body;
+        use axum::http::{Request, StatusCode};
+        use tower::ServiceExt;
 
-        // Router should be created successfully
-        assert!(true);
+        let group = RouteGroup::new().prefix("/api");
+        let inner: Router = Router::new().route("/users", get(dummy_handler));
+        let app = group.apply(inner);
+
+        // A request to the PREFIXED path must succeed (200).
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/users")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
     }
 
     #[test]

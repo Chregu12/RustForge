@@ -156,14 +156,5 @@ macro_rules! require_any_scope {
     };
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_middleware_compiles() {
-        let _middleware = require_scopes(vec!["read"]);
-        let _any_middleware = require_any_scope(vec!["read", "write"]);
-        assert!(true);
-    }
-}
+// The middleware requires a full axum request context with an injected
+// OAuthToken extension; covered by integration tests.

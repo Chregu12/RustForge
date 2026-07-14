@@ -751,22 +751,9 @@ impl Rule for DbExistsRule {
 mod tests {
     use super::*;
 
-    // Note: The entity-based rules require actual database connections and
-    // entities, exercised via integration tests / sandbox probes.
-
-    #[tokio::test]
-    async fn test_simple_exists_rule_placeholder() {
-        // This is a placeholder test
-        // In practice, you would set up a test database and verify the behavior
-        assert!(true);
-    }
-
-    #[tokio::test]
-    async fn test_simple_unique_rule_placeholder() {
-        // This is a placeholder test
-        // In practice, you would set up a test database and verify the behavior
-        assert!(true);
-    }
+    // Entity-based rules (DbUniqueRule / DbExistsRule with a real SeaORM entity)
+    // require a live database connection and are covered by integration/sandbox
+    // probes.  Facade-backed rules are exercised in the test below.
 
     // Facade-backed rules run against the real process-global rf_orm::DB
     // (rusqlite). One dedicated table keeps this independent of other tests.

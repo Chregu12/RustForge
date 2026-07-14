@@ -162,13 +162,5 @@ pub mod prelude {
     };
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_sanctum_compiles() {
-        // Basic compilation test
-        assert!(true);
-    }
-}
+// Sanctum token behaviour is exercised via integration tests that provide a
+// real database connection.

@@ -159,13 +159,10 @@ mod tests {
             reg.clear();
         }
 
-        test("test 1", || {
-            assert!(true);
-        });
-
-        test("test 2", || {
-            assert!(true);
-        });
+        // These closures are the "tests" being registered; their content is
+        // irrelevant to this registration test.
+        test("test 1", || {});
+        test("test 2", || {});
 
         if let Ok(reg) = get_registry().lock() {
             assert_eq!(reg.count(), 2);

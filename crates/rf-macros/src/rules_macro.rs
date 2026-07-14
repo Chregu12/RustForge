@@ -137,12 +137,6 @@ fn capitalize_first(s: &str) -> String {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn test_rules_macro_exists() {
-        // Proc-macro functions cannot be called directly in unit tests.
-        // The macro is tested via compile tests in the integration tests.
-        assert!(true);
-    }
-}
+// Proc-macro expansion is verified by compilation; unit tests cannot call
+// proc-macro functions directly.  Integration / sandbox probes cover the
+// generated code paths.

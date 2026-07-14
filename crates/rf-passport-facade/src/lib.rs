@@ -195,13 +195,4 @@ pub mod prelude {
     pub use rf_passport::prelude::*;
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_passport_facade_compiles() {
-        // Basic compilation test
-        assert!(true);
-    }
-}
+// The facade re-exports types from rf-passport; real behaviour is tested there.

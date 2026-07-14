@@ -20,10 +20,4 @@ pub use hasher::AssetHasher;
 pub use manifest::{AssetEntry, AssetManifest};
 pub use publisher::{AssetPublisher, PublishConfig, PublishResult};
 
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn test_placeholder() {
-        assert!(true);
-    }
-}
+// Asset publishing writes to disk and is exercised by integration tests.

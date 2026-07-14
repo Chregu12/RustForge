@@ -299,13 +299,5 @@ pub async fn delete_client(
     })))
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_handlers_compile() {
-        // Compilation test
-        assert!(true);
-    }
-}
+// Handlers wire together the grant pipeline and require an HTTP context;
+// covered by integration tests.

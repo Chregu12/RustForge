@@ -133,13 +133,4 @@ pub async fn check_any_scope(
     Ok(())
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_middleware_compiles() {
-        // Compilation test
-        assert!(true);
-    }
-}
+// Middleware requires a live token repository; covered by integration tests.

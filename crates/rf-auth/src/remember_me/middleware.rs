@@ -249,23 +249,82 @@ mod tests {
         let remember = Arc::new(RememberMe::with_default_ttl(TEST_SECRET.to_string()));
         let token = remember.generate_token(123).unwrap();
 
-        // Note: This test demonstrates the structure but won't work without proper setup
-        // In real usage, you'd use the middleware with Axum router
+        let mw = RememberMeMiddleware::middleware::<TestUser, _, _>(load_test_user).await;
+        let app: Router = Router::new()
+            .route("/", get(test_handler))
+            .layer(axum::middleware::from_fn_with_state(remember.clone(), mw));
+
+        let cookie_header = format!("{}={}", RememberMe::COOKIE_NAME, token);
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/")
+                    .header(header::COOKIE, cookie_header)
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+        let body_bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        // User 123 maps to "Test User" in load_test_user
+        assert_eq!(body_bytes.as_ref(), b"Hello, Test User!");
     }
 
     #[tokio::test]
     async fn test_invalid_token_graceful_degradation() {
         let remember = Arc::new(RememberMe::with_default_ttl(TEST_SECRET.to_string()));
+        let mw = RememberMeMiddleware::middleware::<TestUser, _, _>(load_test_user).await;
+        let app: Router = Router::new()
+            .route("/", get(test_handler))
+            .layer(axum::middleware::from_fn_with_state(remember.clone(), mw));
 
-        // Create request with invalid token
-        // Should not error, just not authenticate
+        // An invalid / tampered token must not crash the middleware – the
+        // request proceeds unauthenticated (guest response).
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/")
+                    .header(header::COOKIE, "remember_token=invalid.token.value")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+        let body_bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        assert_eq!(body_bytes.as_ref(), b"Hello, Guest!");
     }
 
     #[tokio::test]
     async fn test_missing_cookie_graceful_degradation() {
         let remember = Arc::new(RememberMe::with_default_ttl(TEST_SECRET.to_string()));
+        let mw = RememberMeMiddleware::middleware::<TestUser, _, _>(load_test_user).await;
+        let app: Router = Router::new()
+            .route("/", get(test_handler))
+            .layer(axum::middleware::from_fn_with_state(remember.clone(), mw));
 
-        // Create request without cookie
-        // Should not error, just not authenticate
+        // No cookie at all – request must proceed unauthenticated.
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+        let body_bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        assert_eq!(body_bytes.as_ref(), b"Hello, Guest!");
     }
 }

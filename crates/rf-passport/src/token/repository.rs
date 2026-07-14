@@ -252,13 +252,4 @@ impl<'a> TokenRepository<'a> {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_repository_compiles() {
-        // Compilation test
-        assert!(true);
-    }
-}
+// Repository requires a live database connection; covered by integration tests.
