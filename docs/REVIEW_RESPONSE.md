@@ -157,6 +157,21 @@ The items below are listed in descending order of impact. The first three are en
 
 ---
 
+> **Update — cycle-10 correctness (2026-07-14, after this re-score).** The two
+> unrefuted gaps that held the C9 overall flat at 6.0 are now BOTH CLOSED, each with
+> a proving test, *without* an offsetting new gap:
+> - **Postgres transaction atomicity** — the PG backend now holds a single dedicated
+>   `PoolConnection` for the transaction lifetime, so `BEGIN`/DML/`COMMIT`/`ROLLBACK`
+>   share one session; verified live against Postgres 16 (rollback → table empty,
+>   commit → row persists). The structural ACID violation is gone.
+> - **CSRF `multipart/form-data`** — `extract_token()` now parses `_token` from
+>   multipart bodies too (boundary scan, size-limited, body re-inserted); file-upload
+>   forms are no longer silently unprotected.
+> A subsequent re-score should now register the Laravel-DX / Production-Readiness /
+> Architecture gains that C9 offset. The remaining movement above ~6.5 is
+> adoption/time-bound (crates.io release + external users), which no internal cycle
+> can manufacture.
+
 ## Cycle-9 Re-Score (2026-07-14)
 
 **Cycles since C5 baseline:** C6 (code hardening), C7 (Postgres bridge), C8 (test depth)

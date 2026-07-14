@@ -139,9 +139,9 @@ Grep-verified in `crates/rf-response/src/`:
 > job). **Caveats on the Postgres path:** (1) the primary key column must be named
 > `id` (the framework convention; `RETURNING id`); (2) `NUMERIC`/`DECIMAL` columns
 > are not decoded to JSON yet — cast to `TEXT` in the query (`col::TEXT`) or use
-> `FLOAT8`; (3) the sync facade's `begin/commit/rollback` are per-call over a pool,
-> so they are **not** guaranteed ACID-atomic on Postgres — use a single-connection
-> transaction for multi-statement atomicity (tracked).
+> `FLOAT8`. Postgres transactions **are** ACID-atomic: `begin`/`commit`/`rollback`
+> hold a single dedicated pool connection for the transaction's lifetime, so a
+> `rollback` genuinely undoes the inserts (verified against real Postgres 16 in CI).
 
 **Example:** `examples/blog-slice/` · `examples/phase12-blog/` · `examples/rest-crud-resource/`
 

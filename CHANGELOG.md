@@ -61,6 +61,23 @@ Excluded per the `default-members` policy in `Cargo.toml`. See
   `rf-livereload`, `rf-socialite`, `rf-cashier`, `rf-mcp`, `rf-nightwatch`,
   `rf-ai`, `rf-vector`, `rf-graphql`, `rf-dusk`, `rf-sail`, `rf-spark`.
 
+### Fixed — cycle-10 correctness (2026-07-14)
+
+Closed the two correctness gaps the cycle-9 re-score surfaced, each with a
+proving test:
+
+- **Postgres transactions are now ACID-atomic.** The DB facade's Postgres backend
+  holds a single dedicated `PoolConnection` for a transaction's lifetime, so
+  `BEGIN`/DML/`COMMIT`/`ROLLBACK` all run on the same TCP session — a `rollback`
+  genuinely undoes the inserts. Previously each call could check out a different
+  pooled connection, breaking atomicity. Verified against real Postgres 16 in CI
+  (rollback → table empty; commit → row persists). SQLite unaffected.
+- **CSRF now validates `multipart/form-data` too.** `extract_token()` gained a
+  third branch that parses the `_token` field from multipart bodies (boundary
+  scan, size-limited to 4 MiB, body buffered + re-inserted so file uploads still
+  reach the handler). Previously only `x-www-form-urlencoded` and the header were
+  covered, leaving file-upload forms silently unprotected.
+
 ### Fixed — cycle-8 test depth (2026-07-14)
 
 Added **201 real unit/integration tests** across the stable core (rf-orm,
@@ -91,8 +108,7 @@ needs live Postgres). No blocking CI coverage gate was added (informational).
   against real Postgres 16 in the `live-backends` CI job (gated on `RF_PG_TEST_URL`),
   and `examples/reference-app` now uses real Postgres for a `postgres://` `DATABASE_URL`
   (no more SQLite-fallback warning). Caveats: PK must be named `id`; `NUMERIC`/`DECIMAL`
-  needs a `::TEXT` cast; pooled `begin/commit/rollback` are not ACID-atomic on Postgres
-  (single-connection transactions are the tracked follow-up).
+  needs a `::TEXT` cast. (Transaction atomicity was fixed in cycle 10 — see above.)
 
 ### Fixed — cycle-6 code hardening (2026-07-12)
 
@@ -124,11 +140,9 @@ backends over the deadlock-safe `AsyncBridge` (no `block_on`-in-async panic),
 `tokio::task_local!` (no cross-request bleed), `require_auth` validates JWTs, and
 CSRF covers the form-body `_token`. The honest remaining gaps are:
 
-- **Postgres transactions via the sync DB facade are not ACID-atomic.** The DX
-  macros now run on Postgres (cycle 7), but the facade's pooled `begin`/`commit`/
-  `rollback` may land on different pooled connections; multi-statement atomicity
-  needs a single-connection transaction (tracked). Also: PK must be named `id`, and
-  `NUMERIC`/`DECIMAL` columns need a `::TEXT` cast to decode.
+- **Postgres schema conventions (DX macros).** On the Postgres path the primary
+  key column must be named `id`, and `NUMERIC`/`DECIMAL` columns need a `::TEXT`
+  cast to decode. (Transaction atomicity was fixed in cycle 10.)
 - **`capture_request` drains multipart bodies.** A route using both
   `capture_request` and an `axum::Multipart` extractor needs a split router
   (the reference app does this for its upload route).
