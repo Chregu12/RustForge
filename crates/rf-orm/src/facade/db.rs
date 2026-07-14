@@ -52,7 +52,7 @@ impl DB {
     /// # }
     /// ```
     pub fn select(query: &str, bindings: &[Value]) -> Result<Vec<Value>, String> {
-        let manager = GLOBAL_DB.lock().unwrap();
+        let mut manager = GLOBAL_DB.lock().unwrap();
         manager.select(query, bindings)
     }
 

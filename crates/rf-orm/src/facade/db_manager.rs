@@ -29,6 +29,18 @@
 //!   objects keyed by column name; column types are introspected and mapped
 //!   (INT*/OID → i64, FLOAT* → f64, BOOL → bool, JSON/JSONB → Value, TEXT/*
 //!   → string, NULL → null).
+//!
+//! ## Transaction atomicity (Postgres)
+//!
+//! `begin_transaction()` acquires **one dedicated `PoolConnection`** from the
+//! pool and runs `BEGIN` on it.  While the transaction is active every DML
+//! method (`select`, `insert`, `update`, `delete`, `statement`) executes on
+//! **that same connection** — so `BEGIN`, the DML, and `COMMIT`/`ROLLBACK` all
+//! land on a single TCP session, giving true ACID atomicity.  After
+//! `commit()`/`rollback()` the connection is released back to the pool.
+//!
+//! Outside a transaction all statements go straight to the pool as before
+//! (arbitrary connection per call), which is correct for auto-commit mode.
 
 use once_cell::sync::Lazy;
 use rusqlite::{params_from_iter, types::ValueRef, Connection};
@@ -50,6 +62,13 @@ enum Backend {
     Postgres {
         pool: sqlx::PgPool,
         bridge: AsyncBridge,
+        /// Connection held exclusively while a transaction is active.
+        ///
+        /// `None` between transactions — all statements go straight to the
+        /// pool then.  When `Some`, **every** DML method uses this single
+        /// connection so that `BEGIN`, the DML, and `COMMIT`/`ROLLBACK` all
+        /// execute on the same TCP session (ACID atomicity).
+        txn_conn: Option<sqlx::pool::PoolConnection<sqlx::Postgres>>,
     },
 }
 
@@ -75,7 +94,13 @@ impl std::fmt::Debug for DBManager {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let backend_name = match &self.backend {
             Backend::Sqlite(_) => "SQLite",
-            Backend::Postgres { .. } => "Postgres",
+            Backend::Postgres { txn_conn, .. } => {
+                if txn_conn.is_some() {
+                    "Postgres(in-transaction)"
+                } else {
+                    "Postgres"
+                }
+            }
         };
         f.debug_struct("DBManager")
             .field("backend", &backend_name)
@@ -322,21 +347,40 @@ impl DBManager {
 
     /// Execute a `SELECT` query and return the rows as JSON objects keyed by
     /// column name.
-    pub fn select(&self, query: &str, bindings: &[Value]) -> Result<Vec<Value>, String> {
-        match &self.backend {
+    ///
+    /// Takes `&mut self` so that the Postgres path can route the query through
+    /// the held transaction connection when a transaction is active.
+    pub fn select(&mut self, query: &str, bindings: &[Value]) -> Result<Vec<Value>, String> {
+        match &mut self.backend {
             Backend::Sqlite(conn) => sqlite_select(conn, query, bindings),
-            Backend::Postgres { pool, bridge } => {
+            Backend::Postgres { pool, bridge, txn_conn } => {
                 let pg_sql = translate_placeholders(query);
                 let args = build_pg_args(bindings)?;
-                let pool = pool.clone();
-                let rows: Vec<PgRow> = bridge
-                    .block_on(async move {
+
+                if let Some(c) = txn_conn.take() {
+                    // Transaction active — route through the held connection so
+                    // this SELECT is part of the same atomic session.
+                    let (rows_result, c_back) = bridge.block_on(async move {
+                        let mut c = c;
+                        let rows = sqlx::query_with(&pg_sql, args)
+                            .fetch_all(&mut *c)
+                            .await
+                            .map_err(|e| e.to_string());
+                        (rows, c)
+                    });
+                    *txn_conn = Some(c_back);
+                    Ok(pg_rows_to_json(rows_result?))
+                } else {
+                    // No active transaction — use the pool (auto-commit).
+                    let pool = pool.clone();
+                    let rows: Vec<PgRow> = bridge.block_on(async move {
                         sqlx::query_with(&pg_sql, args)
                             .fetch_all(&pool)
                             .await
                             .map_err(|e| e.to_string())
                     })?;
-                Ok(pg_rows_to_json(rows))
+                    Ok(pg_rows_to_json(rows))
+                }
             }
         }
     }
@@ -349,7 +393,7 @@ impl DBManager {
     /// present, then reads the `id` column of the first returned row. The
     /// framework primary-key convention is a column named `id`.
     pub fn insert(&mut self, query: &str, bindings: &[Value]) -> Result<u64, String> {
-        match &self.backend {
+        match &mut self.backend {
             Backend::Sqlite(conn) => {
                 let params: Vec<rusqlite::types::Value> =
                     bindings.iter().map(json_to_sqlite).collect();
@@ -357,7 +401,7 @@ impl DBManager {
                     .map_err(|e| e.to_string())?;
                 Ok(conn.last_insert_rowid() as u64)
             }
-            Backend::Postgres { pool, bridge } => {
+            Backend::Postgres { pool, bridge, txn_conn } => {
                 let pg_sql = translate_placeholders(query);
                 // Append RETURNING id if needed.
                 let pg_sql_returning = if pg_sql
@@ -370,16 +414,32 @@ impl DBManager {
                     format!("{} RETURNING id", pg_sql.trim_end())
                 };
                 let args = build_pg_args(bindings)?;
-                let pool = pool.clone();
-                let row: PgRow = bridge
-                    .block_on(async move {
+
+                if let Some(c) = txn_conn.take() {
+                    // Transaction active — use the held connection.
+                    let (row_result, c_back) = bridge.block_on(async move {
+                        let mut c = c;
+                        let r = sqlx::query_with(&pg_sql_returning, args)
+                            .fetch_one(&mut *c)
+                            .await
+                            .map_err(|e| e.to_string());
+                        (r, c)
+                    });
+                    *txn_conn = Some(c_back);
+                    let row = row_result?;
+                    let id: i64 = row.try_get("id").map_err(|e| e.to_string())?;
+                    Ok(id as u64)
+                } else {
+                    let pool = pool.clone();
+                    let row: PgRow = bridge.block_on(async move {
                         sqlx::query_with(&pg_sql_returning, args)
                             .fetch_one(&pool)
                             .await
                             .map_err(|e| e.to_string())
                     })?;
-                let id: i64 = row.try_get("id").map_err(|e| e.to_string())?;
-                Ok(id as u64)
+                    let id: i64 = row.try_get("id").map_err(|e| e.to_string())?;
+                    Ok(id as u64)
+                }
             }
         }
     }
@@ -388,7 +448,7 @@ impl DBManager {
 
     /// Execute an `UPDATE` query and return the number of affected rows.
     pub fn update(&mut self, query: &str, bindings: &[Value]) -> Result<u64, String> {
-        match &self.backend {
+        match &mut self.backend {
             Backend::Sqlite(conn) => {
                 let params: Vec<rusqlite::types::Value> =
                     bindings.iter().map(json_to_sqlite).collect();
@@ -397,19 +457,33 @@ impl DBManager {
                     .map_err(|e| e.to_string())?;
                 Ok(affected as u64)
             }
-            Backend::Postgres { pool, bridge } => {
+            Backend::Postgres { pool, bridge, txn_conn } => {
                 let pg_sql = translate_placeholders(query);
                 let args = build_pg_args(bindings)?;
-                let pool = pool.clone();
-                let rows_affected: u64 = bridge
-                    .block_on(async move {
+
+                if let Some(c) = txn_conn.take() {
+                    let (result, c_back) = bridge.block_on(async move {
+                        let mut c = c;
+                        let r = sqlx::query_with(&pg_sql, args)
+                            .execute(&mut *c)
+                            .await
+                            .map(|r| r.rows_affected())
+                            .map_err(|e| e.to_string());
+                        (r, c)
+                    });
+                    *txn_conn = Some(c_back);
+                    result
+                } else {
+                    let pool = pool.clone();
+                    let rows_affected: u64 = bridge.block_on(async move {
                         sqlx::query_with(&pg_sql, args)
                             .execute(&pool)
                             .await
                             .map(|r| r.rows_affected())
                             .map_err(|e| e.to_string())
                     })?;
-                Ok(rows_affected)
+                    Ok(rows_affected)
+                }
             }
         }
     }
@@ -418,7 +492,7 @@ impl DBManager {
 
     /// Execute a `DELETE` query and return the number of affected rows.
     pub fn delete(&mut self, query: &str, bindings: &[Value]) -> Result<u64, String> {
-        match &self.backend {
+        match &mut self.backend {
             Backend::Sqlite(conn) => {
                 let params: Vec<rusqlite::types::Value> =
                     bindings.iter().map(json_to_sqlite).collect();
@@ -427,19 +501,33 @@ impl DBManager {
                     .map_err(|e| e.to_string())?;
                 Ok(affected as u64)
             }
-            Backend::Postgres { pool, bridge } => {
+            Backend::Postgres { pool, bridge, txn_conn } => {
                 let pg_sql = translate_placeholders(query);
                 let args = build_pg_args(bindings)?;
-                let pool = pool.clone();
-                let rows_affected: u64 = bridge
-                    .block_on(async move {
+
+                if let Some(c) = txn_conn.take() {
+                    let (result, c_back) = bridge.block_on(async move {
+                        let mut c = c;
+                        let r = sqlx::query_with(&pg_sql, args)
+                            .execute(&mut *c)
+                            .await
+                            .map(|r| r.rows_affected())
+                            .map_err(|e| e.to_string());
+                        (r, c)
+                    });
+                    *txn_conn = Some(c_back);
+                    result
+                } else {
+                    let pool = pool.clone();
+                    let rows_affected: u64 = bridge.block_on(async move {
                         sqlx::query_with(&pg_sql, args)
                             .execute(&pool)
                             .await
                             .map(|r| r.rows_affected())
                             .map_err(|e| e.to_string())
                     })?;
-                Ok(rows_affected)
+                    Ok(rows_affected)
+                }
             }
         }
     }
@@ -448,21 +536,53 @@ impl DBManager {
 
     /// Execute one or more statements (e.g. DDL) that return no rows.
     pub fn statement(&mut self, query: &str) -> Result<bool, String> {
-        match &self.backend {
+        match &mut self.backend {
             Backend::Sqlite(conn) => {
                 conn.execute_batch(query).map_err(|e| e.to_string())?;
                 Ok(true)
             }
-            Backend::Postgres { pool, bridge } => {
+            Backend::Postgres { pool, bridge, txn_conn } => {
                 let sql = query.to_string();
-                let pool = pool.clone();
-                bridge.block_on(async move {
-                    sqlx::raw_sql(&sql)
-                        .execute(&pool)
-                        .await
-                        .map(|_| true)
-                        .map_err(|e| e.to_string())
-                })
+
+                if let Some(c) = txn_conn.take() {
+                    // Transaction active — `sqlx::raw_sql` has HRTB lifetime
+                    // constraints that prevent use with `&mut PgConnection`.
+                    // Split on `;` and run each statement with `sqlx::query`
+                    // instead — this covers all DDL patterns (single or
+                    // separated) used within transactions.
+                    let stmts: Vec<String> = sql
+                        .split(';')
+                        .map(|s| s.trim().to_string())
+                        .filter(|s| !s.is_empty())
+                        .collect();
+
+                    let (result, c_back) = bridge.block_on(async move {
+                        let mut c = c;
+                        let mut r: Result<bool, String> = Ok(true);
+                        for stmt in stmts {
+                            if let Err(e) = sqlx::query(&stmt)
+                                .execute(&mut *c)
+                                .await
+                                .map_err(|e| e.to_string())
+                            {
+                                r = Err(e);
+                                break;
+                            }
+                        }
+                        (r, c)
+                    });
+                    *txn_conn = Some(c_back);
+                    result
+                } else {
+                    let pool = pool.clone();
+                    bridge.block_on(async move {
+                        sqlx::raw_sql(&sql)
+                            .execute(&pool)
+                            .await
+                            .map(|_| true)
+                            .map_err(|e| e.to_string())
+                    })
+                }
             }
         }
     }
@@ -498,7 +618,7 @@ impl DBManager {
                 conn.execute_batch(&sql).map_err(|e| e.to_string())?;
                 Ok(())
             }
-            Backend::Postgres { pool, bridge } => {
+            Backend::Postgres { pool, bridge, .. } => {
                 let pool2 = pool.clone();
                 // Collect public table names.
                 let names: Vec<String> = bridge.block_on(async move {
@@ -540,38 +660,56 @@ impl DBManager {
     // ── TRANSACTIONS ──────────────────────────────────────────────────────────
 
     /// Begin a transaction on the underlying connection.
+    ///
+    /// **Postgres:** acquires a single `PoolConnection` from the pool, runs
+    /// `BEGIN` on it, and stores it.  All subsequent DML calls route through
+    /// that connection until `commit()` or `rollback()` is called.
     pub fn begin_transaction(&mut self) -> Result<(), String> {
-        match &self.backend {
+        match &mut self.backend {
             Backend::Sqlite(conn) => {
                 conn.execute_batch("BEGIN").map_err(|e| e.to_string())
             }
-            Backend::Postgres { pool, bridge } => {
+            Backend::Postgres { pool, bridge, txn_conn } => {
+                if txn_conn.is_some() {
+                    return Err(
+                        "Postgres: cannot begin a new transaction — one is already active".to_string(),
+                    );
+                }
                 let pool = pool.clone();
-                bridge.block_on(async move {
-                    sqlx::query("BEGIN")
-                        .execute(&pool)
-                        .await
-                        .map(|_| ())
-                        .map_err(|e| e.to_string())
-                })
+                // Acquire a dedicated connection and open the transaction on it.
+                let conn: Result<sqlx::pool::PoolConnection<sqlx::Postgres>, String> =
+                    bridge.block_on(async move {
+                        let mut c = pool.acquire().await.map_err(|e| e.to_string())?;
+                        sqlx::query("BEGIN")
+                            .execute(&mut *c)
+                            .await
+                            .map_err(|e| e.to_string())?;
+                        Ok(c)
+                    });
+                *txn_conn = Some(conn?);
+                Ok(())
             }
         }
     }
 
     /// Commit the current transaction.
     pub fn commit(&mut self) -> Result<(), String> {
-        match &self.backend {
+        match &mut self.backend {
             Backend::Sqlite(conn) => {
                 conn.execute_batch("COMMIT").map_err(|e| e.to_string())
             }
-            Backend::Postgres { pool, bridge } => {
-                let pool = pool.clone();
+            Backend::Postgres { bridge, txn_conn, .. } => {
+                let c = txn_conn
+                    .take()
+                    .ok_or_else(|| "Postgres: no active transaction to commit".to_string())?;
                 bridge.block_on(async move {
+                    let mut c = c;
                     sqlx::query("COMMIT")
-                        .execute(&pool)
+                        .execute(&mut *c)
                         .await
                         .map(|_| ())
                         .map_err(|e| e.to_string())
+                    // `c` is dropped here, returning the connection to the pool.
                 })
             }
         }
@@ -579,18 +717,22 @@ impl DBManager {
 
     /// Roll back the current transaction.
     pub fn rollback(&mut self) -> Result<(), String> {
-        match &self.backend {
+        match &mut self.backend {
             Backend::Sqlite(conn) => conn
                 .execute_batch("ROLLBACK")
                 .map_err(|e| e.to_string()),
-            Backend::Postgres { pool, bridge } => {
-                let pool = pool.clone();
+            Backend::Postgres { bridge, txn_conn, .. } => {
+                let c = txn_conn
+                    .take()
+                    .ok_or_else(|| "Postgres: no active transaction to rollback".to_string())?;
                 bridge.block_on(async move {
+                    let mut c = c;
                     sqlx::query("ROLLBACK")
-                        .execute(&pool)
+                        .execute(&mut *c)
                         .await
                         .map(|_| ())
                         .map_err(|e| e.to_string())
+                    // `c` is dropped here, returning the connection to the pool.
                 })
             }
         }
@@ -625,7 +767,7 @@ impl DBManager {
                     .map_err(|e| e.to_string())
             });
             if let Ok(pool) = pool_result {
-                self.backend = Backend::Postgres { pool, bridge };
+                self.backend = Backend::Postgres { pool, bridge, txn_conn: None };
                 self.connection = connection;
             }
             // On error: keep the previous backend unchanged (matches SQLite behaviour).
@@ -865,7 +1007,7 @@ mod tests {
 
     #[test]
     fn test_select_on_missing_table_errors() {
-        let m = DBManager::new();
+        let mut m = DBManager::new();
         assert!(m.select("SELECT * FROM nope", &[]).is_err());
     }
 
@@ -993,6 +1135,139 @@ mod tests {
         m.statement("DROP TABLE IF EXISTS rf_pg_integ_test CASCADE")
             .expect("DROP TABLE cleanup failed");
         println!("PASS: test_postgres_integration_full_cycle completed (id={id})");
+    }
+
+    // ── Postgres TRANSACTION ATOMICITY test — env-var gated, always compiled ──
+    //
+    // Proves that BEGIN/DML/COMMIT and BEGIN/DML/ROLLBACK all execute on the
+    // SAME single Postgres connection, giving real ACID atomicity.
+    //
+    // Run with:
+    //   RF_PG_TEST_URL=postgres://rustforge:testpass@127.0.0.1:5432/rustforge_test \
+    //     cargo test -p rf-orm test_postgres_transaction_atomicity -- --nocapture
+    //
+    // The test skips cleanly (passes green) when RF_PG_TEST_URL is absent.
+    #[test]
+    fn test_postgres_transaction_atomicity() {
+        // ── Gate ──────────────────────────────────────────────────────────────
+        let url = match std::env::var("RF_PG_TEST_URL") {
+            Ok(u) if !u.is_empty() => u,
+            _ => {
+                println!(
+                    "SKIP test_postgres_transaction_atomicity \
+                     — set RF_PG_TEST_URL=postgres://... to run"
+                );
+                return;
+            }
+        };
+
+        let mut m = DBManager::new();
+        m.set_connection(url.clone());
+        assert!(
+            m.connection_name().starts_with("postgres"),
+            "set_connection({url}) did not switch to Postgres — is the server reachable?"
+        );
+        println!("Connected to Postgres: {url}");
+
+        // ── Setup — idempotent table ──────────────────────────────────────────
+        m.statement("DROP TABLE IF EXISTS rf_pg_txn_atomicity_test CASCADE")
+            .expect("DROP failed");
+        m.statement(
+            "CREATE TABLE rf_pg_txn_atomicity_test (\
+                 id   BIGSERIAL PRIMARY KEY, \
+                 val  TEXT NOT NULL\
+             )",
+        )
+        .expect("CREATE TABLE failed");
+        println!("CREATE TABLE rf_pg_txn_atomicity_test OK");
+
+        // ══════════════════════════════════════════════════════════════════════
+        // Scenario A: begin → INSERT two rows → ROLLBACK → table must be EMPTY
+        //
+        // Before this fix, BEGIN/DML/ROLLBACK each landed on different pool
+        // connections, so rollback was a no-op and the rows persisted.
+        // ══════════════════════════════════════════════════════════════════════
+        println!("--- Scenario A: rollback ---");
+        m.begin_transaction().expect("BEGIN failed");
+
+        m.insert(
+            "INSERT INTO rf_pg_txn_atomicity_test (val) VALUES (?)",
+            &[serde_json::json!("will-be-rolled-back-1")],
+        )
+        .expect("INSERT A1 failed");
+
+        m.insert(
+            "INSERT INTO rf_pg_txn_atomicity_test (val) VALUES (?)",
+            &[serde_json::json!("will-be-rolled-back-2")],
+        )
+        .expect("INSERT A2 failed");
+
+        // Verify the rows are visible *within* the transaction.
+        let in_txn = m
+            .select("SELECT val FROM rf_pg_txn_atomicity_test", &[])
+            .expect("SELECT inside txn failed");
+        assert_eq!(
+            in_txn.len(),
+            2,
+            "Should see 2 rows inside the transaction, got {}",
+            in_txn.len()
+        );
+        println!("  Rows visible inside transaction: {}", in_txn.len());
+
+        m.rollback().expect("ROLLBACK failed");
+
+        // KEY ASSERTION: after rollback the table must be empty.
+        let after_rollback = m
+            .select("SELECT val FROM rf_pg_txn_atomicity_test", &[])
+            .expect("SELECT after ROLLBACK failed");
+        assert_eq!(
+            after_rollback.len(),
+            0,
+            "ROLLBACK must undo all inserts — table should be EMPTY, got {} rows",
+            after_rollback.len()
+        );
+        println!(
+            "  PASS scenario A: ROLLBACK undid {} rows — table is empty",
+            in_txn.len()
+        );
+
+        // ══════════════════════════════════════════════════════════════════════
+        // Scenario B: begin → INSERT one row → COMMIT → row must PERSIST
+        // ══════════════════════════════════════════════════════════════════════
+        println!("--- Scenario B: commit ---");
+        m.begin_transaction().expect("BEGIN (B) failed");
+
+        let committed_id = m
+            .insert(
+                "INSERT INTO rf_pg_txn_atomicity_test (val) VALUES (?)",
+                &[serde_json::json!("committed-row")],
+            )
+            .expect("INSERT B failed");
+
+        m.commit().expect("COMMIT failed");
+
+        // KEY ASSERTION: the committed row persists after COMMIT.
+        let after_commit = m
+            .select(
+                "SELECT id, val FROM rf_pg_txn_atomicity_test WHERE val = ?",
+                &[serde_json::json!("committed-row")],
+            )
+            .expect("SELECT after COMMIT failed");
+        assert_eq!(
+            after_commit.len(),
+            1,
+            "COMMIT must persist the row — expected 1 row, got {}",
+            after_commit.len()
+        );
+        assert_eq!(after_commit[0]["val"], serde_json::json!("committed-row"));
+        println!(
+            "  PASS scenario B: committed row id={committed_id} persists after COMMIT"
+        );
+
+        // ── Cleanup ───────────────────────────────────────────────────────────
+        m.statement("DROP TABLE IF EXISTS rf_pg_txn_atomicity_test CASCADE")
+            .expect("DROP cleanup failed");
+        println!("PASS: test_postgres_transaction_atomicity completed");
     }
 
     // ── Postgres integration tests (require a live server) ────────────────────

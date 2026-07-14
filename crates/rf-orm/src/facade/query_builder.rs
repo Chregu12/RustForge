@@ -752,7 +752,7 @@ impl QueryBuilder {
 
     pub async fn get(self) -> Result<Vec<Value>, String> {
         let (sql, bindings) = self.build_select_sql();
-        let manager = GLOBAL_DB.lock().unwrap();
+        let mut manager = GLOBAL_DB.lock().unwrap();
         manager.select(&sql, &bindings)
     }
 
@@ -1763,7 +1763,7 @@ impl QueryBuilder {
         if !where_clause.is_empty() {
             sql.push_str(&format!(" WHERE {}", where_clause));
         }
-        let manager = GLOBAL_DB.lock().unwrap();
+        let mut manager = GLOBAL_DB.lock().unwrap();
         let rows = manager.select(&sql, &bindings)?;
         let count = rows
             .first()

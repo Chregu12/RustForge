@@ -692,6 +692,18 @@ jobs:
         run: |
           cargo test -p rf-orm test_postgres_integration_full_cycle -- --nocapture
 
+      # rf-orm Postgres TRANSACTION ATOMICITY — proves that BEGIN/DML/ROLLBACK
+      # and BEGIN/DML/COMMIT all execute on the SAME connection (one dedicated
+      # PoolConnection held for the transaction's lifetime) so rollbacks really
+      # undo inserts and commits really persist them.
+      # Scenario A: begin → 2 INSERTs → ROLLBACK → table EMPTY
+      # Scenario B: begin → INSERT → COMMIT → row PERSISTS
+      - name: rf-orm Postgres transaction atomicity (live)
+        env:
+          RF_PG_TEST_URL: postgres://rustforge:testpass@127.0.0.1:5432/rustforge_test
+        run: |
+          cargo test -p rf-orm test_postgres_transaction_atomicity -- --nocapture
+
       - name: Tear down backend services
         if: always()
         run: |
