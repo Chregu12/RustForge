@@ -16,3 +16,6 @@ axum = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true }
+
+[package.metadata.rustforge]
+tier = "beta"

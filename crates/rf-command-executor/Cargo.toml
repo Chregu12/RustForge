@@ -19,3 +19,6 @@ rf-domain = { path = "../rf-domain" }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+
+[package.metadata.rustforge]
+tier = "beta"

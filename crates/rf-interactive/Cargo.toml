@@ -11,3 +11,6 @@ dialoguer.workspace = true
 anyhow.workspace = true
 thiserror.workspace = true
 rustyline.workspace = true
+
+[package.metadata.rustforge]
+tier = "beta"

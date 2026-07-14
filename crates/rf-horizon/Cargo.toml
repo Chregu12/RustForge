@@ -34,3 +34,6 @@ tokio = { workspace = true, features = ["test-util", "macros"] }
 # [[example]]
 # name = "basic_usage_rf_horizon"
 # path = "examples/basic_usage.rs"
+
+[package.metadata.rustforge]
+tier = "beta"

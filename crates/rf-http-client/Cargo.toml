@@ -28,3 +28,6 @@ rf-plugins = { path = "../rf-plugins" }
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 wiremock = "0.6"
+
+[package.metadata.rustforge]
+tier = "beta"

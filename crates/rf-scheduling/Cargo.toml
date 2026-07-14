@@ -23,3 +23,6 @@ chrono-tz = "0.9"
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "test-util", "rt"] }
+
+[package.metadata.rustforge]
+tier = "beta"

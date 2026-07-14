@@ -25,3 +25,6 @@ rf-mail = { path = "../rf-mail" }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["test-util", "macros"] }
+
+[package.metadata.rustforge]
+tier = "beta"

@@ -39,3 +39,6 @@ ssr = ["reqwest"]
 tokio = { version = "1.35", features = ["full", "test-util"] }
 axum-test = "15.0"
 tower = { version = "0.4", features = ["util"] }
+
+[package.metadata.rustforge]
+tier = "beta"

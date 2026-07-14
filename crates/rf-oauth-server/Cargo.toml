@@ -36,3 +36,6 @@ criterion = { version = "0.5", features = ["html_reports", "async_tokio"] }
 [[bench]]
 name = "oauth_benchmarks"
 harness = false
+
+[package.metadata.rustforge]
+tier = "beta"

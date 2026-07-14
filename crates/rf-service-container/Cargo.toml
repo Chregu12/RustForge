@@ -22,3 +22,6 @@ tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 # [[example]]
 # name = "basic_usage_foundry_service_container"
 # path = "examples/basic_usage.rs"
+
+[package.metadata.rustforge]
+tier = "beta"

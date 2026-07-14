@@ -7,3 +7,6 @@ license = "MIT OR Apache-2.0"
 
 [dependencies]
 rf-cache = { path = "../rf-cache" }
+
+[package.metadata.rustforge]
+tier = "stub"

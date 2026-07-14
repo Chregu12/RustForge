@@ -37,3 +37,6 @@ sqlx.workspace = true
 tokio = { version = "1.37", features = ["rt-multi-thread", "macros"] }
 
 tempfile = "3.10"
+
+[package.metadata.rustforge]
+tier = "beta"

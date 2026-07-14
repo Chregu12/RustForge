@@ -465,6 +465,13 @@ jobs:
           components: clippy
       - uses: Swatinem/rust-cache@v2
 
+      # Tier annotation gate: every crates/*/Cargo.toml must carry
+      # [package.metadata.rustforge] tier = "<stable|beta|experimental|stub>".
+      # Coverage is 127/127 (complete). This step runs before the Rust compiler
+      # so a missing annotation is caught immediately without a full cargo build.
+      - name: check tier annotations (scripts/check-tiers.sh)
+        run: bash scripts/check-tiers.sh
+
       # -Dwarnings is scoped to the library check only: the workspace must build
       # 0-warning clean. Test targets are NOT held to -Dwarnings because test
       # fixtures legitimately carry unused fields (e.g. deserialize-only structs).

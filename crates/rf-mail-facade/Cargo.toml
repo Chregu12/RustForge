@@ -7,3 +7,6 @@ license = "MIT OR Apache-2.0"
 
 [dependencies]
 rf-mail = { path = "../rf-mail" }
+
+[package.metadata.rustforge]
+tier = "stub"

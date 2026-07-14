@@ -44,3 +44,6 @@ tokio = { version = "1.35", features = ["full", "test-util"] }
 # [[example]]
 # name = "full_example"
 # path = "examples/full_example.rs"
+
+[package.metadata.rustforge]
+tier = "beta"

@@ -34,3 +34,6 @@ async = ["dep:async-trait"]
 
 [dev-dependencies]
 tokio.workspace = true
+
+[package.metadata.rustforge]
+tier = "beta"

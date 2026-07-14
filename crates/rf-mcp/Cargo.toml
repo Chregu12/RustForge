@@ -33,3 +33,6 @@ base64 = "0.21"
 
 [dev-dependencies]
 tokio = { version = "1.37", features = ["full", "test-util"] }
+
+[package.metadata.rustforge]
+tier = "beta"

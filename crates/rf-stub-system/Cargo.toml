@@ -22,3 +22,6 @@ heck = "0.5"
 [dev-dependencies]
 tokio = { workspace = true, features = ["test-util", "macros"] }
 tempfile = "3.10"
+
+[package.metadata.rustforge]
+tier = "beta"

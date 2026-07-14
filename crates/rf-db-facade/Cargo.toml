@@ -16,3 +16,6 @@ chrono = { version = "0.4", features = ["serde"] }
 
 [dev-dependencies]
 tokio = { version = "1.35", features = ["full", "test-util"] }
+
+[package.metadata.rustforge]
+tier = "stub"

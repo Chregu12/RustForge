@@ -34,3 +34,6 @@ tokio-test = "0.4"
 # [[example]]
 # name = "basic_usage_rf_authorization"
 # path = "examples/basic_usage.rs"
+
+[package.metadata.rustforge]
+tier = "beta"

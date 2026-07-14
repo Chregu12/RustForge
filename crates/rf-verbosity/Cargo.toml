@@ -12,3 +12,6 @@ clap = { workspace = true, optional = true }
 [features]
 default = []
 clap = ["dep:clap"]
+
+[package.metadata.rustforge]
+tier = "beta"

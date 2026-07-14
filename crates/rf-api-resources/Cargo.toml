@@ -16,3 +16,6 @@ tokio = { version = "1.0", features = ["full"] }
 # [[example]]
 # name = "basic_usage_rf_api_resources"
 # path = "examples/basic_usage.rs"
+
+[package.metadata.rustforge]
+tier = "beta"

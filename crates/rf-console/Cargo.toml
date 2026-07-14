@@ -9,3 +9,6 @@ authors.workspace = true
 [dependencies]
 anyhow.workspace = true
 thiserror.workspace = true
+
+[package.metadata.rustforge]
+tier = "beta"

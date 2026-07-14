@@ -37,3 +37,6 @@ metrics = "0.22"
 
 [dev-dependencies]
 tokio = { version = "1.37", features = ["full", "test-util"] }
+
+[package.metadata.rustforge]
+tier = "beta"

@@ -21,3 +21,6 @@ image-processing = ["image"]
 
 [dev-dependencies]
 tokio = { version = "1.0", features = ["full", "test-util"] }
+
+[package.metadata.rustforge]
+tier = "beta"

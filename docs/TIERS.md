@@ -16,12 +16,12 @@ propagate the change.
 | `experimental` | Exists and compiles but is excluded from `default-members` and the 1.0 supported surface. API may change or be removed without a version bump. | None |
 | `stub` | Placeholder crate with no real implementation beyond type definitions or forwarding. | None |
 
-> **Machine-check convention (partial today):** A crate's `Cargo.toml` may carry
-> `[package.metadata.rustforge] tier = "<tier>"`. This is populated for the
-> stable-core and experimental crates so far (~42 of the ~127 members); the
-> remaining beta crates are annotated incrementally, so **this table — not the
-> Cargo metadata — is the authoritative source** until annotation is complete.
-> Run `grep -rl 'metadata.rustforge' crates/*/Cargo.toml | wc -l` to see coverage.
+> **Machine-check convention (COMPLETE — CI-enforced):** Every `crates/*/Cargo.toml`
+> carries `[package.metadata.rustforge] tier = "<tier>"`. Coverage is 127/127 (100%).
+> A CI gate (`scripts/check-tiers.sh`, wired into the `workspace-gate` job) asserts
+> a valid tier on every crate directory on every push; a missing or invalid tier
+> value fails the build immediately.
+> Run `bash scripts/check-tiers.sh` locally to verify coverage.
 
 ---
 
@@ -68,7 +68,7 @@ These form the **v1.0 supported surface**. APIs here will not break without a ma
 
 ---
 
-## Beta Crates (71)
+## Beta Crates (76)
 
 Real implementations with gaps, not fully integration-tested, or API not yet frozen.
 
@@ -171,19 +171,29 @@ Plain `cargo check` skips them; `cargo check --workspace` compiles them to preve
 
 ---
 
-## Stub Crates (0)
+## Stub Crates (9)
 
-No workspace crate is purely a placeholder at this time. The smallest crates
-(rf-domain: 369 lines, rf-async-bridge: 222 lines) have real implementations
-behind their lib.rs delegation. If a future crate is added as a placeholder
-before its implementation is written, it should be tiered `stub` here.
+Nine facade crates exist under `crates/` but are **not workspace members**.
+They were superseded in Phase 20 when facades were merged into their main crates.
+They are unmaintained dead-code directories and are classified `stub`. The
+recommendation is to delete them in a future cleanup pass, but they are kept
+here to avoid breaking any downstream Cargo.toml `path = ...` references.
 
-Note: nine facade crates exist under `crates/` but are **not workspace members**
-(`rf-auth-facade`, `rf-cache-facade`, `rf-db-facade`, `rf-event-facade`,
-`rf-mail-facade`, `rf-passport-facade`, `rf-route-facade`, `rf-sanctum-facade`,
-`rf-storage-facade`). These were superseded in Phase 20 when facades were merged
-into their main crates. They are unmaintained dead-code directories; the
-recommendation is to delete them in a future cleanup pass.
+| Crate | Tier | Justification |
+|-------|------|---------------|
+| `rf-auth-facade` | stub | Superseded by rf-auth (Phase 20 merge); not a workspace member; unmaintained |
+| `rf-cache-facade` | stub | Superseded by rf-cache (Phase 20 merge); not a workspace member; unmaintained |
+| `rf-db-facade` | stub | Superseded by rf-orm facade module (Phase 20 merge); not a workspace member; unmaintained |
+| `rf-event-facade` | stub | Superseded by rf-events (Phase 20 merge); not a workspace member; unmaintained |
+| `rf-mail-facade` | stub | Superseded by rf-mail (Phase 20 merge); not a workspace member; unmaintained |
+| `rf-passport-facade` | stub | Superseded by rf-passport facade module (Phase 20 merge); not a workspace member; unmaintained |
+| `rf-route-facade` | stub | Superseded by rf-routing facade module (Phase 20 merge); not a workspace member; unmaintained |
+| `rf-sanctum-facade` | stub | Superseded by rf-sanctum facade module (Phase 20 merge); not a workspace member; unmaintained |
+| `rf-storage-facade` | stub | Superseded by rf-storage (Phase 20 merge); not a workspace member; unmaintained |
+
+Note: the smallest *workspace* crates (rf-domain: 369 lines, rf-async-bridge: 222 lines)
+have real implementations behind their lib.rs and are classified `beta`/`stable` respectively —
+not stub.
 
 ---
 
@@ -192,10 +202,33 @@ recommendation is to delete them in a future cleanup pass.
 | Tier | Count |
 |------|-------|
 | stable | 34 |
-| beta | 71 |
+| beta | 76 |
 | experimental | 8 |
-| stub | 0 |
-| **Total workspace crates** | **113** |
+| stub | 9 |
+| **Total (crates/* directories)** | **127** |
+
+Note: the 9 stub crates are non-workspace facade directories. The 118 workspace
+members (34 stable + 76 beta + 8 experimental) are the crates that `cargo check
+--workspace` compiles.
+
+---
+
+## OAuth Crate Landscape
+
+Four OAuth-related crates exist and the audit flagged them as overlapping. Here is
+the honest breakdown to prevent confusion:
+
+| Crate | Role | Status |
+|-------|------|--------|
+| `rf-passport` | **CANONICAL** — Laravel Passport-style complete OAuth2 server (authorization code + PKCE, password grant, client credentials, personal access tokens, scope management, axum integration). 28 files / 4.7k lines. Requires live DB. | **Supported** — use this for server-side OAuth2 |
+| `rf-oauth-server` | OAuth2 authorization server (12 files / 3.9k lines); real grant/token/scope implementation. **Overlaps rf-passport** — not integration-tested against a live backend. Created before rf-passport reached full parity. | **Experimental/deprecated** — do not add new features here; migrate to rf-passport |
+| `rf-oauth2-server` | Second OAuth2 server (8 files / 1.2k lines); minimal subset of rf-oauth-server. **Duplicate** — created before rf-oauth-server was complete. | **Experimental/deprecated** — do not use; to be removed in a future cleanup pass |
+| `rf-oauth` | OAuth2 **client** for social/SSO login (Google, GitHub, Facebook, OpenID Connect). 5 files / 864 lines. **Not a server** — overlaps rf-socialite (which is more complete). | **Beta** — kept for projects that prefer a lighter client; rf-socialite is preferred |
+
+**Rule of thumb:**
+- Building an OAuth2 **server** / authorization endpoint: use `rf-passport`.
+- Social login / OAuth2 **client** flow: use `rf-socialite` (preferred) or `rf-oauth`.
+- Do not start new code in `rf-oauth-server` or `rf-oauth2-server`.
 
 ---
 

@@ -20,3 +20,6 @@ metrics = ["rf-metrics"]
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["test-util", "macros", "rt-multi-thread"] }
+
+[package.metadata.rustforge]
+tier = "beta"

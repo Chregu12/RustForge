@@ -43,3 +43,6 @@ regex = "1.10"
 
 [dev-dependencies]
 tokio = { version = "1.35", features = ["full", "test-util"] }
+
+[package.metadata.rustforge]
+tier = "beta"

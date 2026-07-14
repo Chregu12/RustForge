@@ -52,3 +52,6 @@ tempfile = "3.14"
 default = ["error-pages", "sentry-integration"]
 error-pages = ["rf-blade"]
 sentry-integration = ["sentry"]
+
+[package.metadata.rustforge]
+tier = "beta"

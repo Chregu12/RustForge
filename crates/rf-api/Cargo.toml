@@ -41,3 +41,6 @@ tower = { version = "0.4", features = ["util"] }
 tempfile = "3.10"
 # rf-infra = { path = "../rf-infra" }
 once_cell = "1"
+
+[package.metadata.rustforge]
+tier = "beta"
