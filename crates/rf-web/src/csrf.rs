@@ -3,14 +3,16 @@
 //! Provides CSRF token generation, validation, and middleware for protecting
 //! against Cross-Site Request Forgery attacks.
 //!
-//! Token extraction supports two submission paths, checked in order:
+//! Token extraction supports three submission paths, checked in order:
 //! 1. `X-CSRF-TOKEN` request header (Ajax / SPA use-case).
 //! 2. `_token` field in an `application/x-www-form-urlencoded` body
 //!    (classic HTML `<form>` POST use-case).
+//! 3. `_token` field in a `multipart/form-data` body
+//!    (file-upload forms use-case).
 //!
-//! When the form-body path is used the middleware buffers the request body,
-//! reads the token, and then **re-inserts** the original bytes as the new
-//! body so downstream handlers still receive the full payload.
+//! When the form-body or multipart paths are used the middleware buffers the
+//! request body, reads the token, and then **re-inserts** the original bytes
+//! as the new body so downstream handlers still receive the full payload.
 
 use axum::{
     extract::Request,
@@ -79,6 +81,147 @@ fn parse_form_token(body_bytes: &[u8], field_name: &str) -> Option<String> {
         }
     }
     None
+}
+
+// ---------------------------------------------------------------------------
+// Multipart / form-data helpers
+// ---------------------------------------------------------------------------
+
+/// Extract the `boundary` parameter from a `multipart/form-data` Content-Type
+/// header value.
+///
+/// E.g. `"multipart/form-data; boundary=----FormBoundaryXYZ"` → `Some("----FormBoundaryXYZ")`.
+/// Quoted boundary values are unquoted.
+fn parse_multipart_boundary(content_type: &str) -> Option<&str> {
+    for segment in content_type.split(';') {
+        let seg = segment.trim();
+        // Case-insensitive comparison for the parameter name.
+        if seg.to_lowercase().starts_with("boundary=") {
+            let val = &seg["boundary=".len()..].trim();
+            return Some(if val.starts_with('"') && val.ends_with('"') && val.len() >= 2 {
+                &val[1..val.len() - 1]
+            } else {
+                val
+            });
+        }
+    }
+    None
+}
+
+/// Simple forward-scan for `needle` inside `haystack[start..]`.
+///
+/// Returns the absolute index (relative to the start of `haystack`) of the
+/// first match, or `None`.
+fn memmem_find(haystack: &[u8], needle: &[u8], start: usize) -> Option<usize> {
+    if needle.is_empty() {
+        return Some(start);
+    }
+    // Guard: we need at least `needle.len()` bytes from `start`.
+    if start.saturating_add(needle.len()) > haystack.len() {
+        return None;
+    }
+    // Slice from `start` to the end so `.windows` sees every possible
+    // starting position including the very last one.
+    haystack[start..]
+        .windows(needle.len())
+        .position(|w| w == needle)
+        .map(|p| p + start)
+}
+
+/// Check whether a block of part headers (everything between the boundary
+/// line and the blank line) contains a `Content-Disposition` header whose
+/// `name` parameter equals `field_name`.
+///
+/// Matching is case-insensitive for the header name and the `name=` parameter
+/// key; the parameter value is compared as-is (browsers always send it
+/// lowercase / unquoted for typical field names).
+fn part_name_matches(header_block: &str, field_name: &str) -> bool {
+    for line in header_block.lines() {
+        if !line.to_lowercase().starts_with("content-disposition:") {
+            continue;
+        }
+        for segment in line.split(';') {
+            let seg = segment.trim();
+            if seg.to_lowercase().starts_with("name=") {
+                let val = seg["name=".len()..].trim();
+                let name = if val.starts_with('"') && val.ends_with('"') && val.len() >= 2 {
+                    &val[1..val.len() - 1]
+                } else {
+                    val
+                };
+                return name == field_name;
+            }
+        }
+    }
+    false
+}
+
+/// Scan a `multipart/form-data` body for a part whose `Content-Disposition`
+/// `name` parameter equals `field_name` and return its (text) value.
+///
+/// Returns `None` if the field is absent or the body cannot be parsed.
+///
+/// This is a deliberately lightweight implementation: no heap allocations
+/// beyond the return value, no dependency on an external multipart crate.
+/// It handles the common CRLF line-ending convention used by all major
+/// browsers.  A malformed body (missing boundary, non-UTF-8 values, etc.)
+/// simply returns `None`, which causes the CSRF check to fall through to
+/// the header path and ultimately reject the request — the safe default.
+fn parse_multipart_token(body: &[u8], boundary: &str, field_name: &str) -> Option<String> {
+    // Per RFC 2046 the delimiter line is "--" + boundary.
+    let delim = format!("--{boundary}");
+    let delim_bytes = delim.as_bytes();
+
+    let mut pos = 0usize;
+
+    loop {
+        // Locate the next delimiter.
+        let dpos = memmem_find(body, delim_bytes, pos)?;
+        pos = dpos + delim_bytes.len();
+
+        // "--boundary--" signals the closing delimiter; stop.
+        if body.get(pos..pos + 2) == Some(b"--") {
+            return None;
+        }
+
+        // After the delimiter there must be a CRLF (or bare LF for tolerance).
+        if body.get(pos..pos + 2) == Some(b"\r\n") {
+            pos += 2;
+        } else if body.get(pos) == Some(&b'\n') {
+            pos += 1;
+        } else {
+            // Malformed — skip to the next delimiter candidate.
+            continue;
+        }
+
+        // Find the blank line that separates headers from body.
+        // We accept both \r\n\r\n and \n\n.
+        let (header_end, body_start) =
+            if let Some(p) = memmem_find(body, b"\r\n\r\n", pos) {
+                (p, p + 4)
+            } else if let Some(p) = memmem_find(body, b"\n\n", pos) {
+                (p, p + 2)
+            } else {
+                return None;
+            };
+
+        let headers = std::str::from_utf8(&body[pos..header_end]).ok()?;
+        pos = body_start;
+
+        if part_name_matches(headers, field_name) {
+            // The part body ends at "\r\n--boundary" (or "\n--boundary").
+            let end_crlf = format!("\r\n--{boundary}");
+            let end_lf = format!("\n--{boundary}");
+            let value_end = memmem_find(body, end_crlf.as_bytes(), pos)
+                .or_else(|| memmem_find(body, end_lf.as_bytes(), pos))?;
+
+            let value = std::str::from_utf8(&body[pos..value_end]).ok()?;
+            return Some(value.to_string());
+        }
+        // This part is not the one we want — advance past it to keep scanning.
+        // `pos` is already pointing at the start of this part's body; we will
+        // naturally hit the next delimiter in the next iteration.
+    }
 }
 
 /// CSRF token with creation timestamp
@@ -301,9 +444,12 @@ impl CsrfMiddleware {
     /// Checks, in order:
     /// 1. The configured header (e.g. `X-CSRF-TOKEN`).
     /// 2. The `_token` field in an `application/x-www-form-urlencoded` body.
+    /// 3. The `_token` field in a `multipart/form-data` body.
     ///
-    /// When the form-body path is used the body is **buffered and re-inserted**
-    /// so that downstream handlers still receive the full payload.
+    /// When a body path is used the body is **buffered and re-inserted** so
+    /// that downstream handlers still receive the full payload.  Bodies larger
+    /// than `CSRF_BODY_LIMIT` are not buffered; the middleware falls back to
+    /// header-only extraction (safe default: no token → 403).
     async fn extract_token(&self, req: &mut Request) -> Option<String> {
         // 1. Header takes priority — no body I/O needed.
         if let Some(header_value) = req.headers().get(&self.config.header_name) {
@@ -312,7 +458,7 @@ impl CsrfMiddleware {
             }
         }
 
-        // 2. Form body — only for urlencoded content.
+        // Read the Content-Type once so we can branch below without re-borrowing.
         let content_type = req
             .headers()
             .get(axum::http::header::CONTENT_TYPE)
@@ -320,6 +466,7 @@ impl CsrfMiddleware {
             .unwrap_or("")
             .to_string();
 
+        // 2. application/x-www-form-urlencoded
         if content_type.starts_with("application/x-www-form-urlencoded") {
             // Swap out the body so we can read it asynchronously.  We replace
             // it with an empty body first; after reading we re-insert the
@@ -336,8 +483,38 @@ impl CsrfMiddleware {
                     }
                 }
                 Err(_) => {
-                    // Body could not be read; leave it empty.  The CSRF check
-                    // will fail (no token), which is the safe default.
+                    // Body too large or unreadable; leave it empty.  The CSRF
+                    // check will fail (no token), which is the safe default.
+                }
+            }
+        }
+
+        // 3. multipart/form-data — file-upload forms
+        if content_type.starts_with("multipart/form-data") {
+            if let Some(boundary) = parse_multipart_boundary(&content_type) {
+                // Clone the boundary string so we can drop the borrow on `content_type`
+                // before we mutably borrow `req`.
+                let boundary = boundary.to_string();
+
+                let body = std::mem::replace(req.body_mut(), axum::body::Body::empty());
+                match axum::body::to_bytes(body, CSRF_BODY_LIMIT).await {
+                    Ok(bytes) => {
+                        // Re-insert the original bytes unconditionally so the
+                        // downstream handler (e.g. axum::extract::Multipart)
+                        // still receives the complete, unmodified multipart body.
+                        // `Bytes` is reference-counted — the clone is O(1).
+                        *req.body_mut() = axum::body::Body::from(bytes.clone());
+                        if let Some(token) =
+                            parse_multipart_token(&bytes, &boundary, &self.config.field_name)
+                        {
+                            return Some(token);
+                        }
+                    }
+                    Err(_) => {
+                        // Body exceeds CSRF_BODY_LIMIT or is unreadable.
+                        // Fall back to header-only (body is already empty here;
+                        // the `replace` above swapped it out).  No token → 403.
+                    }
                 }
             }
         }
@@ -956,5 +1133,342 @@ mod tests {
 
         let response = app.oneshot(req).await.unwrap();
         assert_eq!(response.status(), axum::http::StatusCode::OK);
+    }
+
+    // =========================================================================
+    // Unit tests for multipart/form-data helpers
+    // =========================================================================
+
+    #[test]
+    fn test_parse_multipart_boundary_basic() {
+        let ct = "multipart/form-data; boundary=----WebKitFormBoundaryXYZ";
+        assert_eq!(
+            parse_multipart_boundary(ct),
+            Some("----WebKitFormBoundaryXYZ")
+        );
+    }
+
+    #[test]
+    fn test_parse_multipart_boundary_quoted() {
+        let ct = r#"multipart/form-data; boundary="----FormBoundaryABC""#;
+        assert_eq!(
+            parse_multipart_boundary(ct),
+            Some("----FormBoundaryABC")
+        );
+    }
+
+    #[test]
+    fn test_parse_multipart_boundary_missing() {
+        let ct = "multipart/form-data";
+        assert_eq!(parse_multipart_boundary(ct), None);
+    }
+
+    #[test]
+    fn test_parse_multipart_boundary_extra_params() {
+        // charset before boundary
+        let ct = "multipart/form-data; charset=utf-8; boundary=BOUND42";
+        assert_eq!(parse_multipart_boundary(ct), Some("BOUND42"));
+    }
+
+    /// Build a minimal multipart/form-data body with the given parts.
+    /// `parts` is a list of (name, optional_filename, content_type, value).
+    fn make_multipart_body(boundary: &str, parts: &[(&str, Option<&str>, Option<&str>, &str)]) -> Vec<u8> {
+        let mut body = Vec::new();
+        for (name, filename, ct, value) in parts {
+            body.extend_from_slice(format!("--{boundary}\r\n").as_bytes());
+            let cd = if let Some(fname) = filename {
+                format!("Content-Disposition: form-data; name=\"{name}\"; filename=\"{fname}\"\r\n")
+            } else {
+                format!("Content-Disposition: form-data; name=\"{name}\"\r\n")
+            };
+            body.extend_from_slice(cd.as_bytes());
+            if let Some(content_type) = ct {
+                body.extend_from_slice(format!("Content-Type: {content_type}\r\n").as_bytes());
+            }
+            body.extend_from_slice(b"\r\n");
+            body.extend_from_slice(value.as_bytes());
+            body.extend_from_slice(b"\r\n");
+        }
+        body.extend_from_slice(format!("--{boundary}--\r\n").as_bytes());
+        body
+    }
+
+    #[test]
+    fn test_parse_multipart_token_single_part() {
+        let boundary = "TESTBOUNDARY";
+        let body = make_multipart_body(boundary, &[
+            ("_token", None, None, "tok_value_123"),
+        ]);
+        assert_eq!(
+            parse_multipart_token(&body, boundary, "_token"),
+            Some("tok_value_123".to_string())
+        );
+    }
+
+    #[test]
+    fn test_parse_multipart_token_among_multiple_parts() {
+        let boundary = "TESTBOUNDARY";
+        let body = make_multipart_body(boundary, &[
+            ("name", None, None, "Alice"),
+            ("_token", None, None, "secret_tok"),
+            ("file", Some("hello.txt"), Some("text/plain"), "file contents here"),
+        ]);
+        assert_eq!(
+            parse_multipart_token(&body, boundary, "_token"),
+            Some("secret_tok".to_string())
+        );
+    }
+
+    #[test]
+    fn test_parse_multipart_token_absent() {
+        let boundary = "TESTBOUNDARY";
+        let body = make_multipart_body(boundary, &[
+            ("name", None, None, "Bob"),
+            ("file", Some("img.png"), Some("image/png"), "binarydata"),
+        ]);
+        assert_eq!(parse_multipart_token(&body, boundary, "_token"), None);
+    }
+
+    #[test]
+    fn test_parse_multipart_token_token_last() {
+        let boundary = "TESTBOUNDARY";
+        let body = make_multipart_body(boundary, &[
+            ("name", None, None, "Carol"),
+            ("file", Some("f.txt"), Some("text/plain"), "content"),
+            ("_token", None, None, "last_token"),
+        ]);
+        assert_eq!(
+            parse_multipart_token(&body, boundary, "_token"),
+            Some("last_token".to_string())
+        );
+    }
+
+    #[test]
+    fn test_memmem_find_basic() {
+        let data = b"hello world";
+        assert_eq!(memmem_find(data, b"world", 0), Some(6));
+        assert_eq!(memmem_find(data, b"hello", 0), Some(0));
+        assert_eq!(memmem_find(data, b"xyz", 0), None);
+        assert_eq!(memmem_find(data, b"world", 7), None);
+    }
+
+    #[test]
+    fn test_part_name_matches_quoted() {
+        let headers = "Content-Disposition: form-data; name=\"_token\"";
+        assert!(part_name_matches(headers, "_token"));
+        assert!(!part_name_matches(headers, "other"));
+    }
+
+    #[test]
+    fn test_part_name_matches_with_filename() {
+        let headers = "Content-Disposition: form-data; name=\"file\"; filename=\"test.txt\"\r\nContent-Type: text/plain";
+        assert!(part_name_matches(headers, "file"));
+        assert!(!part_name_matches(headers, "_token"));
+    }
+
+    // =========================================================================
+    // Integration tests — multipart/form-data CSRF extraction
+    // =========================================================================
+
+    /// Helper: build the axum from_fn router with a handler that echoes the raw body bytes.
+    fn make_axum_fn_app_with_echo(store: CsrfTokenStore) -> axum::Router {
+        use axum::{middleware, routing::post, Router};
+
+        async fn echo_body(body: axum::body::Bytes) -> axum::body::Bytes {
+            body
+        }
+
+        let config = CsrfConfig::new();
+        let mw = CsrfMiddleware::with_store(config, store);
+
+        Router::new()
+            .route("/upload", post(echo_body))
+            .layer(middleware::from_fn(move |req, next| {
+                let mw = mw.clone();
+                async move { mw.handle(req, next).await }
+            }))
+    }
+
+    /// A multipart POST carrying a valid `_token` part must be accepted (200).
+    #[tokio::test]
+    async fn test_csrf_multipart_valid_token_passes() {
+        use axum::{body::Body, http::Request};
+        use tower::ServiceExt;
+
+        let store = CsrfTokenStore::new();
+        let token = CsrfToken::generate();
+        let token_value = token.token().to_string();
+        store.register(&token).await;
+
+        let boundary = "----TestBoundaryXYZ";
+        let body_bytes = make_multipart_body(boundary, &[
+            ("_token", None, None, &token_value),
+            ("description", None, None, "hello world"),
+        ]);
+        let ct = format!("multipart/form-data; boundary={boundary}");
+
+        let app = make_axum_fn_app_with_echo(store);
+        let req = Request::builder()
+            .method("POST")
+            .uri("/upload")
+            .header("content-type", ct)
+            .body(Body::from(body_bytes))
+            .unwrap();
+
+        let response = app.oneshot(req).await.unwrap();
+        assert_eq!(
+            response.status(),
+            axum::http::StatusCode::OK,
+            "multipart POST with valid _token must be accepted"
+        );
+    }
+
+    /// A multipart POST with a **wrong** `_token` and no header must be rejected (403).
+    #[tokio::test]
+    async fn test_csrf_multipart_wrong_token_rejected() {
+        use axum::{body::Body, http::Request};
+        use tower::ServiceExt;
+
+        let store = CsrfTokenStore::new();
+        let token = CsrfToken::generate();
+        store.register(&token).await;
+
+        let boundary = "----TestBoundaryXYZ";
+        let body_bytes = make_multipart_body(boundary, &[
+            ("_token", None, None, "totally-wrong-token"),
+            ("description", None, None, "hello"),
+        ]);
+        let ct = format!("multipart/form-data; boundary={boundary}");
+
+        let app = make_axum_fn_app_with_echo(store);
+        let req = Request::builder()
+            .method("POST")
+            .uri("/upload")
+            .header("content-type", ct)
+            .body(Body::from(body_bytes))
+            .unwrap();
+
+        let response = app.oneshot(req).await.unwrap();
+        assert_eq!(
+            response.status(),
+            axum::http::StatusCode::FORBIDDEN,
+            "multipart POST with wrong _token must be rejected"
+        );
+    }
+
+    /// A multipart POST with **no** `_token` part and no header must be rejected (403).
+    #[tokio::test]
+    async fn test_csrf_multipart_absent_token_rejected() {
+        use axum::{body::Body, http::Request};
+        use tower::ServiceExt;
+
+        let store = CsrfTokenStore::new();
+
+        let boundary = "----TestBoundaryXYZ";
+        let body_bytes = make_multipart_body(boundary, &[
+            ("description", None, None, "hello"),
+            ("file", Some("test.bin"), Some("application/octet-stream"), "binarydata"),
+        ]);
+        let ct = format!("multipart/form-data; boundary={boundary}");
+
+        let app = make_axum_fn_app_with_echo(store);
+        let req = Request::builder()
+            .method("POST")
+            .uri("/upload")
+            .header("content-type", ct)
+            .body(Body::from(body_bytes))
+            .unwrap();
+
+        let response = app.oneshot(req).await.unwrap();
+        assert_eq!(
+            response.status(),
+            axum::http::StatusCode::FORBIDDEN,
+            "multipart POST without _token must be rejected"
+        );
+    }
+
+    /// After the middleware buffers and re-inserts the multipart body, the
+    /// downstream handler must still receive the **complete, unmodified** payload
+    /// — including non-token parts (e.g. a file part).
+    #[tokio::test]
+    async fn test_csrf_multipart_body_preserved_for_downstream() {
+        use axum::{body::Body, http::Request};
+        use tower::ServiceExt;
+
+        let store = CsrfTokenStore::new();
+        let token = CsrfToken::generate();
+        let token_value = token.token().to_string();
+        store.register(&token).await;
+
+        let boundary = "----TestBoundaryABC";
+        let file_content = "the contents of the uploaded file";
+        let body_bytes = make_multipart_body(boundary, &[
+            ("_token", None, None, &token_value),
+            ("file", Some("upload.txt"), Some("text/plain"), file_content),
+        ]);
+        let expected_body = body_bytes.clone();
+        let ct = format!("multipart/form-data; boundary={boundary}");
+
+        let app = make_axum_fn_app_with_echo(store);
+        let req = Request::builder()
+            .method("POST")
+            .uri("/upload")
+            .header("content-type", ct)
+            .body(Body::from(body_bytes))
+            .unwrap();
+
+        let response = app.oneshot(req).await.unwrap();
+        assert_eq!(
+            response.status(),
+            axum::http::StatusCode::OK,
+            "multipart POST with valid _token must be accepted"
+        );
+
+        // The echo handler returns the raw body; it must be byte-identical to
+        // what was sent — proving the middleware did not consume the payload.
+        let returned_body = axum::body::to_bytes(response.into_body(), 64 * 1024)
+            .await
+            .unwrap();
+        assert_eq!(
+            returned_body.as_ref(),
+            expected_body.as_slice(),
+            "downstream handler must receive the complete, unmodified multipart body"
+        );
+    }
+
+    /// Verify that the X-CSRF-TOKEN **header** path still functions correctly
+    /// even when the Content-Type is multipart/form-data (header takes priority).
+    #[tokio::test]
+    async fn test_csrf_multipart_header_token_takes_priority() {
+        use axum::{body::Body, http::Request};
+        use tower::ServiceExt;
+
+        let store = CsrfTokenStore::new();
+        let token = CsrfToken::generate();
+        let token_value = token.token().to_string();
+        store.register(&token).await;
+
+        let boundary = "----TestBoundaryDEF";
+        // No _token in the multipart body; the valid token is in the header.
+        let body_bytes = make_multipart_body(boundary, &[
+            ("description", None, None, "no token in body"),
+        ]);
+        let ct = format!("multipart/form-data; boundary={boundary}");
+
+        let app = make_axum_fn_app_with_echo(store);
+        let req = Request::builder()
+            .method("POST")
+            .uri("/upload")
+            .header("content-type", ct)
+            .header("X-CSRF-TOKEN", token_value)
+            .body(Body::from(body_bytes))
+            .unwrap();
+
+        let response = app.oneshot(req).await.unwrap();
+        assert_eq!(
+            response.status(),
+            axum::http::StatusCode::OK,
+            "X-CSRF-TOKEN header must still work with multipart content-type"
+        );
     }
 }
