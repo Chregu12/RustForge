@@ -227,7 +227,7 @@ default-members = [
     # rf-cms EXCLUDED (experimental)
     "crates/rf-scaffold",
     # rf-breeze EXCLUDED (experimental)
-    "crates/rf-views",
+    # rf-views listed once above (near rf-view); duplicate entry removed
     "crates/rf-view",
     "crates/rf-authorization",
     # Phase 13: Eloquent ORM

@@ -74,6 +74,25 @@ Excluded per the `default-members` policy in `Cargo.toml`. See
   `rf-livereload`, `rf-socialite`, `rf-cashier`, `rf-mcp`, `rf-nightwatch`,
   `rf-ai`, `rf-vector`, `rf-graphql`, `rf-dusk`, `rf-sail`, `rf-spark`.
 
+### Changed — cycle-13 scope consolidation (2026-07-16)
+
+The second review's #1 problem was scope/maintainability (too many overlapping
+crates). Removed **6 redundant duplicate crates** with zero workspace dependents —
+one canonical implementation kept per capability, **no feature loss**:
+
+- OAuth: removed `rf-oauth`, `rf-oauth-server`, `rf-oauth2-server` → **`rf-passport`**
+  is the canonical OAuth/token-server crate.
+- Broadcast: removed `rf-broadcasting` → **`rf-broadcast`** (stable) is canonical.
+- Scheduler: removed `rf-scheduling` → **`rf-scheduler`** is canonical.
+- REPL: removed `rf-tinker` → **`rf-tinker-enhanced`** is canonical (the one
+  `rf-application` actually uses).
+
+Crate count **127 → 121**; CI per-crate jobs + `docs/TIERS.md` + the `check-tiers`
+gate updated to match. (`rf-views` is marked deprecated-in-place in TIERS pointing to
+`rf-view`/`rf-blade`; it still backs a convergence probe test and will be removed once
+that test is ported — tracked.) Also fixed a pre-existing duplicate `rf-views`
+workspace-members entry.
+
 ### Changed — cycle-12 fail-fast (2026-07-15)
 
 A second external review flagged silent fallbacks as a concurrency/security risk.
