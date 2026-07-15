@@ -12,6 +12,8 @@ rf-validation = { path = "../crates/rf-validation" }
 rf-cache = { path = "../crates/rf-cache" }
 rf-queue = { path = "../crates/rf-queue" }
 rf-async-bridge = { path = "../crates/rf-async-bridge" }
+rf-request = { path = "../crates/rf-request" }
+bytes = "1"
 
 # Core dependencies
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
@@ -53,6 +55,12 @@ harness = false
 # Real hot-path benchmarks (a–d): AsyncBridge, HTTP, SQLite, Validation
 [[bench]]
 name = "hot_paths"
+harness = false
+
+# RustForge DX vs raw axum — end-to-end overhead of the capture_request
+# middleware, task-local scope, and input() helper vs plain axum extractors.
+[[bench]]
+name = "dx_vs_raw_axum"
 harness = false
 
 [profile.release]

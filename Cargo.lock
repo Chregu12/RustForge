@@ -9283,6 +9283,7 @@ name = "rustforge-benchmarks"
 version = "0.1.0"
 dependencies = [
  "axum 0.8.7",
+ "bytes",
  "criterion",
  "parking_lot",
  "rand 0.8.5",
@@ -9291,6 +9292,7 @@ dependencies = [
  "rf-eloquent",
  "rf-orm",
  "rf-queue",
+ "rf-request",
  "rf-validation",
  "sea-orm 1.1.19",
  "serde",

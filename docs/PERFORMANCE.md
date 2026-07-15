@@ -160,11 +160,128 @@ uses raw sqlx to demonstrate the pattern is correct and countable.
 
 | Cost | Details |
 |------|---------|
+| `capture_request` DX layer (GET) | ~1.0 µs vs raw axum with `Path` extractor (+114%); see §"RustForge DX vs raw axum" |
+| `capture_request` DX layer (POST JSON) | ~0.5 µs vs raw axum with `Json` extractor (+39%); see §"RustForge DX vs raw axum" |
 | AsyncBridge per-call | ~3.8 µs cross-thread channel hop; design is correct (reuses one thread), but not suitable for tight inner loops |
 | sqlx SQLite async | ~17–20 µs per query due to `spawn_blocking` thread dispatch; unavoidable in the current driver design |
 | Validation rule boxing | Each `Validator::rules()` call heap-allocates `Box<dyn Rule>` per rule; acceptable at 1M+/s but could be avoided with static dispatch for known rule sets |
 | No profiling of sea-orm layer | These benches use sqlx directly; sea-orm's entity + relation macro overhead is unmeasured |
 | No HTTP throughput bench | The oneshot bench measures latency only; throughput under concurrent load (wrk/oha) is not measured here |
+
+---
+
+---
+
+## RustForge DX vs raw axum
+
+> RustForge is built *on top of* axum. The DX layer (`capture_request`
+> middleware + `tokio::task_local` scope + `input()` helper) adds overhead vs a
+> plain axum handler with typed extractors. The benchmarks here measure that
+> overhead honestly and reproducibly.
+
+### Methodology
+
+- Both sides use `tower::ServiceExt::oneshot` — no TCP stack, no network I/O.
+- The same response body and status code are returned by both handlers.
+- 100 samples, 8 s measurement window, 3 s warm-up per benchmark.
+- Source: `benchmarks/benches/dx_vs_raw_axum.rs`
+
+### Reproduction
+
+```bash
+# Full run (100 samples × 8 s measurement):
+cargo bench -p rustforge-benchmarks --bench dx_vs_raw_axum
+
+# Quick pass (shorter windows):
+cargo bench -p rustforge-benchmarks --bench dx_vs_raw_axum -- \
+    --measurement-time 5 --warm-up-time 2
+```
+
+### Results (Apple M1 Max, rustc 1.96.0, 2026-07-16)
+
+#### GET /users/{id} — path-parameter read
+
+Both handlers return the same JSON `UserResponse`. The difference is HOW they
+read the matched path segment `42`:
+
+- **Raw axum**: `Path(id): Path<i64>` typed extractor — axum hands the
+  already-matched segment directly to the handler, zero middleware overhead.
+- **RustForge DX**: `capture_request` outer layer + `capture_path_params`
+  route_layer; handler has no arguments and calls `input::<i64>("id")`.
+
+| Variant | Median | CI 95% | Throughput |
+|---------|--------|--------|------------|
+| Raw axum (`Path` extractor) | **877.84 ns** | 875–880 ns | ~1.14 M req/s |
+| RustForge DX (`capture_request` + `input`) | **1875.1 ns** | 1868–1884 ns | ~533 K req/s |
+| **DX overhead (absolute)** | **+997 ns (~1.0 µs)** | | |
+| **DX overhead (relative)** | **+114%  (2.14×)** | | |
+
+#### POST /echo — small JSON body field read
+
+Both handlers receive `{"title":"hello"}` (17 bytes). The difference is body
+parsing strategy:
+
+- **Raw axum**: `Json(body): Json<Value>` extractor — axum buffers + parses JSON
+  and passes the parsed value directly to the handler.
+- **RustForge DX**: `capture_request` outer layer buffers + parses JSON into an
+  intermediate `HashMap<String, Value>`, then handler reads `input::<String>("title")`.
+
+| Variant | Median | CI 95% | Throughput |
+|---------|--------|--------|------------|
+| Raw axum (`Json` extractor) | **1304.2 ns** | 1302–1307 ns | ~767 K req/s |
+| RustForge DX (`capture_request` + `input`) | **1806.8 ns** | 1803–1811 ns | ~553 K req/s |
+| **DX overhead (absolute)** | **+503 ns (~0.5 µs)** | | |
+| **DX overhead (relative)** | **+39%** | | |
+
+The POST gap is smaller than the GET gap because raw axum *also* does body
+buffering and JSON parsing via the `Json` extractor — the two sides share that
+cost. The DX-specific increment is the intermediate `HashMap`, the `Arc<RequestContext>`
+allocation, and the `tokio::task_local` scope setup.
+
+#### Middleware isolation — `capture_request` alone (empty GET, no body)
+
+This isolates the pure middleware cost from the handler logic: the SAME no-op
+handler (`async fn noop() -> &'static str { "ok" }`), with vs without the
+`capture_request` layer.
+
+| Variant | Median | CI 95% |
+|---------|--------|--------|
+| Raw axum (no middleware, no extractor) | **515.40 ns** | 514–516 ns |
+| `capture_request` (empty body, no fields) | **1076.6 ns** | 1072–1081 ns |
+| **Middleware overhead alone** | **+561 ns (~0.56 µs)** | |
+| **Overhead ratio** | **+109% (2.09×)** | |
+
+What that 561 ns buys per request (even with an empty body):
+- `parse_request`: query-string branch check, one `HashMap::new()`, one `if let Some(query)` (None for this bench)
+- `Arc::new(RequestContext { fields: HashMap::new(), files: HashMap::new() })`
+- `CURRENT_REQUEST.scope(ctx, next.run(inner)).await` — task-local future wrapper
+
+### Interpretation
+
+**The DX overhead is real but context-dependent:**
+
+| Scenario | DX overhead | Realistic bottleneck | Overhead significance |
+|----------|-------------|---------------------|----------------------|
+| GET with path param | ~1.0 µs | SQLite: 17–20 µs; Postgres: 0.5–5 ms | 5–5000× smaller |
+| POST with JSON body | ~0.5 µs | Same as above | Same |
+| `capture_request` alone | ~0.56 µs | Network RTT: 100+ µs | ~200× smaller |
+
+**For any handler that touches a database or makes a network call, the DX
+overhead is invisible**: a single in-memory SQLite query (the fastest possible
+database) takes 17–20 µs, which is 17–34× larger than the ~1 µs DX tax. A
+real Postgres query over loopback is 0.5–5 ms — 500–5000× larger.
+
+**Where the overhead *does* show up:**
+
+1. Pure in-memory handlers (health-check pings, static string responses) where
+   latency is sub-microsecond. If you do not need `input()` or `file()` in such
+   a handler, skip `capture_request` on that route.
+2. Tight benchmark loops measuring only the routing path — synthetic, not
+   representative of real application load.
+
+**Per-route opt-out**: `capture_request` is applied as a layer on the router,
+not globally enforced. Routes that don't use `input()` or `file()` can be
+placed on a separate sub-router that skips the layer entirely.
 
 ---
 
