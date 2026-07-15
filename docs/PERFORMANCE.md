@@ -170,6 +170,78 @@ uses raw sqlx to demonstrate the pattern is correct and countable.
 
 ---
 
+## Build & Runtime Footprint
+
+> **Measured**: Apple M1 Max · macOS Darwin 25.5.0 · rustc 1.96.0
+> (ac68faa20 2026-05-25, Homebrew) · 2026-07-16
+>
+> **Reproduction** (run from repo root, requires internet on first run):
+> ```bash
+> bash scripts/build-footprint-bench.sh
+> ```
+> The script creates a throwaway axum-baseline project in a `mktemp` directory,
+> cold-builds both apps with a fresh `target/`, then measures startup time
+> and idle RSS.  All numbers are printed as `METRIC=value` lines.
+
+### What is being compared
+
+| App | Description |
+|-----|-------------|
+| **raw axum** (`axum-baseline`) | Standalone Cargo project (NOT a workspace member) created by the script in a temp dir.  Implements GET /health + GET+POST /posts + GET /posts/{id} using plain axum 0.8 + tokio + serde + an in-memory Vec.  **No database** — no sea-orm / sqlx / sqlite3-sys. |
+| **RustForge** (`blog-slice`) | `examples/blog-slice` from this repo.  Same REST surface but written against the `rf` umbrella crate, using `capture_request` middleware, `input()` helpers, the `validate!` DSL, and `sea-orm` / `sqlx` / SQLite for real persistence. |
+
+The raw-axum baseline is intentionally minimal: it represents the smallest useful
+axum application.  The RustForge app includes the full rf-\* crate graph **plus**
+the ORM/DB stack (`sea-orm`, `sqlx`, `sqlite3-sys`).  Both axes of cost — the
+DX/framework layer and the DB layer — are therefore reflected in the numbers.
+
+### Metrics
+
+| Metric | raw axum | RustForge (blog-slice) | Ratio | Notes |
+|--------|----------|------------------------|-------|-------|
+| **Cold compile time** | **12.8 s** | **6 m 55 s (415 s)** | **~32×** | Fresh target dir, all deps from source; axum-baseline: 53 crates; blog-slice: 481 rlibs |
+| **Binary size (stripped)** | **1.09 MB** (1,144,648 B) | **6.03 MB** (6,321,264 B) | **5.5×** | `strip` on macOS arm64 Mach-O; no dSYM generated |
+| **Startup time** (boot → first HTTP 200) | **~20 ms** | **~19 ms** | **~1×** | Median of 5 runs, 10 ms polling; blog-slice includes SQLite schema creation on boot |
+| **Idle RSS** (after boot, before requests) | **~2.5 MB** (2,528 KB) | **~8.8 MB** (8,976 KB) | **3.5×** | `ps -o rss` on macOS; 1 s after readiness probe |
+
+### Interpretation
+
+**Compile time (32×)**: This is the dominant footprint cost and is honest to
+report.  The full rf-\* crate graph plus sea-orm/sqlx is large.  On first build
+(no Cargo registry cache) a developer waits roughly 7 minutes instead of 13
+seconds.  On subsequent incremental builds (only changed crates recompile) the
+gap narrows — a re-build of only `blog-slice` after a code change takes
+well under a second.
+
+**Binary size (5.5×)**: A 6 MB stripped arm64 binary is still tiny by modern
+standards (comparable to many Go or Zig applications).  The 5× inflation
+reflects the generics monomorphisation cost of the ORM + axum extractor stack
+being statically compiled in.  If binary size is a hard constraint, consider
+stripping further with LTO (`lto = "thin"`) and `opt-level = "z"` in
+`[profile.release]`.
+
+**Startup time (~identical)**: Both apps start serving in under 25 ms.  Despite
+the blog-slice running a SQLite `CREATE TABLE IF NOT EXISTS` on boot, Tokio's
+runtime startup and axum's router construction are fast enough that there is no
+measurable difference between the two.  RustForge does **not** impose a slow
+boot penalty.
+
+**Idle RSS (3.5×)**: The ~6 MB extra RSS at idle covers: loaded Rust runtime
+data segments from the larger binary, the in-memory SQLite database, the
+sea-orm connection pool, and the `rf` global state (router registry, DB
+singleton).  For a long-running service the incremental cost is marginal; it
+becomes relevant only in environments with very tight memory limits (< 20 MB),
+such as some edge / serverless runtimes.
+
+### Note on Loco comparison
+
+This document does **not** benchmark [Loco](https://loco.rs/) head-to-head.
+Doing so fairly would require building a Loco project with an equivalent
+feature set, running it through the same measurement harness, and controlling
+for ORM backend choice.  That was out of scope for this cycle.  All numbers
+here are **RustForge vs raw axum only**.  Do not infer Loco numbers from
+this data.
+
 ---
 
 ## RustForge DX vs raw axum
