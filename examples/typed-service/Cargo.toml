@@ -1,0 +1,27 @@
+[package]
+name = "typed-service"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "RustForge typed-DI reference example — explicit AppState, injected services, no global facades"
+
+[dependencies]
+# Instance-based ORM: DatabaseManager (Arc-injectable) + DatabaseConfig
+rf-orm          = { path = "../../crates/rf-orm" }
+# ValidatedJson extractor + Validate trait re-export
+rf-validation   = { path = "../../crates/rf-validation" }
+# sea-orm types needed directly (Statement, DbBackend, Value, ConnectionTrait)
+sea-orm         = { workspace = true }
+# HTTP framework
+axum            = { workspace = true }
+tokio           = { workspace = true }
+# Serialization
+serde           = { workspace = true }
+serde_json      = { workspace = true }
+# Async trait objects
+async-trait     = { workspace = true }
+# Error helpers
+thiserror       = { workspace = true }
+anyhow          = { workspace = true }
+# Validate derive macro (validator = "0.18" with derive feature)
+validator       = { version = "0.18", features = ["derive"] }

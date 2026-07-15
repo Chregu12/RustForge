@@ -116,6 +116,8 @@ members = [
     "examples/i18n-localized-api",
     # Cycle-4 flagship reference application (exercises every stable-core surface)
     "examples/reference-app",
+    # Cycle-15 typed-DI reference example (no global facades; instance-based ORM)
+    "examples/typed-service",
     # Benchmarks
     "benchmarks",
     # Legacy CLI (kept as foundry-cli)
@@ -282,6 +284,8 @@ default-members = [
     "examples/i18n-localized-api",
     # Cycle-4 flagship reference application (exercises every stable-core surface)
     "examples/reference-app",
+    # Cycle-15 typed-DI reference example (no global facades; instance-based ORM)
+    "examples/typed-service",
     # Benchmarks
     "benchmarks",
     # Legacy CLI (kept as foundry-cli)
