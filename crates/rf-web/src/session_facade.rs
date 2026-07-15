@@ -9,10 +9,13 @@
 //! (`rf_auth::with_auth_scope`) and request context (`rf_request::capture_request`):
 //! the [`session_scope`] middleware mints/loads the caller's session id, sets a
 //! task-local for the duration of the request, and the facade reads/writes the
-//! backing store entry for that id. Outside any request scope (unit tests, CLI)
-//! the facade falls back to a single process-local session — that fallback is
-//! never used while serving concurrent HTTP requests, since each of those runs
-//! inside its own [`session_scope`].
+//! backing store entry for that id.
+//!
+//! **The [`session_scope`] middleware MUST be wired into your router.** Calling
+//! any `SessionFacade` method without an active scope panics with a clear
+//! diagnostic message. There is no silent process-global fallback: in a concurrent
+//! web server, a single shared session across all callers is a security bug
+//! (session data from one client would bleed into every other client).
 //!
 //! ## Flash: true one-request lifetime
 //!
@@ -35,10 +38,14 @@
 //!
 //! # Examples
 //!
-//! ```rust
+//! ```rust,ignore
+//! // SessionFacade methods MUST be called inside a session_scope — the snippet
+//! // below shows the API shape; see the integration tests for a runnable example
+//! // that wires the middleware.
 //! use rf_web::SessionFacade;
 //! use serde_json::json;
 //!
+//! // (inside a handler covered by session_scope middleware)
 //! SessionFacade::put("user_id", json!(123));
 //! if let Some(user_id) = SessionFacade::get("user_id") {
 //!     println!("User ID: {}", user_id);
@@ -55,7 +62,7 @@ use once_cell::sync::Lazy;
 use serde_json::Value;
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
-use std::sync::{Mutex, RwLock};
+use std::sync::RwLock;
 
 /// Cookie name carrying the per-client session id.
 const SESSION_COOKIE: &str = "rf_session";
@@ -96,31 +103,35 @@ impl SessionData {
 static SESSIONS: Lazy<RwLock<HashMap<String, SessionData>>> =
     Lazy::new(|| RwLock::new(HashMap::new()));
 
-/// Fallback session used by code paths that are NOT inside a request scope (unit
-/// tests, CLI, startup). Never used while serving concurrent HTTP requests — each
-/// of those runs inside its own [`session_scope`] task-local.
-static FALLBACK: Lazy<Mutex<SessionData>> = Lazy::new(|| Mutex::new(SessionData::default()));
-
 tokio::task_local! {
     /// The current request's session id, wrapped in a `RefCell` so that
     /// [`SessionFacade::regenerate`] can swap in a new id during the same request.
     static CURRENT_SESSION_ID: RefCell<String>;
 }
 
-/// Run `f` against the active session: the per-request one keyed by the task-local
-/// session id if a scope is established, otherwise the process-local fallback.
+/// Run `f` against the current request's per-client session.
+///
+/// # Panics
+///
+/// Panics if called outside a [`session_scope`] task-local scope.  This is an
+/// explicit fail-fast: in a concurrent web server a process-global session shared
+/// by all callers would be a security bug (data from one client bleeds into every
+/// other client).  Wire [`session_scope`] as a router layer to silence this panic.
 fn with_session<R>(f: impl FnOnce(&mut SessionData) -> R) -> R {
-    let mut f = Some(f);
-    let attempted = CURRENT_SESSION_ID.try_with(|cell| {
+    CURRENT_SESSION_ID.try_with(|cell| {
         let sid = cell.borrow().clone();
         let mut store = SESSIONS.write().unwrap();
         let entry = store.entry(sid).or_default();
-        (f.take().unwrap())(entry)
-    });
-    match attempted {
-        Ok(r) => r,
-        Err(_) => (f.take().unwrap())(&mut FALLBACK.lock().unwrap()),
-    }
+        f(entry)
+    })
+    .unwrap_or_else(|_| {
+        panic!(
+            "SessionFacade used without the session_scope middleware — \
+             add session_scope() to your router. \
+             A process-global shared session does not exist: it would silently \
+             bleed one client's data into every other concurrent client."
+        )
+    })
 }
 
 /// Generate a cryptographically secure session id (256 bits, URL-safe base64).
@@ -236,30 +247,30 @@ pub async fn session_scope(req: Request, next: Next) -> Response {
 /// The SessionFacade providing a static API scoped to the current request's session.
 ///
 /// Wire [`session_scope`] into your router so each client gets its own isolated
-/// session; without it the facade operates on a single process-local fallback
-/// (fine for tests/CLI, not for concurrent HTTP serving).
+/// session.  **Calling any method without an active [`session_scope`] is a
+/// programming error and panics immediately** — there is no silent process-global
+/// fallback.  In a concurrent web server, a shared process-global session would
+/// silently bleed one client's data into every other concurrent client, which is
+/// a security bug.
 ///
-/// # DX-layer convenience — task-local caveat
+/// # DX-layer convenience — task-local requirement
 ///
 /// `SessionFacade` is part of RustForge's **optional** Laravel-style DX layer. Every
 /// method reads/writes the per-client session identified by the task-local set by the
 /// [`session_scope`] middleware.
 ///
-/// **When called outside a request handler** — in unit tests, CLI code, or any async
-/// task not wrapped by [`session_scope`] — it falls back to a **single
-/// process-local session** shared across all code paths in that process. This is
-/// intentionally permissive for offline test/CLI use, but means multiple concurrent
-/// callers in that mode share state. It is a **runtime** condition, not a compile
-/// error.
+/// **`session_scope` is required.** Any call to `get`, `put`, `has`, `forget`,
+/// `flush`, or `flash` outside a [`session_scope`]-wrapped handler panics with a
+/// diagnostic message telling you exactly what to fix.
 ///
-/// For request handling always add [`session_scope`] as a router layer so each HTTP
-/// client gets its own isolated session. See
-/// [`docs/API_PHILOSOPHY.md`](https://github.com/your-org/rustforge/blob/main/docs/API_PHILOSOPHY.md)
-/// for the full two-layer design rationale.
+/// To check whether a scope is active before calling the facade (e.g. in shared
+/// helper code that may run both inside and outside a request), use
+/// [`in_session_scope()`].
 ///
 /// # Examples
 ///
-/// ```rust
+/// ```rust,ignore
+/// // These calls must be inside a handler covered by session_scope middleware.
 /// use rf_web::SessionFacade;
 /// use serde_json::json;
 ///
@@ -373,7 +384,7 @@ mod tests {
     use serde_json::json;
 
     /// Run a closure inside a fresh, uniquely-keyed session scope so tests do not
-    /// clobber each other or the shared fallback.
+    /// clobber each other (each test id is distinct to avoid cross-test interference).
     fn in_session<R>(id: &str, f: impl FnOnce() -> R) -> R {
         CURRENT_SESSION_ID.sync_scope(RefCell::new(id.to_string()), f)
     }
@@ -538,7 +549,101 @@ mod tests {
 
     #[test]
     fn test_regenerate_outside_scope_is_noop() {
-        // Must not panic or crash outside a session scope.
+        // regenerate() uses try_with() directly (no with_session call), so it
+        // remains a deliberate no-op outside scope — there is nothing to migrate.
         SessionFacade::regenerate();
+    }
+
+    // -----------------------------------------------------------------------
+    // Fail-fast tests: prove the process-global fallback is GONE.
+    //
+    // Each of these deliberately calls a SessionFacade method WITHOUT establishing
+    // a session_scope.  The correct behavior is an immediate panic with a clear
+    // diagnostic.  A silent return — or, worse, sharing a global session — is the
+    // security bug the external review flagged: in a concurrent web server, a
+    // global session shared by all callers bleeds one client's data into every
+    // other client.
+    // -----------------------------------------------------------------------
+
+    /// Calling `SessionFacade::get` without a scope must panic, not return None
+    /// from a process-global shared session.
+    #[test]
+    #[should_panic(expected = "SessionFacade used without the session_scope middleware")]
+    fn test_get_without_scope_panics() {
+        // No in_session() wrapper — deliberately outside any scope.
+        let _ = SessionFacade::get("any_key");
+    }
+
+    /// Calling `SessionFacade::put` without a scope must panic.
+    #[test]
+    #[should_panic(expected = "SessionFacade used without the session_scope middleware")]
+    fn test_put_without_scope_panics() {
+        SessionFacade::put("key", json!("value"));
+    }
+
+    /// Calling `SessionFacade::has` without a scope must panic.
+    #[test]
+    #[should_panic(expected = "SessionFacade used without the session_scope middleware")]
+    fn test_has_without_scope_panics() {
+        let _ = SessionFacade::has("key");
+    }
+
+    /// Calling `SessionFacade::forget` without a scope must panic.
+    #[test]
+    #[should_panic(expected = "SessionFacade used without the session_scope middleware")]
+    fn test_forget_without_scope_panics() {
+        SessionFacade::forget("key");
+    }
+
+    /// Calling `SessionFacade::flush` without a scope must panic.
+    #[test]
+    #[should_panic(expected = "SessionFacade used without the session_scope middleware")]
+    fn test_flush_without_scope_panics() {
+        SessionFacade::flush();
+    }
+
+    /// Calling `SessionFacade::flash` without a scope must panic.
+    #[test]
+    #[should_panic(expected = "SessionFacade used without the session_scope middleware")]
+    fn test_flash_without_scope_panics() {
+        SessionFacade::flash("key", json!("value"));
+    }
+
+    /// Prove that two simulated concurrent clients (distinct scope ids) are fully
+    /// isolated: value written under id A is never visible under id B, and vice versa.
+    /// This is the per-client isolation guarantee the fail-fast change must not break.
+    #[test]
+    fn test_concurrent_clients_are_isolated() {
+        // Client A writes a secret.
+        in_session("iso_client_a", || {
+            SessionFacade::put("secret", json!("only_for_A"));
+        });
+
+        // Client B has no session at all — it must see nothing from A.
+        in_session("iso_client_b", || {
+            assert!(
+                !SessionFacade::has("secret"),
+                "client B must not see client A's session data"
+            );
+            SessionFacade::put("secret", json!("only_for_B"));
+        });
+
+        // After B writes its own value, A's session is still intact.
+        in_session("iso_client_a", || {
+            assert_eq!(
+                SessionFacade::get("secret"),
+                Some(json!("only_for_A")),
+                "client A's data must not be overwritten by client B"
+            );
+        });
+
+        // And B's session is also intact.
+        in_session("iso_client_b", || {
+            assert_eq!(
+                SessionFacade::get("secret"),
+                Some(json!("only_for_B")),
+                "client B must see only its own data"
+            );
+        });
     }
 }
