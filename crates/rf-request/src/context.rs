@@ -3,7 +3,11 @@
 //! The `capture_request` middleware parses each incoming request once and stashes
 //! its fields/files in a per-request task-local scope, so handlers can use the
 //! Laravel-style global helpers — `input()`, `has()`, `file()`, `all()` — without
-//! threading a `Request` around. Outside a request scope these return empty.
+//! threading a `Request` around.
+//!
+//! **Fail-fast on missing middleware**: calling `input()`, `has()`, `file()`, or
+//! `all()` outside a `capture_request` scope panics with a clear diagnostic message.
+//! Use `with_request_context` in tests, or wire the middleware in your router.
 
 use crate::extractors::parse_request;
 use crate::upload::UploadedFile;
@@ -33,8 +37,33 @@ tokio::task_local! {
     static CURRENT_REQUEST: Arc<RequestContext>;
 }
 
+/// Access the current [`RequestContext`] silently — returns `None` when no scope
+/// is established. Used **only** by internal middleware code (e.g.
+/// [`capture_path_params`]) that is explicitly designed to tolerate a missing
+/// outer context.  Public helpers must use [`with_ctx_required`] instead.
 fn with_ctx<R>(f: impl FnOnce(&RequestContext) -> R) -> Option<R> {
     CURRENT_REQUEST.try_with(|ctx| f(ctx)).ok()
+}
+
+/// Access the current [`RequestContext`], **panicking** when no
+/// `capture_request` scope has been established.
+///
+/// This is the guard used by all four public DX helpers (`input`, `has`,
+/// `file`, `all`).  A panic here is a *programming error* — the developer
+/// forgot to wire the middleware — and is the correct fail-fast signal in both
+/// debug and release mode, because silent `None`/`false`/empty would hide the
+/// bug silently.
+#[inline]
+fn with_ctx_required<R>(fn_name: &str, f: impl FnOnce(&RequestContext) -> R) -> R {
+    match CURRENT_REQUEST.try_with(|ctx| f(ctx)) {
+        Ok(r) => r,
+        Err(_) => panic!(
+            "{}() called outside a capture_request scope — \
+             add `.layer(middleware::from_fn(rf_request::capture_request))` \
+             to your router, or use `with_request_context` in tests",
+            fn_name
+        ),
+    }
 }
 
 /// Deserialize a stored field [`Value`] into `T`, coercing a `Value::String`
@@ -92,93 +121,97 @@ pub(crate) fn coerce_value<T: DeserializeOwned>(v: &Value) -> Option<T> {
 /// (so `input::<usize>("page")` reads `?page=2` as `Some(2)`), matching how path
 /// params already coerce; `input::<String>` still returns the raw string.
 ///
-/// # DX-layer convenience — task-local caveat
+/// Returns `None` when the key is genuinely absent from the request — this is the
+/// **legitimate** absent-value case (field was not sent).
 ///
-/// This function is part of RustForge's **optional** Laravel-style DX layer. It reads
-/// the per-request task-local context populated by the [`capture_request`] middleware.
+/// # Panics
 ///
-/// **When called outside a request handler** — in unit tests, background tasks, CLI
-/// code, or any async task that is not wrapped by [`capture_request`] — it returns
-/// `None` **silently**. This is a *runtime* condition, not a compile error; the
-/// compiler cannot warn you.
+/// Panics with a diagnostic message when called **outside a `capture_request`
+/// scope** (i.e. the middleware was not wired into the router).  This is a
+/// **programming error**, not a runtime condition: silent `None` would hide the
+/// missing middleware as if the field were simply absent, so a panic is the
+/// correct fail-fast signal.
+///
+/// ```text
+/// thread 'main' panicked at 'input() called outside a capture_request scope …'
+/// ```
+///
+/// To avoid the panic in tests, wrap your test body with
+/// [`with_request_context`]:
+///
+/// ```ignore
+/// use std::sync::Arc;
+/// use rf_request::{context::{RequestContext, with_request_context}, input};
+///
+/// # #[tokio::main] async fn main() {
+/// let ctx = Arc::new(RequestContext::default());
+/// with_request_context(ctx, async {
+///     assert_eq!(input::<String>("q"), None); // key absent — legit None
+/// }).await;
+/// # }
+/// ```
 ///
 /// **Explicit alternative (recommended for library and test code):** accept the
 /// [`Request`](crate::Request) struct (or a typed extractor) as a handler argument
 /// and call [`Request::input`](crate::Request::input) on it. The explicit API is
 /// always available, never context-dependent, and gives the compiler full visibility
-/// over which fields a handler reads:
-///
-/// ```ignore
-/// // Explicit Rust-native core API — compile-time safe, no middleware dependency:
-/// async fn handler(req: rf_request::Request) -> impl axum::response::IntoResponse {
-///     let title: Option<String> = req.input("title");
-/// }
-///
-/// // DX-layer shorthand — ergonomic, but requires capture_request middleware in the
-/// // router and returns None silently when called outside that scope:
-/// async fn handler_dx() -> impl axum::response::IntoResponse {
-///     let title: Option<String> = rf_request::input("title");
-/// }
-/// ```
+/// over which fields a handler reads.
 ///
 /// See [`docs/API_PHILOSOPHY.md`](https://github.com/your-org/rustforge/blob/main/docs/API_PHILOSOPHY.md)
 /// for the full two-layer design rationale.
 pub fn input<T: DeserializeOwned>(key: &str) -> Option<T> {
-    with_ctx(|c| c.fields.get(key).and_then(coerce_value)).flatten()
+    with_ctx_required("input", |c| c.fields.get(key).and_then(coerce_value))
 }
 
 /// Returns `true` if the current request has a field named `key`.
 ///
-/// # DX-layer convenience — task-local caveat
+/// Returns `false` when the key is genuinely absent from the request —
+/// this is the **legitimate** absent-value case.
 ///
-/// This function is part of RustForge's **optional** Laravel-style DX layer. It reads
-/// the per-request task-local context populated by the [`capture_request`] middleware.
+/// # Panics
 ///
-/// **When called outside a request handler** — in unit tests, background tasks, CLI
-/// code, or any async task that is not wrapped by [`capture_request`] — it returns
-/// `false` **silently**. This is a *runtime* condition, not a compile error.
+/// Panics with a diagnostic message when called **outside a `capture_request`
+/// scope**.  Silent `false` would hide the missing middleware as if the field
+/// were simply absent; a panic is the correct fail-fast signal.
 ///
 /// **Explicit alternative:** use [`Request::has`](crate::Request::has) on an
-/// explicitly-received [`Request`](crate::Request) argument. See
-/// [`docs/API_PHILOSOPHY.md`](https://github.com/your-org/rustforge/blob/main/docs/API_PHILOSOPHY.md).
+/// explicitly-received [`Request`](crate::Request) argument.
 pub fn has(key: &str) -> bool {
-    with_ctx(|c| c.fields.contains_key(key)).unwrap_or(false)
+    with_ctx_required("has", |c| c.fields.contains_key(key))
 }
 
 /// Get an uploaded file from the current request by form-field name, e.g. `file("image")`.
 ///
-/// # DX-layer convenience — task-local caveat
+/// Returns `None` when no file was uploaded under `name` — this is the
+/// **legitimate** absent-value case.
 ///
-/// This function is part of RustForge's **optional** Laravel-style DX layer. It reads
-/// the per-request task-local context populated by the [`capture_request`] middleware.
+/// # Panics
 ///
-/// **When called outside a request handler** — in unit tests, background tasks, CLI
-/// code, or any async task that is not wrapped by [`capture_request`] — it returns
-/// `None` **silently**. This is a *runtime* condition, not a compile error.
+/// Panics with a diagnostic message when called **outside a `capture_request`
+/// scope**.  Silent `None` would hide the missing middleware as if no file were
+/// uploaded; a panic is the correct fail-fast signal.
 ///
 /// **Explicit alternative:** use [`Request::file`](crate::Request::file) on an
-/// explicitly-received [`Request`](crate::Request) argument. See
-/// [`docs/API_PHILOSOPHY.md`](https://github.com/your-org/rustforge/blob/main/docs/API_PHILOSOPHY.md).
+/// explicitly-received [`Request`](crate::Request) argument.
 pub fn file(name: &str) -> Option<UploadedFile> {
-    with_ctx(|c| c.files.get(name).cloned()).flatten()
+    with_ctx_required("file", |c| c.files.get(name).cloned())
 }
 
 /// Returns all fields of the current request as `HashMap<String, Value>`.
 ///
-/// # DX-layer convenience — task-local caveat
+/// Returns an empty map when the request genuinely has no fields — this is
+/// the **legitimate** empty case.
 ///
-/// This function is part of RustForge's **optional** Laravel-style DX layer. It reads
-/// the per-request task-local context populated by the [`capture_request`] middleware.
+/// # Panics
 ///
-/// **When called outside a request handler** — in unit tests, background tasks, CLI
-/// code, or any async task that is not wrapped by [`capture_request`] — it returns
-/// an **empty map silently**. This is a *runtime* condition, not a compile error.
+/// Panics with a diagnostic message when called **outside a `capture_request`
+/// scope**.  Silent empty map would hide the missing middleware as if the request
+/// simply had no fields; a panic is the correct fail-fast signal.
 ///
 /// **Explicit alternative:** use [`Request::all`](crate::Request::all) on an
-/// explicitly-received [`Request`](crate::Request) argument. See
-/// [`docs/API_PHILOSOPHY.md`](https://github.com/your-org/rustforge/blob/main/docs/API_PHILOSOPHY.md).
+/// explicitly-received [`Request`](crate::Request) argument.
 pub fn all() -> HashMap<String, Value> {
-    with_ctx(|c| c.fields.clone()).unwrap_or_default()
+    with_ctx_required("all", |c| c.fields.clone())
 }
 
 /// Run a future within a request context scope (used by the middleware and tests).
@@ -302,16 +335,45 @@ mod tests {
         let ctx = Arc::new(RequestContext { fields, files: HashMap::new() });
 
         with_request_context(ctx, async {
+            // Inside a scope: present key works, absent key returns None/false (legit).
             assert_eq!(input::<String>("q"), Some("rust".to_string()));
             assert!(has("q"));
-            assert!(!has("missing"));
-            assert!(file("nope").is_none());
+            assert!(!has("missing"));      // absent key → false (legitimate, no panic)
+            assert_eq!(input::<String>("missing"), None); // absent key → None (legitimate)
+            assert!(file("nope").is_none()); // absent file → None (legitimate)
+            assert!(all().contains_key("q"));
         })
         .await;
+    }
 
-        // Outside any scope, globals are empty (no panic).
-        assert_eq!(input::<String>("q"), None);
-        assert!(!has("q"));
+    // ── Fail-fast tests: calling DX helpers outside a capture_request scope must panic ──
+
+    /// `input()` called with no task-local scope must panic, not silently return `None`.
+    #[test]
+    #[should_panic(expected = "capture_request scope")]
+    fn test_input_panics_outside_capture_request_scope() {
+        let _: Option<String> = input("any_key");
+    }
+
+    /// `has()` called with no task-local scope must panic, not silently return `false`.
+    #[test]
+    #[should_panic(expected = "capture_request scope")]
+    fn test_has_panics_outside_capture_request_scope() {
+        let _ = has("any_key");
+    }
+
+    /// `file()` called with no task-local scope must panic, not silently return `None`.
+    #[test]
+    #[should_panic(expected = "capture_request scope")]
+    fn test_file_panics_outside_capture_request_scope() {
+        let _ = file("any_key");
+    }
+
+    /// `all()` called with no task-local scope must panic, not silently return an empty map.
+    #[test]
+    #[should_panic(expected = "capture_request scope")]
+    fn test_all_panics_outside_capture_request_scope() {
+        let _ = all();
     }
 
     #[test]

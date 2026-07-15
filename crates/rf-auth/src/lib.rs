@@ -93,7 +93,7 @@ pub use password::{HashAlgorithm, PasswordHasher};
 // Re-export facade types (Laravel-style static API)
 pub use facade::Auth;
 pub use auth_manager::{
-    with_auth_scope, with_auth_scope_sync, AuthManager, UserProvider, GLOBAL_AUTH,
+    in_auth_scope, with_auth_scope, with_auth_scope_sync, AuthManager, UserProvider, GLOBAL_AUTH,
 };
 pub use guard::Guard;
 

@@ -87,8 +87,14 @@ fn with_state<R>(f: impl FnOnce(&mut AuthState) -> R) -> R {
     }
 }
 
-/// True if the current task is running inside a per-request auth scope.
-fn in_scope() -> bool {
+/// True if the current task is running inside a per-request auth scope established
+/// by [`with_auth_scope`] (or by the [`crate::middleware::auth_scope`] /
+/// [`crate::middleware::require_auth`] middlewares).
+///
+/// This is used by [`crate::facade::Auth::user`] to distinguish "no scope at all
+/// (programming error — missing middleware)" from "scope present but no user logged
+/// in (legitimate optional-auth route)".
+pub fn in_auth_scope() -> bool {
     AUTH_STATE.try_with(|_| ()).is_ok()
 }
 
@@ -124,7 +130,7 @@ impl AuthManager {
     /// request/test scope this sets the scope-local provider; at app startup (no
     /// scope) it sets the process-global default that every request inherits.
     pub fn set_provider(&self, provider: Arc<dyn UserProvider>) {
-        if in_scope() {
+        if in_auth_scope() {
             with_state(|s| s.provider = Some(provider));
         } else {
             *DEFAULT_PROVIDER.write().unwrap() = Some(provider);
