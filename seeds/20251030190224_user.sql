@@ -1,2 +1,0 @@
--- Seeder für Tabelle: user
--- INSERT INTO user (column) VALUES ('value');

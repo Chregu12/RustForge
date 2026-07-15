@@ -49,7 +49,6 @@ temp/
 logs/
 
 # Storage (exclude user data)
-storage/*
 !storage/.gitkeep
 
 # Docker
