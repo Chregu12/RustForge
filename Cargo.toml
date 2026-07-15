@@ -18,7 +18,6 @@ members = [
     "crates/rf-seeder",
     "crates/rf-ratelimit",
     "crates/rf-broadcast",
-    "crates/rf-broadcasting",
     "crates/rf-testing",
     "crates/rf-pest",
     "crates/rf-cashier",
@@ -31,7 +30,6 @@ members = [
     "crates/rf-async-bridge",
     "crates/rf-ai",
     "crates/rf-vector",
-    "crates/rf-oauth2-server",
     "crates/rf-logging",
     "crates/rf-metrics",
     "crates/rf-swagger",
@@ -81,7 +79,6 @@ members = [
     "crates/rf-telescope",
     "crates/rf-nova",
     "crates/rf-nova-macros",
-    "crates/rf-tinker",
     # Phase 16: Error Handling
     "crates/rf-errors",
     # Phase 16-17: Ecosystem & Polish
@@ -131,12 +128,9 @@ members = [
     "crates/rf-api",
     "crates/rf-interactive",
     "crates/rf-console",
-    "crates/rf-scheduling",
     "crates/rf-service-container",
     "crates/rf-resources",
     "crates/rf-soft-deletes",
-    "crates/rf-oauth",
-    "crates/rf-oauth-server",
     "crates/rf-auth-scaffolding",
     "crates/rf-forms",
     "crates/rf-http-client",
@@ -198,7 +192,6 @@ default-members = [
     "crates/rf-seeder",
     "crates/rf-ratelimit",
     "crates/rf-broadcast",
-    "crates/rf-broadcasting",
     "crates/rf-testing",
     "crates/rf-pest",
     "crates/rf-cashier",
@@ -211,7 +204,6 @@ default-members = [
     "crates/rf-async-bridge",
     "crates/rf-ai",
     "crates/rf-vector",
-    "crates/rf-oauth2-server",
     "crates/rf-logging",
     "crates/rf-metrics",
     # rf-swagger EXCLUDED (experimental)
@@ -253,7 +245,6 @@ default-members = [
     # rf-telescope EXCLUDED (experimental)
     # rf-nova EXCLUDED (experimental)
     # rf-nova-macros EXCLUDED (experimental)
-    "crates/rf-tinker",
     # Phase 16: Error Handling
     "crates/rf-errors",
     # Phase 16-17: Ecosystem & Polish
@@ -303,12 +294,9 @@ default-members = [
     "crates/rf-api",
     "crates/rf-interactive",
     "crates/rf-console",
-    "crates/rf-scheduling",
     "crates/rf-service-container",
     "crates/rf-resources",
     "crates/rf-soft-deletes",
-    "crates/rf-oauth",
-    "crates/rf-oauth-server",
     "crates/rf-auth-scaffolding",
     "crates/rf-forms",
     "crates/rf-http-client",

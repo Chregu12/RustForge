@@ -17,7 +17,7 @@ propagate the change.
 | `stub` | Placeholder crate with no real implementation beyond type definitions or forwarding. | None |
 
 > **Machine-check convention (COMPLETE — CI-enforced):** Every `crates/*/Cargo.toml`
-> carries `[package.metadata.rustforge] tier = "<tier>"`. Coverage is 127/127 (100%).
+> carries `[package.metadata.rustforge] tier = "<tier>"`. Coverage is 121/121 (100%).
 > A CI gate (`scripts/check-tiers.sh`, wired into the `workspace-gate` job) asserts
 > a valid tier on every crate directory on every push; a missing or invalid tier
 > value fails the build immediately.
@@ -68,7 +68,7 @@ These form the **v1.0 supported surface**. APIs here will not break without a ma
 
 ---
 
-## Beta Crates (76)
+## Beta Crates (70)
 
 Real implementations with gaps, not fully integration-tested, or API not yet frozen.
 
@@ -95,19 +95,14 @@ Real implementations with gaps, not fully integration-tested, or API not yet fro
 | `rf-view` | beta | Tera-based View type with layout support; real but API overlaps rf-blade/rf-views |
 | `rf-admin` | beta | Basic admin surface (610 lines); real but not integration-tested |
 | `rf-horizon` | beta | Queue monitoring UI (16 files/6.8k lines); real dashboards but not prod-tested |
-| `rf-tinker` | beta | Async REPL (7 files/1.4k lines); real rustyline integration |
-| `rf-tinker-enhanced` | beta | Enhanced REPL with history and multi-line (8 files/1.4k lines); real |
+| `rf-tinker-enhanced` | beta | Enhanced REPL with history and multi-line (8 files/1.4k lines); real — **canonical Tinker crate** (rf-tinker removed cycle 13) |
 | `rf-seeder` | beta | Database seeder (208 lines); real SeaORM integration; no CI test |
 | `rf-pest` | beta | Parser DSL integration (6 files/1.3k lines); real pest grammars |
 | `rf-testing` | beta | Testing utilities (17 files/6.6k lines); real test helpers for requests/responses |
-| `rf-scheduling` | beta | Task scheduling with cron expressions (9 files/774 lines); real cron runner |
-| `rf-scheduler` | beta | Cron scheduler with fluent API (2 files/672 lines); overlaps rf-scheduling — to be unified |
+| `rf-scheduler` | beta | Cron scheduler with fluent API (2 files/672 lines); **canonical Scheduler crate** (rf-scheduling removed cycle 13) |
 | `rf-passport` | beta | Laravel Passport OAuth (28 files/4.7k lines); real impl but requires live DB |
 | `rf-encryption` | beta | AES-256-GCM encrypt/decrypt (3 files/475 lines); real aes-gcm impl |
 | `rf-socialite` | beta | OAuth2 social login — GitHub/Google/Facebook/Twitter (15 files/1.8k lines); real |
-| `rf-oauth` | beta | OAuth2 client (5 files/864 lines); real but overlaps rf-socialite |
-| `rf-oauth-server` | beta | OAuth2 authorization server (12 files/3.9k lines); real but not integration-tested |
-| `rf-oauth2-server` | beta | OAuth2 server alternative (8 files/1.2k lines); overlaps rf-oauth-server — to be unified |
 | `rf-errors` | beta | RFC 7807 + dev/prod error display + Sentry integration (9 files/3.3k lines) |
 | `rf-forms` | beta | Form validation/rendering (8 files/2.7k lines); real Tera-based forms |
 | `rf-http-client` | beta | Reqwest-based HTTP client (6 files/828 lines); real impl |
@@ -149,7 +144,6 @@ Real implementations with gaps, not fully integration-tested, or API not yet fro
 | `rf-sail` | beta | Docker local dev environment (5 files/1.5k lines); real Docker Compose generation |
 | `rf-spark` | beta | App platform scaffolding (6 files/2k lines); real but not integration-tested |
 | `rf-mcp` | beta | Model Context Protocol server (8 files/1.5k lines); real MCP wire protocol |
-| `rf-broadcasting` | beta | Broadcasting layer alternative (6 files/1.2k lines); overlaps rf-broadcast — to be unified |
 
 ---
 
@@ -202,33 +196,35 @@ not stub.
 | Tier | Count |
 |------|-------|
 | stable | 34 |
-| beta | 76 |
+| beta | 70 |
 | experimental | 8 |
 | stub | 9 |
-| **Total (crates/* directories)** | **127** |
+| **Total (crates/* directories)** | **121** |
 
-Note: the 9 stub crates are non-workspace facade directories. The 118 workspace
-members (34 stable + 76 beta + 8 experimental) are the crates that `cargo check
+Note: the 9 stub crates are non-workspace facade directories. The 112 workspace
+members (34 stable + 70 beta + 8 experimental) are the crates that `cargo check
 --workspace` compiles.
+
+Cycle-13 removals: rf-oauth, rf-oauth-server, rf-oauth2-server (redundant OAuth servers → canonical rf-passport),
+rf-broadcasting (redundant → canonical rf-broadcast), rf-scheduling (redundant → canonical rf-scheduler),
+rf-tinker (redundant → canonical rf-tinker-enhanced). All had zero workspace dependents before removal.
 
 ---
 
 ## OAuth Crate Landscape
 
-Four OAuth-related crates exist and the audit flagged them as overlapping. Here is
-the honest breakdown to prevent confusion:
+**Cycle-13 consolidation: rf-oauth, rf-oauth-server, and rf-oauth2-server were removed.**
+`rf-passport` is the single canonical OAuth crate.
 
 | Crate | Role | Status |
 |-------|------|--------|
-| `rf-passport` | **CANONICAL** — Laravel Passport-style complete OAuth2 server (authorization code + PKCE, password grant, client credentials, personal access tokens, scope management, axum integration). 28 files / 4.7k lines. Requires live DB. | **Supported** — use this for server-side OAuth2 |
-| `rf-oauth-server` | OAuth2 authorization server (12 files / 3.9k lines); real grant/token/scope implementation. **Overlaps rf-passport** — not integration-tested against a live backend. Created before rf-passport reached full parity. | **Experimental/deprecated** — do not add new features here; migrate to rf-passport |
-| `rf-oauth2-server` | Second OAuth2 server (8 files / 1.2k lines); minimal subset of rf-oauth-server. **Duplicate** — created before rf-oauth-server was complete. | **Experimental/deprecated** — do not use; to be removed in a future cleanup pass |
-| `rf-oauth` | OAuth2 **client** for social/SSO login (Google, GitHub, Facebook, OpenID Connect). 5 files / 864 lines. **Not a server** — overlaps rf-socialite (which is more complete). | **Beta** — kept for projects that prefer a lighter client; rf-socialite is preferred |
+| `rf-passport` | **CANONICAL** — Laravel Passport-style complete OAuth2 server (authorization code + PKCE, password grant, client credentials, personal access tokens, scope management, axum integration). 28 files / 4.7k lines. Requires live DB. | **Supported** — use this for OAuth2 |
+| `rf-socialite` | OAuth2 social login — GitHub/Google/Facebook/Twitter client flows. 15 files / 1.8k lines. | **Supported** — use this for social login |
 
 **Rule of thumb:**
 - Building an OAuth2 **server** / authorization endpoint: use `rf-passport`.
-- Social login / OAuth2 **client** flow: use `rf-socialite` (preferred) or `rf-oauth`.
-- Do not start new code in `rf-oauth-server` or `rf-oauth2-server`.
+- Social login / OAuth2 **client** flow: use `rf-socialite`.
+- `rf-oauth`, `rf-oauth-server`, `rf-oauth2-server` — removed in cycle 13 (zero dependents, rf-passport is canonical).
 
 ---
 

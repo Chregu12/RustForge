@@ -1793,12 +1793,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "bytecount"
-version = "0.6.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "175812e0be2bccb6abe50bb8d566126198344f707e304f45c648fd8f2cc0365e"
-
-[[package]]
 name = "bytemuck"
 version = "1.24.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2359,17 +2353,6 @@ checksum = "6b50826342786a51a89e2da3a28f1c32b06e387201bc2d19791f622c673706b1"
 dependencies = [
  "cast",
  "itertools 0.10.5",
-]
-
-[[package]]
-name = "cron"
-version = "0.12.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6f8c3e73077b4b4a6ab1ea5047c37c57aee77657bc8ecd6f29b0af082d0b0c07"
-dependencies = [
- "chrono",
- "nom 7.1.3",
- "once_cell",
 ]
 
 [[package]]
@@ -5758,17 +5741,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "papergrid"
-version = "0.12.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c7419ad52a7de9b60d33e11085a0fe3df1fbd5926aa3f93d3dd53afbc9e86725"
-dependencies = [
- "bytecount",
- "fnv",
- "unicode-width 0.1.11",
-]
-
-[[package]]
 name = "parking"
 version = "2.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7397,27 +7369,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "rf-broadcasting"
-version = "1.0.0-rc.2"
-dependencies = [
- "async-trait",
- "deadpool-redis",
- "futures",
- "hex",
- "hmac",
- "redis",
- "serde",
- "serde_json",
- "sha2",
- "thiserror 1.0.69",
- "tokio",
- "tokio-test",
- "tokio-tungstenite 0.26.2",
- "tracing",
- "tracing-subscriber",
-]
-
-[[package]]
 name = "rf-cache"
 version = "1.0.0-rc.2"
 dependencies = [
@@ -8040,7 +7991,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "chrono",
- "cron 0.13.0",
+ "cron",
  "deadpool-redis",
  "num_cpus",
  "parking_lot",
@@ -8275,65 +8226,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.111",
-]
-
-[[package]]
-name = "rf-oauth"
-version = "1.0.0-rc.2"
-dependencies = [
- "async-trait",
- "rand 0.8.5",
- "reqwest",
- "serde",
- "serde_json",
- "thiserror 1.0.69",
- "tokio",
- "url",
-]
-
-[[package]]
-name = "rf-oauth-server"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "argon2",
- "async-trait",
- "axum 0.8.7",
- "base64 0.22.1",
- "chrono",
- "criterion",
- "jsonwebtoken",
- "rand 0.8.5",
- "sea-orm 1.1.19",
- "serde",
- "serde_json",
- "sha2",
- "sqlx",
- "subtle",
- "thiserror 1.0.69",
- "tokio",
- "tokio-test",
- "tower 0.4.13",
- "tower-http 0.5.2",
- "uuid 1.18.1",
-]
-
-[[package]]
-name = "rf-oauth2-server"
-version = "1.0.0-rc.2"
-dependencies = [
- "async-trait",
- "axum 0.8.7",
- "base64 0.22.1",
- "chrono",
- "jsonwebtoken",
- "serde",
- "serde_json",
- "sha2",
- "thiserror 1.0.69",
- "tokio",
- "tracing",
- "uuid 1.18.1",
 ]
 
 [[package]]
@@ -8711,28 +8603,11 @@ version = "1.0.0-rc.2"
 dependencies = [
  "async-trait",
  "chrono",
- "cron 0.13.0",
+ "cron",
  "rf-metrics",
  "thiserror 1.0.69",
  "tokio",
  "tracing",
-]
-
-[[package]]
-name = "rf-scheduling"
-version = "1.0.0-rc.2"
-dependencies = [
- "anyhow",
- "async-trait",
- "chrono",
- "chrono-tz",
- "cron 0.12.1",
- "serde",
- "serde_json",
- "thiserror 1.0.69",
- "tokio",
- "tracing",
- "uuid 1.18.1",
 ]
 
 [[package]]
@@ -8969,26 +8844,6 @@ dependencies = [
  "tokio",
  "tower 0.4.13",
  "uuid 1.18.1",
-]
-
-[[package]]
-name = "rf-tinker"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "chrono",
- "colored 2.2.0",
- "dotenvy",
- "regex",
- "rustyline",
- "sea-orm 1.1.19",
- "serde",
- "serde_json",
- "syntect",
- "tabled",
- "thiserror 1.0.69",
- "tokio",
 ]
 
 [[package]]
@@ -10853,29 +10708,6 @@ checksum = "8e1d1b10ced5ca923a1fcb8d03e96b8d3268065d724548c0211415ff6ac6bac4"
 dependencies = [
  "core-foundation-sys",
  "libc",
-]
-
-[[package]]
-name = "tabled"
-version = "0.16.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "77c9303ee60b9bedf722012ea29ae3711ba13a67c9b9ae28993838b63057cb1b"
-dependencies = [
- "papergrid",
- "tabled_derive",
-]
-
-[[package]]
-name = "tabled_derive"
-version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bf0fb8bfdc709786c154e24a66777493fb63ae97e3036d914c8666774c477069"
-dependencies = [
- "heck 0.4.1",
- "proc-macro-error",
- "proc-macro2",
- "quote",
- "syn 1.0.109",
 ]
 
 [[package]]

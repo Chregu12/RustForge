@@ -292,8 +292,6 @@ jobs:
         run: cargo build -p rf-sail
       - name: rf-spark (SaaS Billing)
         run: cargo build -p rf-spark
-      - name: rf-tinker (REPL)
-        run: cargo build -p rf-tinker
 
   # ===========================================
   # Phase 22: New Packages
@@ -348,8 +346,6 @@ jobs:
         run: cargo build -p rf-events
       - name: rf-logging
         run: cargo build -p rf-logging
-      - name: rf-scheduling
-        run: cargo build -p rf-scheduling
       - name: rf-service-container
         run: cargo build -p rf-service-container
       - name: rf-socialite
