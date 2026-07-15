@@ -74,6 +74,24 @@ Excluded per the `default-members` policy in `Cargo.toml`. See
   `rf-livereload`, `rf-socialite`, `rf-cashier`, `rf-mcp`, `rf-nightwatch`,
   `rf-ai`, `rf-vector`, `rf-graphql`, `rf-dusk`, `rf-sail`, `rf-spark`.
 
+### Added — cycle-15 typed DI path first-class (2026-07-16)
+
+Answering the review's "global facades hurt testability; keep a fully-typed API path
+equal" point. The typed DI path is now genuinely co-equal, not an escape-hatch:
+
+- **`examples/typed-service`** — a reference example using `State<AppState>` + injected
+  `Arc<dyn PostService>` + `ValidatedJson<T>` + `Result<_, AppError>` handlers, with **no
+  global façade calls**. Three unit tests pass with **no server, no database, no global
+  state** (a `MockPostService` is swapped in) — demonstrating the superior testability.
+- **The ORM is instance-based.** `rf_orm::DatabaseManager::connect()` returns an owned
+  SeaORM/sqlx pool that injects cleanly into `AppState` — the `DB`/`GLOBAL_DB` façade
+  (rusqlite) is a *separate optional* layer, not required. The typed path is first-class
+  end-to-end, handler → service → database, with zero global state.
+- **`docs/API_PHILOSOPHY.md`** rewritten as "Two Equal, First-Class Paths" with a
+  when-to-use choice table, a testability/dependency-visibility comparison, and honest
+  ORM notes — the DX façades are positioned as convenience for small apps, the typed DI
+  path as the recommendation for larger/team/testable apps.
+
 ### Added — cycle-14 benchmarks vs raw axum (2026-07-16)
 
 Reproducible, committed benchmarks answering the review's "prove performance" ask —
