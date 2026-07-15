@@ -1,173 +1,303 @@
-# RustForge API Philosophy — Two-Layer Architecture
+# RustForge API Philosophy — Two Equal, First-Class Paths
 
-RustForge is a **Laravel-style application framework core for Rust**. Its identity —
-the reason you reach for it over raw axum — is the **Laravel-style DX layer**: terse
-handlers, `Model!` / `validate!`, global facades, and request helpers that let you
-write an application in far less code than the explicit equivalent.
+RustForge gives you **two fully supported ways to write application code**, and
+you choose based on what the situation calls for:
 
-Underneath that ergonomic surface sits a fully **explicit Rust-native core**. You never
-lose access to it: when you want full compile-time strictness, or you are running
-outside an HTTP request (tests, CLI, background jobs), you drop down to the explicit
-layer. Both are first-class — but the DX layer is the default you write, and the
-explicit core is the honest foundation you can always fall back to.
+| | DX façade path | Typed DI path |
+|---|---|---|
+| **Best for** | Small apps, rapid handlers, solo developer, Laravel migration | Larger apps, teams, anywhere testability and explicit dependencies matter |
+| **Dominant style** | `Auth::user()`, `Cache::get(...)`, argument-less handlers | `State<AppState>`, `Arc<dyn Service>`, `Result`-returning handlers |
+| **Canonical example** | `examples/facades-demo` | `examples/typed-service` |
 
----
-
-## Layer 1 — Laravel-style DX (the default you write)
-
-This is the primary surface and the framework's identity. It gives you Laravel-familiar
-ergonomics with native-Rust performance:
-
-- **The `Model!` ORM:** `Model!(Post: title, body)` then `Post::all().await`,
-  `Post::find(id).await`, `create!(Post, ...)`, `update!`, `delete!` — Eloquent-style
-  data access with real SeaORM underneath.
-
-- **The `validate!` DSL:** typed, declarative validation that returns a 422 with
-  per-field structured errors — no boilerplate.
-
-- **Request globals (`input` / `file` / `has` / `all`):** free functions that read the
-  current request, so simple handlers need no arguments:
-  ```rust
-  async fn store() -> impl axum::response::IntoResponse {
-      let title: Option<String> = rf_request::input("title");
-      let page:  Option<usize>  = rf_request::input("page");  // coerces "2" -> 2
-      let has_avatar = rf_request::has("avatar");
-      // ...
-  }
-  ```
-
-- **Global facades (`Auth`, `Cache`, `Mail`, `Storage`, `Queue`, `Event`, `Broadcast`):**
-  static calls from anywhere — `Auth::user()`, `Cache::get(...)`, `Mail::send(...)` —
-  backed by real engines (Redis, SMTP, S3, ...) over a deadlock-safe `AsyncBridge`.
-
-### When to use the DX layer
-
-This is the **default** for application-layer handler code — the code you write day to
-day. Use it whenever your router has the enabling middleware wired (`capture_request`,
-`session_scope`, `require_auth`), which the framework's own scaffolding and the
-reference app set up for you.
-
-### Runtime caveats — now fail-fast, not silent
-
-The DX layer trades some of Rust's compile-time guarantees for ergonomic familiarity.
-Where that could hide a bug, missing middleware now **fails fast** (loud panic with an
-actionable message) instead of silently returning a wrong value:
-
-- **Request globals** (`input`/`file`/`has`/`all`) read a per-request task-local set by
-  the `capture_request` middleware. Called **outside** a `capture_request` scope they
-  **panic** with a clear message ("add the `capture_request` middleware") rather than
-  returning a silent `None`. Inside the scope, a genuinely absent key still returns
-  `None`/`false` (a legitimate value, not a bug).
-
-- **`SessionFacade`** reads the current client's session via a `session_scope`
-  task-local. Without `session_scope` it **panics immediately** — the old process-local
-  shared-session fallback (which could bleed one client's data into another) **has been
-  removed**. A shared process-global session does not exist.
-
-- **`Auth::user()`** **panics** when called with no `require_auth` / `with_auth_scope`
-  established (missing auth wiring); inside a scope with no logged-in user it returns
-  `None` (a legitimate guest).
-
-- The always-safe facades (`Cache`, `Mail`, `Storage`, `Queue`, `Event`, `Broadcast`)
-  resolve to process-global singletons and are safe from anywhere, including CLI and
-  background tasks — they do not depend on a per-request task-local.
-
-When a handler needs a hard compile-time guarantee that a field is present, reach for
-the explicit core (Layer 2) for that handler.
+Neither path is an escape-hatch or a fallback. Both are designed and maintained
+as first-class options. The right choice depends on your app's scale and the
+degree of testability you need.
 
 ---
 
-## Layer 2 — Explicit Rust-native core (the foundation / escape-hatch)
+## Path A — Laravel-style DX façades
 
-Every DX convenience is sugar over an explicit, ambient-state-free core. You drop to it
-when you want maximum strictness or you are outside a request scope:
+This path gives you Laravel-familiar ergonomics with native-Rust performance.
+It is the fastest way to get an endpoint working and the most readable path for
+developers coming from Laravel.
 
-- **Typed handler arguments:** axum extractors such as `ValidatedJson<T>`,
-  `rf_request::extractors::RequestExtractor`, or a plain `axum::Json<T>`. A missing or
-  mistyped field is a **compile error**, not a runtime `None`.
-
-- **Explicit `Request` struct:** `rf_request::Request` holds fields, files, user, and
-  session as a concrete value — `Request::input`, `Request::file`, `Request::user`,
-  `Request::session` are ordinary method calls with no ambient state and no middleware
-  dependency.
-
-- **`Result`-returning handlers:** return `AppResult<impl IntoResponse>` and use `?`;
-  `AppError` maps to the correct HTTP status + JSON envelope automatically.
-
-### When to drop to the explicit core
-
-- Library code or shared middleware that may run outside a request scope.
-- Unit tests — construct a `Request` directly, no middleware setup.
-- Background tasks, CLI, or queued jobs where no HTTP request exists.
-- A specific handler where you want compile-time proof of which fields it reads.
-
-### Example — explicit core
+### What it looks like
 
 ```rust
-use rf_request::extractors::RequestExtractor;
-use rf_request::error::RequestResult;
-
-// The compiler knows exactly what this handler needs:
-async fn create_post(RequestExtractor(req): RequestExtractor) -> RequestResult<impl axum::response::IntoResponse> {
-    let title: String = req.require("title")?;  // compile-time typed, ?-propagated
-    let body: String  = req.require("body")?;
-    Ok(axum::Json(serde_json::json!({ "ok": true })))
+// No explicit arguments, no State<>, no Arc — the framework does the plumbing.
+async fn store() -> impl axum::response::IntoResponse {
+    let title: Option<String> = rf_request::input("title");
+    Auth::user();          // current authenticated user
+    Cache::get("key");     // Redis-backed cache
+    Mail::send(mailable);  // sends via configured driver
+    // ...
 }
 ```
+
+### Feature catalogue
+
+- **The `Model!` ORM:** `Model!(Post: title, body)` then `Post::all().await`,
+  `Post::find(id).await`, `create!(Post, ...)`, `update!`, `delete!` —
+  Eloquent-style data access with real SeaORM underneath.
+
+- **The `validate!` DSL:** typed, declarative validation that returns a 422
+  with per-field structured errors — no boilerplate.
+
+- **Request globals (`input` / `file` / `has` / `all`):** free functions that
+  read the current request, so simple handlers need no arguments.
+
+- **Global façades (`Auth`, `Cache`, `Mail`, `Storage`, `Queue`, `Event`,
+  `Broadcast`):** static calls from anywhere — backed by real engines (Redis,
+  SMTP, S3, ...) over a deadlock-safe `AsyncBridge`.
+
+### When to use this path
+
+- Small to medium applications where a single developer or a tight-knit team
+  owns the whole codebase.
+- Rapid prototyping or migrating a Laravel application where familiar syntax
+  accelerates the work.
+- Handler code where explicit DI would add boilerplate with no practical
+  benefit.
+
+### Runtime caveats — fail-fast, not silent
+
+The DX layer trades some of Rust's compile-time guarantees for ergonomic
+familiarity. Where that could hide a bug, missing middleware now **fails fast**
+(loud panic with an actionable message) instead of silently returning a wrong
+value:
+
+- **Request globals** (`input`/`file`/`has`/`all`) read a per-request
+  task-local set by the `capture_request` middleware. Called **outside** a
+  `capture_request` scope they **panic** with a clear message ("add the
+  `capture_request` middleware").
+
+- **`SessionFacade`** reads the current client's session via a `session_scope`
+  task-local. Without `session_scope` it **panics immediately**.
+
+- **`Auth::user()`** **panics** when called with no `require_auth` /
+  `with_auth_scope` established; inside a scope with no logged-in user it
+  returns `None` (a legitimate guest).
+
+- The always-safe façades (`Cache`, `Mail`, `Storage`, `Queue`, `Event`,
+  `Broadcast`) resolve to process-global singletons and are safe from anywhere,
+  including CLI and background tasks.
+
+---
+
+## Path B — Typed DI path (recommended for larger / team / testable apps)
+
+The typed DI path makes every dependency explicit in the function signature. It
+uses standard Rust composition: traits, `Arc<dyn Trait>`, and axum's
+`State<AppState>` extractor. No global state is read anywhere in the handler
+body.
+
+This is the path the review explicitly called out as deserving equal, first-class
+status. It is recommended whenever testability, dependency-visibility, or team
+scale matters.
+
+**Canonical example:** [`examples/typed-service`](../examples/typed-service/src/main.rs)
+
+### What it looks like
+
+```rust
+// Every dependency is visible in the signature.  The compiler enforces them.
+pub async fn create_post(
+    State(state): State<AppState>,
+    ValidatedJson(input): ValidatedJson<CreatePost>,
+) -> Result<Json<Post>, AppError> {
+    let post = state.post_service.create(input).await?;
+    Ok(Json(post))
+}
+```
+
+All of `AppState`, `PostService`, and `CreatePost` are injected; the handler
+body calls through a trait. Swapping the real database for a mock in a test
+requires zero changes to this function.
+
+### The DI container pattern
+
+```rust
+#[derive(Clone)]
+pub struct AppState {
+    pub post_service: Arc<dyn PostService>,  // injected at startup
+}
+
+// Wired at startup with the real implementation:
+let db = Arc::new(DatabaseManager::connect(DatabaseConfig::default()).await?);
+let state = AppState {
+    post_service: Arc::new(DbPostService::new(db)),
+};
+let app = build_router(state);
+```
+
+The router factory accepts state, so tests can inject a completely different
+implementation (see §Testability comparison below).
+
+### When to use this path
+
+- **Team applications** where multiple developers work in the same codebase and
+  dependency visibility helps during code review.
+- **Any code that needs unit tests** without spinning up real services.
+- **Library or shared middleware code** that may run outside an HTTP-request
+  scope.
+- **Background tasks, CLI commands, or queued jobs** where no HTTP request
+  exists.
+- **Handlers where compile-time proof of field presence matters** — a missing
+  `ValidatedJson` field is a compile error, not a runtime `None`.
+
+### ORM status — `DatabaseManager` IS instance-based
+
+`rf_orm::DatabaseManager` uses an owned SeaORM pool and is fully injectable:
+
+```rust
+// Instance-based — no global state involved:
+let db = Arc::new(DatabaseManager::connect(config).await?);
+let conn = db.connection();   // &DatabaseConnection — ordinary method call
+```
+
+The `DB` / `GLOBAL_DB` constants in `rf_orm::facade` are a **separate,
+optional convenience layer** backed by a different driver (rusqlite). They are
+NOT required and NOT used by `DatabaseManager`. The typed DI path is
+first-class end-to-end: from the HTTP handler all the way through to the
+database layer.
+
+---
+
+## Testability comparison — the core difference
+
+This is the central reason the review called for equal first-class status: the
+two paths have fundamentally different testing stories.
+
+### Typed DI path — trivial unit testing, zero global setup
+
+From `examples/typed-service/src/main.rs`:
+
+```rust
+// A zero-dependency mock — a plain struct implementing the service trait.
+struct MockPostService {
+    next_id: AtomicI64,
+}
+
+#[async_trait]
+impl PostService for MockPostService {
+    async fn create(&self, input: CreatePost) -> Result<Post, AppError> {
+        let id = self.next_id.fetch_add(1, Ordering::SeqCst);
+        Ok(Post { id, title: input.title, body: input.body })
+    }
+    async fn list(&self) -> Result<Vec<Post>, AppError> { Ok(vec![]) }
+}
+
+// Unit test: no database, no server, no global state, no middleware.
+#[tokio::test]
+async fn test_mock_service_create() {
+    let state = AppState {
+        post_service: Arc::new(MockPostService::new()),
+    };
+    let post = state.post_service.create(CreatePost {
+        title: "Hello DI".into(),
+        body: "no global state was harmed".into(),
+    }).await.unwrap();
+    assert_eq!(post.id, 1);
+}
+```
+
+The test is 15 lines. It does not touch the network, a database, Redis, or any
+global singleton. It compiles and runs in milliseconds. Any test runner can
+parallelize it freely.
+
+### DX façade path — global setup required
+
+To test a handler that calls `Auth::user()` or `Cache::get(...)` you must
+initialise the global singletons (configure a real or in-process Redis, wire
+the auth store, etc.) and, for `input()`/`has()`, construct a fake HTTP request
+and run it through the `capture_request` middleware. This is not impossible, but
+it is significantly heavier than the typed DI approach.
+
+**Bottom line:** if unit-testability without global setup is a requirement,
+choose the typed DI path. If rapid iteration and minimal boilerplate matter
+more, choose the DX façade path.
 
 ---
 
 ## Honest trade-offs
 
-| Concern | Laravel-style DX (Layer 1) | Explicit core (Layer 2) |
+| Concern | DX façades (Path A) | Typed DI (Path B) |
 |---|---|---|
-| Lines of code for a simple handler | Fewest (argument-less, facades) | More (typed extractors, explicit `Request`) |
-| Familiar to Laravel developers | Yes — the point | Less |
+| Lines of code for a simple handler | Fewest (argument-less, façades) | More (typed extractors, explicit `Result`) |
+| Familiar to Laravel developers | Yes — the point | Less (standard axum/Rust patterns) |
 | Compile-time guarantee of field presence | No — `None` at runtime | Yes — typed extractor |
-| Works outside a request scope (tests, CLI, jobs) | No — fails fast (loud panic) so missing middleware is caught immediately | Yes |
+| Works outside a request scope (tests, CLI, jobs) | No — fails fast (loud panic) | Yes |
 | Requires middleware in router | Yes (`capture_request`, `session_scope`, ...) | No |
-
-The DX layer is the identity and the default — it makes handlers genuinely shorter and
-lets Laravel developers be productive immediately. The explicit core is always there as
-the honest foundation for the moments you want Rust's full compile-time strictness.
+| **Unit-testable without global setup** | **No — globals require real or mocked singletons** | **Yes — swap `Arc<dyn Service>` for a mock struct** |
+| **Dependency visibility (code review / audit)** | **Implicit — hidden in global state** | **Explicit — visible in every function signature** |
+| ORM layer — instance-based? | Optional (façade uses global rusqlite) | Yes — `DatabaseManager` is fully injectable (SeaORM pool) |
 
 ---
 
-## Mixing the two layers
+## Mixing the two paths
 
-The layers coexist in the same router — mix them per handler. The `capture_request`
-middleware buffers and re-inserts the body so the DX globals and a downstream
-`axum::Json<T>` extractor can both read the same body in the same request.
+The paths coexist in the same router — mix them per handler. The
+`capture_request` middleware buffers and re-inserts the body so the DX globals
+and a downstream `axum::Json<T>` / `ValidatedJson<T>` extractor can both read
+the same body in the same request.
 
 ```rust
-use axum::{Router, routing::post, middleware};
-use rf_request::{capture_request, input};
-use rf_validation::ValidatedJson;
-
-// One handler, both layers:
-async fn create(ValidatedJson(body): ValidatedJson<MyDto>) -> impl axum::response::IntoResponse {
-    let name = body.name;                       // explicit: compile-time typed
-    let page: Option<usize> = input("page");    // DX: reads the same request
+// Mixed handler: typed extractor + DX global in the same function.
+async fn create(
+    ValidatedJson(body): ValidatedJson<MyDto>,
+) -> impl axum::response::IntoResponse {
+    let name = body.name;                       // typed: compile-time guaranteed
+    let page: Option<usize> = input("page");    // DX global: reads same request
     axum::Json(serde_json::json!({ "name": name }))
 }
 
 let app = Router::new()
     .route("/items", post(create))
-    .layer(middleware::from_fn(capture_request));  // enables the DX layer
+    .layer(middleware::from_fn(capture_request));  // enables DX globals
+```
+
+A common real-world pattern is to use typed `AppState` + injected services for
+business logic, while still using DX request helpers (`input`, `file`) for
+reading loose extra parameters.
+
+---
+
+## Choosing a path — quick guide
+
+```
+Is this a larger app, a team project, or does testability matter?
+  YES → Typed DI path (Path B)
+       - define service traits
+       - inject Arc<dyn Service> into AppState
+       - handlers take State<AppState> + typed extractors
+       - return Result<_, AppError>
+       - unit-test by injecting a mock
+
+Is this a small app, a quick prototype, or a Laravel migration?
+  YES → DX façade path (Path A)
+       - use Model!, validate!, input(), Auth::, Cache:: etc.
+       - add capture_request + session_scope middleware
+       - fewest lines of code, Laravel-familiar
+       - note: unit tests require global setup (see trade-offs above)
 ```
 
 ---
 
 ## Summary
 
-- **Laravel-style DX (Layer 1)** — `Model!`, `validate!`, `input()`/`file()`/`has()`,
-  the `Auth`/`Cache`/`Mail`/`Storage`/`Queue` facades. The framework's identity and the
-  default you write. Fewest lines, Laravel-familiar. Some correctness surfaces at
-  runtime (documented caveats), not compile time.
-- **Explicit Rust-native core (Layer 2)** — typed extractors, `Request`,
-  `Result`-returning handlers. The honest foundation and escape-hatch. No ambient
-  state, compile-time safe, works anywhere. Drop to it for strictness or outside a
-  request scope.
+- **DX façade path (Path A)** — `Model!`, `validate!`, `input()`/`file()`/
+  `has()`, the `Auth`/`Cache`/`Mail`/`Storage`/`Queue` façades. Fewest lines,
+  Laravel-familiar, best for small apps and rapid development. Unit-testing
+  handlers requires global setup; some correctness surfaces at runtime, not
+  compile time.
 
-Both are first-class. Write the DX layer by default; fall back to the explicit core
-when you want Rust's full compile-time guarantees.
+- **Typed DI path (Path B)** — `State<AppState>`, `Arc<dyn Service>`, typed
+  extractors, `Result`-returning handlers. Explicit dependencies, compile-time
+  safe, trivially unit-testable with mock implementations (zero global setup).
+  The right default for team apps, anything that needs a test suite, and code
+  that runs outside an HTTP-request scope. The ORM layer is fully
+  instance-based (`DatabaseManager`). See `examples/typed-service` for the
+  canonical example.
+
+Both paths are first-class. Neither is an escape-hatch. Choose based on your
+app's scale and what "fast" means to you right now.
