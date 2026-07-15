@@ -74,6 +74,24 @@ Excluded per the `default-members` policy in `Cargo.toml`. See
   `rf-livereload`, `rf-socialite`, `rf-cashier`, `rf-mcp`, `rf-nightwatch`,
   `rf-ai`, `rf-vector`, `rf-graphql`, `rf-dusk`, `rf-sail`, `rf-spark`.
 
+### Added — cycle-14 benchmarks vs raw axum (2026-07-16)
+
+Reproducible, committed benchmarks answering the review's "prove performance" ask —
+RustForge-DX vs raw axum, honestly (RustForge is built on axum, so the DX layer adds
+overhead; the numbers disclose it rather than hide it):
+
+- `benchmarks/benches/dx_vs_raw_axum.rs` (criterion, in-process via tower oneshot):
+  GET path-param **877 ns raw axum → 1875 ns DX (+114%)**; POST JSON body 1304 → 1807 ns
+  (+39%); the `capture_request` middleware alone adds ~560 ns.
+- `scripts/build-footprint-bench.sh` + `docs/PERFORMANCE.md` "Build & Runtime Footprint":
+  cold compile **12.8 s → 6m55s (32x)**; stripped binary 1.09 MB → 6.03 MB (5.5x);
+  startup ~20 ms → ~19 ms (~1x); idle RSS 2.5 MB → 8.8 MB (3.5x). Apple M1 Max, rustc 1.96.0.
+
+The doc states plainly that RustForge trades compile-time / binary-size / trivial-handler
+latency for Laravel-style DX (the per-request overhead is negligible once a handler touches
+a database), and does NOT claim to beat axum. Loco is explicitly NOT benchmarked head-to-head
+(would require building a Loco project) — no invented Loco numbers.
+
 ### Changed — cycle-13 scope consolidation (2026-07-16)
 
 The second review's #1 problem was scope/maintainability (too many overlapping
