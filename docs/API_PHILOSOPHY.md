@@ -47,23 +47,26 @@ day. Use it whenever your router has the enabling middleware wired (`capture_req
 `session_scope`, `require_auth`), which the framework's own scaffolding and the
 reference app set up for you.
 
-### Honest runtime caveats (kept transparent, by design)
+### Runtime caveats — now fail-fast, not silent
 
 The DX layer trades some of Rust's compile-time guarantees for ergonomic familiarity.
-We do not hide that:
+Where that could hide a bug, missing middleware now **fails fast** (loud panic with an
+actionable message) instead of silently returning a wrong value:
 
 - **Request globals** (`input`/`file`/`has`/`all`) read a per-request task-local set by
-  the `capture_request` middleware. Called **outside** a `capture_request`-wrapped
-  handler, they return `None` / `false` / empty map **silently** — a runtime condition
-  the compiler cannot catch. Wire `capture_request`, and cover the risk with
-  integration tests.
+  the `capture_request` middleware. Called **outside** a `capture_request` scope they
+  **panic** with a clear message ("add the `capture_request` middleware") rather than
+  returning a silent `None`. Inside the scope, a genuinely absent key still returns
+  `None`/`false` (a legitimate value, not a bug).
 
 - **`SessionFacade`** reads the current client's session via a `session_scope`
-  task-local. Without `session_scope`, it falls back to a single **process-local**
-  session shared by all callers — concurrent clients can bleed into each other. Always
-  add `session_scope` when serving concurrent HTTP traffic.
+  task-local. Without `session_scope` it **panics immediately** — the old process-local
+  shared-session fallback (which could bleed one client's data into another) **has been
+  removed**. A shared process-global session does not exist.
 
-- **`Auth::user()`** returns `None` outside a `require_auth` / `with_auth_scope` scope.
+- **`Auth::user()`** **panics** when called with no `require_auth` / `with_auth_scope`
+  established (missing auth wiring); inside a scope with no logged-in user it returns
+  `None` (a legitimate guest).
 
 - The always-safe facades (`Cache`, `Mail`, `Storage`, `Queue`, `Event`, `Broadcast`)
   resolve to process-global singletons and are safe from anywhere, including CLI and
@@ -121,7 +124,7 @@ async fn create_post(RequestExtractor(req): RequestExtractor) -> RequestResult<i
 | Lines of code for a simple handler | Fewest (argument-less, facades) | More (typed extractors, explicit `Request`) |
 | Familiar to Laravel developers | Yes — the point | Less |
 | Compile-time guarantee of field presence | No — `None` at runtime | Yes — typed extractor |
-| Works outside a request scope (tests, CLI, jobs) | Partially (globals silent; session process-local) | Yes |
+| Works outside a request scope (tests, CLI, jobs) | No — fails fast (loud panic) so missing middleware is caught immediately | Yes |
 | Requires middleware in router | Yes (`capture_request`, `session_scope`, ...) | No |
 
 The DX layer is the identity and the default — it makes handlers genuinely shorter and

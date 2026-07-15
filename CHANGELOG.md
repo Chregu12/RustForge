@@ -74,6 +74,23 @@ Excluded per the `default-members` policy in `Cargo.toml`. See
   `rf-livereload`, `rf-socialite`, `rf-cashier`, `rf-mcp`, `rf-nightwatch`,
   `rf-ai`, `rf-vector`, `rf-graphql`, `rf-dusk`, `rf-sail`, `rf-spark`.
 
+### Changed — cycle-12 fail-fast (2026-07-15)
+
+A second external review flagged silent fallbacks as a concurrency/security risk.
+Missing middleware scopes now **fail fast** instead of silently returning a wrong
+value (each proven by tests):
+
+- **The process-global session fallback is removed.** `SessionFacade` used without the
+  `session_scope` middleware now **panics** with an actionable message, instead of
+  falling back to a single process-local session shared across all concurrent clients
+  (which could bleed one client's data into another). In-scope per-client isolation is
+  unchanged.
+- **`input()`/`has()`/`file()`/`all()`** **panic** when called outside a
+  `capture_request` scope (missing middleware) — a genuinely absent key inside the
+  scope still returns `None`/`false` (legitimate).
+- **`Auth::user()`** panics when no auth scope is wired; returns `None` for a guest
+  inside a scope.
+
 ### Fixed — cycle-11 cleanup (2026-07-14)
 
 Closed the remaining agent-fixable audit findings:

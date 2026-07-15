@@ -330,3 +330,15 @@ The reason the overall score does not follow those individual gains is twofold. 
 ---
 
 *Cycle-9 re-score synthesized 2026-07-14. Auditor and skeptic inputs reconciled per the C5 protocol: lean skeptic on code-verified unrefuted findings; lean auditor only where the skeptic's lower score lacks a concrete artifact. Two skeptic findings treated as unrefuted: Postgres transaction ACID violation (db_manager.rs:543–597) and CSRF silence on multipart/form-data (csrf.rs:323).*
+
+---
+
+## Second External Review (2026-07-15) — ~6/10
+
+A second independent reviewer scored RustForge ~6/10: Vision 8, DX 7.5, Architecture 6, Tests/CI 7, **Scope/maintainability 4 (the worst)**, Production-Readiness 5.5, Ecosystem/Adoption 2. Verdict: "a Framework Laboratory, not yet a framework for business-critical systems; the most important step now is consolidation, external use, and radical scope discipline — a smaller RustForge with ~20 very good components would be far more convincing than 127 crates of varying maturity."
+
+The agent-fixable items are being worked in cycles (this document is appended as each lands):
+
+- **Cycle 12 — fail-fast (done, 2026-07-15).** The review's sharpest correctness/security point: silent fallbacks. Fixed — the **process-global session fallback is removed** (`SessionFacade` panics without `session_scope` instead of sharing one session across concurrent clients); `input()`/`has()`/`file()`/`all()` and `Auth::user()` **panic** when their middleware scope is absent, while a genuinely-absent value inside the scope still returns `None`. Each proven by tests; the happy path (reference-app) is unaffected.
+
+Still ahead: **scope reduction** (consolidate the overlapping crates — `rf-scheduler`/`rf-scheduling`, `rf-view`/`rf-views`/`rf-blade`, the OAuth variants, tinker/facade/broadcast variants — toward a ~15–25 crate core; the review's #1 point), **benchmarks vs raw axum**, and keeping the **facades an optional layer with an equally-documented fully-typed path**. Adoption-bound items the reviewer named (crates.io release, external users, bus-factor 1, a 6-month API freeze) are not fixable by internal cycles and are stated honestly.
