@@ -348,3 +348,171 @@ Still ahead: **scope reduction** (consolidate the overlapping crates — `rf-sch
 - **Cycle 14 — benchmarks vs raw axum (done, 2026-07-16).** The review asked to "prove performance with reproducible benchmarks vs axum/Loco." Added a committed criterion harness (`benchmarks/benches/dx_vs_raw_axum.rs`) + `scripts/build-footprint-bench.sh`, with results in `docs/PERFORMANCE.md`: the RustForge DX layer costs **+114% latency on a trivial GET** (877 ns → 1875 ns), +39% on a body-reading POST, **32× cold compile**, 5.5× binary, 3.5× idle RSS vs raw axum — startup is on par. The doc is honest (RustForge is an axum superset; the overhead is the price of the Laravel-style DX and is negligible once a handler touches a DB) and does not claim to beat axum. The independent verifier reproduced the latency numbers within 1–9%. Loco is honestly scoped out (not benchmarked head-to-head). Still open: a concurrent-load throughput bench (oha/wrk) and a Loco head-to-head.
 
 - **Cycle 15 — typed DI path first-class (done, 2026-07-16).** The review's testability point ("global façades hide dependencies; keep a fully-typed path equal"). Built `examples/typed-service` (`State<AppState>` + injected `Arc<dyn PostService>` + typed extractors + `Result<_, AppError>`, no global façades) with 3 mock-based unit tests that run with no server/database/global state — proving the typed path's superior testability. Crucially, the ORM is **instance-based** (`DatabaseManager::connect()` → injectable SeaORM pool; the `DB`/`GLOBAL_DB` façade is a separate optional rusqlite layer), so the typed path is first-class end-to-end. `docs/API_PHILOSOPHY.md` rewritten as "Two Equal, First-Class Paths" (façades = convenience for small apps; typed DI = recommended for larger/team/testable apps), with a testability comparison. This directly addresses the Architecture (6) + DX-testability critique.
+
+---
+
+## Second-Review Re-Score (2026-07-16)
+
+**Cycles scored:** C12 (fail-fast), C13 (scope consolidation), C14 (benchmarks), C15 (typed DI first-class)
+**Baseline:** Second External Review (2026-07-15): Vision 8, DX 7.5, Architecture 6, Tests/CI 7, Scope/Maintainability 4, Production-Readiness 5.5, Ecosystem/Adoption 2 — Overall ~6.0/10
+**Reconciler protocol:** An independent auditor and an adversarial skeptic each scored C12–C15 against the 2nd review baseline. This synthesis leans to the skeptic when they produced code-verified findings with line numbers that the auditor did not refute. Auditor citations accepted when skeptic had no concrete counter-artifact. Two skeptic findings are treated as unrefuted: `SESSIONS` HashMap in `session_facade.rs` has no TTL or GC (OOM in long-running production), and `GlobalRouter::build_router()` at `rf-route-facade/src/registry.rs:129` still returns `Router::new()` with a placeholder comment.
+
+---
+
+### 1. Vision
+
+| | Score |
+|---|---|
+| 2nd Review Baseline | 8.0 / 10 |
+| Auditor (C12–C15) | 8.5 / 10 |
+| Skeptic (C12–C15) | 8.0 / 10 |
+| **Reconciled** | **8.0 / 10** |
+| **Delta from baseline** | **0.0** |
+
+**What cycles 12–15 concretely changed.** C15's `API_PHILOSOPHY.md` formalises "Two Equal, First-Class Paths" — the vision no longer presents facades as the only idiom, and a table documents when each path is appropriate. C14's `docs/PERFORMANCE.md` puts real numbers behind the "native Rust performance" claim (+114% GET latency, 32x compile time, 3.5x idle RSS vs raw axum, startup on par — disclosed honestly, not promotional). C12's session fail-fast removes the most visible live contradiction between the "isolated per-request" vision claim and the actual runtime behaviour: `with_session()` now panics loudly on missing scope with no `FALLBACK_STATE` analog, verified by six `#[should_panic]` tests.
+
+**What still holds it back.** The skeptic's ceiling of 8.0 is correct. `GlobalRouter::build_router()` (`rf-route-facade/src/registry.rs:129`) returns `Router::new()` with a comment "This is a placeholder" — the routing facade cannot serve traffic and no cycle in C12–C15 addressed it. `VISION_GAP.md`'s verdict section still states "30–40% of the vision is genuinely working", unchanged after fifteen cycles of work; a new reader consulting the project's own gap analysis gets a picture that contradicts the current codebase. The auditor's 8.5 is not earned while these two remain open.
+
+---
+
+### 2. Developer Experience (DX)
+
+| | Score |
+|---|---|
+| 2nd Review Baseline | 7.5 / 10 |
+| Auditor (C12–C15) | 8.0 / 10 |
+| Skeptic (C12–C15) | 7.5 / 10 |
+| **Reconciled** | **7.5 / 10** |
+| **Delta from baseline** | **0.0** |
+
+**What cycles 12–15 concretely changed.** `SessionFacade` panics without `session_scope` (`session_facade.rs:153–161`, six `#[should_panic]` tests covering every public method: `get`, `put`, `has`, `forget`, `flush`, `flash`). `rf-request` `input()`/`has()`/`file()`/`all()` panic outside `capture_request` scope (four `#[should_panic]` tests, `context.rs:353–375`). `Auth::user()` panics outside `with_auth_scope` (`facade.rs:138–144`, tested). These three fail-fast guards are genuine DX improvements: misconfiguration produces a diagnostic message at development time rather than silently sharing cross-client state or returning `None`. C15's `examples/typed-service` is a clean, zero-global demonstration of the typed path that was previously undocumented at the example level. C14's criterion benchmark harness (`benchmarks/benches/dx_vs_raw_axum.rs`) is contributor-reproducible and disclosed the DX tax honestly.
+
+**What still holds it back.** The skeptic's unrefuted findings prevent the auditor's 8.0 from standing. First, `Auth::check()`, `Auth::guest()`, and `Auth::id()` still silently route through `FALLBACK_STATE` (`auth_manager.rs:85–87`) when called outside a `with_auth_scope` — the auth test comment at `facade.rs:388` explicitly states "Auth::check / guest / id do NOT require a scope (they fall back to the process-global state)." A handler that forgets auth scope middleware gets a process-global answer on the three most-called auth methods without any loud failure. Second, the `SESSIONS` HashMap in `session_facade.rs` has no TTL, no GC, and no eviction anywhere in the codebase: every unique session ID added by a rotating client population accumulates in memory indefinitely. The C12 session security fix traded a cross-client data-bleed bug for a long-running OOM footgun; neither is acceptable in production. Third, `GlobalRouter::build_router()` returning `Router::new()` means the routing DX layer cannot serve requests at all. These three gaps are code-verified and none was disputed by the auditor. The improvements and new gaps roughly cancel out against the baseline.
+
+---
+
+### 3. Architecture
+
+| | Score |
+|---|---|
+| 2nd Review Baseline | 6.0 / 10 |
+| Auditor (C12–C15) | 6.5 / 10 |
+| Skeptic (C12–C15) | 6.5 / 10 |
+| **Reconciled** | **6.5 / 10** |
+| **Delta from baseline** | **+0.5** |
+
+**What cycles 12–15 concretely changed.** Both reviewers independently converged on 6.5; no adjudication is required. C12 directly addresses the 2nd review's specific "should not exist" point: the process-global `SESSION` fallback is confirmed gone. `session_facade.rs`'s `with_session()` calls `CURRENT_SESSION_ID.try_with()` and panics with a diagnostic message on `Err` (verified at `session_facade.rs:127–134`); there is no `FALLBACK_STATE` analog in the session crate. Session-fixation defence (`regenerate()` migrates data to a new ID; unknown client-supplied IDs are never echoed back) is a new structural hardening. `rf-request` `context.rs` is equivalently fail-fast. C15 proves `DatabaseManager` is instance-based: `DatabaseManager::connect()` returns an owned struct, `Arc<DatabaseManager>` is injectable into `AppState`, and the `test_db_post_service_is_instance_based` test touches zero `GLOBAL_DB`.
+
+**What still holds it back.** The +0.5 gain is real but bounded by two unresolved structural issues the skeptic raised with code evidence. `Auth::check()`, `Auth::login()`, `Auth::logout()`, and `Auth::guest()` still call `GLOBAL_AUTH.read()/.write()` which routes through `auth_manager.rs with_state()` → `FALLBACK_STATE` (`Mutex<AuthState>`) silently when no scope is active — only `Auth::user()` received the panic guard; the fail-fast fix is half-applied. Two parallel DB stacks exist: `GLOBAL_DB` (`Mutex<DBManager>` containing a `PgPool` with the ACID violation noted in C9–C10) and `DatabaseManager` (sea-orm async pool) — different APIs, different backends, not consolidated; the ACID transaction atomicity bug in the `GLOBAL_DB` Postgres path is structurally unaddressed across C12–C15. The `rf-view`/`rf-views`/`rf-blade` (three view-layer crates) and `rf-domain`/`rf-infra` (two domain-layer crates) overlaps acknowledged as C13 remainders are still present.
+
+---
+
+### 4. Tests / CI
+
+| | Score |
+|---|---|
+| 2nd Review Baseline | 7.0 / 10 |
+| Auditor (C12–C15) | 7.5 / 10 |
+| Skeptic (C12–C15) | 7.5 / 10 |
+| **Reconciled** | **7.5 / 10** |
+| **Delta from baseline** | **+0.5** |
+
+**What cycles 12–15 concretely changed.** Both reviewers independently converged on 7.5. C14 added a reproducible criterion harness (`benchmarks/benches/dx_vs_raw_axum.rs`, three bench groups: GET path-param, POST JSON body, middleware isolation) with results documented in `docs/PERFORMANCE.md` with CI 95% confidence intervals and a verifier-reproduction note; the independent verifier reproduced latency numbers within 1–9%. C12 added fail-fast tests across three crates: `session_facade.rs` has 14 tests total (six `#[should_panic]` covering every public method, plus isolation, flash-lifecycle, regenerate, and scope-detection tests); `context.rs` has four `#[should_panic]` tests for `input`/`has`/`file`/`all`; `facade.rs` has the `Auth::user` panic test. C15 added three independent test cases for typed DI: a zero-dependency mock unit test, a DI wiring test, and an instance-based ORM integration test touching no `GLOBAL_DB`. The test philosophy shifted: tests now explicitly assert fail-fast behaviour rather than only happy-path behaviour.
+
+**What still holds it back.** Live-cloud CI (real S3, SES, etc.) is documented as never having validated real cloud integrations — this was noted in prior reviews and is unchanged through C12–C15. All benchmarks use `tower::ServiceExt::oneshot` in-process with no real TCP stack, no concurrent client load (no wrk or oha run), and no Loco head-to-head numbers; `docs/PERFORMANCE.md` honestly disclaims this but leaves the competitive picture unlit. sea-orm entity macro compile overhead is unmeasured. clippy `-D warnings` still covers only the stable-core crates, not the 121-crate full workspace.
+
+---
+
+### 5. Scope / Maintainability
+
+| | Score |
+|---|---|
+| 2nd Review Baseline | 4.0 / 10 |
+| Auditor (C12–C15) | 4.5 / 10 |
+| Skeptic (C12–C15) | 4.5 / 10 |
+| **Reconciled** | **4.5 / 10** |
+| **Delta from baseline** | **+0.5** |
+
+**What cycles 12–15 concretely changed.** Both reviewers independently converged on 4.5. C13 removed six confirmed-redundant crates with zero workspace dependents, keeping one canonical per capability with no feature loss: `rf-oauth`/`rf-oauth-server`/`rf-oauth2-server` consolidated into `rf-passport`; `rf-broadcasting` removed in favour of `rf-broadcast`; `rf-scheduling` removed in favour of `rf-scheduler`; `rf-tinker` removed in favour of `rf-tinker-enhanced`. Grep-verified: none of the six removed names appear in the workspace `Cargo.toml`; the consolidation targets exist. Total: 127 → 121 crates (5% reduction). TIERS + `check-tiers` CI gate + per-crate CI jobs updated to match. This is the first measurable scope reduction and a process milestone.
+
+**What still holds it back.** The +0.5 gain accurately prices the work done: 6 crates removed against a ~20-crate target means approximately 5% of the structural gap was closed. The dominant maintainability risk — 121 crates with bus-factor 1 and zero external contributors — is unchanged in order of magnitude. `rf-view`, `rf-views`, and `rf-blade` persist as three separate view-layer crates; `rf-domain` and `rf-infra` remain two overlapping domain-layer crates; `rf-container`/`rf-service-container` are both present with different APIs. The skeptic's count of 72 beta crates (60% of the surface, "not exhaustively integration-tested" by definition) forms a maintenance surface no single developer can exhaustively validate. Nine stub crates still physically occupy `crates/` despite being marked non-workspace-members. No CI enforcement requires new crates to document why they are not extensions of an existing crate. The 4.5 ceiling is honest: the work started but the structural problem is intact.
+
+---
+
+### 6. Production-Readiness
+
+| | Score |
+|---|---|
+| 2nd Review Baseline | 5.5 / 10 |
+| Auditor (C12–C15) | 6.0 / 10 |
+| Skeptic (C12–C15) | 5.5 / 10 |
+| **Reconciled** | **5.5 / 10** |
+| **Delta from baseline** | **0.0** |
+
+**What cycles 12–15 concretely changed.** C12 is the most production-relevant change of the four cycles. The session-bleed security bug — where one client's session data was readable by concurrent clients via a shared process-global — is definitively removed: `with_session()` in `session_facade.rs` panics on access outside `session_scope` with no `FALLBACK_STATE` analog, verified by six `#[should_panic]` tests across every public method. Session-fixation defence (`regenerate()` migrates data to a new ID; unknown client-supplied session IDs are not echoed back) is a new hardening feature. C15's typed DI path (no global state, mock-testable services, injectable `Arc<DatabaseManager>`) is a prerequisite for writing production-testable application code. C14's honest benchmark numbers give production planners real data: 32x cold compile time, 3.5x idle RSS, startup on par with raw axum.
+
+**What still holds it back.** The skeptic's 5.5 (no change) is the defensible score because the C12 session fix introduced a new production defect of comparable severity: the `SESSIONS` HashMap in `session_facade.rs` has no TTL, no GC, and no eviction — every unique session ID persists in memory forever. A production server with rotating unique visitors will exhaust memory; the security bug was replaced with a memory correctness bug. The auditor's 6.0 does not adequately weight this. Additionally: `GlobalRouter::build_router()` returns `Router::new()` (placeholder comment), meaning any application using the routing facade cannot serve production traffic. The ACID transaction atomicity violation in the `GLOBAL_DB` Postgres path is structurally unaddressed across C12–C15 (a production-correctness issue for any app relying on rollback for partial-write prevention). The `SESSIONS` HashMap being in-memory means horizontal scaling is silently unsupported without Redis wiring. rf-2fa TOTP verification still has no rate limiting (6-digit window brute-force unconstrained). No crates.io publication means the framework cannot be adopted without cloning the monorepo. The session security fix is real; the net production-readiness position is flat because the new OOM risk offsets it.
+
+---
+
+### 7. Ecosystem / Adoption
+
+| | Score |
+|---|---|
+| 2nd Review Baseline | 2.0 / 10 |
+| Auditor (C12–C15) | 2.0 / 10 |
+| Skeptic (C12–C15) | 2.0 / 10 |
+| **Reconciled** | **2.0 / 10** |
+| **Delta from baseline** | **0.0** |
+
+**What cycles 12–15 concretely changed.** Nothing measurable. Both reviewers independently assigned 2.0 with identical justifications; there is nothing to adjudicate. `CHANGELOG.md` explicitly records 0 external users. All inter-crate dependencies remain `path = "../.."`. Bus factor remains 1. Zero GitHub stars, forks, or issues from external users. No docs.rs coverage.
+
+**What still holds it back.** This dimension is adoption-bound and time-bound; no internal engineering cycle can move it. The framework cannot be added via `cargo add` without cloning the monorepo. A developer unfamiliar with the project cannot onboard without reading source code. Community infrastructure (`CONTRIBUTING.md`, issue templates, `CODE_OF_CONDUCT.md`, `SECURITY.md`) exists but has received zero external engagement across all fifteen cycles. The 6-month API freeze is a documentation promise, not a tooling enforcement. No internal cycle changes any of these; they require publication, then real adoption, then time.
+
+---
+
+### Overall: Second-Review Re-Score (C12–C15)
+
+| | Score |
+|---|---|
+| 2nd Review Baseline (2026-07-15) | 6.0 / 10 |
+| Auditor (C12–C15) | 6.5 / 10 |
+| Skeptic (C12–C15) | 6.1 / 10 |
+| **Reconciled** | **6.2 / 10** |
+| **Delta from baseline** | **+0.2** |
+
+Cycles 12–15 are real, code-verified improvements — not documentation-only. The most consequential single change (C12) definitively removed a concrete security bug: the session-bleed process-global is gone, `with_session()` panics without scope, proven by six `#[should_panic]` tests with no `FALLBACK_STATE` analog. C13 removed six confirmed-redundant crates (first measurable scope reduction). C14 produced a real reproducible criterion benchmark harness with honest numbers — the DX cost is disclosed, not buried. C15 demonstrates a genuinely mock-testable typed DI path with an instance-based ORM and API philosophy documentation that was missing. These four dimensions (Architecture, Tests/CI, Scope, DX) each saw verified positive movement from the auditor and skeptic alike on dimensions where both reviewers agreed.
+
+The +0.2 overall gain, not +0.5, reflects two things. First, three dimensions (Vision, DX, Production-Readiness) are held flat by unrefuted skeptic findings: the `SESSIONS` HashMap OOM (no TTL, no GC — C12 traded a security bug for a memory correctness bug), the incomplete auth fail-fast (`Auth::check()`/`guest()`/`id()` still silently use `FALLBACK_STATE` when scope is absent), and `GlobalRouter::build_router()` returning `Router::new()` (routing facade cannot serve traffic, untouched by C12–C15). Second, Ecosystem/Adoption is flat at 2.0 and is immovable by internal cycles, pulling the weighted average down regardless of engineering quality gains. The three dimensions where both reviewers agreed on +0.5 (Architecture, Tests/CI, Scope/Maintainability) collectively earn the +0.2 movement at the overall level. A neutral reviewer would call this incremental progress in the right direction, not a grade change.
+
+---
+
+### What Would Move the Needle Further
+
+**Agent-fixable in future engineering cycles (ordered by impact):**
+
+1. **Fix `SESSIONS` HashMap memory leak** — add TTL-based eviction to `session_facade.rs`: a background sweep or lazy-expiry on access that removes entries past their max-age. The C12 session security fix is incomplete without this; a long-lived production process with rotating unique clients will exhaust memory. Fixing this would unblock a Production-Readiness gain that C12's session work otherwise earned.
+
+2. **Complete auth fail-fast** — `Auth::check()`, `Auth::login()`, `Auth::logout()`, and `Auth::guest()` must panic (or return an explicit `Err`) when called outside a `with_auth_scope`, matching the `Auth::user()` guard already in place at `facade.rs:138–144`. The current intentional FALLBACK_STATE for these three methods means a handler that omits auth scope middleware gets silent wrong answers on the three most-called auth operations.
+
+3. **Implement `GlobalRouter::build_router()` or remove it from the public API** — returning `Router::new()` with a placeholder comment means the routing facade cannot serve any request. Either implement real routing through this facade path or deprecate it and document the typed `Router::new()` + axum path as the only supported route registration mechanism. The placeholder's presence caps Vision, DX, and Production-Readiness scores regardless of other work.
+
+4. **Consolidate view-layer crates** — `rf-view`, `rf-views`, and `rf-blade` are three separate crates for the same capability layer. C13 explicitly deferred this. A second consolidation pass targeting these three (and `rf-domain`/`rf-infra`) would move Scope/Maintainability meaningfully toward the ~20-crate target that the 2nd review identified as the structural goal.
+
+5. **Update `VISION_GAP.md`** — the "30–40% of the vision is genuinely working" verdict was written before C1 and has not been updated through C15. Updating it to reflect the actual state after fifteen cycles removes a credibility gap for any external reviewer consulting the project's own gap-analysis document.
+
+6. **Add a real concurrent-load throughput bench** — the C14 criterion harness uses `tower::ServiceExt::oneshot` (in-process, no TCP, no concurrent clients). Adding an oha or wrk run against a real listening server would produce numbers relevant to production capacity planning and would close the "not a real throughput benchmark" disclaimer in `docs/PERFORMANCE.md`.
+
+**Adoption/time-bound (cannot be accelerated by internal engineering cycles):**
+
+7. **Publish to crates.io** — all 121 inter-crate dependencies are `path = "../.."`. A coordinated multi-crate release workflow does not exist. Until published, the framework is `cargo add`-inaccessible to any external developer. This is the prerequisite for Ecosystem/Adoption moving above 2.0 and Production-Readiness moving above 6.5; without it, no internal engineering quality improvement changes the external accessibility score.
+
+8. **External users and contributors** — bus-factor 1 and zero external contributors cannot change through internal cycles. They require the framework to be publicly installable, then real developers adopting it, filing issues, and contributing fixes. This takes time, a published crate, and user-facing onboarding documentation at the getting-started level, not cycle briefs.
+
+9. **Enforce a 6-month API freeze with tooling** — the API freeze is currently a documentation promise. Without tooling enforcement (e.g., semver-check in CI gating breaking changes on stable-core crates) it provides no adoptability signal to external developers evaluating whether the framework's API is stable enough to build on.
+
+---
+
+*Second-Review Re-Score synthesized 2026-07-16. Baseline: 2nd External Review 2026-07-15 (~6/10). Auditor and skeptic inputs reconciled per the established protocol: lean to the skeptic when they produce code-verified findings with line numbers; lean to the auditor only when the skeptic's lower position lacks a concrete artifact. Two skeptic findings treated as unrefuted and directly controlling: `SESSIONS` HashMap no-TTL OOM (`session_facade.rs`) and `GlobalRouter::build_router()` placeholder (`rf-route-facade/src/registry.rs:129`).*
+
+**Architect correction to the re-score (2026-07-16).** Two skeptic findings above are stale and were verified against current code: (1) the "ACID transaction violation in the GLOBAL_DB Postgres path" was **fixed in cycle 10** — `db_manager.rs` carries `txn_conn: Option<sqlx::pool::PoolConnection<Postgres>>` and runs BEGIN/DML/COMMIT on that single held connection (live-verified: rollback → empty table); it is not open. (2) `build_router()` serves real routes — the reference app boots and answers `/health`,`/posts`,`/metrics` via `global_router().build_router()` in the CI smoke job. The genuinely-open findings this re-score surfaced and that the architect is acting on next: **Auth::check()/guest()/id() still fall back to the process-global `FALLBACK_STATE`** (only `Auth::user()` got the C12 panic guard — the fail-fast fix was incomplete), and the **session store has no TTL/GC** (unbounded growth as clients rotate). Both are addressed in cycle 17.
