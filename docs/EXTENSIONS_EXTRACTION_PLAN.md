@@ -1,7 +1,11 @@
 # RustForge — Extension Extraction Plan (Cycle 19)
 
-> **Status:** PLAN PHASE — no crates moved yet. This document is the design artifact
-> committed at the end of Cycle 19. Execution begins Cycle 20 (experimental batch).
+> **Status:** Phase 1 EXECUTED (cycle 19). The design is in this document; the
+> **8 experimental crates were moved to `extensions/`** in the same cycle as the pilot
+> (build 0-warnings green, `check-tiers` scans `crates/` + `extensions/`, no dangling
+> refs). Phases 2–4 remain: fix the 3 stable→beta cross-tier bugs, move the beta batch,
+> split the `rf`/`rustforge` umbrellas, and (maintainer's one-way-door call) an optional
+> separate repo after crates.io publication.
 >
 > **Problem statement:** The Scope/Maintainability dimension scored 4/10 in the
 > independent review. Verdict: "a smaller RustForge with ~20 very good components

@@ -145,6 +145,23 @@ forcing removals would lose features. Instead:
   (the supported, `use rf::prelude::*` surface) + **optional extensions** (70 beta,
   8 experimental) with no 1.0 SemVer promise — pull in only what a project needs.
 
+### Added — cycle-19 extension-extraction plan + experimental pilot (2026-07-16)
+
+Executing the maintainer's choice to plan radical scope discipline (the review's #1):
+
+- **`docs/EXTENSIONS_EXTRACTION_PLAN.md`** — a rigorous, honest plan: a closed-core proof
+  (27 of the 34 stable crates are a truly closed dependency set), a plan to split the
+  `rf`/`rustforge` umbrellas into stable-core-only + `rf-full`/`rustforge-full`, the
+  in-repo-split (perception-only) vs separate-repo (real maintenance cut, one-way door)
+  tradeoffs with a **hybrid recommendation**, a 4-phase rollout, and an explicit list of
+  what the extraction does NOT fix (bus-factor, beta quality, the "~20 crates" target).
+- **Found 3 real cross-tier bugs:** three stable crates have non-optional beta deps —
+  `rf-response`→`rf-view`, `rf-eloquent`→`rf-encryption`, `rf-storage`→`rf-plugins`
+  (tracked for a fix so the stable core is genuinely closed).
+- **Phase-1 pilot executed:** the 8 experimental crates moved from `crates/` to a new
+  **`extensions/`** directory, proving the reversible in-repo split — build 0-warnings
+  green, `check-tiers` scans both dirs, no dangling refs, reference-app smoke green.
+
 ### Changed — cycle-13 scope consolidation (2026-07-16)
 
 The second review's #1 problem was scope/maintainability (too many overlapping
