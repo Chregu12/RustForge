@@ -110,6 +110,22 @@ latency for Laravel-style DX (the per-request overhead is negligible once a hand
 a database), and does NOT claim to beat axum. Loco is explicitly NOT benchmarked head-to-head
 (would require building a Loco project) — no invented Loco numbers.
 
+### Changed — cycle-17 auth fail-fast completion + session GC (2026-07-16)
+
+Closed the two genuinely-open findings the second-review re-score surfaced:
+
+- **The Auth fail-fast is now complete.** Cycle 12 only guarded `Auth::user()`;
+  `check()`/`guest()`/`id()`/`login()`/`logout()` still silently read a process-global
+  `FALLBACK_STATE` outside a scope. Now **every** request-state `Auth` method panics
+  when called with no `with_auth_scope` (consistent with `user()`), and
+  **`FALLBACK_STATE` is removed entirely** — no silent process-global answer is
+  possible from a request context. (`Auth::set_provider()` remains the one intentional
+  outside-scope call: startup provider config, not session state.)
+- **The session store no longer grows unboundedly.** `SessionData` gained a
+  `last_activity` timestamp + idle expiry; expired sessions are evicted opportunistically
+  on access and by a background GC sweep (started when a tokio runtime is present).
+  Fixes the slow-OOM footgun (a rotating client population previously accumulated forever).
+
 ### Changed — cycle-13 scope consolidation (2026-07-16)
 
 The second review's #1 problem was scope/maintainability (too many overlapping

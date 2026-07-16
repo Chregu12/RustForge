@@ -74,9 +74,13 @@ value:
 - **`SessionFacade`** reads the current client's session via a `session_scope`
   task-local. Without `session_scope` it **panics immediately**.
 
-- **`Auth::user()`** **panics** when called with no `require_auth` /
-  `with_auth_scope` established; inside a scope with no logged-in user it
-  returns `None` (a legitimate guest).
+- **The `Auth` facade** (`user()`, `check()`, `guest()`, `id()`, `login()`,
+  `logout()`, ...) **panics** when called with no `require_auth` /
+  `with_auth_scope` established — every request-state method fails fast, and there
+  is no process-global fallback. Inside a scope with no logged-in user, `check()`
+  is `false`, `guest()` is `true`, `user()`/`id()` are `None` (a legitimate guest).
+  (`Auth::set_provider()` is the one intentional outside-scope call — startup-only
+  provider config, not per-request state.)
 
 - The always-safe façades (`Cache`, `Mail`, `Storage`, `Queue`, `Event`,
   `Broadcast`) resolve to process-global singletons and are safe from anywhere,

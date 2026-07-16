@@ -1,8 +1,18 @@
 # RustForge — Vision Gap & Roadmap
 
+> **⚠️ This is a HISTORICAL running log.** The opening "Verdict" below is the
+> **original 2026 audit** and is now **out of date** — the specific gaps it names
+> are fixed: `build_router()` serves real routes, the Model/DB facade runs real SQL,
+> the Cache/Mail/Storage facades reach real backends over `AsyncBridge`, and auth is
+> per-request (`task_local`, no process-global). Later entries in this file track the
+> progression (60% → 78% → 85% → 87% real). **For the current, honestly re-scored
+> state, see [`docs/REVIEW_RESPONSE.md`](docs/REVIEW_RESPONSE.md)** (two independent
+> reviews + adversarial re-scores) and [`docs/TIERS.md`](docs/TIERS.md). This log is
+> kept for history; it is not the current status.
+
 _Generated audit of the current implementation against `Vision & Design Principles`. Grounded in the real `crates/` + `examples/` source (16 areas audited in parallel, then synthesized)._
 
-## Verdict
+## Verdict (ORIGINAL 2026 audit — superseded; see the banner above)
 
 RustForge is a convincing facade over a half-real engine: roughly 30-40% of the vision is genuinely working, but the parts that match the vision most closely are disproportionately the fake ones. The DX sugar (facades, macros) is frequently mounted on mock backends — routing's build_router() returns an empty Router, the Model/DB facade's query builder returns Ok(vec![]), Storage/Cache/Mail facades write to in-memory HashMaps while real S3/Redis/SMTP engines sit unwired one crate away, and auth keeps a single process-global current_user (a real cross-request security bug). Meanwhile several engines are genuinely strong (rf-orm SeaORM, rf-jobs, rf-ai's Anthropic provider, lettre mail, JWT extractor). The single most important strategic rule: engine before sugar — every hour spent making a macro prettier on top of a mock backend is negative work, because it deepens the "documented API returns empty data" trust debt that already runs through the codebase.
 
