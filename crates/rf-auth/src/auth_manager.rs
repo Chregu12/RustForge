@@ -2,10 +2,14 @@
 //!
 //! The authenticated user is held in a **per-request** task-local scope, not a
 //! single process-global instance, so concurrent requests can never see each
-//! other's login state. The public API is unchanged: `GLOBAL_AUTH.read()/.write()`
-//! and `AuthManager` still work, but `AuthManager` is now a thin proxy over the
-//! active scope. Establish a scope per request with [`with_auth_scope`] (or the
-//! [`crate::middleware`] auth-scope middleware).
+//! other's login state. `GLOBAL_AUTH.read()/.write()` and `AuthManager` are
+//! thin proxies over the active scope. Establish a scope per request with
+//! [`with_auth_scope`] (or the [`crate::middleware`] auth-scope middleware).
+//!
+//! Every Auth facade method and `AuthManager` method that reads/writes auth
+//! state **panics** when called outside a scope. This makes a missing-middleware
+//! bug loud instead of silently returning a process-global answer. CLI and test
+//! code must establish its own scope with [`with_auth_scope_sync`].
 
 use crate::password::PasswordHasher;
 use once_cell::sync::Lazy;
@@ -13,7 +17,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::cell::RefCell;
 use std::future::Future;
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::{Arc, RwLock};
 
 /// Resolves login credentials to a stored user record for [`AuthManager::attempt`].
 ///
@@ -71,19 +75,28 @@ tokio::task_local! {
 static DEFAULT_PROVIDER: Lazy<RwLock<Option<Arc<dyn UserProvider>>>> =
     Lazy::new(|| RwLock::new(None));
 
-/// Fallback state used by code paths that are NOT inside a per-request auth scope
-/// (CLI, unit tests, startup). It is never used while serving concurrent HTTP
-/// requests — each of those runs inside its own task-local [`AUTH_STATE`] scope.
-static FALLBACK_STATE: Lazy<Mutex<AuthState>> = Lazy::new(|| Mutex::new(AuthState::default()));
-
-/// Run `f` against the active auth state: the per-request task-local scope if one
-/// is established, otherwise the process-global fallback.
+/// Run `f` against the active per-request auth state.
+///
+/// # Panics
+///
+/// Panics when called outside a [`with_auth_scope`] (i.e. when there is no
+/// task-local auth scope established for the current request). Every Auth
+/// facade method and Guard method that reads/writes per-request state goes
+/// through this function, so calling them outside a scope always produces a
+/// diagnostic panic rather than silently touching a process-global.
+///
+/// To call auth methods from non-request code (CLI, startup, tests) wrap the
+/// block with [`with_auth_scope_sync`].
 fn with_state<R>(f: impl FnOnce(&mut AuthState) -> R) -> R {
     let mut f = Some(f);
     let attempted = AUTH_STATE.try_with(|cell| (f.take().unwrap())(&mut cell.borrow_mut()));
     match attempted {
         Ok(r) => r,
-        Err(_) => (f.take().unwrap())(&mut FALLBACK_STATE.lock().unwrap()),
+        Err(_) => panic!(
+            "Auth state accessed outside a with_auth_scope — \
+             add the auth_scope / require_auth middleware to your router, \
+             or wrap CLI / test code with `with_auth_scope_sync`"
+        ),
     }
 }
 

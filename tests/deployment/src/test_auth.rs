@@ -177,8 +177,8 @@ mod tests {
 
     #[test]
     fn guard_creation() {
-        // Guard::check() reads from the process-global FALLBACK_STATE when outside
-        // a per-request scope. Wrap in with_auth_scope_sync for isolation.
+        // Guard methods require a per-request auth scope — wrap in
+        // with_auth_scope_sync so the test has its own isolated scope.
         with_auth_scope_sync(|| {
             let guard = Guard::new("api");
             assert_eq!(guard.name(), "api");
@@ -191,8 +191,8 @@ mod tests {
 
     #[test]
     fn auth_facade_basic_operations() {
-        // Auth facade reads/writes FALLBACK_STATE outside a scope.
-        // Use with_auth_scope_sync to give this test its own isolated state.
+        // Auth facade methods require a per-request scope and panic without one.
+        // Use with_auth_scope_sync to give this test its own isolated scope.
         with_auth_scope_sync(|| {
             assert!(!Auth::check());
             assert!(Auth::guest());

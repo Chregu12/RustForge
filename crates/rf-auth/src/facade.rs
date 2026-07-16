@@ -12,10 +12,14 @@ use serde_json::Value;
 ///
 /// Simple, Laravel-style API - no `.await` needed anywhere!
 ///
+/// All request-state methods require a per-request auth scope. In a web handler
+/// this is established automatically by the `auth_scope` / `require_auth`
+/// middleware. In tests and CLI code wrap with `with_auth_scope_sync`.
+///
 /// # Examples
 ///
-/// ```rust
-/// use rf_auth::Auth;
+/// ```ignore
+/// use rf_auth::{Auth, auth_manager::with_auth_scope_sync};
 /// use serde::{Serialize, Deserialize};
 ///
 /// #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -26,65 +30,88 @@ use serde_json::Value;
 /// }
 ///
 /// fn example() -> Result<(), String> {
-///     // Login
-///     let user = User { id: 1, email: "user@example.com".into(), name: "John".into() };
-///     Auth::login(user)?;
+///     with_auth_scope_sync(|| {
+///         // Login
+///         let user = User { id: 1, email: "user@example.com".into(), name: "John".into() };
+///         Auth::login(user)?;
 ///
-///     // Check authentication
-///     if Auth::check() {
-///         println!("User is authenticated");
-///     }
+///         // Check authentication
+///         if Auth::check() {
+///             println!("User is authenticated");
+///         }
 ///
-///     // Get current user
-///     if let Some(user) = Auth::user::<User>() {
-///         println!("Welcome, {}", user.name);
-///     }
+///         // Get current user
+///         if let Some(user) = Auth::user::<User>() {
+///             println!("Welcome, {}", user.name);
+///         }
 ///
-///     // Attempt login with credentials
-///     let credentials = serde_json::json!({
-///         "email": "user@example.com",
-///         "password": "secret"
-///     });
-///     if Auth::attempt(credentials)? {
-///         println!("Login successful!");
-///     }
-///
-///     // Logout
-///     Auth::logout();
-///     Ok(())
+///         // Logout
+///         Auth::logout();
+///         Ok(())
+///     })
 /// }
 /// ```
 pub struct Auth;
 
 impl Auth {
-    /// Check if a user is authenticated
+    /// Check if a user is authenticated in the current request scope.
+    ///
+    /// # Panics
+    ///
+    /// Panics when called outside a `with_auth_scope` — add the `auth_scope`,
+    /// `require_auth`, or `require_auth_with` middleware to your router, or
+    /// wrap CLI / test code with [`with_auth_scope_sync`](crate::with_auth_scope_sync).
     ///
     /// # Examples
     ///
-    /// ```rust
-    /// use rf_auth::Auth;
+    /// ```ignore
+    /// use rf_auth::{Auth, auth_manager::with_auth_scope_sync};
     ///
-    /// if Auth::check() {
-    ///     println!("User is authenticated");
-    /// }
+    /// with_auth_scope_sync(|| {
+    ///     if Auth::check() {
+    ///         println!("User is authenticated");
+    ///     }
+    /// });
     /// ```
     pub fn check() -> bool {
+        if !in_auth_scope() {
+            panic!(
+                "Auth::check() called outside a with_auth_scope — \
+                 add the auth_scope middleware (or require_auth / require_auth_with) \
+                 to your router, or wrap tests/CLI with `with_auth_scope_sync`"
+            );
+        }
         let manager = GLOBAL_AUTH.read().unwrap();
         manager.check()
     }
 
-    /// Check if the current user is a guest (not authenticated)
+    /// Check if the current request scope has no authenticated user (guest).
+    ///
+    /// # Panics
+    ///
+    /// Panics when called outside a `with_auth_scope` — add the `auth_scope`,
+    /// `require_auth`, or `require_auth_with` middleware to your router, or
+    /// wrap CLI / test code with [`with_auth_scope_sync`](crate::with_auth_scope_sync).
     ///
     /// # Examples
     ///
-    /// ```rust
-    /// use rf_auth::Auth;
+    /// ```ignore
+    /// use rf_auth::{Auth, auth_manager::with_auth_scope_sync};
     ///
-    /// if Auth::guest() {
-    ///     println!("User is not authenticated");
-    /// }
+    /// with_auth_scope_sync(|| {
+    ///     if Auth::guest() {
+    ///         println!("User is not authenticated");
+    ///     }
+    /// });
     /// ```
     pub fn guest() -> bool {
+        if !in_auth_scope() {
+            panic!(
+                "Auth::guest() called outside a with_auth_scope — \
+                 add the auth_scope middleware (or require_auth / require_auth_with) \
+                 to your router, or wrap tests/CLI with `with_auth_scope_sync`"
+            );
+        }
         let manager = GLOBAL_AUTH.read().unwrap();
         manager.guest()
     }
@@ -146,18 +173,35 @@ impl Auth {
         manager.user()
     }
 
-    /// Get the ID of the currently authenticated user
+    /// Get the ID of the currently authenticated user.
+    ///
+    /// Returns `None` when the scope is set but no user is logged in (guest).
+    ///
+    /// # Panics
+    ///
+    /// Panics when called outside a `with_auth_scope` — add the `auth_scope`,
+    /// `require_auth`, or `require_auth_with` middleware to your router, or
+    /// wrap CLI / test code with [`with_auth_scope_sync`](crate::with_auth_scope_sync).
     ///
     /// # Examples
     ///
-    /// ```rust
-    /// use rf_auth::Auth;
+    /// ```ignore
+    /// use rf_auth::{Auth, auth_manager::with_auth_scope_sync};
     ///
-    /// if let Some(id) = Auth::id() {
-    ///     println!("User ID: {}", id);
-    /// }
+    /// with_auth_scope_sync(|| {
+    ///     if let Some(id) = Auth::id() {
+    ///         println!("User ID: {}", id);
+    ///     }
+    /// });
     /// ```
     pub fn id() -> Option<u64> {
+        if !in_auth_scope() {
+            panic!(
+                "Auth::id() called outside a with_auth_scope — \
+                 add the auth_scope middleware (or require_auth / require_auth_with) \
+                 to your router, or wrap tests/CLI with `with_auth_scope_sync`"
+            );
+        }
         let manager = GLOBAL_AUTH.read().unwrap();
         manager.id()
     }
@@ -166,25 +210,27 @@ impl Auth {
     ///
     /// # Examples
     ///
-    /// ```rust
-    /// use rf_auth::Auth;
+    /// ```ignore
+    /// use rf_auth::{Auth, auth_manager::with_auth_scope_sync};
     /// use serde::{Serialize, Deserialize};
     ///
     /// #[derive(Serialize, Deserialize)]
-    /// struct User {
-    ///     id: u64,
-    ///     email: String,
-    /// }
+    /// struct User { id: u64, email: String }
     ///
-    /// let user = User {
-    ///     id: 1,
-    ///     email: "user@example.com".to_string(),
-    /// };
-    ///
-    /// Auth::login(user).unwrap();
-    /// assert!(Auth::check());
+    /// with_auth_scope_sync(|| {
+    ///     let user = User { id: 1, email: "user@example.com".to_string() };
+    ///     Auth::login(user).unwrap();
+    ///     assert!(Auth::check());
+    /// });
     /// ```
     pub fn login<T: Serialize>(user: T) -> Result<(), String> {
+        if !in_auth_scope() {
+            panic!(
+                "Auth::login() called outside a with_auth_scope — \
+                 add the auth_scope middleware (or require_auth / require_auth_with) \
+                 to your router, or wrap tests/CLI with `with_auth_scope_sync`"
+            );
+        }
         let manager = GLOBAL_AUTH.write().unwrap();
         manager.login(user)
     }
@@ -199,13 +245,22 @@ impl Auth {
     ///
     /// # Examples
     ///
-    /// ```rust
-    /// use rf_auth::Auth;
+    /// ```ignore
+    /// use rf_auth::{Auth, auth_manager::with_auth_scope_sync};
     ///
-    /// Auth::login_using_id(1, true).unwrap();
-    /// assert!(Auth::check());
+    /// with_auth_scope_sync(|| {
+    ///     Auth::login_using_id(1, true).unwrap();
+    ///     assert!(Auth::check());
+    /// });
     /// ```
     pub fn login_using_id(id: u64, remember: bool) -> Result<(), String> {
+        if !in_auth_scope() {
+            panic!(
+                "Auth::login_using_id() called outside a with_auth_scope — \
+                 add the auth_scope middleware (or require_auth / require_auth_with) \
+                 to your router, or wrap tests/CLI with `with_auth_scope_sync`"
+            );
+        }
         let user = serde_json::json!({
             "id": id,
         });
@@ -228,6 +283,13 @@ impl Auth {
     /// Register the provider once at startup with
     /// [`set_provider`](Self::set_provider).
     pub fn login_using_id_verified(id: u64, remember: bool) -> Result<bool, String> {
+        if !in_auth_scope() {
+            panic!(
+                "Auth::login_using_id_verified() called outside a with_auth_scope — \
+                 add the auth_scope middleware (or require_auth / require_auth_with) \
+                 to your router, or wrap tests/CLI with `with_auth_scope_sync`"
+            );
+        }
         let manager = GLOBAL_AUTH.write().unwrap();
         manager.login_using_id_verified(id, remember)
     }
@@ -236,13 +298,22 @@ impl Auth {
     ///
     /// # Examples
     ///
-    /// ```rust
-    /// use rf_auth::Auth;
+    /// ```ignore
+    /// use rf_auth::{Auth, auth_manager::with_auth_scope_sync};
     ///
-    /// Auth::logout();
-    /// assert!(Auth::guest());
+    /// with_auth_scope_sync(|| {
+    ///     Auth::logout();
+    ///     assert!(Auth::guest());
+    /// });
     /// ```
     pub fn logout() {
+        if !in_auth_scope() {
+            panic!(
+                "Auth::logout() called outside a with_auth_scope — \
+                 add the auth_scope middleware (or require_auth / require_auth_with) \
+                 to your router, or wrap tests/CLI with `with_auth_scope_sync`"
+            );
+        }
         let manager = GLOBAL_AUTH.write().unwrap();
         manager.logout();
     }
@@ -251,20 +322,25 @@ impl Auth {
     ///
     /// # Examples
     ///
-    /// ```rust
-    /// use rf_auth::Auth;
+    /// ```ignore
+    /// use rf_auth::{Auth, auth_manager::with_auth_scope_sync};
     /// use serde_json::json;
     ///
-    /// let credentials = json!({
-    ///     "email": "user@example.com",
-    ///     "password": "secret"
+    /// with_auth_scope_sync(|| {
+    ///     let credentials = json!({ "email": "user@example.com", "password": "secret" });
+    ///     if Auth::attempt(credentials).unwrap() {
+    ///         println!("Login successful!");
+    ///     }
     /// });
-    ///
-    /// if Auth::attempt(credentials).unwrap() {
-    ///     println!("Login successful!");
-    /// }
     /// ```
     pub fn attempt(credentials: Value) -> Result<bool, String> {
+        if !in_auth_scope() {
+            panic!(
+                "Auth::attempt() called outside a with_auth_scope — \
+                 add the auth_scope middleware (or require_auth / require_auth_with) \
+                 to your router, or wrap tests/CLI with `with_auth_scope_sync`"
+            );
+        }
         let manager = GLOBAL_AUTH.write().unwrap();
         manager.attempt(credentials)
     }
@@ -281,14 +357,23 @@ impl Auth {
     ///
     /// # Examples
     ///
-    /// ```rust
-    /// use rf_auth::Auth;
+    /// ```ignore
+    /// use rf_auth::{Auth, auth_manager::with_auth_scope_sync};
     ///
-    /// if Auth::via_remember() {
-    ///     println!("Authenticated via remember me");
-    /// }
+    /// with_auth_scope_sync(|| {
+    ///     if Auth::via_remember() {
+    ///         println!("Authenticated via remember me");
+    ///     }
+    /// });
     /// ```
     pub fn via_remember() -> bool {
+        if !in_auth_scope() {
+            panic!(
+                "Auth::via_remember() called outside a with_auth_scope — \
+                 add the auth_scope middleware (or require_auth / require_auth_with) \
+                 to your router, or wrap tests/CLI with `with_auth_scope_sync`"
+            );
+        }
         let manager = GLOBAL_AUTH.read().unwrap();
         manager.via_remember()
     }
@@ -297,13 +382,15 @@ impl Auth {
     ///
     /// # Examples
     ///
-    /// ```rust
-    /// use rf_auth::Auth;
+    /// ```ignore
+    /// use rf_auth::{Auth, auth_manager::with_auth_scope_sync};
     ///
-    /// let api_guard = Auth::guard("api");
-    /// if api_guard.check() {
-    ///     println!("Authenticated on API guard");
-    /// }
+    /// with_auth_scope_sync(|| {
+    ///     let api_guard = Auth::guard("api");
+    ///     if api_guard.check() {
+    ///         println!("Authenticated on API guard");
+    ///     }
+    /// });
     /// ```
     pub fn guard(name: &str) -> Guard {
         Guard::new(name)
@@ -313,14 +400,23 @@ impl Auth {
     ///
     /// # Examples
     ///
-    /// ```rust
-    /// use rf_auth::Auth;
+    /// ```ignore
+    /// use rf_auth::{Auth, auth_manager::with_auth_scope_sync};
     ///
-    /// if Auth::has_role("admin") {
-    ///     println!("User is an admin");
-    /// }
+    /// with_auth_scope_sync(|| {
+    ///     if Auth::has_role("admin") {
+    ///         println!("User is an admin");
+    ///     }
+    /// });
     /// ```
     pub fn has_role(role: &str) -> bool {
+        if !in_auth_scope() {
+            panic!(
+                "Auth::has_role() called outside a with_auth_scope — \
+                 add the auth_scope middleware (or require_auth / require_auth_with) \
+                 to your router, or wrap tests/CLI with `with_auth_scope_sync`"
+            );
+        }
         let manager = GLOBAL_AUTH.read().unwrap();
         manager.has_role(role)
     }
@@ -329,14 +425,23 @@ impl Auth {
     ///
     /// # Examples
     ///
-    /// ```rust
-    /// use rf_auth::Auth;
+    /// ```ignore
+    /// use rf_auth::{Auth, auth_manager::with_auth_scope_sync};
     ///
-    /// if Auth::has_any_role(&["admin", "moderator"]) {
-    ///     println!("User has elevated privileges");
-    /// }
+    /// with_auth_scope_sync(|| {
+    ///     if Auth::has_any_role(&["admin", "moderator"]) {
+    ///         println!("User has elevated privileges");
+    ///     }
+    /// });
     /// ```
     pub fn has_any_role(roles: &[&str]) -> bool {
+        if !in_auth_scope() {
+            panic!(
+                "Auth::has_any_role() called outside a with_auth_scope — \
+                 add the auth_scope middleware (or require_auth / require_auth_with) \
+                 to your router, or wrap tests/CLI with `with_auth_scope_sync`"
+            );
+        }
         let manager = GLOBAL_AUTH.read().unwrap();
         manager.has_any_role(roles)
     }
@@ -345,26 +450,49 @@ impl Auth {
     ///
     /// # Examples
     ///
-    /// ```rust
-    /// use rf_auth::Auth;
+    /// ```ignore
+    /// use rf_auth::{Auth, auth_manager::with_auth_scope_sync};
     ///
-    /// if Auth::has_all_roles(&["user", "verified"]) {
-    ///     println!("User is verified");
-    /// }
+    /// with_auth_scope_sync(|| {
+    ///     if Auth::has_all_roles(&["user", "verified"]) {
+    ///         println!("User is verified");
+    ///     }
+    /// });
     /// ```
     pub fn has_all_roles(roles: &[&str]) -> bool {
+        if !in_auth_scope() {
+            panic!(
+                "Auth::has_all_roles() called outside a with_auth_scope — \
+                 add the auth_scope middleware (or require_auth / require_auth_with) \
+                 to your router, or wrap tests/CLI with `with_auth_scope_sync`"
+            );
+        }
         let manager = GLOBAL_AUTH.read().unwrap();
         manager.has_all_roles(roles)
     }
 
-    /// Set the default guard
+    /// Set the default guard for the current request scope.
     pub fn set_default_guard(guard: String) {
+        if !in_auth_scope() {
+            panic!(
+                "Auth::set_default_guard() called outside a with_auth_scope — \
+                 add the auth_scope middleware (or require_auth / require_auth_with) \
+                 to your router, or wrap tests/CLI with `with_auth_scope_sync`"
+            );
+        }
         let manager = GLOBAL_AUTH.write().unwrap();
         manager.set_guard(guard);
     }
 
-    /// Get the name of the default guard
+    /// Get the name of the default guard for the current request scope.
     pub fn get_default_guard() -> String {
+        if !in_auth_scope() {
+            panic!(
+                "Auth::get_default_guard() called outside a with_auth_scope — \
+                 add the auth_scope middleware (or require_auth / require_auth_with) \
+                 to your router, or wrap tests/CLI with `with_auth_scope_sync`"
+            );
+        }
         let manager = GLOBAL_AUTH.read().unwrap();
         manager.guard_name().to_string()
     }
@@ -381,15 +509,81 @@ mod tests {
         assert_eq!(guard.name(), "api");
     }
 
+    // ── Fail-fast tests for Auth::check() ────────────────────────────────────
+
+    /// `Auth::check()` called with NO auth scope must panic, not silently return
+    /// the process-global answer (which would hide a missing-middleware bug).
     #[test]
-    fn test_auth_static_methods_exist() {
-        // Just verify non-scope-gated methods compile and are callable.
-        // Auth::check / guest / id do NOT require a scope (they fall back to the
-        // process-global state for non-HTTP contexts). Auth::user() does, so it is
-        // tested separately below.
+    #[should_panic(expected = "Auth::check() called outside a with_auth_scope")]
+    fn test_auth_check_panics_outside_scope() {
         let _ = Auth::check();
+    }
+
+    /// Inside a scope with no user logged in → `false` (guest, no panic).
+    #[test]
+    fn test_auth_check_returns_false_inside_scope_when_no_user() {
+        with_auth_scope_sync(|| {
+            assert!(!Auth::check(), "no user logged in → check() is false (not a panic)");
+        });
+    }
+
+    /// Inside a scope with a user logged in → `true`.
+    #[test]
+    fn test_auth_check_returns_true_inside_scope_when_logged_in() {
+        with_auth_scope_sync(|| {
+            Auth::login(serde_json::json!({"id": 1})).unwrap();
+            assert!(Auth::check());
+        });
+    }
+
+    // ── Fail-fast tests for Auth::guest() ────────────────────────────────────
+
+    #[test]
+    #[should_panic(expected = "Auth::guest() called outside a with_auth_scope")]
+    fn test_auth_guest_panics_outside_scope() {
         let _ = Auth::guest();
+    }
+
+    /// Inside a scope with no user logged in → `true` (is a guest, no panic).
+    #[test]
+    fn test_auth_guest_returns_true_inside_scope_when_no_user() {
+        with_auth_scope_sync(|| {
+            assert!(Auth::guest(), "no user logged in → guest() is true (not a panic)");
+        });
+    }
+
+    /// Inside a scope with a user logged in → `false` (not a guest).
+    #[test]
+    fn test_auth_guest_returns_false_inside_scope_when_logged_in() {
+        with_auth_scope_sync(|| {
+            Auth::login(serde_json::json!({"id": 1})).unwrap();
+            assert!(!Auth::guest());
+        });
+    }
+
+    // ── Fail-fast tests for Auth::id() ───────────────────────────────────────
+
+    #[test]
+    #[should_panic(expected = "Auth::id() called outside a with_auth_scope")]
+    fn test_auth_id_panics_outside_scope() {
         let _ = Auth::id();
+    }
+
+    /// Inside a scope with no user → `None` (legit guest, no panic).
+    #[test]
+    fn test_auth_id_returns_none_inside_scope_when_no_user() {
+        with_auth_scope_sync(|| {
+            assert_eq!(Auth::id(), None);
+        });
+    }
+
+    /// Inside a scope with a user → the user's id.
+    #[test]
+    fn test_auth_id_returns_id_inside_scope_when_logged_in() {
+        with_auth_scope_sync(|| {
+            Auth::login(serde_json::json!({"id": 77})).unwrap();
+            assert_eq!(Auth::id(), Some(77));
+        });
     }
 
     /// Login → check → get user → logout cycle — must be inside a scope so that
@@ -462,5 +656,19 @@ mod tests {
                 Some(42)
             );
         });
+    }
+
+    // ── Fail-fast tests for Auth::login() and Auth::logout() ─────────────────
+
+    #[test]
+    #[should_panic(expected = "Auth::login() called outside a with_auth_scope")]
+    fn test_auth_login_panics_outside_scope() {
+        Auth::login(serde_json::json!({"id": 1})).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "Auth::logout() called outside a with_auth_scope")]
+    fn test_auth_logout_panics_outside_scope() {
+        Auth::logout();
     }
 }

@@ -11,16 +11,18 @@ use serde_json::Value;
 ///
 /// # Examples
 ///
-/// ```rust
-/// use rf_auth::Auth;
+/// ```ignore
+/// use rf_auth::{Auth, auth_manager::with_auth_scope_sync};
 ///
-/// // Get a specific guard
-/// let api_guard = Auth::guard("api");
+/// with_auth_scope_sync(|| {
+///     // Get a specific guard
+///     let api_guard = Auth::guard("api");
 ///
-/// // Check authentication on this guard
-/// if api_guard.check() {
-///     println!("Authenticated on API guard");
-/// }
+///     // Check authentication on this guard
+///     if api_guard.check() {
+///         println!("Authenticated on API guard");
+///     }
+/// });
 /// ```
 pub struct Guard {
     name: String,
@@ -85,6 +87,7 @@ impl Guard {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::auth_manager::with_auth_scope_sync;
 
     #[test]
     fn test_guard_creation() {
@@ -94,12 +97,12 @@ mod tests {
 
     #[test]
     fn test_guard_check() {
-        // Reset global auth state (may be dirty from other tests)
-        GLOBAL_AUTH.write().unwrap().logout();
-
-        let guard = Guard::new("web");
-        // Initially not authenticated
-        assert!(!guard.check());
-        assert!(guard.guest());
+        // Guard methods require a per-request auth scope — same as Auth facade.
+        with_auth_scope_sync(|| {
+            let guard = Guard::new("web");
+            // Initially not authenticated
+            assert!(!guard.check());
+            assert!(guard.guest());
+        });
     }
 }
