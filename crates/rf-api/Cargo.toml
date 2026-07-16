@@ -20,7 +20,7 @@ rf-application = { path = "../rf-application" }
 rf-orm = { path = "../rf-orm" }
 rf-plugins = { path = "../rf-plugins" }
 rf-domain = { path = "../rf-domain" }
-rf-storage = { path = "../rf-storage" }
+rf-storage = { path = "../rf-storage", features = ["plugins"] }
 tokio-tungstenite.workspace = true
 futures.workspace = true
 tower.workspace = true

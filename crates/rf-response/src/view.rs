@@ -115,12 +115,17 @@ impl ViewResponse {
 /// Try to render `name` via the initialized `rf_view` Tera engine.
 ///
 /// Returns:
-///   * `None` — the engine is not initialized, or it holds no template matching
-///     `name`; the caller should use the built-in file renderer.
+///   * `None` — the `"view"` feature is disabled, the engine is not
+///     initialized, or it holds no template matching `name`; the caller should
+///     use the built-in file renderer.
 ///   * `Some(Ok(html))` — Tera rendered the template.
-///   * `Some(Err(msg))` — the engine owns the template but rendering failed; the
-///     real Tera error is surfaced (never fabricated), and we do NOT silently
-///     fall back to a different file.
+///   * `Some(Err(msg))` — the engine owns the template but rendering failed;
+///     the real Tera error is surfaced (never fabricated), and we do NOT
+///     silently fall back to a different file.
+///
+/// Only compiled when the `"view"` feature is enabled (i.e. the caller
+/// depends on `rf-response` with `features = ["view"]`).
+#[cfg(feature = "view")]
 fn render_via_tera(name: &str, data: &Value) -> Option<Result<String, String>> {
     use rf_view::{Context, ViewEngine};
 
@@ -143,8 +148,21 @@ fn render_via_tera(name: &str, data: &Value) -> Option<Result<String, String>> {
     Some(ViewEngine::render(&tpl, &ctx).map_err(|e| e.to_string()))
 }
 
+/// Stub used when the `"view"` Cargo feature is disabled.
+///
+/// Always returns `None` so `ViewResponse::render` falls through to the
+/// built-in file renderer without touching the (absent) rf-view crate.
+#[cfg(not(feature = "view"))]
+#[inline(always)]
+fn render_via_tera(_name: &str, _data: &Value) -> Option<Result<String, String>> {
+    None
+}
+
 /// Resolve a dotted/plain view name to a template registered with the Tera
 /// engine, mirroring `rf_view`'s naming (dots → slashes, `.tera` extension).
+///
+/// Only compiled when the `"view"` feature is enabled.
+#[cfg(feature = "view")]
 fn tera_template_name(name: &str) -> Option<String> {
     use rf_view::ViewEngine;
 

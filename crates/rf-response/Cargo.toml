@@ -5,16 +5,24 @@ edition.workspace = true
 license.workspace = true
 authors.workspace = true
 
+[features]
+# Enable Tera-backed view rendering via rf-view (beta).
+# When this feature is enabled, `view()` / `Response::view()` will prefer the
+# initialized `rf_view::ViewEngine` (full expression evaluation, filters,
+# richer control flow); it falls back to the built-in file renderer when the
+# engine has not been initialized.  Without this feature the built-in renderer
+# ({{ var }}, @if, @foreach, @extends / @section / @yield, @include) is always
+# used and rf-view is NOT a dependency.
+view = ["dep:rf-view"]
+
 [dependencies]
 # Pin axum 0.8 to match the framework's HTTP stack (rf-routing, rf-request,
 # rf-global-helpers). Handlers routed by rf-routing can only return the
 # `Response`/`ResponseBuilder` surface if its `IntoResponse` is the same axum
 # version as the router; the whole stack is aligned on 0.8.
 axum = "0.8"
-# Prefer the real Tera engine (full expression evaluation, filters, richer
-# control flow) when `rf_view::ViewEngine` has been initialized; falls back to
-# the built-in file renderer below when it has not, so zero-config still works.
-rf-view = { path = "../rf-view" }
+# Optional Tera-backed engine integration.  Enable with `features = ["view"]`.
+rf-view = { path = "../rf-view", optional = true }
 serde.workspace = true
 serde_json.workspace = true
 tokio.workspace = true

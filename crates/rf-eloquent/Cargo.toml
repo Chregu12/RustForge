@@ -11,7 +11,9 @@ description = "Laravel Eloquent-style ORM for RustForge - Advanced relationship 
 rf-core = { path = "../rf-core" }
 rf-orm = { path = "../rf-orm" }
 rf-config = { path = "../rf-config" }
-rf-encryption = { path = "../rf-encryption" }
+# Optional: AES-256-GCM encrypted attribute casting via CastType::Encrypted.
+# Enable with `features = ["encryption"]` to pull in rf-encryption (beta).
+rf-encryption = { path = "../rf-encryption", optional = true }
 
 # SeaORM
 sea-orm = { workspace = true }
@@ -58,6 +60,9 @@ tokio = { workspace = true, features = ["macros", "rt", "test-util"] }
 # 
 [features]
 default = []
+# AES-256-GCM encrypted attribute casting (pulls in rf-encryption, which is beta).
+# Required to use `CastType::Encrypted` with actual cryptography.
+encryption = ["dep:rf-encryption"]
 
 [package.metadata.rustforge]
 tier = "stable"

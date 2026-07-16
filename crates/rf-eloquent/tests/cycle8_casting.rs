@@ -410,13 +410,22 @@ fn test_custom_caster_not_found_returns_err() {
 }
 
 // ── Encrypted cast (AES-GCM round-trip) ───────────────────────────────────────
+//
+// These tests require the `encryption` feature of rf-eloquent (which pulls in
+// the beta rf-encryption crate).  Run them with:
+//   cargo test -p rf-eloquent --features encryption
+//
+// Without the feature they are excluded from compilation so no rf-encryption
+// symbols are referenced.
 
 // `set_encryption_key` mutates a PROCESS-GLOBAL key. These tests each install a
 // different random key and then encrypt+decrypt, so run in parallel they race
 // (test A encrypts with key1, test B swaps in key2, test A decrypts with key2 →
 // panic). Serialize them on a shared, poison-tolerant lock held for the whole test.
+#[cfg(feature = "encryption")]
 static ENC_KEY_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
+#[cfg(feature = "encryption")]
 #[test]
 fn test_encrypted_round_trip_with_explicit_key() {
     let _guard = ENC_KEY_LOCK.lock().unwrap_or_else(|e| e.into_inner());
@@ -437,6 +446,7 @@ fn test_encrypted_round_trip_with_explicit_key() {
     assert_eq!(recovered.as_string().unwrap(), plaintext);
 }
 
+#[cfg(feature = "encryption")]
 #[test]
 fn test_encrypted_two_encryptions_differ() {
     let _guard = ENC_KEY_LOCK.lock().unwrap_or_else(|e| e.into_inner());

@@ -82,6 +82,9 @@ pub fn set_encryption_key(key: impl Into<String>) {
 ///
 /// Errors (rather than silently degrading to a reversible encoding) when no
 /// key is available, so encrypted attributes are never stored in the clear.
+///
+/// Only compiled when the `"encryption"` feature is enabled.
+#[cfg(feature = "encryption")]
 fn resolve_encryptor() -> CastResult<rf_encryption::Encryptor> {
     let key = ENCRYPTION_KEY
         .read()
@@ -420,11 +423,22 @@ pub fn cast_value(value: &str, cast_type: CastType) -> CastResult<CastedValue> {
             Ok(CastedValue::DateTime(dt))
         }
         CastType::Encrypted => {
-            // AES-256-GCM decryption using the configured application key.
-            let plaintext = resolve_encryptor()?
-                .decrypt(value)
-                .map_err(|e| CastError::DecryptionError(e.to_string()))?;
-            Ok(CastedValue::String(plaintext))
+            #[cfg(feature = "encryption")]
+            {
+                // AES-256-GCM decryption using the configured application key.
+                let plaintext = resolve_encryptor()?
+                    .decrypt(value)
+                    .map_err(|e| CastError::DecryptionError(e.to_string()))?;
+                Ok(CastedValue::String(plaintext))
+            }
+            #[cfg(not(feature = "encryption"))]
+            {
+                Err(CastError::EncryptionError(
+                    "CastType::Encrypted requires the \"encryption\" feature of rf-eloquent. \
+                     Add `features = [\"encryption\"]` to your rf-eloquent dependency."
+                        .to_string(),
+                ))
+            }
         }
         CastType::Array => {
             let arr: Vec<serde_json::Value> = serde_json::from_str(value)?;
@@ -467,10 +481,22 @@ pub fn uncast_value(value: CastedValue, cast_type: CastType) -> CastResult<Strin
         (CastedValue::DateTime(dt), CastType::DateTime) => Ok(dt.to_rfc3339()),
         (CastedValue::DateTime(dt), CastType::Date) => Ok(dt.format("%Y-%m-%d").to_string()),
         (CastedValue::String(s), CastType::Encrypted) => {
-            // AES-256-GCM encryption using the configured application key.
-            resolve_encryptor()?
-                .encrypt(&s)
-                .map_err(|e| CastError::EncryptionError(e.to_string()))
+            #[cfg(feature = "encryption")]
+            {
+                // AES-256-GCM encryption using the configured application key.
+                resolve_encryptor()?
+                    .encrypt(&s)
+                    .map_err(|e| CastError::EncryptionError(e.to_string()))
+            }
+            #[cfg(not(feature = "encryption"))]
+            {
+                let _ = s;
+                Err(CastError::EncryptionError(
+                    "CastType::Encrypted requires the \"encryption\" feature of rf-eloquent. \
+                     Add `features = [\"encryption\"]` to your rf-eloquent dependency."
+                        .to_string(),
+                ))
+            }
         }
         (CastedValue::Array(arr), CastType::Array | CastType::Collection) => {
             let json_arr: Vec<serde_json::Value> = arr
@@ -584,6 +610,9 @@ mod tests {
         assert_eq!(result, "true");
     }
 
+    /// Encrypted cast works end-to-end with real AES-256-GCM when the
+    /// `"encryption"` Cargo feature is enabled.
+    #[cfg(feature = "encryption")]
     #[test]
     fn test_encrypted_cast_uses_real_aes_gcm() {
         // Configure a real 32-byte AES-256 key.
@@ -626,5 +655,29 @@ mod tests {
         // Round-trips back to the original plaintext via the Encrypted cast.
         let recovered = cast_value(&ciphertext, CastType::Encrypted).unwrap();
         assert_eq!(recovered.as_string().unwrap(), plaintext);
+    }
+
+    /// Without the `"encryption"` feature, `CastType::Encrypted` must return a
+    /// clear error — never silently succeed or panic.
+    #[cfg(not(feature = "encryption"))]
+    #[test]
+    fn test_encrypted_cast_returns_error_without_feature() {
+        let err = uncast_value(
+            CastedValue::String("secret".to_string()),
+            CastType::Encrypted,
+        )
+        .unwrap_err();
+        let msg = err.to_string();
+        assert!(
+            msg.contains("encryption"),
+            "error message should mention the 'encryption' feature; got: {msg}"
+        );
+
+        let err = cast_value("some-ciphertext", CastType::Encrypted).unwrap_err();
+        let msg = err.to_string();
+        assert!(
+            msg.contains("encryption"),
+            "error message should mention the 'encryption' feature; got: {msg}"
+        );
     }
 }

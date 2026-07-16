@@ -55,20 +55,20 @@ line.
 | `rf-core` | stable | AppError/AppResult/RequestContext — foundation used by every other crate; real RFC 7807 impl |
 | `rf-web` | stable | axum 0.8 routing/middleware stack; real CORS, security-headers, JSON 404/405 |
 | `rf-request` | stable | Task-local request globals; body buffered + re-inserted so globals and body extractors coexist |
-| `rf-response` | stable | JSON/HTML response types wiring axum and rf-core error envelope |
+| `rf-response` | stable | JSON/HTML response types wiring axum and rf-core error envelope. Tera-engine integration (rf-view) is behind the opt-in `view` Cargo feature; the default build uses the built-in `{{ }}`/`@if`/`@foreach`/`@extends` renderer and has **zero** beta dependencies. |
 | `rf-macros` | stable | Model!/Route!/validate!/get!/post! proc-macros (12k lines, probe-verified, used in every example) |
 | `rf-model-macro` | stable | Model derive proc-macro used internally by rf-orm and rf-macros |
 | `rf-validation` | stable | validate! DSL (22 constraint types), 422 with per-field structured errors |
 | `rf-validation-derive` | stable | #[derive(Validate)] proc-macro used by rf-validation |
 | `rf-orm` | stable | Real SeaORM ORM — create!/find!/update!/delete!, relations, scopes, paginate (35 files, 18.7k lines) |
-| `rf-eloquent` | stable | Eloquent-style ORM macros layered on rf-orm; used in examples/phase12-blog |
+| `rf-eloquent` | stable | Eloquent-style ORM macros layered on rf-orm; used in examples/phase12-blog. `CastType::Encrypted` (AES-256-GCM) is available behind the opt-in `encryption` Cargo feature (`features = ["encryption"]`) which pulls in rf-encryption (beta); the default build has **zero** beta dependencies. |
 | `rf-auth` | stable | Auth facade + require_auth middleware; per-request state (no cross-request bleed), bearer-before-body ordering |
 | `rf-sanctum` | stable | Transient API token auth (DB-free); real JSON error envelope on 401 |
 | `rf-cache` | stable | Cache facade — Memory + optional Redis via AsyncBridge; no block_on panic in async runtime |
 | `rf-queue` | stable | MemoryQueue + Worker; priority FIFO, retry, dead-letter (Queue::failed()), panic-isolation |
 | `rf-jobs` | stable | Redis-backed WorkerPool; requires live Redis (examples/jobs-demo) |
 | `rf-mail` | stable | Mail facade — real lettre SMTP + FileMailer; queued mail drains to configured transport |
-| `rf-storage` | stable | Storage facade — Local + S3 via AsyncBridge; path-traversal-safe; 413 on oversize upload |
+| `rf-storage` | stable | Storage facade — Local + S3 via AsyncBridge; path-traversal-safe; 413 on oversize upload. `FileService` (rf-plugins StoragePort adapter) is behind the opt-in `plugins` Cargo feature; the default build has **zero** beta dependencies. |
 | `rf-events` | stable | Type-keyed sync event bus; listener panics isolated; no deadlock on re-entrant dispatch |
 | `rf-broadcast` | stable | WebSocket broadcast — room isolation, Subscribed ack, Lagged skip-and-continue |
 | `rf-ratelimit` | stable | Per-client IP RateLimitLayer; JSON 429; non-destructive info() peek |

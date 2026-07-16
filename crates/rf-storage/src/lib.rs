@@ -37,6 +37,9 @@ mod local;
 mod manager;
 mod memory;
 mod s3;
+/// FileService wrapper over the rf-plugins StoragePort contract.
+/// Only available when the `"plugins"` feature is enabled.
+#[cfg(feature = "plugins")]
 pub mod service;
 mod storage;
 pub mod storage_manager;

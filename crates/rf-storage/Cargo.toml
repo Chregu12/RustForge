@@ -26,7 +26,15 @@ aws-smithy-types = "1.2"
 # HTTP support for streaming
 axum = "0.8"
 serde_json = "1.0"
-rf-plugins = { path = "../rf-plugins" }
+# Optional: FileService wrapper that adapts StoragePort from rf-plugins (beta).
+# Enable with `features = ["plugins"]` to expose rf_storage::service::FileService.
+rf-plugins = { path = "../rf-plugins", optional = true }
+
+[features]
+# Expose rf_storage::service::FileService, which wraps the StoragePort /
+# CommandError contracts from rf-plugins (a beta crate).  Off by default so
+# the stable rf-storage core does not pull in any beta dependencies.
+plugins = ["dep:rf-plugins"]
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["test-util", "macros"] }
