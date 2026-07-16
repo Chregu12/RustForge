@@ -7,6 +7,22 @@ propagate the change.
 
 ---
 
+## At a glance: small stable core + optional extensions
+
+RustForge ships **34 stable crates** that form the v1.0 supported surface.
+Everything else — 70 beta crates and 8 experimental crates — is an **optional
+extension**. You pick only the extensions your project needs; the core stands
+alone. Beta extensions are real implementations but their APIs may shift in
+minor versions and they carry no SemVer promise. Experimental crates have no
+guarantees and may be removed without notice.
+
+The perception of "121 crates" is misleading: 9 of those are unmaintained stub
+directories (non-members), and the remaining 112 break down as 34 core +
+78 optional extensions. Most applications need only the 34 stable crates via
+`use rf::prelude::*`.
+
+---
+
 ## Tier Definitions
 
 | Tier | Meaning | SemVer |
@@ -25,9 +41,13 @@ propagate the change.
 
 ---
 
-## Stable Crates (34)
+## Stable Crates (34) — the v1.0 supported surface
 
-These form the **v1.0 supported surface**. APIs here will not break without a major-version bump.
+These 34 crates form the **v1.0 supported surface**. APIs here will not break
+without a major-version bump. All are re-exported by the `rf` umbrella crate;
+`use rf::prelude::*` gives access to everything below without listing crates
+individually. If you only need the stable core, your dependency list is one
+line.
 
 | Crate | Tier | Justification |
 |-------|------|---------------|
@@ -68,9 +88,15 @@ These form the **v1.0 supported surface**. APIs here will not break without a ma
 
 ---
 
-## Beta Crates (70)
+## Beta Crates (70) — optional extensions, no 1.0 SemVer promise
 
-Real implementations with gaps, not fully integration-tested, or API not yet frozen.
+Real implementations with gaps, not fully integration-tested, or API not yet
+frozen. These are **optional extensions** to the stable core — include only
+the ones your project uses. APIs may shift in minor versions.
+
+Two crates in this section are **DEPRECATED** (see "Deprecation Queue" below):
+`rf-views` (superseded by `rf-view`) and `rf-service-container` (superseded
+by `rf-container`). They remain in the workspace until dependents are migrated.
 
 | Crate | Tier | Justification |
 |-------|------|---------------|
@@ -91,8 +117,8 @@ Real implementations with gaps, not fully integration-tested, or API not yet fro
 | `rf-audit` | beta | Audit log (700 lines); real append-only log writer; no integration test |
 | `rf-export` | beta | CSV/JSON/Excel export (595 lines); real but no end-to-end test |
 | `rf-blade` | beta | Blade-like template engine (17 files/6.7k lines); real Tera-based impl |
-| `rf-views` | beta | View layer with layouts/components (12 files/3.2k lines); real Tera-based impl |
-| `rf-view` | beta | Tera-based View type with layout support; real but API overlaps rf-blade/rf-views |
+| `rf-views` | beta | **DEPRECATED** — use `rf-view` instead. Session-aware flash helpers kept here until tests/probe-sweep/flash_no_bleed is ported to rf-view. |
+| `rf-view` | beta | **CANONICAL view crate.** Tera-based ViewEngine; global singleton pattern; `View::make()` API; layout support. |
 | `rf-admin` | beta | Basic admin surface (610 lines); real but not integration-tested |
 | `rf-horizon` | beta | Queue monitoring UI (16 files/6.8k lines); real dashboards but not prod-tested |
 | `rf-tinker-enhanced` | beta | Enhanced REPL with history and multi-line (8 files/1.4k lines); real — **canonical Tinker crate** (rf-tinker removed cycle 13) |
@@ -127,8 +153,8 @@ Real implementations with gaps, not fully integration-tested, or API not yet fro
 | `rf-api` | beta | DDD API layer (31 files/6.9k lines); real HTTP/artisan/event integration |
 | `rf-interactive` | beta | CLI interactive prompts (3 files/391 lines); real dialoguer integration |
 | `rf-console` | beta | Console output formatting (9 files/1.3k lines); real colored output |
-| `rf-service-container` | beta | DI container with singleton/scoped/transient (13 files/1.7k lines) |
-| `rf-container` | beta | DI container v2 with AutoResolver (6 files/1.95k lines); overlaps rf-service-container |
+| `rf-service-container` | beta | **DEPRECATED** — use `rf-container` instead. Laravel-style string-key DI kept here until rf-application is migrated to the TypeId API. |
+| `rf-container` | beta | **CANONICAL DI crate.** Type-safe TypeId-based DI: ServiceRegistry, Scope enum (Singleton/Scoped/Transient), ScopedContainer, AutoResolver. |
 | `rf-observability` | beta | Observability aggregation (8 files/1.9k lines); real tracing + metrics wiring |
 | `rf-command-executor` | beta | Command execution runner (7 files/1.1k lines); real |
 | `rf-command-events` | beta | Command event bus (6 files/918 lines); real |
@@ -208,6 +234,22 @@ members (34 stable + 70 beta + 8 experimental) are the crates that `cargo check
 Cycle-13 removals: rf-oauth, rf-oauth-server, rf-oauth2-server (redundant OAuth servers → canonical rf-passport),
 rf-broadcasting (redundant → canonical rf-broadcast), rf-scheduling (redundant → canonical rf-scheduler),
 rf-tinker (redundant → canonical rf-tinker-enhanced). All had zero workspace dependents before removal.
+
+---
+
+## Deprecation Queue (cycle 18)
+
+Crates marked **DEPRECATED** in the beta table above. They remain in the workspace
+because they still have at least one dependent; removal is blocked until the
+prerequisite migration is complete.
+
+| Deprecated crate | Canonical replacement | Blocking prerequisite before physical removal |
+|---|---|---|
+| `rf-views` | `rf-view` | Port session-aware flash + `Context` + `redirect_with_success` helpers from rf-views into rf-view; update `tests/probe-sweep/tests/flash_no_bleed.rs` to import from rf-view; confirm flash isolation test still passes. |
+| `rf-service-container` | `rf-container` | Migrate `rf-application`'s ~25 import sites from the string-key `Container::singleton("key", …)` API to the TypeId-based `ServiceRegistry` API in rf-container. |
+
+Until those prerequisites are done: do NOT use either deprecated crate in new code.
+Use their canonical replacement instead.
 
 ---
 

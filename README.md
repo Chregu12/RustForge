@@ -19,7 +19,11 @@ handlers — compiled to a single native binary on **axum 0.8** + **Tokio**.
 - **Global facades** — `Auth`, `Cache`, `Mail`, `Storage`, `Queue`, `Event`, `Broadcast` as static calls, backed by real engines over a deadlock-safe `AsyncBridge`.
 - **Typed validation DSL** — `validate! { email: email, age: int.min(18) }` builds real rules; 422 with per-field errors.
 
-Stable surface (34 crates): routing · request/response · validation · **ORM (SQLite default, Postgres via `DATABASE_URL`)** · **auth (JWT `require_auth`)** · cache · queue · mail · storage · observability. Two layers coexist — the Laravel-style DX you write by default, and an explicit Rust-native core as the escape-hatch ([API_PHILOSOPHY.md](docs/API_PHILOSOPHY.md)).
+**Stable core (34 crates):** routing · request/response · validation · **ORM (SQLite default, Postgres via `DATABASE_URL`)** · **auth (JWT `require_auth`)** · cache · queue · mail · storage · observability. One `use rf::prelude::*` and you have all of it.
+
+**Optional extensions (70 beta + 8 experimental crates):** Blade templates · GraphQL · 2FA · Passport OAuth · SSE · WebSockets · CMS · Inertia.js · and more. Pull in only the extensions your project needs; the stable core compiles and ships standalone. Beta extensions have no 1.0 SemVer promise; experimental crates may change or disappear without notice.
+
+Two layers coexist — the Laravel-style DX you write by default, and an explicit Rust-native core as the escape-hatch ([API_PHILOSOPHY.md](docs/API_PHILOSOPHY.md)).
 
 > **Status: `v1.0.0-rc.2` — a release candidate, not yet production-proven** (0 external users). Honest self-assessment ~6.0–6.5/10, see [REVIEW_RESPONSE.md](docs/REVIEW_RESPONSE.md). Pin to a final tag before production use.
 
@@ -104,7 +108,7 @@ More: [validation](https://github.com/Chregu12/RustForge/wiki/Laravel-Syntax) ·
 | [Migration-Guide](https://github.com/Chregu12/RustForge/wiki/Migration-Guide) | For Laravel developers |
 | [Tinker](https://github.com/Chregu12/RustForge/wiki/Tinker) | Interactive REPL |
 
-In-repo deep-dives: [STABLE_CORE.md](docs/STABLE_CORE.md) (the v1 API contract) · [TIERS.md](docs/TIERS.md) (per-crate maturity: 34 stable / 76 beta / 8 experimental / 9 stub) · [API_PHILOSOPHY.md](docs/API_PHILOSOPHY.md) · [COOKBOOK.md](docs/COOKBOOK.md) · [RELEASING.md](docs/RELEASING.md) · [SECURITY.md](SECURITY.md) · [CHANGELOG.md](CHANGELOG.md).
+In-repo deep-dives: [STABLE_CORE.md](docs/STABLE_CORE.md) (the v1 API contract) · [TIERS.md](docs/TIERS.md) (per-crate maturity: 34 stable core / 70 beta extensions / 8 experimental / 9 stub) · [API_PHILOSOPHY.md](docs/API_PHILOSOPHY.md) · [COOKBOOK.md](docs/COOKBOOK.md) · [RELEASING.md](docs/RELEASING.md) · [SECURITY.md](SECURITY.md) · [CHANGELOG.md](CHANGELOG.md).
 
 ---
 
