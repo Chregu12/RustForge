@@ -145,6 +145,23 @@ forcing removals would lose features. Instead:
   (the supported, `use rf::prelude::*` surface) + **optional extensions** (70 beta,
   8 experimental) with no 1.0 SemVer promise — pull in only what a project needs.
 
+### Fixed — cycle-20 close the 3 stable→beta cross-tier deps (2026-07-16)
+
+The extraction plan found 3 stable crates non-optionally depending on beta crates —
+so the "stable core" wasn't a truly closed set. All 3 are now closed: the beta dep
+is an **opt-in Cargo feature**, absent from the default build (confirmed via
+`cargo tree -e no-dev`), with the functionality preserved behind the flag:
+
+- `rf-response` → `rf-view` is now `--features view` (Tera rendering); default builds
+  fall through to the built-in Blade/HTML renderer.
+- `rf-eloquent` → `rf-encryption` is now `--features encryption` (AES-GCM encrypted
+  casts); default returns a clear error for the `Encrypted` cast.
+- `rf-storage` → `rf-plugins` is now `--features plugins` (the `FileService` plugin);
+  `rf-api` (beta) opts in. Default `rf-storage` (Local/S3) no longer pulls rf-plugins.
+
+The stable core is now a genuinely closed dependency set in the default build — a
+prerequisite for the extension extraction (see `docs/EXTENSIONS_EXTRACTION_PLAN.md`).
+
 ### Added — cycle-19 extension-extraction plan + experimental pilot (2026-07-16)
 
 Executing the maintainer's choice to plan radical scope discipline (the review's #1):
