@@ -13,10 +13,10 @@ categories = ["web-programming"]
 
 [dependencies]
 # Internal dependencies
-rf-core = { path = "../rf-core" }
-rf-orm = { path = "../rf-orm" }
-rf-authorization = { path = "../rf-authorization" }
-rf-validation = { path = "../rf-validation" }
+rf-core = { path = "../../crates/rf-core" }
+rf-orm = { path = "../../crates/rf-orm" }
+rf-authorization = { path = "../../crates/rf-authorization" }
+rf-validation = { path = "../../crates/rf-validation" }
 rf-nova-macros = { path = "../rf-nova-macros" }
 
 # Web framework

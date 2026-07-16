@@ -33,10 +33,11 @@ directories (non-members), and the remaining 112 break down as 34 core +
 | `stub` | Placeholder crate with no real implementation beyond type definitions or forwarding. | None |
 
 > **Machine-check convention (COMPLETE — CI-enforced):** Every `crates/*/Cargo.toml`
-> carries `[package.metadata.rustforge] tier = "<tier>"`. Coverage is 121/121 (100%).
-> A CI gate (`scripts/check-tiers.sh`, wired into the `workspace-gate` job) asserts
-> a valid tier on every crate directory on every push; a missing or invalid tier
-> value fails the build immediately.
+> and `extensions/*/Cargo.toml` carries `[package.metadata.rustforge] tier = "<tier>"`.
+> Coverage is 121/121 (100%). A CI gate (`scripts/check-tiers.sh`, wired into the
+> `workspace-gate` job) asserts a valid tier on every crate directory (scanning both
+> `crates/` and `extensions/`) on every push; a missing or invalid tier value fails
+> the build immediately.
 > Run `bash scripts/check-tiers.sh` locally to verify coverage.
 
 ---
@@ -178,6 +179,12 @@ by `rf-container`). They remain in the workspace until dependents are migrated.
 Excluded from `default-members`; not part of the 1.0 supported surface; no SemVer guarantees.
 Plain `cargo check` skips them; `cargo check --workspace` compiles them to prevent bitrot.
 
+**Location (cycle 19):** These 8 crates have been moved from `crates/` to the new
+`extensions/` directory as the first step of the extension-extraction plan. They remain
+workspace members (so `--workspace` still compiles them) but they live under `extensions/`
+to signal their separation from the stable core. See `docs/EXTENSIONS_EXTRACTION_PLAN.md`
+for the full plan.
+
 | Crate | Tier | Justification |
 |-------|------|---------------|
 | `rf-nova` | experimental | Nova admin panel — multi-resource type-erased dispatch unfinished; not production-ready |
@@ -225,11 +232,12 @@ not stub.
 | beta | 70 |
 | experimental | 8 |
 | stub | 9 |
-| **Total (crates/* directories)** | **121** |
+| **Total (crates/* + extensions/* directories)** | **121** |
 
 Note: the 9 stub crates are non-workspace facade directories. The 112 workspace
 members (34 stable + 70 beta + 8 experimental) are the crates that `cargo check
---workspace` compiles.
+--workspace` compiles. The 8 experimental crates now live under `extensions/`
+(cycle-19 move); all others remain under `crates/`.
 
 Cycle-13 removals: rf-oauth, rf-oauth-server, rf-oauth2-server (redundant OAuth servers → canonical rf-passport),
 rf-broadcasting (redundant → canonical rf-broadcast), rf-scheduling (redundant → canonical rf-scheduler),

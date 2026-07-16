@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# check-tiers.sh — CI gate: every crates/*/Cargo.toml must carry a valid
-# [package.metadata.rustforge] tier = "<tier>" entry.
+# check-tiers.sh — CI gate: every crates/*/Cargo.toml and extensions/*/Cargo.toml
+# must carry a valid [package.metadata.rustforge] tier = "<tier>" entry.
 #
 # Valid tiers: stable | beta | experimental | stub
 #
@@ -11,7 +11,9 @@
 
 set -euo pipefail
 
-CRATES_DIR="$(cd "$(dirname "$0")/../crates" && pwd)"
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+CRATES_DIR="$REPO_ROOT/crates"
+EXTENSIONS_DIR="$REPO_ROOT/extensions"
 VALID_TIERS="stable|beta|experimental|stub"
 
 errors=()
@@ -21,7 +23,18 @@ counts_experimental=0
 counts_stub=0
 total=0
 
+# Collect all Cargo.toml files from crates/ and extensions/ (if it exists)
+all_tomls=()
 for cargo_toml in "$CRATES_DIR"/*/Cargo.toml; do
+  all_tomls+=("$cargo_toml")
+done
+if [[ -d "$EXTENSIONS_DIR" ]]; then
+  for cargo_toml in "$EXTENSIONS_DIR"/*/Cargo.toml; do
+    [[ -f "$cargo_toml" ]] && all_tomls+=("$cargo_toml")
+  done
+fi
+
+for cargo_toml in "${all_tomls[@]}"; do
   crate_dir="$(dirname "$cargo_toml")"
   crate_name="$(basename "$crate_dir")"
   total=$((total + 1))
@@ -51,7 +64,7 @@ for cargo_toml in "$CRATES_DIR"/*/Cargo.toml; do
 done
 
 echo ""
-echo "=== RustForge Tier Coverage (crates/*) ==="
+echo "=== RustForge Tier Coverage (crates/* + extensions/*) ==="
 printf "  %-16s %d\n" "stable:"       "$counts_stable"
 printf "  %-16s %d\n" "beta:"         "$counts_beta"
 printf "  %-16s %d\n" "experimental:" "$counts_experimental"
@@ -74,5 +87,5 @@ if [[ ${#errors[@]} -gt 0 ]]; then
   exit 1
 fi
 
-echo "Tier check PASSED — all $total crates annotated with a valid tier."
+echo "Tier check PASSED — all $total crates annotated with a valid tier (crates/ + extensions/)."
 exit 0

@@ -10,8 +10,8 @@ categories = ["web-programming", "template-engine"]
 
 [dependencies]
 # Workspace dependencies
-rf-auth = { path = "../rf-auth", features = ["mail"] }
-rf-blade = { path = "../rf-blade" }
+rf-auth = { path = "../../crates/rf-auth", features = ["mail"] }
+rf-blade = { path = "../../crates/rf-blade" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 tokio = { workspace = true, features = ["fs", "sync", "macros"] }

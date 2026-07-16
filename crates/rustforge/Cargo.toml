@@ -34,7 +34,7 @@ rf-sanctum = { path = "../rf-sanctum" }
 rf-passport = { path = "../rf-passport" }
 
 # Admin & Monitoring - Laravel Nova & Horizon
-rf-nova = { path = "../rf-nova" }
+rf-nova = { path = "../../extensions/rf-nova" }
 rf-horizon = { path = "../rf-horizon" }
 
 # Utilities
