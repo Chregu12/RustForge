@@ -17,6 +17,24 @@
 //! web server, a single shared session across all callers is a security bug
 //! (session data from one client would bleed into every other client).
 //!
+//! ## Session lifetime and GC
+//!
+//! Sessions have an **idle lifetime**: any session that has not been touched for
+//! longer than the configured lifetime is treated as absent and eligible for
+//! removal. The default is **24 hours** of idle time; override it at runtime with
+//! the `SESSION_LIFETIME_SECS` environment variable.
+//!
+//! Eviction happens in two ways:
+//!
+//! * **Opportunistic** — on every `with_session` access the entry for the current
+//!   request's session id is checked; if expired it is evicted right there before
+//!   a fresh entry is created.
+//! * **Background sweep** — [`session_scope`] lazily spawns a tokio task (once per
+//!   process, only when a tokio runtime is present) that calls [`sweep_sessions`]
+//!   every 15 minutes, evicting all expired entries in one pass.  When no runtime
+//!   is present (CLI, unit tests) the sweep does not run; opportunistic eviction
+//!   still protects correctness.
+//!
 //! ## Flash: true one-request lifetime
 //!
 //! A value written with [`SessionFacade::flash`] is readable on the **next**
@@ -33,8 +51,9 @@
 //! happened.
 //!
 //! [`session_scope`] also guards the other direction: if the client sends a session
-//! id that is not present in the in-memory store (i.e. an unknown / forged id), a
-//! fresh id is generated rather than echoing the attacker-supplied value.
+//! id that is not present in the in-memory store (i.e. an unknown, forged, or
+//! **expired** id), a fresh id is generated rather than echoing the attacker-supplied
+//! value.
 //!
 //! # Examples
 //!
@@ -62,14 +81,46 @@ use once_cell::sync::Lazy;
 use serde_json::Value;
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
-use std::sync::RwLock;
+use std::sync::{
+    atomic::{AtomicU64, Ordering},
+    Once, RwLock,
+};
+use std::time::{Duration, Instant};
 
 /// Cookie name carrying the per-client session id.
 const SESSION_COOKIE: &str = "rf_session";
 
+/// Default session idle lifetime: 24 hours.
+const DEFAULT_SESSION_LIFETIME_SECS: u64 = 86_400;
+
+/// How often the background sweeper wakes up to evict expired sessions.
+const GC_INTERVAL: Duration = Duration::from_secs(15 * 60); // 15 minutes
+
+/// Overridable session lifetime in nanoseconds.  `0` means "use the env var /
+/// hard-coded default".  Tests override this via [`set_test_session_lifetime`]
+/// so they do not need to sleep for 24 hours.
+static SESSION_LIFETIME_NANOS: AtomicU64 = AtomicU64::new(0);
+
+/// Return the currently configured session idle lifetime.
+///
+/// Resolution order:
+/// 1. In-process override (tests only, via [`set_test_session_lifetime`]).
+/// 2. `SESSION_LIFETIME_SECS` environment variable.
+/// 3. Hard-coded 24-hour default.
+fn session_lifetime() -> Duration {
+    let nanos = SESSION_LIFETIME_NANOS.load(Ordering::Relaxed);
+    if nanos > 0 {
+        return Duration::from_nanos(nanos);
+    }
+    let secs = std::env::var("SESSION_LIFETIME_SECS")
+        .ok()
+        .and_then(|s| s.parse::<u64>().ok())
+        .unwrap_or(DEFAULT_SESSION_LIFETIME_SECS);
+    Duration::from_secs(secs)
+}
+
 /// Data for a single client's session: the key/value map plus the flash bookkeeping
-/// that gives flashed keys a one-request lifetime.
-#[derive(Default)]
+/// that gives flashed keys a one-request lifetime, and an idle-expiry timestamp.
 struct SessionData {
     /// Regular + flash values. Flash values live here too so `get`/`has` see them
     /// transparently for the one request they are alive.
@@ -78,9 +129,30 @@ struct SessionData {
     flash_new: HashSet<String>,
     /// Keys flashed during the PREVIOUS request (removed on the next aging).
     flash_old: HashSet<String>,
+    /// Monotonic timestamp refreshed on every [`with_session`] access.  Used to
+    /// implement idle-expiry: a session is expired when
+    /// `last_activity.elapsed() > session_lifetime()`.
+    last_activity: Instant,
+}
+
+impl Default for SessionData {
+    fn default() -> Self {
+        Self {
+            data: HashMap::new(),
+            flash_new: HashSet::new(),
+            flash_old: HashSet::new(),
+            last_activity: Instant::now(),
+        }
+    }
 }
 
 impl SessionData {
+    /// Returns `true` when this session has been idle longer than the configured
+    /// lifetime and should be treated as absent.
+    fn is_expired(&self) -> bool {
+        self.last_activity.elapsed() > session_lifetime()
+    }
+
     /// Advance the flash lifecycle by one request (called at request start):
     /// drop values that were flashed two requests ago, and promote this-request
     /// flashes to `old` so they survive exactly one further request.
@@ -100,6 +172,9 @@ impl SessionData {
 /// Process-wide backing store: one [`SessionData`] per session id. Sessions living
 /// server-side keyed by id is correct and intentional; the isolation comes from
 /// each request only ever touching its OWN id (via the task-local below).
+///
+/// Entries are bounded by `session_lifetime()` and periodically evicted by the
+/// background sweeper started in [`ensure_session_gc_started`].
 static SESSIONS: Lazy<RwLock<HashMap<String, SessionData>>> =
     Lazy::new(|| RwLock::new(HashMap::new()));
 
@@ -109,7 +184,52 @@ tokio::task_local! {
     static CURRENT_SESSION_ID: RefCell<String>;
 }
 
+// ---------------------------------------------------------------------------
+// Background GC sweeper
+// ---------------------------------------------------------------------------
+
+/// Evict all sessions whose idle time exceeds the configured lifetime.
+///
+/// Called by the background tokio task every [`GC_INTERVAL`].  Also callable
+/// directly from tests (no tokio runtime required) to trigger a sweep synchronously.
+pub fn sweep_sessions() {
+    let lifetime = session_lifetime();
+    let mut store = SESSIONS.write().unwrap();
+    store.retain(|_, v| !v.is_expired() || v.last_activity.elapsed() <= lifetime);
+}
+
+/// Ensure the background GC task is spawned exactly once per process.
+///
+/// Uses `std::sync::Once` so repeated calls (one per HTTP request) are
+/// extremely cheap (a single atomic load after the first call).  If called
+/// outside a tokio runtime (CLI, unit tests) the `try_current()` check fails
+/// and no task is spawned — correctness is preserved by opportunistic
+/// eviction inside `with_session`.
+fn ensure_session_gc_started() {
+    static GC_INIT: Once = Once::new();
+    GC_INIT.call_once(|| {
+        if let Ok(handle) = tokio::runtime::Handle::try_current() {
+            handle.spawn(async {
+                loop {
+                    tokio::time::sleep(GC_INTERVAL).await;
+                    sweep_sessions();
+                }
+            });
+        }
+    });
+}
+
+// ---------------------------------------------------------------------------
+// Core access helper
+// ---------------------------------------------------------------------------
+
 /// Run `f` against the current request's per-client session.
+///
+/// On every call:
+/// * If the session exists but has expired (idle > lifetime), it is evicted
+///   **opportunistically** right here and a fresh entry is created — the caller
+///   sees an empty session, not stale data.
+/// * `last_activity` is refreshed to now (idle-expiry semantics).
 ///
 /// # Panics
 ///
@@ -121,7 +241,16 @@ fn with_session<R>(f: impl FnOnce(&mut SessionData) -> R) -> R {
     CURRENT_SESSION_ID.try_with(|cell| {
         let sid = cell.borrow().clone();
         let mut store = SESSIONS.write().unwrap();
+
+        // Opportunistic expiry: evict this entry now if it has idled out.
+        // The or_default() below then creates a fresh empty entry.
+        if store.get(&sid).map(|d| d.is_expired()).unwrap_or(false) {
+            store.remove(&sid);
+        }
+
         let entry = store.entry(sid).or_default();
+        // Refresh last-activity timestamp on every access (idle-expiry semantics).
+        entry.last_activity = Instant::now();
         f(entry)
     })
     .unwrap_or_else(|_| {
@@ -133,6 +262,10 @@ fn with_session<R>(f: impl FnOnce(&mut SessionData) -> R) -> R {
         )
     })
 }
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
 
 /// Generate a cryptographically secure session id (256 bits, URL-safe base64).
 fn generate_session_id() -> String {
@@ -169,18 +302,25 @@ pub fn in_session_scope() -> bool {
     CURRENT_SESSION_ID.try_with(|_| ()).is_ok()
 }
 
+// ---------------------------------------------------------------------------
+// Middleware
+// ---------------------------------------------------------------------------
+
 /// Per-request middleware that establishes the current client's session scope.
 ///
 /// On each request it:
-/// 1. reads the `rf_session` cookie, or mints a fresh session id if absent **or if
-///    the supplied id is not present in the session store** (session-fixation defense:
-///    an attacker-planted unknown id is never echoed back as authenticated);
+/// 1. reads the `rf_session` cookie, or mints a fresh session id if absent, if
+///    the supplied id is not present in the session store, or if the session has
+///    **expired** (session-fixation defense + idle-expiry enforcement);
 /// 2. ages that session's flash data (one-request lifetime);
 /// 3. runs the handler inside a task-local scope so the [`SessionFacade`] reads
 ///    and writes ONLY this client's session; and
 /// 4. sets/refreshes the `rf_session` cookie on the response, using the **final**
 ///    session id (which may have changed if the handler called
 ///    [`SessionFacade::regenerate`]).
+///
+/// Also lazily starts the background GC sweeper (once per process) that evicts
+/// expired sessions every 15 minutes.
 ///
 /// ```ignore
 /// use axum::{Router, routing::get, middleware};
@@ -189,15 +329,26 @@ pub fn in_session_scope() -> bool {
 ///     .layer(middleware::from_fn(session_scope));
 /// ```
 pub async fn session_scope(req: Request, next: Next) -> Response {
+    // Lazily start the GC sweeper on the first real request (needs a tokio runtime).
+    ensure_session_gc_started();
+
     let candidate_id = cookie_session_id(&req);
 
-    // Session fixation defense: only reuse a supplied session id if it actually
-    // exists in the store.  An attacker can plant an id before the victim visits;
-    // if we echo that id back as authenticated, they know the victim's session.
-    // Instead we mint a new id whenever the client sends one we do not recognise.
+    // Session fixation + expiry defense: only reuse a supplied session id when it
+    // actually exists in the store AND has not expired.  An attacker can plant an
+    // id before the victim visits; if we echo that id back as authenticated, they
+    // know the victim's session.  An expired session is similarly rejected.
     let session_id = match candidate_id {
-        Some(id) if SESSIONS.read().unwrap().contains_key(&id) => id,
-        _ => generate_session_id(),
+        Some(id) => {
+            let valid = SESSIONS
+                .read()
+                .unwrap()
+                .get(&id)
+                .map(|d| !d.is_expired())
+                .unwrap_or(false);
+            if valid { id } else { generate_session_id() }
+        }
+        None => generate_session_id(),
     };
 
     // Age flash at the start of the request so values flashed on the previous
@@ -244,6 +395,10 @@ pub async fn session_scope(req: Request, next: Next) -> Response {
     response
 }
 
+// ---------------------------------------------------------------------------
+// Facade
+// ---------------------------------------------------------------------------
+
 /// The SessionFacade providing a static API scoped to the current request's session.
 ///
 /// Wire [`session_scope`] into your router so each client gets its own isolated
@@ -252,6 +407,10 @@ pub async fn session_scope(req: Request, next: Next) -> Response {
 /// fallback.  In a concurrent web server, a shared process-global session would
 /// silently bleed one client's data into every other concurrent client, which is
 /// a security bug.
+///
+/// Sessions expire after a configurable idle lifetime (default 24 hours).  An
+/// expired session is treated as absent: `get` returns `None` and the next write
+/// creates a fresh entry.
 ///
 /// # DX-layer convenience — task-local requirement
 ///
@@ -378,16 +537,54 @@ impl SessionFacade {
     }
 }
 
+// ---------------------------------------------------------------------------
+// Tests
+// ---------------------------------------------------------------------------
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use serde_json::json;
+
+    // -----------------------------------------------------------------------
+    // Test helpers
+    // -----------------------------------------------------------------------
 
     /// Run a closure inside a fresh, uniquely-keyed session scope so tests do not
     /// clobber each other (each test id is distinct to avoid cross-test interference).
     fn in_session<R>(id: &str, f: impl FnOnce() -> R) -> R {
         CURRENT_SESSION_ID.sync_scope(RefCell::new(id.to_string()), f)
     }
+
+    /// Override the session idle lifetime for a test, returning the previous value.
+    /// Callers must restore via [`restore_session_lifetime`] when done.
+    fn set_test_session_lifetime(d: Duration) -> u64 {
+        let nanos = d.as_nanos() as u64;
+        SESSION_LIFETIME_NANOS.swap(nanos, Ordering::SeqCst)
+    }
+
+    /// Restore the session lifetime previously returned by [`set_test_session_lifetime`].
+    fn restore_session_lifetime(prev: u64) {
+        SESSION_LIFETIME_NANOS.store(prev, Ordering::SeqCst);
+    }
+
+    /// Artificially age a session entry so that it appears to have been idle for
+    /// `age`.  Used in tests to simulate expiry without sleeping.
+    ///
+    /// Uses `Instant::checked_sub` — callers must pass an `age` that is shorter
+    /// than the system uptime (any value ≤ a few hours is always safe).
+    fn age_session_for_test(id: &str, age: Duration) {
+        let mut store = SESSIONS.write().unwrap();
+        if let Some(data) = store.get_mut(id) {
+            if let Some(past) = Instant::now().checked_sub(age) {
+                data.last_activity = past;
+            }
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // Existing session-isolation and flash tests (unchanged semantics)
+    // -----------------------------------------------------------------------
 
     #[test]
     fn test_session_put_and_get() {
@@ -645,5 +842,168 @@ mod tests {
                 "client B must see only its own data"
             );
         });
+    }
+
+    // -----------------------------------------------------------------------
+    // TTL / GC tests (Cycle-17 Item 2)
+    // -----------------------------------------------------------------------
+
+    /// (a) A session whose last_activity is artificially aged past the configured
+    /// lifetime is treated as absent (get returns None; a fresh empty session is
+    /// silently created on access), proving opportunistic eviction in with_session.
+    #[test]
+    fn test_expired_session_treated_as_absent() {
+        let id = "ttl_expired_session";
+
+        // Set a short lifetime (100 ms) so we can age the session well past it.
+        let prev = set_test_session_lifetime(Duration::from_millis(100));
+
+        // Insert a session entry with a known value.
+        in_session(id, || {
+            SessionFacade::put("key", json!("should_disappear"));
+        });
+        assert!(
+            SESSIONS.read().unwrap().contains_key(id),
+            "session must be in the store after insert"
+        );
+
+        // Age the entry by 200 ms (well past the 100 ms lifetime).
+        age_session_for_test(id, Duration::from_millis(200));
+
+        // Now access the session: with_session must detect the expired entry,
+        // evict it, and create a fresh one — so the old value is gone.
+        in_session(id, || {
+            assert!(
+                !SessionFacade::has("key"),
+                "expired session must be treated as absent — old value must not leak"
+            );
+        });
+
+        restore_session_lifetime(prev);
+    }
+
+    /// (b) sweep_sessions() removes expired entries and shrinks the map.
+    ///
+    /// Insert N sessions; age M of them past the lifetime; call sweep_sessions();
+    /// verify the map has shrunk by exactly M.
+    #[test]
+    fn test_gc_sweep_removes_expired_entries() {
+        let prefix = "sweep_test_";
+
+        // Use a 100 ms lifetime for this test.
+        let prev = set_test_session_lifetime(Duration::from_millis(100));
+
+        let total = 6usize;
+        let to_expire = 4usize;
+
+        // Insert `total` distinct sessions.
+        for i in 0..total {
+            let id = format!("{}{}", prefix, i);
+            in_session(&id, || {
+                SessionFacade::put("v", json!(i));
+            });
+        }
+
+        // Record store size before eviction (may include other test sessions, so
+        // count only the ones we just inserted).
+        {
+            let store = SESSIONS.read().unwrap();
+            let our_count = (0..total).filter(|i| store.contains_key(&format!("{}{}", prefix, i))).count();
+            assert_eq!(our_count, total, "all {total} sessions must be present before sweep");
+        }
+
+        // Age the first `to_expire` sessions past the lifetime.
+        for i in 0..to_expire {
+            let id = format!("{}{}", prefix, i);
+            age_session_for_test(&id, Duration::from_millis(200));
+        }
+
+        // Run the sweeper directly (no tokio runtime required in this sync test).
+        sweep_sessions();
+
+        // The expired sessions must be gone; the live ones must remain.
+        {
+            let store = SESSIONS.read().unwrap();
+            for i in 0..to_expire {
+                let id = format!("{}{}", prefix, i);
+                assert!(
+                    !store.contains_key(&id),
+                    "session {id} was expired and must have been removed by sweep"
+                );
+            }
+            for i in to_expire..total {
+                let id = format!("{}{}", prefix, i);
+                assert!(
+                    store.contains_key(&id),
+                    "session {id} was NOT expired and must still be present after sweep"
+                );
+            }
+        }
+
+        restore_session_lifetime(prev);
+    }
+
+    /// (c) A live (non-expired) session is unaffected by sweep and remains fully
+    /// accessible with all its data intact, and remains isolated from other clients.
+    #[test]
+    fn test_live_session_survives_sweep_and_stays_isolated() {
+        let live_id   = "live_session_survives";
+        let dead_id   = "dead_session_evicted";
+        let other_id  = "other_live_session";
+
+        let prev = set_test_session_lifetime(Duration::from_millis(100));
+
+        // Insert three sessions.
+        in_session(live_id, || {
+            SessionFacade::put("role", json!("admin"));
+            SessionFacade::put("user", json!(7));
+        });
+        in_session(dead_id, || {
+            SessionFacade::put("secret", json!("gone"));
+        });
+        in_session(other_id, || {
+            SessionFacade::put("data", json!("also_survives"));
+        });
+
+        // Age only the dead session.
+        age_session_for_test(dead_id, Duration::from_millis(200));
+
+        // Sweep: dead_id should be evicted, others remain.
+        sweep_sessions();
+
+        // The dead session is gone.
+        assert!(
+            !SESSIONS.read().unwrap().contains_key(dead_id),
+            "expired session must be removed by sweep"
+        );
+
+        // The live session still has all its data.
+        in_session(live_id, || {
+            assert_eq!(
+                SessionFacade::get("role"),
+                Some(json!("admin")),
+                "live session: 'role' must survive sweep"
+            );
+            assert_eq!(
+                SessionFacade::get("user"),
+                Some(json!(7)),
+                "live session: 'user' must survive sweep"
+            );
+        });
+
+        // The other live session is also intact and isolated from live_id.
+        in_session(other_id, || {
+            assert_eq!(
+                SessionFacade::get("data"),
+                Some(json!("also_survives")),
+                "other live session must survive sweep"
+            );
+            assert!(
+                !SessionFacade::has("role"),
+                "other session must not see live_id's 'role'"
+            );
+        });
+
+        restore_session_lifetime(prev);
     }
 }
