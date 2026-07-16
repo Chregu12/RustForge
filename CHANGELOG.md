@@ -126,6 +126,25 @@ Closed the two genuinely-open findings the second-review re-score surfaced:
   on access and by a background GC sweep (started when a tokio runtime is present).
   Fixes the slow-OOM footgun (a rotating client population previously accumulated forever).
 
+### Changed — cycle-18 scope round 2: honest messaging (2026-07-16)
+
+The second review's #1 point (scope). Round-2 analysis found that the remaining
+apparent overlaps are **genuinely different capabilities, not duplicates**, so
+forcing removals would lose features. Instead:
+
+- **No crates removed** (honest outcome): `rf-blade` (Blade compiler) vs `rf-view`
+  (Tera engine) are different template languages; `rf-domain`/`rf-infra`/`rf-application`
+  are three intentional DDD layers; `rf-helpers`/`rf-global-helpers`/`rf-collections`
+  and `rf-core`/`rf-errors` are different categories. All kept.
+- **Two real deprecation candidates marked deprecate-in-place** with documented
+  prerequisites: `rf-views` → `rf-view` (after porting the flash-isolation probe test)
+  and `rf-service-container` → `rf-container` (after migrating `rf-application`'s
+  string-key DI to the TypeId API). Do not use either in new code.
+- **Sharpened the stable-core-vs-extensions messaging** (addresses the "121 crates of
+  unknown maturity" perception): README + TIERS now present a **34-crate stable core**
+  (the supported, `use rf::prelude::*` surface) + **optional extensions** (70 beta,
+  8 experimental) with no 1.0 SemVer promise — pull in only what a project needs.
+
 ### Changed — cycle-13 scope consolidation (2026-07-16)
 
 The second review's #1 problem was scope/maintainability (too many overlapping
