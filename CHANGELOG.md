@@ -154,10 +154,17 @@ The extraction plan's Phase 2. The "34-crate stable core + optional extensions" 
   stub facades; the 8 experimental moved in cycle 19). `crates/` now holds **exactly the
   34 stable-core crates** — every one `tier = "stable"`; `extensions/` holds the 87
   non-stable crates.
-- **The default build is now the core only.** `cargo build` / `cargo check` (no
-  `--workspace`) compiles just the stable core; `--workspace` still compiles the full
+- **The default build targets the `crates/` core** — `cargo build`/`cargo check` (no
+  `--workspace`) builds the `crates/` members; `--workspace` still compiles the full
   tree (so CI verifies everything, no bitrot). All path-deps were resolved to the new
   locations; `RUSTFLAGS=-Dwarnings cargo check --workspace` + `--all-features` are clean.
+  **Honest caveat (corrected 2026-07-18):** this is a *directory* split, not yet a
+  *dependency-closure* split. The `rf` and `rustforge` umbrella crates (in
+  `default-members`) still **non-optionally depend on extension crates** (`rf` pulls
+  ~25; `rustforge` even pulls the experimental `rf-nova`), so a default `cargo build`
+  still compiles much of `extensions/` transitively **until the Phase-3 umbrella split**
+  (`rf` → core-only + a separate `rf-full`). The clean 34-crate `crates/` directory is
+  real; "default build = only the core" is NOT yet true.
 - **Non-breaking:** crate names are unchanged, so the `rf`/`rustforge` umbrellas, the
   per-crate CI jobs, and every downstream `-p <crate>` reference keep working. Reversible.
 

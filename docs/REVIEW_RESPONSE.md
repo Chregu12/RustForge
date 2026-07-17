@@ -526,3 +526,180 @@ The +0.2 overall gain, not +0.5, reflects two things. First, three dimensions (V
 - **Cycle 20 — closed the 3 stable→beta cross-tier deps (done, 2026-07-16).** The extraction plan surfaced that 3 stable crates non-optionally pulled beta crates (so the "stable core" wasn't truly closed). Fixed: `rf-response`→`rf-view`, `rf-eloquent`→`rf-encryption`, `rf-storage`→`rf-plugins` are now opt-in Cargo features, absent from the default build (verified via `cargo tree`), functionality preserved behind the flag. The stable core is now a genuinely closed dependency set — a real architecture improvement and a prerequisite for the clean extension extraction.
 
 - **Cycle 21 — in-repo split complete (done, 2026-07-17).** Phase 2 of the extraction (maintainer chose to complete it). All 79 non-stable crates moved from `crates/` to `extensions/`; **`crates/` now literally = the 34 stable-core crates**, `extensions/` = the 87 beta/experimental/stub. The default build (`cargo check`, no `--workspace`) is now the core only; `--workspace` still builds everything (CI unaffected, no bitrot). The review's "127 crates of varying maturity" perception is now answered *structurally*: a reader browsing the repo sees a clean 34-crate core, with extensions clearly separated. Non-breaking (no renames; umbrellas + CI intact) and reversible. This is the honest limit of what an in-repo move achieves — it makes the boundary real but does NOT reduce the actual build/CI/maintenance burden (that needs Phase 4, a separate repo — the maintainer's one-way-door call).
+
+---
+
+## Second-Review Re-Score #2 (2026-07-18)
+
+**Cycles scored:** C17 (auth fail-fast complete + session TTL/GC), C18 (scope round 2 — honest overlaps kept), C19 (extraction plan + experimental pilot), C20 (3 stable→beta cross-tier dep bugs closed), C21 (in-repo split complete: crates/ = 34 stable, extensions/ = 87 non-stable)
+**Baseline:** C16 interim (after C12–C15): Architecture 6.5, Tests/CI 7.5, Scope 4.5, Production-Readiness 6.0; Vision/DX/Ecosystem flat at 8.0/7.5/2.0.
+**Reconciler protocol:** An independent auditor and an adversarial skeptic each scored C17–C21 against the C16 interim. This synthesis leans to the skeptic when they produced code-verified findings that the auditor did not concretely refute, and to the auditor only where the skeptic's lower position lacks a specific artifact. Four skeptic findings are treated as unrefuted and controlling: (1) `GLOBAL_DB: Lazy<Mutex<DBManager>>` serialises all DX-layer DB operations under a single process-global Mutex, blocking concurrent requests from accessing the database simultaneously — not a future risk, the default path for `create!/find!/update!/delete!`; (2) `crates/rf` (tier=stable, in default-members) has 25 non-optional path dependencies on extension crates, falsifying the "closed stable core in the default build" headline claim while Phase 3 umbrella split remains undone; (3) `crates/rustforge` (tier=stable, in default-members, listed twice in `Cargo.toml` — a duplication bug at lines 74 and 215) non-optionally depends on `rf-nova`, whose `Cargo.toml` carries `tier='experimental'`, contradicting the workspace comment that `rf-nova` is NOT in default-members; (4) the in-repo directory split (C21) is a STRUCTURE/PERCEPTION change — it does NOT reduce compile scope, CI runtime, or maintenance burden, because `--workspace` still builds all 121 crates and the rf umbrella's non-optional extension deps are unchanged; the extraction plan itself honestly acknowledges this; a genuine maintenance-surface reduction requires Phase 4 (separate extensions repository), which is the maintainer's one-way-door call and has not been made.
+
+---
+
+### 1. Vision / Positioning
+
+| | Score |
+|---|---|
+| C16 Interim Baseline | 8.0 / 10 |
+| Auditor (C17–C21) | 8.0 / 10 |
+| Skeptic (C17–C21) | 8.0 / 10 |
+| **Reconciled** | **8.0 / 10** |
+| **Delta from C16 interim** | **0.0** |
+
+**What cycles 17–21 concretely changed.** C17 fixed the stale `VISION_GAP.md` opening verdict (now banner-redirected to this document as the current honest source of truth), closing a credibility gap flagged by both prior re-scores. The auth fail-fast completion (C17) closes the last visible contradiction between the "isolated per-request" vision claim and the actual runtime: no process-global auth state can silently answer scope-less queries anywhere in the stable core. C21's directory reorganisation means a first-time reader browsing the repository now encounters a clean 34-crate core, with the "34 stable + optional extensions" framing from C18 immediately navigable.
+
+**What still holds it back.** Both reviewers independently held at 8.0; there is nothing to adjudicate. The north-star claim ("write less code than Laravel") remains internally unvalidated — `CHANGELOG.md` records zero external users across all 21 cycles. The `rf` umbrella (stable-tagged, in default-members) has 25 non-optional path dependencies on extension crates, so the "34-crate stable core" positioning has a build-boundary asterisk for any developer depending on `rf::prelude::*` until Phase 3 umbrella split is done. The vision language still invokes the Laravel analogy without a published crates.io artifact users can actually install. No internal cycle resolves these; the ceiling is adoption-bound.
+
+---
+
+### 2. Developer Experience (DX)
+
+| | Score |
+|---|---|
+| C16 Interim Baseline | 7.5 / 10 |
+| Auditor (C17–C21) | 7.5 / 10 |
+| Skeptic (C17–C21) | 7.5 / 10 |
+| **Reconciled** | **7.5 / 10** |
+| **Delta from C16 interim** | **0.0** |
+
+**What cycles 17–21 concretely changed.** C17's auth fail-fast completion is a genuine DX improvement: all `Auth` methods (`check`/`guest`/`id`/`login`/`logout`/`user`, verified at `facade.rs` lines 76–499) now produce a diagnostic panic outside a `with_auth_scope` instead of silently routing through the process-global `FALLBACK_STATE`. Misconfiguration is loud at development time. The `GlobalRouter::build_router()` fix (credited in the architect correction to the C12–C15 re-score) means the routing facade is no longer a placeholder; the stable `rf-routing` crate has a real `build_router()` at `facade/registry.rs:228`. Both reviewers independently converged on 7.5, with no meaningful disagreement.
+
+**What still holds it back.** The DX score was already at 7.5 in the C16 interim, and C17–C21 contain no new DX capability — only correctness and safety hardening of surfaces that were already credited. The critical unaddressed gap that both reviewers flag is `GLOBAL_DB: Lazy<Mutex<DBManager>>`: every call to `create!`, `find!`, `update!`, `delete!`, `DB::select()` locks a single process-global `Mutex`, serialising all concurrent requests that touch the database. The `AsyncBridge` adds approximately 3.75 µs overhead (42x vs native tokio, documented in `docs/PERFORMANCE.md`). This is not a pathological edge case — it is the default path for the framework's headline DX features. Under any meaningful concurrent load, the DX facade is a throughput bottleneck. The `rf` umbrella still drags in 25+ extension crates, so a developer using only `rf::prelude::*` still compiles the full extension tree.
+
+---
+
+### 3. Technical Architecture
+
+| | Score |
+|---|---|
+| C16 Interim Baseline | 6.5 / 10 |
+| Auditor (C17–C21) | 7.0 / 10 |
+| Skeptic (C17–C21) | 6.5 / 10 |
+| **Reconciled** | **6.5 / 10** |
+| **Delta from C16 interim** | **0.0** |
+
+**What cycles 17–21 concretely changed.** Two genuine architectural improvements are code-verified. First: `FALLBACK_STATE` is completely removed from `auth_manager.rs` — confirmed by grep returning zero matches for `FALLBACK_STATE` in `crates/`; `auth_manager.rs` uses only `task_local! AUTH_STATE` with `try_with()` failing to a panic; all 12+ `Auth` facade methods in `facade.rs` lines 76–499 produce a diagnostic panic when called outside a `with_auth_scope`. No silent cross-request auth bleed is architecturally possible anywhere in the stable core. Second: the individual stable crates (not the umbrellas) now have a genuinely closed dependency set — `rf-response`, `rf-eloquent`, `rf-storage` have their beta deps behind optional Cargo features (`optional = true` verified in each crate's `Cargo.toml`); `crates/` contains exactly 34 stable-tier crates (`ls` count verified = 34, `check-tiers.sh` 121/121 CI-gated).
+
+**Why the reconciled score holds at 6.5 rather than rising to the auditor's 7.0.** The auditor's upgrade is partly earned by the auth improvements, but two skeptic findings directly falsify the architectural claim that the C17–C21 cycle brief is built on — "the stable core is a genuinely CLOSED dep set in the default build" — and neither finding was refuted with a counter-artifact. First: `crates/rf` (tier=stable, in default-members) has 25 non-optional path dependencies on extension crates including `rf-view`, `rf-blade`, `rf-testing`, `rf-cashier`, `rf-mcp`; building `rf` still compiles most of `extensions/`. Phase 3 umbrella split is explicitly not done. Second: `crates/rustforge` (tier=stable, in default-members, duplicated at `Cargo.toml:74` and `:215`) non-optionally depends on `rf-nova` whose `Cargo.toml` carries `tier='experimental'`; the workspace comment "Experimental crates (NOT in default-members): rf-nova" is therefore factually wrong — `rf-nova` IS compiled in the default build via `rustforge`. The `GLOBAL_DB: Lazy<Mutex<DBManager>>` architecture remains structurally unchanged and is the dominant production bottleneck. The +0.5 the auditor awards for auth is real; the -0.5 the skeptic applies for the falsified closure claim is also real. Net: flat at 6.5.
+
+**What still holds it back.** The three controlling gaps are: `GLOBAL_DB` Mutex serialising all DX-layer DB calls (pre-existing, structurally unaddressed); `rf` and `rustforge` umbrellas (both stable-tagged, both in default-members) pulling in 25 and 11 extension crates respectively, including one experimental-tier crate; and `rf-route-facade` (`extensions/tier=stub`) `GlobalRouter::build_router()` still returning `Router::new()` — the static `Route::` facade from the `rf` prelude cannot serve production traffic.
+
+---
+
+### 4. Tests / CI
+
+| | Score |
+|---|---|
+| C16 Interim Baseline | 7.5 / 10 |
+| Auditor (C17–C21) | 7.5 / 10 |
+| Skeptic (C17–C21) | 7.5 / 10 |
+| **Reconciled** | **7.5 / 10** |
+| **Delta from C16 interim** | **0.0** |
+
+**What cycles 17–21 concretely changed.** C17 added meaningful tests: `#[should_panic]` variants for `check`/`guest`/`id`/`login`/`logout` outside `with_auth_scope`, positive cases for inside-scope, and concurrent-scope isolation tests (two async scopes running simultaneously with independent auth state, verifying no bleed). Session TTL/GC tests verify the OOM-prevention path (GC sweep fires at 15-minute intervals, opportunistic eviction on access, `is_expired()` idle check at 24 h default). The probe-sweep integration scenarios grew from 9 to 10 committed scenarios (`session_per_client.rs` and `flash_no_bleed.rs` now explicitly cover session isolation). Both reviewers independently held at 7.5 with identical structural reasoning; there is nothing to adjudicate.
+
+**What still holds it back.** The structural CI weaknesses from C16 remain entirely unchanged: `ci.yml` line 739 still reads "CURRENT STATUS: secrets not yet added to this repo — every step below takes the skip path and passes green" — live-cloud CI has never executed a real cloud round-trip against Redis, S3, or SMTP. `clippy -D warnings` covers only approximately 14 of 121 crates; `extensions/` has no automated lint enforcement. No coverage gate is enforced in CI. The coverage report was generated in cycle 8 (2026-07-14) and has not been re-run through C21; `rf-orm query_builder.rs` at 10.8% and `transaction.rs` at 13.2% remain the most-used ORM paths with near-zero coverage in hermetic CI. No concurrency or load test validates the `GLOBAL_DB` Mutex serialisation bottleneck under realistic concurrent traffic. These gaps are structural and none was addressed in C17–C21.
+
+---
+
+### 5. Scope / Maintainability
+
+| | Score |
+|---|---|
+| C16 Interim Baseline | 4.5 / 10 |
+| Auditor (C17–C21) | 5.0 / 10 |
+| Skeptic (C17–C21) | 5.0 / 10 |
+| **Reconciled** | **5.0 / 10** |
+| **Delta from C16 interim** | **+0.5** |
+
+**What cycles 17–21 concretely changed.** Both reviewers independently converged on 5.0; there is nothing to adjudicate. C21 delivered real structural clarity: `crates/` contains exactly 34 stable-core crates (`ls` count verified), `extensions/` contains 87 non-stable crates, `check-tiers.sh` passes 121/121 and is CI-gated. The individual stable crates now form a genuinely closed dependency set for the 34 crates themselves (C20 closed 3 cross-tier bugs). `TIERS.md` and `docs/EXTENSIONS_EXTRACTION_PLAN.md` provide an honest single source of truth for tier semantics and the rationale for what was and was not done. The +0.5 gain reflects this real organisational clarity — a reader browsing the repository now has a navigable answer to "what is the stable core?" that was absent before.
+
+**The hard limit on this score, stated explicitly.** The +0.5 gain is real, and the ceiling is the right ceiling. The directory boundary is now clean; the build boundary is not. The extraction plan document itself honestly states: "the in-repo split is STRUCTURE/PERCEPTION — it does NOT reduce the actual build/CI/maintenance burden." This is precisely correct and must not be sugar-coated in the re-score: `--workspace` still compiles all 121 crates on every CI push; the 87 extension crates still require the sole maintainer to own every API decision; the `rf` umbrella still pulls in most of `extensions/` in the default build because Phase 3 (umbrella split) is not done. A genuinely smaller maintenance surface requires Phase 4 — moving the extension crates to a separate repository — which is the maintainer's one-way-door call that has not been made. The 2nd review's core verdict ("a smaller RustForge with ~20 very good components would be more convincing than 127 crates") is structurally unaddressed: the crate count is 121 (down from 127 after C13's consolidation), bus factor is 1, and zero external contributors have appeared. The perception improvement from C21 is real; the maintenance-surface improvement is not.
+
+**What still holds it back.** 121 crates, 1 maintainer, bus-factor 1, zero external contributors — the actual maintenance surface is identical to C16. The `rf` umbrella (stable-tagged) non-optionally pulls in 25+ extensions, so the build boundary does not match the directory boundary. 9 stub crates exist in `extensions/` without providing value (tier=stub, non-workspace members), and they cannot be deleted without refactoring `rf-macros`, which hard-codes their crate names (`rf_auth_facade`, `rf_db_facade`, etc.) into emitted token streams. Phase 4 (separate extensions repository — the actual scope reduction the 2nd review recommended) remains undone.
+
+---
+
+### 6. Production-Readiness
+
+| | Score |
+|---|---|
+| C16 Interim Baseline | 6.0 / 10 |
+| Auditor (C17–C21) | 6.5 / 10 |
+| Skeptic (C17–C21) | 6.25 / 10 |
+| **Reconciled** | **6.25 / 10** |
+| **Delta from C16 interim** | **+0.25** |
+
+**What cycles 17–21 concretely changed.** C17 closes the two production gaps that the C16 interim flagged as most consequential and that the preceding re-score listed as its top two "needle-moving" items. First: session store OOM is fixed — `session_facade.rs` has a `GC_INTERVAL`=15-minute background sweep (`ensure_session_gc_started()` with a `std::sync::Once` guard), `is_expired()` idle-expiry at 24 h default, and opportunistic eviction on every access (verified at `session_facade.rs` lines 96–252); rotating client populations no longer exhaust memory. Second: auth fail-fast is complete — `FALLBACK_STATE` is gone from `auth_manager.rs` (grep-confirmed zero matches in `crates/`), so no silent cross-request auth state leaks between requests under any code path in the stable core. C20 closed the stable-core dependency set for the 34 individual stable crates, so a production application using only stable crates no longer inadvertently pulls in beta deps in the individual crate build (with the umbrella asterisk noted below).
+
+**Why the reconciled score is 6.25 rather than the auditor's 6.5.** The auditor's four improvements are genuine and code-verified. The skeptic introduces one new structural finding that the auditor does not refute: `GLOBAL_DB: Lazy<Mutex<DBManager>>` serialises all DX-layer database operations (every `create!`, `find!`, `update!`, `delete!`, `DB::select()` call) through a single process-global `Mutex`. Under concurrent load, every HTTP handler that touches the database queues behind this single lock. The `AsyncBridge` adds approximately 3.75 µs per call (42x overhead vs native tokio, per `docs/PERFORMANCE.md`). This is not a future scalability concern — it is the default behaviour of the framework's headline DX features today, and it is a production throughput ceiling for any multi-user application. The auditor's 6.5 does not adequately weight this. The skeptic's 6.25 is the defensible ceiling while `GLOBAL_DB` remains structurally unchanged.
+
+**What still holds it back.** The four persistent gaps are: (1) `GLOBAL_DB` Mutex serialisation — the dominant production-throughput bottleneck on the DX facade path; (2) the `crates/rustforge` → `rf-nova` (experimental) non-optional dependency violates the tier contract the framework markets — the primary umbrella crate compiles an experimental dependency in the default build; (3) in-memory-only session store and CSRF token store — horizontal scaling across multiple server instances silently fails without Redis wiring that is absent from every getting-started path; (4) live-cloud CI has never executed a real cloud round-trip (secrets still not configured, `ci.yml` self-admits "every step below takes the skip path and passes green"), and no crates.io publication means the framework cannot be adopted via `cargo add`.
+
+---
+
+### 7. Ecosystem / Adoption
+
+| | Score |
+|---|---|
+| C16 Interim Baseline | 2.0 / 10 |
+| Auditor (C17–C21) | 2.0 / 10 |
+| Skeptic (C17–C21) | 2.0 / 10 |
+| **Reconciled** | **2.0 / 10** |
+| **Delta from C16 interim** | **0.0** |
+
+**What cycles 17–21 concretely changed.** Nothing measurable on any external-engagement metric. All commits across C17–C21 are from `chregu12` + `noreply@anthropic.com`. `CHANGELOG.md` explicitly records zero external users. Zero crates.io publication, zero docs.rs coverage, zero external contributors, zero GitHub stars or forks attributable to external users. Both reviewers independently assigned 2.0 with identical reasoning; there is nothing to adjudicate.
+
+**What still holds it back.** This dimension is adoption-bound and time-bound; no internal engineering cycle can move it. The framework cannot be added as a Cargo dependency without cloning the repository — all 50+ inter-crate dependencies remain `path = '../..'`. The 6-month API freeze is a documentation promise with no tooling enforcement (no `semver-check` in CI gating breaking changes on stable-core crates). Community infrastructure (`CONTRIBUTING.md`, issue templates, `CODE_OF_CONDUCT.md`, `SECURITY.md`) exists but has received zero external engagement across all 21 cycles. `README` badges are static `shields.io` images, not live `crates.io` or `docs.rs` badges. `CHANGELOG.md` tracks internal cycle milestones, not semver releases with user-migration notes that external developers could act on. No internal cycle changes any of these.
+
+---
+
+### Overall: Second-Review Re-Score #2 (C17–C21)
+
+| | Score |
+|---|---|
+| 2nd Review Baseline (2026-07-15) | 6.0 / 10 |
+| C16 Interim (after C12–C15) | ~6.0 / 10 |
+| Auditor (C17–C21) | 6.2 / 10 |
+| Skeptic (C17–C21) | 6.1 / 10 |
+| **Reconciled** | **6.1 / 10** |
+| **Delta from C16 interim** | **+0.1** |
+
+Cycles 17–21 close exactly the specific open findings that the C16 interim identified — no more, no less. The three concrete improvements that earn the +0.1 delta are verifiable in code: auth fail-fast is genuinely complete (FALLBACK_STATE is grep-confirmed gone from `auth_manager.rs`, all 12+ `Auth` methods panic outside scope); session store OOM is genuinely fixed (15-minute background GC, TTL idle-expiry, opportunistic eviction — all verified in `session_facade.rs`); and the C21 directory reorganisation provides real structural clarity for a repository reader (34-crate `crates/` core vs 87-crate `extensions/`). These are honest improvements, not documentation polish.
+
+The reason the delta is +0.1 rather than the auditor's implied +0.2 is threefold. First, the skeptic's finding that `crates/rf` and `crates/rustforge` (both stable-tagged, both in default-members) have non-optional dependencies on extension crates — including `rf-nova` at tier=experimental — directly falsifies the headline claim of C17–C21 ("the stable core is a genuinely CLOSED dep set in the default build"). The auditor acknowledges this as "still holding it back" but awards Architecture +0.5 anyway; the skeptic holds Architecture flat at 6.5, and the skeptic's position is the more honest one. Second, `GLOBAL_DB: Lazy<Mutex<DBManager>>` is the framework's largest unaddressed production-readiness gap: it serialises every DX-layer database operation under a single process-global lock, making the headline DX features (`create!`/`find!`/`update!`/`delete!`) a throughput bottleneck under concurrent load by design. This was present at C16 and is structurally unchanged across C17–C21. Third, Ecosystem/Adoption is flat at 2.0 and immovable by internal cycles, and its weight in any reasonable scoring pulls the weighted average down regardless of engineering quality gains.
+
+The in-repo split (C21) deserves a plain statement in the overall summary, not buried in a dimension: it is a structure and perception improvement, not a maintenance-surface reduction. The extraction plan document says this explicitly and correctly. The build still compiles 121 crates under `--workspace`, the CI still runs against all of them, the maintainer still owns every API decision for all 87 extension crates, and the `rf` umbrella still pulls in most of `extensions/` in the default build. The 2nd review's structural recommendation — "a smaller RustForge with ~20 very good components" — requires Phase 4 (a separate extensions repository), which is the maintainer's one-way-door call. That call has not been made. Acknowledging this honestly is more useful than crediting the directory move as if it were the same thing.
+
+---
+
+### What Would Move the Needle: C22 Assessment
+
+**Agent-fixable in future engineering cycles (ordered by impact):**
+
+1. **Fix `GLOBAL_DB` to use a real async connection pool** — replacing `Lazy<Mutex<DBManager>>` with a `tokio`-native async pool (e.g., `sqlx::PgPool` directly, or a `tokio::sync::RwLock` with a pool inside) would eliminate the per-request Mutex contention that serialises all DX-layer database calls. This is the single change with the highest production-readiness and DX impact; fixing it would justify +0.25 to +0.5 on both dimensions. It is also the framework's honest prerequisite for claiming "native Rust performance" on any concurrent workload.
+
+2. **Phase 3: umbrella split** — splitting `crates/rf/Cargo.toml` so that the stable umbrella depends only on the 34 stable crates (with `rf-full` or `rf-extended` adding extension deps as a separate opt-in crate) would make "the default build = the stable core" actually true. This is the prerequisite for the Architecture score to rise above 6.5 and for the "34-crate stable core" claim to be fully honest. It is a bounded refactor, not a one-way door.
+
+3. **Fix the `crates/rustforge` → `rf-nova` dependency** — removing or making optional the `rf-nova` dependency in `crates/rustforge/Cargo.toml`, and fixing the duplication bug (the crate appears twice in the workspace `default-members` list), would close the tier-contract violation that the skeptic found and the workspace comment falsely denies.
+
+4. **Configure live-cloud CI secrets** — adding `REDIS_URL`, `AWS_*` (or MinIO equivalent), and `RF_SMTP_TEST_ADDR` to GitHub Actions secrets so the live-cloud job actually executes at least one real round-trip. The job infrastructure exists; the "confirmed theater" finding closes the moment secrets are configured. This is a configuration task, not an engineering cycle.
+
+5. **Add a CI coverage gate with a floor** — a `cargo llvm-cov --fail-under 40` threshold (or similar) enforced in CI would immediately surface the `rf-orm query_builder.rs` (10.8%) and `transaction.rs` (13.2%) coverage gaps and prevent further accumulation of untested ORM paths. The coverage report predates C21; re-running it would also give an accurate current baseline.
+
+6. **Extend `clippy -D warnings` to `extensions/`** — currently only approximately 14 of 121 crates are linted with warnings-as-errors; the 87 extension crates accumulate lint-silently. Extending the gate would improve code quality signal across the maintenance surface the maintainer already owns.
+
+**Adoption/time-bound (cannot be accelerated by internal engineering cycles):**
+
+7. **Publish to crates.io** — all 121 inter-crate dependencies are `path = '../..'`; a coordinated multi-crate release workflow does not exist. Until published, the framework is `cargo add`-inaccessible. This is the prerequisite for Ecosystem/Adoption moving above 2.0 and Production-Readiness moving above 6.5; it also gates Phase 4.
+
+8. **Phase 4 (separate extensions repository)** — this is the maintainer's acknowledged one-way-door: moving `extensions/` to a separate repository is the change that would actually reduce the maintenance surface, cut CI runtime for the stable core, and reduce bus-factor exposure. It requires crates.io publication first. No internal agent cycle can make this decision; it is a product strategy call with permanent consequences.
+
+9. **External users and contributors** — zero external contributors and zero external users cannot change through internal cycles. They require the framework to be publicly installable (crates.io publication), then real developers adopting it, filing issues, and contributing fixes. The community infrastructure exists and is unused; the bottleneck is accessibility, not infrastructure.
+
+10. **Tooling enforcement for the 6-month API freeze** — the freeze is a documentation promise; without a `cargo-semver-checks` or equivalent CI gate on stable-core crates, it provides no adoptability signal to external developers. Adding the gate is technically agent-fixable but only meaningful once crates.io publication makes external developers care about the version contract.
+
+---
+
+*Second-Review Re-Score #2 synthesised 2026-07-18. Baseline: C16 interim (Architecture 6.5, Tests/CI 7.5, Scope 4.5, Production-Readiness 6.0; Vision/DX/Ecosystem at 8.0/7.5/2.0). Reconciler protocol: lean to the skeptic on code-verified unrefuted findings; lean to the auditor only where the skeptic's lower position lacks a specific artifact. Four skeptic findings treated as unrefuted and controlling: GLOBAL_DB Mutex serialisation (dominant throughput bottleneck), rf/rustforge umbrellas falsifying the "closed stable core in the default build" claim (25 and 11 non-optional extension deps respectively), rustforge → rf-nova tier-contract violation (experimental dep in stable umbrella, default-members duplication bug), and the in-repo split being STRUCTURE/PERCEPTION only — not a maintenance-surface reduction — with Phase 4 (separate repo) remaining the maintainer's unmade one-way-door call.*
