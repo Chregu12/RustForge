@@ -145,6 +145,25 @@ forcing removals would lose features. Instead:
   (the supported, `use rf::prelude::*` surface) + **optional extensions** (70 beta,
   8 experimental) with no 1.0 SemVer promise — pull in only what a project needs.
 
+### Changed — cycle-21 in-repo split complete: crates/ = the stable core (2026-07-17)
+
+The extraction plan's Phase 2. The "34-crate stable core + optional extensions" is now
+**structurally real**, not just documentation:
+
+- **All 79 non-stable crates moved from `crates/` to `extensions/`** (70 beta + 9 dead
+  stub facades; the 8 experimental moved in cycle 19). `crates/` now holds **exactly the
+  34 stable-core crates** — every one `tier = "stable"`; `extensions/` holds the 87
+  non-stable crates.
+- **The default build is now the core only.** `cargo build` / `cargo check` (no
+  `--workspace`) compiles just the stable core; `--workspace` still compiles the full
+  tree (so CI verifies everything, no bitrot). All path-deps were resolved to the new
+  locations; `RUSTFLAGS=-Dwarnings cargo check --workspace` + `--all-features` are clean.
+- **Non-breaking:** crate names are unchanged, so the `rf`/`rustforge` umbrellas, the
+  per-crate CI jobs, and every downstream `-p <crate>` reference keep working. Reversible.
+
+Remaining (maintainer's call): Phase 3 = split the `rf`/`rustforge` umbrellas into
+core-only + `-full` (a breaking API change); Phase 4 = optional separate repo.
+
 ### Fixed — cycle-20 close the 3 stable→beta cross-tier deps (2026-07-16)
 
 The extraction plan found 3 stable crates non-optionally depending on beta crates —
