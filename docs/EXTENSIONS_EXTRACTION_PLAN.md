@@ -1,11 +1,21 @@
 # RustForge — Extension Extraction Plan (Cycle 19)
 
-> **Status:** Phase 1 EXECUTED (cycle 19). The design is in this document; the
-> **8 experimental crates were moved to `extensions/`** in the same cycle as the pilot
-> (build 0-warnings green, `check-tiers` scans `crates/` + `extensions/`, no dangling
-> refs). Phases 2–4 remain: fix the 3 stable→beta cross-tier bugs, move the beta batch,
-> split the `rf`/`rustforge` umbrellas, and (maintainer's one-way-door call) an optional
-> separate repo after crates.io publication.
+> **Status:** Phase 1 EXECUTED (cycle 19) + Phase 2 EXECUTED (cycle 21).
+>
+> - **Phase 1 (cycle 19):** 8 experimental crates moved to `extensions/`. Build
+>   0-warnings green, `check-tiers` scans `crates/` + `extensions/`, no dangling refs.
+>
+> - **Phase 2 (cycle 21):** All 79 remaining non-stable crates (70 beta + 9 stub)
+>   moved from `crates/` to `extensions/` in one scripted pass. `crates/` now contains
+>   exactly the 34 stable-core crates. `extensions/` holds all 87 non-stable crates.
+>   `RUSTFLAGS=-Dwarnings cargo check --workspace` exits 0 (0 warnings).
+>   `cargo check --workspace --all-features` exits 0. `bash scripts/check-tiers.sh`
+>   passes 121/121. Default build (`cargo check`, no --workspace) builds only the
+>   stable core + examples/tests — no extension crates are directly in `default-members`.
+>
+> - **Phases 3–4 remain:** Split the `rf`/`rustforge` umbrellas (Phase 3), and
+>   (maintainer's one-way-door call) an optional separate repo after crates.io
+>   publication (Phase 4).
 >
 > **Problem statement:** The Scope/Maintainability dimension scored 4/10 in the
 > independent review. Verdict: "a smaller RustForge with ~20 very good components
@@ -14,7 +24,8 @@
 > structural answer: how to make "34-crate stable core + optional extensions" real in
 > code, not just in documentation.
 >
-> **Scope of this cycle:** Write and commit this plan. DO NOT move crates yet.
+> **Scope of original plan document:** Write and commit this plan. Phase 1 execution
+> in cycle 19; Phase 2 execution in cycle 21.
 
 ---
 

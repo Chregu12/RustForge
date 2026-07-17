@@ -11,20 +11,20 @@ rf-validation = { path = "../../crates/rf-validation" }
 rf-auth = { path = "../../crates/rf-auth", features = ["mail"] }
 rf-cache = { path = "../../crates/rf-cache" }
 rf-config = { path = "../../crates/rf-config" }
-rf-collections = { path = "../../crates/rf-collections" }
+rf-collections = { path = "../../extensions/rf-collections" }
 rf-web = { path = "../../crates/rf-web" }
 rf-routing = { path = "../../crates/rf-routing" }
-rf-pagination = { path = "../../crates/rf-pagination" }
-rf-container = { path = "../../crates/rf-container" }
+rf-pagination = { path = "../../extensions/rf-pagination" }
+rf-container = { path = "../../extensions/rf-container" }
 rf-eloquent = { path = "../../crates/rf-eloquent" }
 rf-mail = { path = "../../crates/rf-mail" }
 rf-storage = { path = "../../crates/rf-storage" }
-rf-encryption = { path = "../../crates/rf-encryption" }
+rf-encryption = { path = "../../extensions/rf-encryption" }
 rf-events = { path = "../../crates/rf-events" }
 rf-queue = { path = "../../crates/rf-queue" }
-rf-scheduler = { path = "../../crates/rf-scheduler" }
+rf-scheduler = { path = "../../extensions/rf-scheduler" }
 rf-health = { path = "../../crates/rf-health" }
-rf-testing = { path = "../../crates/rf-testing" }
+rf-testing = { path = "../../extensions/rf-testing" }
 
 anyhow = "1.0"
 axum = { version = "0.8", features = ["macros"] }

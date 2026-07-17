@@ -41,8 +41,8 @@ regex = "1.10"
 chrono = "0.4"
 
 # RustForge
-rf-cli-gen = { path = "../rf-cli-gen" }
-rf-deploy = { path = "../rf-deploy" }
+rf-cli-gen = { path = "../../extensions/rf-cli-gen" }
+rf-deploy = { path = "../../extensions/rf-deploy" }
 
 [features]
 # Surfaces the queued-mail scaffolding hint (rf-mail "queue" feature).

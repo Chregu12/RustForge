@@ -15,7 +15,7 @@ categories = ["web-programming"]
 # Internal dependencies
 rf-core = { path = "../../crates/rf-core" }
 rf-orm = { path = "../../crates/rf-orm" }
-rf-authorization = { path = "../../crates/rf-authorization" }
+rf-authorization = { path = "../rf-authorization" }
 rf-validation = { path = "../../crates/rf-validation" }
 rf-nova-macros = { path = "../rf-nova-macros" }
 

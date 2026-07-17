@@ -15,14 +15,14 @@ rf-macros = { path = "../rf-macros" }
 rf-model-macro = { path = "../rf-model-macro" }
 
 # Facades
-rf-auth-facade = { path = "../rf-auth-facade" }
-rf-cache-facade = { path = "../rf-cache-facade" }
-rf-db-facade = { path = "../rf-db-facade" }
-rf-event-facade = { path = "../rf-event-facade" }
-rf-storage-facade = { path = "../rf-storage-facade" }
-rf-route-facade = { path = "../rf-route-facade" }
-rf-sanctum-facade = { path = "../rf-sanctum-facade" }
-rf-passport-facade = { path = "../rf-passport-facade" }
+rf-auth-facade = { path = "../../extensions/rf-auth-facade" }
+rf-cache-facade = { path = "../../extensions/rf-cache-facade" }
+rf-db-facade = { path = "../../extensions/rf-db-facade" }
+rf-event-facade = { path = "../../extensions/rf-event-facade" }
+rf-storage-facade = { path = "../../extensions/rf-storage-facade" }
+rf-route-facade = { path = "../../extensions/rf-route-facade" }
+rf-sanctum-facade = { path = "../../extensions/rf-sanctum-facade" }
+rf-passport-facade = { path = "../../extensions/rf-passport-facade" }
 
 # Core
 rf-request = { path = "../rf-request" }
@@ -31,11 +31,11 @@ rf-validation = { path = "../rf-validation" }
 
 # Authentication - Laravel Sanctum & Passport
 rf-sanctum = { path = "../rf-sanctum" }
-rf-passport = { path = "../rf-passport" }
+rf-passport = { path = "../../extensions/rf-passport" }
 
 # Admin & Monitoring - Laravel Nova & Horizon
 rf-nova = { path = "../../extensions/rf-nova" }
-rf-horizon = { path = "../rf-horizon" }
+rf-horizon = { path = "../../extensions/rf-horizon" }
 
 # Utilities
 serde = { version = "1.0", features = ["derive"] }

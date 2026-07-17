@@ -179,11 +179,10 @@ by `rf-container`). They remain in the workspace until dependents are migrated.
 Excluded from `default-members`; not part of the 1.0 supported surface; no SemVer guarantees.
 Plain `cargo check` skips them; `cargo check --workspace` compiles them to prevent bitrot.
 
-**Location (cycle 19):** These 8 crates have been moved from `crates/` to the new
-`extensions/` directory as the first step of the extension-extraction plan. They remain
-workspace members (so `--workspace` still compiles them) but they live under `extensions/`
-to signal their separation from the stable core. See `docs/EXTENSIONS_EXTRACTION_PLAN.md`
-for the full plan.
+**Location (cycle 19 + cycle 21):** These 8 crates live under `extensions/`. They remain
+workspace members (so `--workspace` still compiles them) but are excluded from
+`default-members` to keep the default build surface stable-core only.
+See `docs/EXTENSIONS_EXTRACTION_PLAN.md` for the full plan.
 
 | Crate | Tier | Justification |
 |-------|------|---------------|
@@ -200,11 +199,12 @@ for the full plan.
 
 ## Stub Crates (9)
 
-Nine facade crates exist under `crates/` but are **not workspace members**.
+Nine facade crates exist under `extensions/` but are **not workspace members**.
 They were superseded in Phase 20 when facades were merged into their main crates.
-They are unmaintained dead-code directories and are classified `stub`. The
-recommendation is to delete them in a future cleanup pass, but they are kept
-here to avoid breaking any downstream Cargo.toml `path = ...` references.
+They were moved from `crates/` to `extensions/` in cycle 21 as part of Phase 2
+of the extension extraction. They are unmaintained dead-code directories classified
+`stub`. The recommendation is to delete them in a future cleanup pass, but they are
+kept here to avoid breaking any downstream Cargo.toml `path = ...` references.
 
 | Crate | Tier | Justification |
 |-------|------|---------------|
@@ -236,8 +236,9 @@ not stub.
 
 Note: the 9 stub crates are non-workspace facade directories. The 112 workspace
 members (34 stable + 70 beta + 8 experimental) are the crates that `cargo check
---workspace` compiles. The 8 experimental crates now live under `extensions/`
-(cycle-19 move); all others remain under `crates/`.
+--workspace` compiles. As of cycle 21 (Phase 2 complete): **all 87 non-stable
+crates** (70 beta + 8 experimental + 9 stub) now live under `extensions/`;
+`crates/` contains only the 34 stable-core crates.
 
 Cycle-13 removals: rf-oauth, rf-oauth-server, rf-oauth2-server (redundant OAuth servers → canonical rf-passport),
 rf-broadcasting (redundant → canonical rf-broadcast), rf-scheduling (redundant → canonical rf-scheduler),

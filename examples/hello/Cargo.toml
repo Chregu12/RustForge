@@ -11,7 +11,7 @@ publish = false
 rf-core = { path = "../../crates/rf-core", features = ["axum"] }
 rf-web = { path = "../../crates/rf-web" }
 rf-config = { path = "../../crates/rf-config" }
-rf-container = { path = "../../crates/rf-container" }
+rf-container = { path = "../../extensions/rf-container" }
 
 # Web Framework - Pin to 0.8 to match rf-core and rf-web
 axum = { version = "0.8", features = ["macros", "json", "multipart"] }

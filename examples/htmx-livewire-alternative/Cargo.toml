@@ -15,5 +15,5 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 # RustForge crates
-rf-blade = { path = "../../crates/rf-blade" }
-rf-sse = { path = "../../crates/rf-sse" }
+rf-blade = { path = "../../extensions/rf-blade" }
+rf-sse = { path = "../../extensions/rf-sse" }

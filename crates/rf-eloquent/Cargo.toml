@@ -13,7 +13,7 @@ rf-orm = { path = "../rf-orm" }
 rf-config = { path = "../rf-config" }
 # Optional: AES-256-GCM encrypted attribute casting via CastType::Encrypted.
 # Enable with `features = ["encryption"]` to pull in rf-encryption (beta).
-rf-encryption = { path = "../rf-encryption", optional = true }
+rf-encryption = { path = "../../extensions/rf-encryption", optional = true }
 
 # SeaORM
 sea-orm = { workspace = true }

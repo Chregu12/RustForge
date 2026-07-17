@@ -1,0 +1,57 @@
+[package]
+name = "rf-errors"
+version = "0.1.0"
+edition = "2021"
+authors = ["RustForge Team"]
+description = "Comprehensive error handling with user-friendly messages for RustForge"
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+# Core error handling
+thiserror = "2.0"
+anyhow = "1.0"
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Logging & tracing
+tracing = "0.1"
+
+# Terminal colors for development mode
+colored = "2.1"
+owo-colors = "4.1"
+
+# Error reporting
+sentry = { version = "0.34", optional = true, default-features = false, features = ["backtrace", "contexts", "panic", "tracing"] }
+
+# Time handling
+chrono = { version = "0.4", features = ["serde"] }
+
+# UUID for error IDs
+uuid = { version = "1.11", features = ["v4", "serde"] }
+
+# HTTP types
+http = "1.1"
+
+# RustForge dependencies
+rf-core = { path = "../../crates/rf-core" }
+
+# Template rendering (optional for error pages)
+rf-blade = { path = "../rf-blade", optional = true }
+
+# Async support
+tokio = { version = "1.42", features = ["full"] }
+async-trait = "0.1"
+
+[dev-dependencies]
+tokio-test = "0.4"
+tempfile = "3.14"
+
+[features]
+default = ["error-pages", "sentry-integration"]
+error-pages = ["rf-blade"]
+sentry-integration = ["sentry"]
+
+[package.metadata.rustforge]
+tier = "beta"

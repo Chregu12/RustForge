@@ -10,7 +10,7 @@ publish = false
 # when opted in with `validated`, a real `rf_validation::Validate` impl.
 rf = { path = "../../crates/rf" }
 # The generated struct does `impl rf_db_facade::Model for X`; hardcoded path.
-rf-db-facade = { path = "../../crates/rf-db-facade" }
+rf-db-facade = { path = "../../extensions/rf-db-facade" }
 # The auto-validating `ValidatedJson` extractor + the `Validate` trait the
 # generated impl targets.
 rf-validation = { path = "../../crates/rf-validation" }

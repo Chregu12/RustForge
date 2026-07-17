@@ -29,12 +29,12 @@ path = "src/lib.rs"
 # Framework crates under test
 rf = { path = "../../crates/rf" }
 rf-web = { path = "../../crates/rf-web" }
-rf-views = { path = "../../crates/rf-views" }
+rf-views = { path = "../../extensions/rf-views" }
 rf-ratelimit = { path = "../../crates/rf-ratelimit" }
-rf-tenancy = { path = "../../crates/rf-tenancy" }
+rf-tenancy = { path = "../../extensions/rf-tenancy" }
 rf-validation = { path = "../../crates/rf-validation" }
-rf-db-facade = { path = "../../crates/rf-db-facade" }
-rf-api = { path = "../../crates/rf-api" }
+rf-db-facade = { path = "../../extensions/rf-db-facade" }
+rf-api = { path = "../../extensions/rf-api" }
 
 # HTTP stack
 axum = { version = "0.8", features = ["macros", "json"] }
