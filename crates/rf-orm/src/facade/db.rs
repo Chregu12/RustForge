@@ -1,6 +1,10 @@
 //! DB facade providing Laravel-style static database API
 
-use crate::facade::db_manager::GLOBAL_DB;
+use crate::facade::db_manager::{
+    global_begin_transaction, global_commit, global_connection_name, global_delete,
+    global_insert, global_refresh, global_rollback, global_select, global_set_connection,
+    global_statement, global_update,
+};
 use crate::facade::query_builder::QueryBuilder;
 use serde_json::Value;
 
@@ -52,8 +56,7 @@ impl DB {
     /// # }
     /// ```
     pub fn select(query: &str, bindings: &[Value]) -> Result<Vec<Value>, String> {
-        let mut manager = GLOBAL_DB.lock().unwrap();
-        manager.select(query, bindings)
+        global_select(query, bindings)
     }
 
     /// Execute an insert query
@@ -70,8 +73,7 @@ impl DB {
     /// # }
     /// ```
     pub fn insert(query: &str, bindings: &[Value]) -> Result<u64, String> {
-        let mut manager = GLOBAL_DB.lock().unwrap();
-        manager.insert(query, bindings)
+        global_insert(query, bindings)
     }
 
     /// Execute an update query
@@ -88,8 +90,7 @@ impl DB {
     /// # }
     /// ```
     pub fn update(query: &str, bindings: &[Value]) -> Result<u64, String> {
-        let mut manager = GLOBAL_DB.lock().unwrap();
-        manager.update(query, bindings)
+        global_update(query, bindings)
     }
 
     /// Execute a delete query
@@ -106,8 +107,7 @@ impl DB {
     /// # }
     /// ```
     pub fn delete(query: &str, bindings: &[Value]) -> Result<u64, String> {
-        let mut manager = GLOBAL_DB.lock().unwrap();
-        manager.delete(query, bindings)
+        global_delete(query, bindings)
     }
 
     /// Execute a statement
@@ -123,8 +123,7 @@ impl DB {
     /// # }
     /// ```
     pub fn statement(query: &str) -> Result<bool, String> {
-        let mut manager = GLOBAL_DB.lock().unwrap();
-        manager.statement(query)
+        global_statement(query)
     }
 
     /// Get a query builder for a table
@@ -175,8 +174,7 @@ impl DB {
     /// # }
     /// ```
     pub fn refresh() -> Result<(), String> {
-        let mut manager = GLOBAL_DB.lock().unwrap();
-        manager.refresh()
+        global_refresh()
     }
 
     /// Begin a database transaction
@@ -194,33 +192,28 @@ impl DB {
     /// # }
     /// ```
     pub fn begin_transaction() -> Result<(), String> {
-        let mut manager = GLOBAL_DB.lock().unwrap();
-        manager.begin_transaction()
+        global_begin_transaction()
     }
 
     /// Commit the current transaction
     pub fn commit() -> Result<(), String> {
-        let mut manager = GLOBAL_DB.lock().unwrap();
-        manager.commit()
+        global_commit()
     }
 
     /// Rollback the current transaction
     pub fn rollback() -> Result<(), String> {
-        let mut manager = GLOBAL_DB.lock().unwrap();
-        manager.rollback()
+        global_rollback()
     }
 
     /// Set the database connection to use
     pub fn connection(name: &str) -> Result<(), String> {
-        let mut manager = GLOBAL_DB.lock().unwrap();
-        manager.set_connection(name.to_string());
+        global_set_connection(name.to_string());
         Ok(())
     }
 
     /// Get the current connection name
     pub fn connection_name() -> String {
-        let manager = GLOBAL_DB.lock().unwrap();
-        manager.connection_name().to_string()
+        global_connection_name()
     }
 }
 
@@ -228,6 +221,11 @@ impl DB {
 mod tests {
     use super::*;
     use serde_json::json;
+
+    // Keep GLOBAL_DB in scope so the type is still reachable from tests that
+    // reference it (e.g. to confirm it compiles as RwLock<ConcurrentDB>).
+    #[allow(unused_imports)]
+    use crate::facade::db_manager::GLOBAL_DB;
 
     #[test]
     fn test_db_facade_real_roundtrip() {

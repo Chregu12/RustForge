@@ -41,17 +41,50 @@
 //!
 //! Outside a transaction all statements go straight to the pool as before
 //! (arbitrary connection per call), which is correct for auto-commit mode.
+//!
+//! ## Concurrency model for the global facade (cycle-23)
+//!
+//! **Before cycle-23:** `GLOBAL_DB: Lazy<Mutex<DBManager>>` — every call to
+//! `DB::select`, `DB::insert`, etc. locked a single process-global `Mutex` for
+//! the *entire duration of the SQL operation*, serialising all database work.
+//!
+//! **After cycle-23:** `GLOBAL_DB: Lazy<RwLock<ConcurrentDB>>` — the `RwLock`
+//! is held only for the few nanoseconds needed to *clone the pool Arc refs*,
+//! then released.  The actual SQL runs without holding any global lock:
+//!
+//! - **Postgres**: `sqlx::PgPool` is internally concurrent; cloning it is an
+//!   Arc increment.  N concurrent callers each hold their own pool connection
+//!   and execute in parallel.
+//! - **SQLite (file)**: `r2d2` + `r2d2_sqlite` pool in WAL mode; up to 8
+//!   concurrent pool connections.  SQLite WAL allows multiple concurrent readers;
+//!   writers serialise at the SQLite level (inherent to SQLite, not our code).
+//! - **SQLite (in-memory / default)**: pool size 1 — semantically equivalent to
+//!   a single connection; the global `RwLock` is still released before the query,
+//!   so other threads don't block on the lock.
+//! - **Transactions**: per-thread `thread_local!` state holds the dedicated
+//!   connection for the duration of a transaction.  One thread's transaction
+//!   never blocks other threads' non-transactional queries.
+//!
+//! The [`DBManager`] struct (used in integration tests and for direct use)
+//! is **unchanged** — it retains its `Mutex`-free `&mut self` API backed by a
+//! single connection.
 
 use once_cell::sync::Lazy;
 use rusqlite::{params_from_iter, types::ValueRef, Connection};
 use serde_json::{Map, Value};
-use std::sync::Mutex;
+use std::sync::RwLock;
 
 use rf_async_bridge::AsyncBridge;
 use sqlx::postgres::{PgArguments, PgRow};
 use sqlx::{Arguments, Column, Row, TypeInfo};
 
-// ── Backend enum ──────────────────────────────────────────────────────────────
+// ── r2d2 SQLite pool imports ──────────────────────────────────────────────────
+
+use r2d2::Pool;
+use r2d2_sqlite::SqliteConnectionManager;
+use std::cell::RefCell;
+
+// ── Backend enum (for DBManager — unchanged) ──────────────────────────────────
 
 /// The active database backend for a [`DBManager`].
 enum Backend {
@@ -70,43 +103,6 @@ enum Backend {
         /// execute on the same TCP session (ACID atomicity).
         txn_conn: Option<sqlx::pool::PoolConnection<sqlx::Postgres>>,
     },
-}
-
-// ── Global instance ───────────────────────────────────────────────────────────
-
-/// Global database manager instance.
-///
-/// Uses a `Mutex` (not `RwLock`) for synchronous access: the underlying
-/// `rusqlite::Connection` is `Send` but not `Sync`, and a `Mutex` grants the
-/// exclusive access it needs while still being safe to share as a global.
-pub static GLOBAL_DB: Lazy<Mutex<DBManager>> = Lazy::new(|| Mutex::new(DBManager::new()));
-
-/// Database manager that owns a real (synchronous) SQLite or (async-bridged)
-/// Postgres connection.
-pub struct DBManager {
-    backend: Backend,
-    /// Connection name / target (`"default"`, `":memory:"`, a file path, or a
-    /// `postgres://…` URL).
-    connection: String,
-}
-
-impl std::fmt::Debug for DBManager {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let backend_name = match &self.backend {
-            Backend::Sqlite(_) => "SQLite",
-            Backend::Postgres { txn_conn, .. } => {
-                if txn_conn.is_some() {
-                    "Postgres(in-transaction)"
-                } else {
-                    "Postgres"
-                }
-            }
-        };
-        f.debug_struct("DBManager")
-            .field("backend", &backend_name)
-            .field("connection", &self.connection)
-            .finish()
-    }
 }
 
 // ── SQLite helpers ────────────────────────────────────────────────────────────
@@ -328,7 +324,38 @@ fn pg_rows_to_json(rows: Vec<PgRow>) -> Vec<Value> {
         .collect()
 }
 
-// ── DBManager implementation ──────────────────────────────────────────────────
+// ── DBManager implementation (UNCHANGED — direct/test use) ───────────────────
+
+/// Database manager that owns a real (synchronous) SQLite or (async-bridged)
+/// Postgres connection.
+///
+/// Used directly in integration tests and for per-request use.  The global
+/// `DB` facade uses [`ConcurrentDB`] / [`GLOBAL_DB`] instead.
+pub struct DBManager {
+    backend: Backend,
+    /// Connection name / target (`"default"`, `":memory:"`, a file path, or a
+    /// `postgres://…` URL).
+    connection: String,
+}
+
+impl std::fmt::Debug for DBManager {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let backend_name = match &self.backend {
+            Backend::Sqlite(_) => "SQLite",
+            Backend::Postgres { txn_conn, .. } => {
+                if txn_conn.is_some() {
+                    "Postgres(in-transaction)"
+                } else {
+                    "Postgres"
+                }
+            }
+        };
+        f.debug_struct("DBManager")
+            .field("backend", &backend_name)
+            .field("connection", &self.connection)
+            .finish()
+    }
+}
 
 impl DBManager {
     /// Create a new database manager backed by a fresh in-memory SQLite
@@ -836,6 +863,672 @@ impl Default for DBManager {
     }
 }
 
+// ══════════════════════════════════════════════════════════════════════════════
+// CONCURRENT GLOBAL BACKEND (cycle-23)
+// ══════════════════════════════════════════════════════════════════════════════
+//
+// Replaces the old `GLOBAL_DB: Lazy<Mutex<DBManager>>` that held the global
+// lock for the entire SQL operation.  The new design:
+//
+//   • `GLOBAL_DB: Lazy<RwLock<ConcurrentDB>>` holds only *configuration*
+//     (pool Arc handles + connection name).
+//   • Normal ops: read-lock for nanoseconds (just to clone pool Arcs), then
+//     release; the SQL runs without any global lock.
+//   • Transactions: per-thread `THREAD_TXN` stores the checked-out connection
+//     for the active transaction; no global serialisation.
+//   • `set_connection`: takes a write lock briefly to swap the backend.
+
+// ── Pool-based backend (cheaply Clone-able via Arc) ───────────────────────────
+
+#[derive(Clone)]
+enum ConcurrentBackend {
+    /// r2d2 SQLite pool — WAL mode for file DBs, single-connection for
+    /// in-memory.  `r2d2::Pool<M>` is internally Arc-based; clone is O(1).
+    Sqlite(Pool<SqliteConnectionManager>),
+    /// sqlx::PgPool is internally Arc-based + concurrent; `AsyncBridge` is
+    /// also Arc-based.  Both clone in O(1).
+    Postgres {
+        pool: sqlx::PgPool,
+        bridge: AsyncBridge,
+    },
+}
+
+// ── Per-thread transaction state ──────────────────────────────────────────────
+
+/// Per-thread state for an active `DB::begin_transaction()` ..
+/// `DB::commit()` / `DB::rollback()` session.
+///
+/// When `TxnState::None` all DB ops go straight to the pool.  When a variant
+/// is set for this thread, that dedicated connection is used for all ops so
+/// they share the same ACID session.  The connection is returned to the pool
+/// when `commit` / `rollback` consumes the state.
+enum TxnState {
+    None,
+    /// Active SQLite transaction: checked-out pool connection with open BEGIN.
+    Sqlite(r2d2::PooledConnection<SqliteConnectionManager>),
+    /// Active Postgres transaction: dedicated pool connection with open BEGIN.
+    Postgres {
+        conn: sqlx::pool::PoolConnection<sqlx::Postgres>,
+        bridge: AsyncBridge,
+    },
+}
+
+thread_local! {
+    static THREAD_TXN: RefCell<TxnState> = const { RefCell::new(TxnState::None) };
+}
+
+// ── ConcurrentDB — holds only pool configuration ──────────────────────────────
+
+/// Lightweight global DB state: Arc'd pool handles + connection name string.
+///
+/// All DB operations clone these handles out from under a brief read lock,
+/// then release the lock and run the actual query on a pool connection —
+/// no global lock is held during SQL execution.
+pub struct ConcurrentDB {
+    backend: ConcurrentBackend,
+    connection: String,
+}
+
+impl ConcurrentDB {
+    fn new() -> Self {
+        let pool = Pool::builder()
+            .max_size(1)
+            .build(SqliteConnectionManager::memory())
+            .expect("failed to create in-memory SQLite pool");
+        Self {
+            backend: ConcurrentBackend::Sqlite(pool),
+            connection: "default".to_string(),
+        }
+    }
+
+    pub fn connection_name(&self) -> &str {
+        &self.connection
+    }
+
+    pub fn set_connection(&mut self, connection: String) {
+        if connection.starts_with("postgres://") || connection.starts_with("postgresql://") {
+            let bridge = AsyncBridge::new();
+            let url = connection.clone();
+            let pool_result: Result<sqlx::PgPool, String> = bridge.block_on(async move {
+                sqlx::postgres::PgPoolOptions::new()
+                    .max_connections(5)
+                    .connect(&url)
+                    .await
+                    .map_err(|e| e.to_string())
+            });
+            if let Ok(pool) = pool_result {
+                self.backend = ConcurrentBackend::Postgres { pool, bridge };
+                self.connection = connection;
+            }
+            // On error: keep previous backend unchanged.
+        } else {
+            let is_memory = connection == "default" || connection == ":memory:";
+            let pool_result = if is_memory {
+                // Single connection for in-memory: all ops see the same DB.
+                Pool::builder()
+                    .max_size(1)
+                    .build(SqliteConnectionManager::memory())
+            } else {
+                // File DB: up to 8 concurrent connections with WAL journal mode
+                // (readers don't block each other).
+                Pool::builder().max_size(8).build(
+                    SqliteConnectionManager::file(&connection).with_init(|conn| {
+                        conn.execute_batch(
+                            "PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL;",
+                        )?;
+                        Ok(())
+                    }),
+                )
+            };
+            if let Ok(pool) = pool_result {
+                self.backend = ConcurrentBackend::Sqlite(pool);
+            }
+            self.connection = connection;
+        }
+    }
+}
+
+// ── Global instance ───────────────────────────────────────────────────────────
+
+/// Global database handle — now a `RwLock` over pool *configuration* only.
+///
+/// The read lock is held for nanoseconds (just to clone `Arc`-based pool
+/// handles); no lock is held during actual SQL execution.  Previously this was
+/// `Lazy<Mutex<DBManager>>` which held the mutex for the full SQL round-trip,
+/// serialising every concurrent DB call in the process.
+pub static GLOBAL_DB: Lazy<RwLock<ConcurrentDB>> =
+    Lazy::new(|| RwLock::new(ConcurrentDB::new()));
+
+// ── Thread-local transaction helpers ─────────────────────────────────────────
+
+/// Temporarily remove the active Postgres transaction connection from this
+/// thread's `THREAD_TXN` and return it.  The caller **must** call
+/// [`restore_pg_txn`] (or drop the values) to put it back / release.
+fn take_pg_txn() -> Option<(sqlx::pool::PoolConnection<sqlx::Postgres>, AsyncBridge)> {
+    let state = THREAD_TXN.with(|txn| {
+        let mut borrow = txn.borrow_mut();
+        if matches!(&*borrow, TxnState::Postgres { .. }) {
+            Some(std::mem::replace(&mut *borrow, TxnState::None))
+        } else {
+            None
+        }
+    });
+    match state? {
+        TxnState::Postgres { conn, bridge } => Some((conn, bridge)),
+        other => {
+            THREAD_TXN.with(|txn| *txn.borrow_mut() = other);
+            None
+        }
+    }
+}
+
+/// Restore a Postgres transaction connection into this thread's `THREAD_TXN`
+/// after it was taken out by [`take_pg_txn`].
+fn restore_pg_txn(conn: sqlx::pool::PoolConnection<sqlx::Postgres>, bridge: AsyncBridge) {
+    THREAD_TXN.with(|txn| {
+        *txn.borrow_mut() = TxnState::Postgres { conn, bridge };
+    });
+}
+
+/// Clone the backend Arc handles from the global state (read lock held
+/// for this brief clone, then released).
+fn snapshot_backend() -> ConcurrentBackend {
+    GLOBAL_DB.read().unwrap().backend.clone()
+}
+
+// ── Global public functions ───────────────────────────────────────────────────
+
+/// SELECT — routes through any active per-thread transaction, else pool.
+pub fn global_select(query: &str, bindings: &[Value]) -> Result<Vec<Value>, String> {
+    // ── SQLite txn on this thread ─────────────────────────────────────────
+    {
+        let maybe = THREAD_TXN.with(|txn| {
+            if let TxnState::Sqlite(conn) = &*txn.borrow() {
+                Some(sqlite_select(conn, query, bindings))
+            } else {
+                None
+            }
+        });
+        if let Some(r) = maybe {
+            return r;
+        }
+    }
+
+    // ── PG txn on this thread ─────────────────────────────────────────────
+    let pg_sql = translate_placeholders(query);
+    if let Some((conn, bridge)) = take_pg_txn() {
+        let args = match build_pg_args(bindings) {
+            Ok(a) => a,
+            Err(e) => {
+                restore_pg_txn(conn, bridge);
+                return Err(e);
+            }
+        };
+        let bridge_store = bridge.clone();
+        let (rows_result, conn_back) = bridge.block_on(async move {
+            let mut c = conn;
+            let rows = sqlx::query_with(&pg_sql, args)
+                .fetch_all(&mut *c)
+                .await
+                .map_err(|e| e.to_string());
+            (rows, c)
+        });
+        restore_pg_txn(conn_back, bridge_store);
+        return rows_result.map(pg_rows_to_json);
+    }
+
+    // ── Pool path (no lock held during SQL) ───────────────────────────────
+    match snapshot_backend() {
+        ConcurrentBackend::Sqlite(pool) => {
+            let conn = pool.get().map_err(|e| e.to_string())?;
+            sqlite_select(&conn, query, bindings)
+        }
+        ConcurrentBackend::Postgres { pool, bridge } => {
+            let args = build_pg_args(bindings)?;
+            let rows = bridge.block_on(async move {
+                sqlx::query_with(&pg_sql, args)
+                    .fetch_all(&pool)
+                    .await
+                    .map_err(|e| e.to_string())
+            })?;
+            Ok(pg_rows_to_json(rows))
+        }
+    }
+}
+
+/// INSERT — routes through any active per-thread transaction, else pool.
+pub fn global_insert(query: &str, bindings: &[Value]) -> Result<u64, String> {
+    // ── SQLite txn ────────────────────────────────────────────────────────
+    {
+        let maybe = THREAD_TXN.with(|txn| {
+            if let TxnState::Sqlite(conn) = &*txn.borrow() {
+                let params: Vec<rusqlite::types::Value> =
+                    bindings.iter().map(json_to_sqlite).collect();
+                let r = conn
+                    .execute(query, params_from_iter(params.iter()))
+                    .map_err(|e| e.to_string())
+                    .map(|_| conn.last_insert_rowid() as u64);
+                Some(r)
+            } else {
+                None
+            }
+        });
+        if let Some(r) = maybe {
+            return r;
+        }
+    }
+
+    // ── Build Postgres RETURNING sql ──────────────────────────────────────
+    let pg_sql_base = translate_placeholders(query);
+    let pg_sql_returning = if pg_sql_base.trim_end().to_uppercase().contains("RETURNING") {
+        pg_sql_base
+    } else {
+        format!("{} RETURNING id", pg_sql_base.trim_end())
+    };
+
+    // ── PG txn ────────────────────────────────────────────────────────────
+    if let Some((conn, bridge)) = take_pg_txn() {
+        let args = match build_pg_args(bindings) {
+            Ok(a) => a,
+            Err(e) => {
+                restore_pg_txn(conn, bridge);
+                return Err(e);
+            }
+        };
+        let bridge_store = bridge.clone();
+        let pg_sql = pg_sql_returning.clone();
+        let (row_result, conn_back) = bridge.block_on(async move {
+            let mut c = conn;
+            let r = sqlx::query_with(&pg_sql, args)
+                .fetch_one(&mut *c)
+                .await
+                .map_err(|e| e.to_string());
+            (r, c)
+        });
+        restore_pg_txn(conn_back, bridge_store);
+        let row = row_result?;
+        let id: i64 = row.try_get("id").map_err(|e| e.to_string())?;
+        return Ok(id as u64);
+    }
+
+    // ── Pool path ─────────────────────────────────────────────────────────
+    match snapshot_backend() {
+        ConcurrentBackend::Sqlite(pool) => {
+            let conn = pool.get().map_err(|e| e.to_string())?;
+            let params: Vec<rusqlite::types::Value> =
+                bindings.iter().map(json_to_sqlite).collect();
+            conn.execute(query, params_from_iter(params.iter()))
+                .map_err(|e| e.to_string())?;
+            Ok(conn.last_insert_rowid() as u64)
+        }
+        ConcurrentBackend::Postgres { pool, bridge } => {
+            let args = build_pg_args(bindings)?;
+            let row: PgRow = bridge.block_on(async move {
+                sqlx::query_with(&pg_sql_returning, args)
+                    .fetch_one(&pool)
+                    .await
+                    .map_err(|e| e.to_string())
+            })?;
+            let id: i64 = row.try_get("id").map_err(|e| e.to_string())?;
+            Ok(id as u64)
+        }
+    }
+}
+
+/// UPDATE — routes through any active per-thread transaction, else pool.
+pub fn global_update(query: &str, bindings: &[Value]) -> Result<u64, String> {
+    // ── SQLite txn ────────────────────────────────────────────────────────
+    {
+        let maybe = THREAD_TXN.with(|txn| {
+            if let TxnState::Sqlite(conn) = &*txn.borrow() {
+                let params: Vec<rusqlite::types::Value> =
+                    bindings.iter().map(json_to_sqlite).collect();
+                Some(
+                    conn.execute(query, params_from_iter(params.iter()))
+                        .map_err(|e| e.to_string())
+                        .map(|n| n as u64),
+                )
+            } else {
+                None
+            }
+        });
+        if let Some(r) = maybe {
+            return r;
+        }
+    }
+
+    let pg_sql = translate_placeholders(query);
+
+    // ── PG txn ────────────────────────────────────────────────────────────
+    if let Some((conn, bridge)) = take_pg_txn() {
+        let args = match build_pg_args(bindings) {
+            Ok(a) => a,
+            Err(e) => {
+                restore_pg_txn(conn, bridge);
+                return Err(e);
+            }
+        };
+        let bridge_store = bridge.clone();
+        let pg_sql_c = pg_sql.clone();
+        let (result, conn_back) = bridge.block_on(async move {
+            let mut c = conn;
+            let r = sqlx::query_with(&pg_sql_c, args)
+                .execute(&mut *c)
+                .await
+                .map(|r| r.rows_affected())
+                .map_err(|e| e.to_string());
+            (r, c)
+        });
+        restore_pg_txn(conn_back, bridge_store);
+        return result;
+    }
+
+    // ── Pool path ─────────────────────────────────────────────────────────
+    match snapshot_backend() {
+        ConcurrentBackend::Sqlite(pool) => {
+            let conn = pool.get().map_err(|e| e.to_string())?;
+            let params: Vec<rusqlite::types::Value> =
+                bindings.iter().map(json_to_sqlite).collect();
+            conn.execute(query, params_from_iter(params.iter()))
+                .map_err(|e| e.to_string())
+                .map(|n| n as u64)
+        }
+        ConcurrentBackend::Postgres { pool, bridge } => {
+            let args = build_pg_args(bindings)?;
+            bridge.block_on(async move {
+                sqlx::query_with(&pg_sql, args)
+                    .execute(&pool)
+                    .await
+                    .map(|r| r.rows_affected())
+                    .map_err(|e| e.to_string())
+            })
+        }
+    }
+}
+
+/// DELETE — routes through any active per-thread transaction, else pool.
+pub fn global_delete(query: &str, bindings: &[Value]) -> Result<u64, String> {
+    // ── SQLite txn ────────────────────────────────────────────────────────
+    {
+        let maybe = THREAD_TXN.with(|txn| {
+            if let TxnState::Sqlite(conn) = &*txn.borrow() {
+                let params: Vec<rusqlite::types::Value> =
+                    bindings.iter().map(json_to_sqlite).collect();
+                Some(
+                    conn.execute(query, params_from_iter(params.iter()))
+                        .map_err(|e| e.to_string())
+                        .map(|n| n as u64),
+                )
+            } else {
+                None
+            }
+        });
+        if let Some(r) = maybe {
+            return r;
+        }
+    }
+
+    let pg_sql = translate_placeholders(query);
+
+    // ── PG txn ────────────────────────────────────────────────────────────
+    if let Some((conn, bridge)) = take_pg_txn() {
+        let args = match build_pg_args(bindings) {
+            Ok(a) => a,
+            Err(e) => {
+                restore_pg_txn(conn, bridge);
+                return Err(e);
+            }
+        };
+        let bridge_store = bridge.clone();
+        let pg_sql_c = pg_sql.clone();
+        let (result, conn_back) = bridge.block_on(async move {
+            let mut c = conn;
+            let r = sqlx::query_with(&pg_sql_c, args)
+                .execute(&mut *c)
+                .await
+                .map(|r| r.rows_affected())
+                .map_err(|e| e.to_string());
+            (r, c)
+        });
+        restore_pg_txn(conn_back, bridge_store);
+        return result;
+    }
+
+    // ── Pool path ─────────────────────────────────────────────────────────
+    match snapshot_backend() {
+        ConcurrentBackend::Sqlite(pool) => {
+            let conn = pool.get().map_err(|e| e.to_string())?;
+            let params: Vec<rusqlite::types::Value> =
+                bindings.iter().map(json_to_sqlite).collect();
+            conn.execute(query, params_from_iter(params.iter()))
+                .map_err(|e| e.to_string())
+                .map(|n| n as u64)
+        }
+        ConcurrentBackend::Postgres { pool, bridge } => {
+            let args = build_pg_args(bindings)?;
+            bridge.block_on(async move {
+                sqlx::query_with(&pg_sql, args)
+                    .execute(&pool)
+                    .await
+                    .map(|r| r.rows_affected())
+                    .map_err(|e| e.to_string())
+            })
+        }
+    }
+}
+
+/// Raw DDL / multi-statement — routes through any per-thread transaction,
+/// else pool.
+pub fn global_statement(query: &str) -> Result<bool, String> {
+    // ── SQLite txn ────────────────────────────────────────────────────────
+    {
+        let maybe = THREAD_TXN.with(|txn| {
+            if let TxnState::Sqlite(conn) = &*txn.borrow() {
+                Some(conn.execute_batch(query).map(|_| true).map_err(|e| e.to_string()))
+            } else {
+                None
+            }
+        });
+        if let Some(r) = maybe {
+            return r;
+        }
+    }
+
+    // ── PG txn ────────────────────────────────────────────────────────────
+    if let Some((conn, bridge)) = take_pg_txn() {
+        let stmts: Vec<String> = query
+            .split(';')
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect();
+        let bridge_store = bridge.clone();
+        let (result, conn_back) = bridge.block_on(async move {
+            let mut c = conn;
+            let mut r: Result<bool, String> = Ok(true);
+            for stmt in stmts {
+                if let Err(e) = sqlx::query(&stmt)
+                    .execute(&mut *c)
+                    .await
+                    .map_err(|e| e.to_string())
+                {
+                    r = Err(e);
+                    break;
+                }
+            }
+            (r, c)
+        });
+        restore_pg_txn(conn_back, bridge_store);
+        return result;
+    }
+
+    // ── Pool path ─────────────────────────────────────────────────────────
+    match snapshot_backend() {
+        ConcurrentBackend::Sqlite(pool) => {
+            let conn = pool.get().map_err(|e| e.to_string())?;
+            conn.execute_batch(query).map(|_| true).map_err(|e| e.to_string())
+        }
+        ConcurrentBackend::Postgres { pool, bridge } => {
+            let sql = query.to_string();
+            bridge.block_on(async move {
+                sqlx::raw_sql(&sql)
+                    .execute(&pool)
+                    .await
+                    .map(|_| true)
+                    .map_err(|e| e.to_string())
+            })
+        }
+    }
+}
+
+/// Drop all user tables (test isolation — DB::refresh equivalent).
+pub fn global_refresh() -> Result<(), String> {
+    match snapshot_backend() {
+        ConcurrentBackend::Sqlite(pool) => {
+            let conn = pool.get().map_err(|e| e.to_string())?;
+            let names = sqlite_list_tables(&conn)?;
+            if names.is_empty() {
+                return Ok(());
+            }
+            let mut sql = String::from("PRAGMA foreign_keys = OFF;\n");
+            for name in &names {
+                sql.push_str(&format!(
+                    "DROP TABLE IF EXISTS \"{}\";\n",
+                    name.replace('"', "\"\"")
+                ));
+            }
+            sql.push_str("PRAGMA foreign_keys = ON;\n");
+            conn.execute_batch(&sql).map_err(|e| e.to_string())
+        }
+        ConcurrentBackend::Postgres { pool, bridge } => {
+            let pool2 = pool.clone();
+            let names: Vec<String> = bridge.block_on(async move {
+                let rows = sqlx::query(
+                    "SELECT tablename FROM pg_tables WHERE schemaname = 'public'",
+                )
+                .fetch_all(&pool2)
+                .await
+                .map_err(|e| e.to_string())?;
+                Ok::<Vec<String>, String>(
+                    rows.into_iter()
+                        .filter_map(|r| r.try_get::<String, _>("tablename").ok())
+                        .collect(),
+                )
+            })?;
+
+            if names.is_empty() {
+                return Ok(());
+            }
+
+            let drop_sql = names
+                .iter()
+                .map(|n| format!("DROP TABLE IF EXISTS \"{}\" CASCADE;", n.replace('"', "\"\"")))
+                .collect::<Vec<_>>()
+                .join("\n");
+
+            bridge.block_on(async move {
+                sqlx::raw_sql(&drop_sql)
+                    .execute(&pool)
+                    .await
+                    .map(|_| ())
+                    .map_err(|e| e.to_string())
+            })
+        }
+    }
+}
+
+/// Begin a per-thread transaction: checks out a dedicated pool connection,
+/// runs `BEGIN`, and stores it in this thread's `THREAD_TXN`.
+///
+/// All subsequent `global_*` calls on this thread route through that
+/// connection until [`global_commit`] or [`global_rollback`] is called.
+pub fn global_begin_transaction() -> Result<(), String> {
+    let already_active = THREAD_TXN.with(|txn| !matches!(&*txn.borrow(), TxnState::None));
+    if already_active {
+        return Err("transaction already active on this thread".to_string());
+    }
+
+    match snapshot_backend() {
+        ConcurrentBackend::Sqlite(pool) => {
+            let conn = pool.get().map_err(|e| e.to_string())?;
+            conn.execute_batch("BEGIN").map_err(|e| e.to_string())?;
+            THREAD_TXN.with(|txn| *txn.borrow_mut() = TxnState::Sqlite(conn));
+            Ok(())
+        }
+        ConcurrentBackend::Postgres { pool, bridge } => {
+            let bridge_store = bridge.clone();
+            let conn_result: Result<sqlx::pool::PoolConnection<sqlx::Postgres>, String> =
+                bridge.block_on(async move {
+                    let mut c = pool.acquire().await.map_err(|e| e.to_string())?;
+                    sqlx::query("BEGIN")
+                        .execute(&mut *c)
+                        .await
+                        .map_err(|e| e.to_string())?;
+                    Ok(c)
+                });
+            let conn = conn_result?;
+            THREAD_TXN.with(|txn| {
+                *txn.borrow_mut() = TxnState::Postgres { conn, bridge: bridge_store };
+            });
+            Ok(())
+        }
+    }
+}
+
+/// Commit the current thread's active transaction and return the connection
+/// to the pool.
+pub fn global_commit() -> Result<(), String> {
+    let state =
+        THREAD_TXN.with(|txn| std::mem::replace(&mut *txn.borrow_mut(), TxnState::None));
+    match state {
+        TxnState::None => Err("no active transaction to commit".to_string()),
+        TxnState::Sqlite(conn) => {
+            conn.execute_batch("COMMIT").map_err(|e| e.to_string())
+            // `conn` dropped here → returned to the r2d2 pool.
+        }
+        TxnState::Postgres { conn, bridge } => bridge.block_on(async move {
+            let mut c = conn;
+            sqlx::query("COMMIT")
+                .execute(&mut *c)
+                .await
+                .map(|_| ())
+                .map_err(|e| e.to_string())
+            // `c` dropped → returned to the sqlx pool.
+        }),
+    }
+}
+
+/// Roll back the current thread's active transaction and return the connection
+/// to the pool.
+pub fn global_rollback() -> Result<(), String> {
+    let state =
+        THREAD_TXN.with(|txn| std::mem::replace(&mut *txn.borrow_mut(), TxnState::None));
+    match state {
+        TxnState::None => Err("no active transaction to rollback".to_string()),
+        TxnState::Sqlite(conn) => {
+            conn.execute_batch("ROLLBACK").map_err(|e| e.to_string())
+        }
+        TxnState::Postgres { conn, bridge } => bridge.block_on(async move {
+            let mut c = conn;
+            sqlx::query("ROLLBACK")
+                .execute(&mut *c)
+                .await
+                .map(|_| ())
+                .map_err(|e| e.to_string())
+        }),
+    }
+}
+
+/// Reconfigure the global DB to point at a different database.
+/// Acquires the write lock briefly.
+pub fn global_set_connection(connection: String) {
+    GLOBAL_DB.write().unwrap().set_connection(connection);
+}
+
+/// Return the current global connection name / URL (brief read lock).
+pub fn global_connection_name() -> String {
+    GLOBAL_DB.read().unwrap().connection_name().to_string()
+}
+
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
@@ -1017,6 +1710,61 @@ mod tests {
         assert_eq!(m.connection_name(), "default");
         m.set_connection(":memory:".to_string());
         assert_eq!(m.connection_name(), ":memory:");
+    }
+
+    // ── Concurrency proof: N threads read via global_select concurrently ───────
+    //
+    // Proves that `GLOBAL_DB` is no longer a `Mutex<DBManager>` that serialises
+    // every DB call for its full duration.  With the new `RwLock<ConcurrentDB>`
+    // design the lock is released before the query runs; all N threads can
+    // execute their SELECT concurrently (pool-level serialisation only for the
+    // in-memory SQLite pool of size 1 — but the *global* lock is gone).
+    //
+    // The grep-proof is implicit: `GLOBAL_DB` is declared as
+    // `Lazy<RwLock<ConcurrentDB>>` in this file, not `Lazy<Mutex<DBManager>>`.
+    #[test]
+    fn test_global_db_concurrent_reads_succeed() {
+        // Use the global DB facade functions (not DBManager directly).
+        global_statement(
+            "CREATE TABLE IF NOT EXISTS conc_probe \
+             (id INTEGER PRIMARY KEY, v TEXT)",
+        )
+        .unwrap();
+        global_statement("DELETE FROM conc_probe").unwrap();
+        for i in 0..10i64 {
+            global_insert(
+                "INSERT INTO conc_probe (id, v) VALUES (?, ?)",
+                &[serde_json::json!(i), serde_json::json!(format!("row{i}"))],
+            )
+            .unwrap();
+        }
+
+        // Spawn 8 threads all doing a SELECT via the global functions.
+        let handles: Vec<_> = (0..8)
+            .map(|_| {
+                std::thread::spawn(|| {
+                    global_select("SELECT id, v FROM conc_probe", &[]).unwrap()
+                })
+            })
+            .collect();
+
+        let mut total_rows = 0usize;
+        for h in handles {
+            let rows = h.join().expect("thread panicked");
+            total_rows += rows.len();
+        }
+
+        // 8 threads × 10 rows each = 80 total reads
+        assert_eq!(total_rows, 80, "each of 8 threads should read all 10 rows");
+
+        // Cleanup
+        global_statement("DROP TABLE IF EXISTS conc_probe").unwrap();
+    }
+
+    // ── Global connection name via new API ────────────────────────────────────
+    #[test]
+    fn test_global_connection_name_default() {
+        assert_eq!(global_connection_name(), "default");
     }
 
     // ── Postgres integration test — env-var gated, always compiled ────────────

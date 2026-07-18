@@ -2,7 +2,7 @@
 //!
 //! Provides a Laravel-style fluent query builder for database operations.
 
-use crate::facade::db_manager::GLOBAL_DB;
+use crate::facade::db_manager::{global_delete, global_insert, global_select, global_update};
 use serde::Serialize;
 use serde_json::Value;
 
@@ -752,8 +752,7 @@ impl QueryBuilder {
 
     pub async fn get(self) -> Result<Vec<Value>, String> {
         let (sql, bindings) = self.build_select_sql();
-        let mut manager = GLOBAL_DB.lock().unwrap();
-        manager.select(&sql, &bindings)
+        global_select(&sql, &bindings)
     }
 
     /// Get the first result
@@ -1028,8 +1027,7 @@ impl QueryBuilder {
             sql.push_str(&format!(" WHERE {}", where_clause));
         }
 
-        let mut manager = GLOBAL_DB.lock().unwrap();
-        manager.update(&sql, &bindings)
+        global_update(&sql, &bindings)
     }
 
     /// Laravel-style decrement - decrement a column value
@@ -1494,8 +1492,7 @@ impl QueryBuilder {
             );
             let bindings: Vec<Value> = obj.values().cloned().collect();
 
-            let mut manager = GLOBAL_DB.lock().unwrap();
-            manager.update(&sql, &bindings)?;
+            global_update(&sql, &bindings)?;
             affected += 1;
         }
 
@@ -1593,8 +1590,7 @@ impl QueryBuilder {
             )
         };
 
-        let mut manager = GLOBAL_DB.lock().unwrap();
-        manager.insert(&sql, &bindings)
+        global_insert(&sql, &bindings)
     }
 
     /// Create a record and return it - Laravel-style!
@@ -1726,8 +1722,7 @@ impl QueryBuilder {
             sql.push_str(&format!(" WHERE {}", where_clause));
         }
 
-        let mut manager = GLOBAL_DB.lock().unwrap();
-        manager.update(&sql, &bindings)
+        global_update(&sql, &bindings)
     }
 
     /// Delete records matching the where clauses
@@ -1751,8 +1746,7 @@ impl QueryBuilder {
             sql.push_str(&format!(" WHERE {}", where_clause));
         }
 
-        let mut manager = GLOBAL_DB.lock().unwrap();
-        manager.delete(&sql, &bindings)
+        global_delete(&sql, &bindings)
     }
 
     /// Count the results
@@ -1763,8 +1757,7 @@ impl QueryBuilder {
         if !where_clause.is_empty() {
             sql.push_str(&format!(" WHERE {}", where_clause));
         }
-        let mut manager = GLOBAL_DB.lock().unwrap();
-        let rows = manager.select(&sql, &bindings)?;
+        let rows = global_select(&sql, &bindings)?;
         let count = rows
             .first()
             .and_then(|row| row.get("count"))

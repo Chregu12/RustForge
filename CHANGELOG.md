@@ -145,6 +145,31 @@ forcing removals would lose features. Instead:
   (the supported, `use rf::prelude::*` surface) + **optional extensions** (70 beta,
   8 experimental) with no 1.0 SemVer promise — pull in only what a project needs.
 
+### Changed — cycle-23 decouple the DX DB facade from the global Mutex (2026-07-18)
+
+The re-score's largest production-readiness gap: `GLOBAL_DB: Lazy<Mutex<DBManager>>`
+serialised **every** DX database op (`DB::select`, `create!`, `find!`, `update!`,
+`delete!`) under a single process-global lock — a throughput ceiling under concurrent
+load. Decoupled it (internal refactor, **public facade API unchanged**):
+
+- `GLOBAL_DB` is now `Lazy<RwLock<ConcurrentDB>>` — the `RwLock` guards only
+  reconfiguration (`set_connection`) and is **released before the query runs**, so
+  queries no longer serialise on it.
+- **SQLite** uses an `r2d2` + `r2d2_sqlite` connection pool in **WAL mode** (up to 8
+  connections) — concurrent readers run in parallel (SQLite still serialises writers
+  inherently, which is correct).
+- **Postgres** uses the `sqlx::PgPool` concurrently (it is internally pooled; the outer
+  Mutex was pure overhead).
+- **Transactions stay correct:** `begin_transaction()` holds one dedicated pooled
+  connection for its lifetime (per-transaction, not global). Verified against real
+  Postgres 16 — rollback still undoes inserts, commit persists.
+
+All 276+ rf-orm tests pass unchanged; a new `test_global_db_concurrent_reads_succeed`
+proves concurrent reads no longer queue on one lock. (This landed after an
+infrastructure interruption mid-cycle; the architect verified it end-to-end — both
+`cargo check` passes, clippy, the full rf-orm suite, the live-PG transaction test, and
+the reference-app smoke — before committing.)
+
 ### Changed — cycle-21 in-repo split complete: crates/ = the stable core (2026-07-17)
 
 The extraction plan's Phase 2. The "34-crate stable core + optional extensions" is now

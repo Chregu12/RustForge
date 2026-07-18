@@ -38,6 +38,11 @@ once_cell.workspace = true
 # single bundled SQLite build instead of conflicting.
 rusqlite = { version = "0.32", features = ["bundled"] }
 
+# r2d2 connection pool for the SQLite backend of the concurrent global DB.
+# r2d2_sqlite 0.25 targets rusqlite 0.32, keeping a single bundled SQLite.
+r2d2 = "0.8"
+r2d2_sqlite = "0.25"
+
 # Async Postgres driver for the Postgres backend of the DB facade.
 # The workspace already declares sqlx 0.8 with postgres + sqlite features.
 sqlx = { workspace = true }
