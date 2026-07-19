@@ -7,6 +7,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.0.0-rc.3] - 2026-07-19
+
+### Phase 3 umbrella split — the stable core is now a closed dep set (BREAKING)
+
+The `rf` and `rustforge` umbrella crates no longer depend on any `extensions/`
+crate. Previously they carried 25 and 11 non-optional extension dependencies
+(including `rf-nova` at tier=experimental inside a stable-tagged umbrella), which
+falsified the "closed 34-crate stable core" claim. This cycle makes that claim
+literally true at the dependency-graph level.
+
+#### Changed (BREAKING)
+
+- **`rf` is now CORE ONLY.** `cargo tree -p rf -e no-dev` returns zero extension
+  crates. The stable surface is unchanged — `Auth`, `Cache`, `Mail`, `Storage`,
+  `DB`, `Model!`, `create!`/`find!`/`update!`/`delete!`, `validate!`, routing,
+  request/response, sessions, config, queue — all still re-exported from `rf`
+  and `rf::prelude`.
+- **`rustforge` is now CORE ONLY** — dropped `rf-nova`, `rf-horizon`,
+  `rf-passport`, `rf-passport-facade`. This also removes the `default-members`
+  duplication bug and the experimental-in-stable tier-contract violation.
+- **Removed from the `rf` surface** (now available via `rf-full`): Blade, Inertia,
+  SSE, API resources, Gate/Policy authorization, upload, pagination, testing,
+  Pest, Cashier, MCP, Nightwatch, Passport, Nova, Horizon, string/array helpers.
+
+#### Added
+
+- **`rf-full`** — new opt-in umbrella that re-exports `rf::*` **plus** the full
+  extension surface. Existing users who relied on extension APIs through `rf`
+  migrate with a one-line dependency swap (`rf` → `rf-full`). See
+  [docs/STABLE_CORE.md](docs/STABLE_CORE.md) for the migration note.
+
+#### Internal
+
+- Moved 11 pure-core re-export crates from `extensions/` to `crates/`: the 8
+  facade shims (`rf-{auth,cache,db,event,mail,route,sanctum,storage}-facade`)
+  plus `rf-collections`, `rf-errors`, `rf-view`.
+- All gates green: `RUSTFLAGS="-Dwarnings" cargo check --workspace`,
+  `--all-features`, `clippy -p rf -p rustforge -D warnings`, `check-tiers.sh`
+  (122 crates annotated).
+
+---
+
 ## [1.0.0-rc.2] - 2026-07-14
 
 ### Second release candidate — hardening + honesty cycles

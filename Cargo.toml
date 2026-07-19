@@ -119,6 +119,8 @@ members = [
     "examples/realtime-chat",
     "examples/taskflow",
     "examples/i18n-localized-api",
+    # rf-full migration-path smoke (opt-in, consumes rf-full — NOT in default-members)
+    "examples/rf-full-smoke",
     # Cycle-4 flagship reference application (exercises every stable-core surface)
     "examples/reference-app",
     # Cycle-15 typed-DI reference example (no global facades; instance-based ORM)

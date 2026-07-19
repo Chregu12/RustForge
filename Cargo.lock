@@ -7819,6 +7819,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "rf-full-smoke"
+version = "0.1.0"
+dependencies = [
+ "rf-full",
+ "tokio",
+]
+
+[[package]]
 name = "rf-global-helpers"
 version = "0.1.0"
 dependencies = [
@@ -8062,7 +8070,7 @@ dependencies = [
 
 [[package]]
 name = "rf-macros"
-version = "1.0.0-rc.2"
+version = "1.0.0-rc.3"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -8524,7 +8532,7 @@ dependencies = [
 
 [[package]]
 name = "rf-routing"
-version = "1.0.0-rc.2"
+version = "1.0.0-rc.3"
 dependencies = [
  "async-trait",
  "axum 0.8.7",

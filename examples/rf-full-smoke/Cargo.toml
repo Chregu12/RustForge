@@ -1,0 +1,17 @@
+[package]
+name = "rf-full-smoke"
+license = "MIT OR Apache-2.0"
+version = "0.1.0"
+edition = "2021"
+
+# Proof that the rc.3 migration path works: a consumer that swaps `rf` for
+# `rf-full` gets the full pre-split surface — core (via rf-full's `pub use rf::*`)
+# AND every extension surface — from a single dependency.
+[[bin]]
+name = "rf-full-smoke"
+path = "src/main.rs"
+
+[dependencies]
+rf-full = { path = "../../extensions/rf-full" }
+
+tokio = { version = "1", features = ["full"] }
