@@ -54,22 +54,27 @@ members = [
     "extensions/rf-scaffold",
     "extensions/rf-breeze",
     "extensions/rf-views",
-    "extensions/rf-view",
+    "crates/rf-view",
     "extensions/rf-authorization",
     # Phase 13: Eloquent ORM
     "crates/rf-eloquent",
     # Phase 14: API & Developer Experience
     "extensions/rf-api-resources",
     "extensions/rf-requests",
-    "extensions/rf-collections",
+    "crates/rf-collections",
     "crates/rf-routing",
     "crates/rf-global-helpers",
-    # Phase 20: All facades merged into their main crates:
-    # - Route facade → rf-routing/src/facade/
-    # - DB facade → rf-orm/src/facade/
-    # - Mail facade → rf-mail/src/facade.rs
-    # - Sanctum facade → rf-sanctum/src/facade/
-    # - Passport facade → rf-passport/src/facade/
+    # Phase 20: Facade shims (moved from extensions/ to crates/ in Phase 3)
+    "crates/rf-auth-facade",
+    "crates/rf-cache-facade",
+    "crates/rf-db-facade",
+    "crates/rf-event-facade",
+    "crates/rf-mail-facade",
+    "crates/rf-route-facade",
+    "crates/rf-sanctum-facade",
+    "crates/rf-storage-facade",
+    # rf-full: the opt-in umbrella exposing all extension surfaces (NOT in default-members)
+    "extensions/rf-full",
     # RustForge - single import for everything
     "crates/rustforge",
     # rf - Simplified imports (use rf::Route, rf::Hash, etc.)
@@ -80,7 +85,7 @@ members = [
     "extensions/rf-nova",
     "extensions/rf-nova-macros",
     # Phase 16: Error Handling
-    "extensions/rf-errors",
+    "crates/rf-errors",
     # Phase 16-17: Ecosystem & Polish
     "extensions/rf-package-dev",
     "extensions/rf-providers",
@@ -212,6 +217,18 @@ default-members = [
     # Phase 14: API & Developer Experience
     "crates/rf-routing",
     "crates/rf-global-helpers",
+    # Facade shims (moved to crates/ in cycle-24)
+    "crates/rf-auth-facade",
+    "crates/rf-cache-facade",
+    "crates/rf-db-facade",
+    "crates/rf-event-facade",
+    "crates/rf-mail-facade",
+    "crates/rf-route-facade",
+    "crates/rf-sanctum-facade",
+    "crates/rf-storage-facade",
+    "crates/rf-collections",
+    "crates/rf-errors",
+    "crates/rf-view",
     "crates/rustforge",
     "crates/rf",
     # Phase 15: Monitoring & Debugging
@@ -264,7 +281,7 @@ resolver = "2"
 
 [workspace.package]
 edition = "2021"
-version = "1.0.0-rc.2"
+version = "1.0.0-rc.3"
 rust-version = "1.79.0"
 license = "MIT OR Apache-2.0"
 authors = ["chregu12"]

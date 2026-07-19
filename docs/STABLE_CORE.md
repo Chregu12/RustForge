@@ -2,6 +2,13 @@
 
 > **Cross-references:** [docs/TIERS.md](TIERS.md) — tier definitions and the full crate roster;
 > [docs/RELEASING.md](RELEASING.md) — SemVer policy and the canonical stable surface list.
+>
+> **Cycle-24 change (1.0.0-rc.3):** `crates/rf` is now CORE ONLY — zero deps on
+> `extensions/` crates. Extension surfaces (Blade, Inertia, SSE, API resources,
+> Cashier, MCP, Nightwatch, Passport, Nova, Horizon, Gate/Policy) are available
+> via `extensions/rf-full`. Swap your `rf` dep for `rf-full` to restore the old
+> full surface. See [docs/EXTENSIONS_EXTRACTION_PLAN.md](EXTENSIONS_EXTRACTION_PLAN.md)
+> Phase 3 for full details.
 
 This document defines the **precise v1 API contract** for the RustForge stable core.
 Every entry point listed here is grep-verified to exist in the source tree at the

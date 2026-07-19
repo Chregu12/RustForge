@@ -1,6 +1,6 @@
 # RustForge — Extension Extraction Plan (Cycle 19)
 
-> **Status:** Phase 1 EXECUTED (cycle 19) + Phase 2 EXECUTED (cycle 21).
+> **Status:** Phase 1 EXECUTED (cycle 19) + Phase 2 EXECUTED (cycle 21) + Phase 3 EXECUTED (cycle 24).
 >
 > - **Phase 1 (cycle 19):** 8 experimental crates moved to `extensions/`. Build
 >   0-warnings green, `check-tiers` scans `crates/` + `extensions/`, no dangling refs.
@@ -13,9 +13,18 @@
 >   passes 121/121. Default build (`cargo check`, no --workspace) builds only the
 >   stable core + examples/tests — no extension crates are directly in `default-members`.
 >
-> - **Phases 3–4 remain:** Split the `rf`/`rustforge` umbrellas (Phase 3), and
->   (maintainer's one-way-door call) an optional separate repo after crates.io
->   publication (Phase 4).
+> - **Phase 3 (cycle 24):** Umbrella split — `crates/rf` and `crates/rustforge` now
+>   depend on the STABLE CORE ONLY. 11 Category-A crates (8 facade shims + rf-collections
+>   + rf-errors + rf-view) moved from `extensions/` to `crates/`. All 15+ Category-B
+>   crates (Blade, Inertia, Passport, Cashier, MCP, Nightwatch, SSE, upload, api-resources,
+>   authorization, testing, pest, helpers, nova, horizon) removed from `rf`'s deps and
+>   re-exposed via the new `extensions/rf-full` opt-in umbrella. Version bumped to
+>   1.0.0-rc.3. `cargo tree -p rf -e no-dev | grep -c extensions` = 0.
+>   `RUSTFLAGS=-Dwarnings cargo check --workspace --all-features` exits 0.
+>   `bash scripts/check-tiers.sh` passes 122/122.
+>
+> - **Phase 4 remains:** (maintainer's one-way-door call) optional separate repo after
+>   crates.io publication.
 >
 > **Problem statement:** The Scope/Maintainability dimension scored 4/10 in the
 > independent review. Verdict: "a smaller RustForge with ~20 very good components

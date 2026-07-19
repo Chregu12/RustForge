@@ -6,7 +6,7 @@ description = "Laravel-style Mail facade for RustForge (re-export of rf-mail)"
 license = "MIT OR Apache-2.0"
 
 [dependencies]
-rf-mail = { path = "../../crates/rf-mail" }
+rf-mail = { path = "../rf-mail" }
 
 [package.metadata.rustforge]
 tier = "stub"

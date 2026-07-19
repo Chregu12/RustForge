@@ -11,7 +11,7 @@ rf-validation = { path = "../../crates/rf-validation" }
 rf-auth = { path = "../../crates/rf-auth", features = ["mail"] }
 rf-cache = { path = "../../crates/rf-cache" }
 rf-config = { path = "../../crates/rf-config" }
-rf-collections = { path = "../../extensions/rf-collections" }
+rf-collections = { path = "../../crates/rf-collections" }
 rf-web = { path = "../../crates/rf-web" }
 rf-routing = { path = "../../crates/rf-routing" }
 rf-pagination = { path = "../../extensions/rf-pagination" }

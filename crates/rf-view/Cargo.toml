@@ -7,7 +7,7 @@ license.workspace = true
 
 [dependencies]
 # Internal dependencies
-rf-core = { path = "../../crates/rf-core" }
+rf-core = { path = "../rf-core" }
 
 # Template engine
 tera = "1.19"

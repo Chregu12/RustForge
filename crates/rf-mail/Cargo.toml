@@ -29,7 +29,7 @@ regex = "1.10"
 # Real background-job queue: MailQueue::push dispatches a SendMailJob onto the
 # process-global default queue via rf_queue's Jobs facade (shared async bridge).
 rf-queue = { path = "../rf-queue", optional = true }
-rf-view = { path = "../../extensions/rf-view", optional = true }
+rf-view = { path = "../rf-view", optional = true }
 
 # For testing
 parking_lot = "0.12"

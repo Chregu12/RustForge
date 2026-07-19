@@ -82,6 +82,15 @@
 //! | `rf::background` | Jobs, queue, events, broadcasting | `Job`, `Queue`, `Event`, `Broadcast` |
 //! | `rf::services` | Auth, mail, storage, logging, metrics | `Auth`, `Mail`, `Storage`, `Log` |
 //! | `rf::facades` | All facades in one place | `Route`, `Auth`, `DB`, `Cache`, `Mail`, … |
+//!
+//! ## Extension surfaces (use `rf-full` for the full set)
+//!
+//! Blade templates, Inertia.js, SSE, API resources, pagination, form requests,
+//! file uploads, Gate/Policy authorization, Pest testing, Cashier payments, MCP
+//! AI integration, Nightwatch monitoring, Passport OAuth2, Nova admin, Horizon
+//! dashboard — all available via the `rf-full` crate which re-exports rf plus every
+//! extension surface so existing consumers need only change their dep from `rf` to
+//! `rf-full`.
 
 // ============================================================================
 // DIRECT RE-EXPORTS (Most Common - Laravel-style)
@@ -159,12 +168,6 @@ pub use rf_errors::Result;
 
 // Response
 pub use rf_response::Response;
-
-// New packages (Phase 22)
-pub use rf_pest::Pest;
-pub use rf_cashier::Cashier;
-pub use rf_mcp::Mcp;
-pub use rf_nightwatch::Nightwatch;
 
 // ============================================================================
 // MODULE 1: prelude - Common imports for 90% of use cases
@@ -315,28 +318,19 @@ pub mod prelude {
     //   `Worker`     — spawns async workers that drain a Queue
     //   `MemoryQueue`— the zero-config development driver (panic-isolated, DLQ-capable)
     pub use rf_queue::{Job as QueueJob, MemoryQueue, Queue, Worker};
-
-    // New packages (Phase 22)
-    // NOTE: rf-pest (beta), rf-cashier (beta), rf-mcp (beta), rf-nightwatch (beta)
-    // are NOT part of the v1 stable surface (see TIERS.md). They are retained here
-    // for backward compatibility with existing users but will be moved behind an
-    // opt-in feature flag in a future minor release.
-    pub use rf_pest::Pest;
-    pub use rf_cashier::Cashier;
-    pub use rf_mcp::Mcp;
-    pub use rf_nightwatch::Nightwatch;
 }
 
 // ============================================================================
-// MODULE 2: web - HTTP, Routing, Views, API
+// MODULE 2: web - HTTP, Routing, Views
 // ============================================================================
 
-/// HTTP, Routing, Views, and API resources.
+/// HTTP, Routing, Views, and Sessions.
+///
+/// Extension surfaces (Blade, Inertia, API resources, pagination, uploads)
+/// are available via `rf-full`.
 ///
 /// ```ignore
 /// use rf::web::{Request, Response, Router};
-/// use rf::web::views::{Blade, Template};
-/// use rf::web::api::{Resource, Paginator};
 /// ```
 pub mod web {
     // Request & Response
@@ -346,29 +340,9 @@ pub mod web {
     // Routing
     pub use rf_routing::*;
 
-    // API Resources & Pagination
-    pub mod api {
-        pub use rf_api_resources::*;
-        pub use rf_requests::*;
-        pub use rf_pagination::*;
-
-        // `rf_api_resources` and `rf_pagination` both define `PaginationLinks` and
-        // `PaginationMeta`. Prefer the `rf_pagination` versions here so they stay
-        // consistent with `Paginator` (also from `rf_pagination`); this explicit
-        // re-export shadows the globs above and resolves the ambiguous-glob-reexport
-        // warnings.
-        pub use rf_pagination::{PaginationLinks, PaginationMeta};
-    }
-
-    // Views & Templates
+    // Views & Templates (Tera-backed engine; Blade is in rf-full)
     pub mod views {
-        pub use rf_blade::*;
         pub use rf_view::*;
-    }
-
-    // Inertia.js
-    pub mod inertia {
-        pub use rf_inertia::*;
     }
 }
 
@@ -422,6 +396,8 @@ pub mod data {
 
 /// Background processing: Jobs, Queues, Events, Notifications, Broadcasting.
 ///
+/// SSE (Server-Sent Events) is available via `rf-full`.
+///
 /// ```ignore
 /// use rf::background::{Job, JobPayload, Scheduler};
 /// use rf::background::events::Event;
@@ -449,21 +425,20 @@ pub mod background {
         pub use rf_notifications::*;
     }
 
-    // Broadcasting (WebSocket, SSE)
+    // Broadcasting (WebSocket)
     pub mod broadcast {
         pub use rf_broadcast::*;
-    }
-
-    pub mod sse {
-        pub use rf_sse::*;
     }
 }
 
 // ============================================================================
-// MODULE 5: services - Storage, Mail, Logging, Metrics, Auth, Testing
+// MODULE 5: services - Storage, Mail, Logging, Metrics, Auth
 // ============================================================================
 
-/// Infrastructure services: Storage, Mail, Logging, Auth, Testing.
+/// Infrastructure services: Storage, Mail, Logging, Auth.
+///
+/// Extension services (Testing/Pest, Payments/Cashier, AI/MCP, Monitoring/Nightwatch,
+/// Authorization/Gate, file uploads) are available via `rf-full`.
 ///
 /// ```ignore
 /// use rf::services::storage::Disk;
@@ -471,10 +446,9 @@ pub mod background {
 /// use rf::services::auth::Guard;
 /// ```
 pub mod services {
-    // Storage & Upload
+    // Storage
     pub mod storage {
         pub use rf_storage::*;
-        pub use rf_upload::*;
     }
 
     // Mail
@@ -491,36 +465,14 @@ pub mod services {
         pub use rf_metrics::*;
     }
 
-    // Authentication & Authorization
+    // Authentication (core auth; Gate/Policy authorization is in rf-full)
     pub mod auth {
         pub use rf_auth::*;
-        pub use rf_authorization::{gate, Gate, Policy, Authorizable};
     }
 
     // Sanctum (API Tokens)
     pub mod sanctum {
         pub use rf_sanctum::*;
-    }
-
-    // Testing
-    pub mod testing {
-        pub use rf_testing::*;
-        pub use rf_pest::*;
-    }
-
-    // Payments
-    pub mod payments {
-        pub use rf_cashier::*;
-    }
-
-    // AI Integration
-    pub mod ai {
-        pub use rf_mcp::*;
-    }
-
-    // Monitoring
-    pub mod monitoring {
-        pub use rf_nightwatch::*;
     }
 
     // Errors
@@ -530,10 +482,10 @@ pub mod services {
 }
 
 // ============================================================================
-// BONUS: facades - All facades in one place (für Legacy/Compatibility)
+// BONUS: facades - All core facades in one place
 // ============================================================================
 
-/// All Laravel-style facades.
+/// All Laravel-style core facades.
 ///
 /// ```ignore
 /// use rf::facades::*;
@@ -551,40 +503,24 @@ pub mod facades {
     pub use rf_config::Config;
     pub use rf_view::ViewFacade as View;
 
-    // Additional facades (Sanctum, Passport)
+    // Sanctum
     pub use rf_sanctum::Sanctum;
-    pub use rf_passport::Passport;
 }
 
 // ============================================================================
-// BONUS: helpers - All helper functions
+// BONUS: helpers - Global helper functions
 // ============================================================================
 
-/// All helper functions and utilities.
+/// Global helper functions and utilities.
+///
+/// String/array/path/URL helpers (rf-helpers) are available via `rf-full`.
 ///
 /// ```ignore
-/// use rf::helpers::{slug, snake, env_var};
+/// use rf::helpers::*;
 /// ```
 pub mod helpers {
-    // String helpers
-    pub use rf_helpers::str::{
-        slug, snake, camel, studly, kebab, title, plural, singular, limit, words,
-    };
-
-    // Array helpers
-    pub use rf_helpers::arr::{
-        only, except, flatten, collapse, divide, first, last, random, shuffle,
-    };
-
-    // Path & URL helpers
-    pub use rf_helpers::path;
-    pub use rf_helpers::url;
-
     // Global helpers
     pub use rf_global_helpers::*;
-
-    // Env helpers
-    pub use rf_helpers::{env_var, env_or, abort, abort_if, abort_unless};
 }
 
 // ============================================================================

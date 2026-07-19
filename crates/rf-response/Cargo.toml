@@ -22,7 +22,7 @@ view = ["dep:rf-view"]
 # version as the router; the whole stack is aligned on 0.8.
 axum = "0.8"
 # Optional Tera-backed engine integration.  Enable with `features = ["view"]`.
-rf-view = { path = "../../extensions/rf-view", optional = true }
+rf-view = { path = "../rf-view", optional = true }
 serde.workspace = true
 serde_json.workspace = true
 tokio.workspace = true

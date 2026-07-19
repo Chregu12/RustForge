@@ -114,7 +114,6 @@ pub use rf_macros::laravel;
 ///
 /// Note: shown as `text` because `Model!` expands to code requiring
 /// `chrono`, which is not a dependency of this crate.
-#[allow(non_snake_case)]
 pub use rf_macros::Model;
 
 /// Query macro - use `where` like Laravel!
@@ -531,102 +530,9 @@ pub use rf_route_facade::Route;
 /// ```
 pub use rf_sanctum_facade::Sanctum;
 
-/// Passport facade - Laravel-style OAuth2 server
-///
-/// ```rust,ignore
-/// use rustforge::Passport;
-/// use chrono::Duration;
-///
-/// // Configure token lifetimes
-/// Passport::tokensExpireIn(Duration::days(15)).await;
-/// Passport::refreshTokensExpireIn(Duration::days(30)).await;
-///
-/// // Define OAuth scopes
-/// Passport::tokensCan(&[
-///     ("read:posts", "Read blog posts"),
-///     ("write:posts", "Create and edit posts"),
-/// ]).await;
-///
-/// // Create personal access token
-/// let token = Passport::createToken(&user, "api", vec!["read:posts"]).await?;
-///
-/// // Check current token scope
-/// if Passport::tokenCan("write:posts").await {
-///     // User can write posts
-/// }
-///
-/// // Client management
-/// let client = Passport::createClient("My App", "https://app.com/callback").await?;
-///
-/// // Grant control
-/// Passport::enablePasswordGrant().await;
-/// Passport::requirePkce(true).await;
-/// ```
-pub use rf_passport_facade::Passport;
-
-// ============================================================================
-// Admin Panel & Monitoring - Laravel Nova & Horizon
-// ============================================================================
-
-/// Laravel Nova - Admin Panel Builder
-///
-/// ```rust,ignore
-/// use rustforge::nova::*;
-///
-/// // Define a resource
-/// struct UserResource;
-/// impl Resource for UserResource {
-///     fn fields(&self) -> Vec<Field> {
-///         vec![
-///             Field::id("id"),
-///             Field::text("name").sortable().searchable(),
-///             Field::email("email").rules("required|email"),
-///             Field::boolean("is_admin"),
-///             Field::datetime("created_at"),
-///         ]
-///     }
-/// }
-///
-/// // Create Nova instance
-/// let nova = Nova::new()
-///     .with_path("/admin")
-///     .register_resource::<UserResource>();
-///
-/// // Merge routes
-/// let app = Router::new().merge(nova.routes());
-/// ```
-pub mod nova {
-    pub use rf_nova::*;
-}
-
-/// Laravel Horizon - Queue Monitoring Dashboard
-///
-/// ```rust,ignore
-/// use rustforge::horizon::*;
-///
-/// // Create and configure Horizon
-/// let horizon = Horizon::builder()
-///     .queue_manager(queue_manager)
-///     .monitor_queue("default")
-///     .monitor_queue("emails")
-///     .failed_job_retention_days(7)
-///     .build();
-///
-/// // Start dashboard server
-/// horizon.serve("0.0.0.0:8080").await?;
-///
-/// // Or use the facade
-/// Horizon::pause().await?;
-/// Horizon::status().await;
-/// let metrics = Horizon::queueMetrics("default").await;
-/// ```
-pub mod horizon {
-    pub use rf_horizon::*;
-}
-
-// Re-export main types at top level for convenience
-pub use rf_nova::Nova;
-pub use rf_horizon::Horizon;
+// NOTE: Passport, Nova, and Horizon have moved to the `rf-full` crate
+// (extensions/rf-full). Use `rf-full` as your dependency if you need
+// OAuth2 (Passport), the admin panel (Nova), or the queue dashboard (Horizon).
 
 // ============================================================================
 // HTTP Types
@@ -936,34 +842,8 @@ pub mod sanctum {
     pub use rf_sanctum::*;
 }
 
-/// Laravel Passport - OAuth2 Server
-///
-/// ```rust,ignore
-/// use rustforge::passport::*;
-///
-/// // Configure OAuth2
-/// let config = PassportConfig::new()
-///     .access_token_lifetime(3600)
-///     .enforce_pkce(true);
-///
-/// // Personal Access Tokens
-/// let token = user.create_token("mobile-app", vec!["read:posts"], &db, &config).await?;
-///
-/// // Protect routes with OAuth
-/// async fn protected(PassportAuth(user_id, token): PassportAuth) -> Response {
-///     if token.has_scope("read:posts") {
-///         Response::json(data)
-///     } else {
-///         Response::forbidden()
-///     }
-/// }
-/// ```
-pub mod passport {
-    pub use rf_passport::*;
-}
-
 // ============================================================================
-// Sanctum & Passport Re-exports (for convenience)
+// Sanctum Re-exports (for convenience)
 // ============================================================================
 
 // Sanctum - Most common types at top level
@@ -972,19 +852,8 @@ pub use rf_sanctum::{
     TokenRepository as SanctumTokenRepository,
 };
 
-// Passport - Most common types at top level
-pub use rf_passport::{
-    PassportAuth, PassportConfig, PassportError, PassportResult,
-    HasApiTokens, OAuthClient, OAuthAccessToken, OAuthRefreshToken,
-    Scope, ScopeRepository,
-    // Grant types
-    AuthorizationCodeGrant, PasswordGrant, ClientCredentialsGrant,
-    RefreshTokenGrant, ImplicitGrant,
-    // Requests
-    AuthorizationRequest, AuthorizationResponse, TokenResponse,
-    // PKCE
-    generate_code_verifier, generate_code_challenge, verify_code_challenge,
-};
+// NOTE: Passport re-exports (PassportAuth, PassportConfig, etc.) have moved to
+// `rf-full`. Add `rf-full` as a dependency to access OAuth2 surfaces.
 
 // ============================================================================
 // Type Aliases for cleaner code

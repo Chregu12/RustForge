@@ -1,0 +1,39 @@
+[package]
+name = "rf-full"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "RustForge full-surface umbrella — rf core plus all extension crates. Use this instead of `rf` when you need Blade, Inertia, SSE, API resources, Cashier, MCP, Nightwatch, Passport, Nova, Horizon, or the Gate/Policy authorization surface."
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+keywords = ["web", "framework", "laravel", "fullstack", "extensions"]
+categories = ["web-programming::http-server", "web-programming"]
+
+[dependencies]
+# Core umbrella
+rf = { path = "../../crates/rf" }
+
+# Category-B extensions (all that were removed from rf in cycle-24)
+rf-helpers = { path = "../rf-helpers" }
+rf-authorization = { path = "../rf-authorization" }
+rf-passport = { path = "../rf-passport" }
+rf-passport-facade = { path = "../rf-passport-facade" }
+rf-api-resources = { path = "../rf-api-resources" }
+rf-requests = { path = "../rf-requests" }
+rf-pagination = { path = "../rf-pagination" }
+rf-upload = { path = "../rf-upload" }
+rf-testing = { path = "../rf-testing" }
+rf-blade = { path = "../rf-blade" }
+rf-inertia = { path = "../rf-inertia" }
+rf-sse = { path = "../rf-sse" }
+rf-nightwatch = { path = "../rf-nightwatch" }
+rf-pest = { path = "../rf-pest" }
+rf-cashier = { path = "../rf-cashier" }
+rf-mcp = { path = "../rf-mcp" }
+rf-nova = { path = "../rf-nova" }
+rf-horizon = { path = "../rf-horizon" }
+
+[package.metadata.rustforge]
+tier = "beta"

@@ -684,7 +684,7 @@ checksum = "1505bd5d3d116872e7271a6d4e16d81d0c8570876c8de68093a09ac269d8aac0"
 
 [[package]]
 name = "auth-demo"
-version = "1.0.0-rc.2"
+version = "1.0.0-rc.3"
 dependencies = [
  "anyhow",
  "axum 0.8.7",
@@ -2534,7 +2534,7 @@ checksum = "2a2330da5de22e8a3cb63252ce2abb30116bf5265e89c0e01bc17015ce30a476"
 
 [[package]]
 name = "database-demo"
-version = "1.0.0-rc.2"
+version = "1.0.0-rc.3"
 dependencies = [
  "anyhow",
  "chrono",
@@ -3256,7 +3256,7 @@ dependencies = [
 
 [[package]]
 name = "foundry-cli"
-version = "1.0.0-rc.2"
+version = "1.0.0-rc.3"
 dependencies = [
  "anyhow",
  "chrono",
@@ -3772,7 +3772,7 @@ checksum = "2304e00983f87ffb38b55b444b5e3b60a884b5d30c0fca7d82fe33449bbe55ea"
 
 [[package]]
 name = "hello"
-version = "1.0.0-rc.2"
+version = "1.0.0-rc.3"
 dependencies = [
  "anyhow",
  "axum 0.8.7",
@@ -4526,7 +4526,7 @@ checksum = "4a5f13b858c8d314ee3e8f639011f7ccefe71f97f96e50151fb991f267928e2c"
 
 [[package]]
 name = "jobs-demo"
-version = "1.0.0-rc.2"
+version = "1.0.0-rc.3"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4540,7 +4540,7 @@ dependencies = [
 
 [[package]]
 name = "jobs-offline"
-version = "1.0.0-rc.2"
+version = "1.0.0-rc.3"
 dependencies = [
  "async-trait",
  "rf-queue",
@@ -4830,7 +4830,7 @@ dependencies = [
 
 [[package]]
 name = "mail-demo"
-version = "1.0.0-rc.2"
+version = "1.0.0-rc.3"
 dependencies = [
  "anyhow",
  "rf-mail",
@@ -6864,7 +6864,7 @@ dependencies = [
 
 [[package]]
 name = "reference-app"
-version = "1.0.0-rc.2"
+version = "1.0.0-rc.3"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -7000,18 +7000,14 @@ dependencies = [
 
 [[package]]
 name = "rf"
-version = "1.0.0-rc.2"
+version = "1.0.0-rc.3"
 dependencies = [
  "chrono",
- "rf-api-resources",
  "rf-auth",
  "rf-auth-facade",
- "rf-authorization",
- "rf-blade",
  "rf-broadcast",
  "rf-cache",
  "rf-cache-facade",
- "rf-cashier",
  "rf-collections",
  "rf-config",
  "rf-core",
@@ -7021,34 +7017,23 @@ dependencies = [
  "rf-event-facade",
  "rf-events",
  "rf-global-helpers",
- "rf-helpers",
- "rf-inertia",
  "rf-jobs",
  "rf-logging",
  "rf-macros",
  "rf-mail",
  "rf-mail-facade",
- "rf-mcp",
  "rf-metrics",
  "rf-model-macro",
- "rf-nightwatch",
  "rf-notifications",
  "rf-orm",
- "rf-pagination",
- "rf-passport",
- "rf-pest",
  "rf-queue",
  "rf-request",
- "rf-requests",
  "rf-response",
  "rf-route-facade",
  "rf-routing",
  "rf-sanctum",
- "rf-sse",
  "rf-storage",
  "rf-storage-facade",
- "rf-testing",
- "rf-upload",
  "rf-validation",
  "rf-validation-derive",
  "rf-view",
@@ -7087,7 +7072,7 @@ dependencies = [
 
 [[package]]
 name = "rf-advanced-input"
-version = "1.0.0-rc.2"
+version = "1.0.0-rc.3"
 dependencies = [
  "regex",
  "serde",
@@ -7097,7 +7082,7 @@ dependencies = [
 
 [[package]]
 name = "rf-ai"
-version = "1.0.0-rc.2"
+version = "1.0.0-rc.3"
 dependencies = [
  "async-trait",
  "base64 0.21.7",
@@ -7111,7 +7096,7 @@ dependencies = [
 
 [[package]]
 name = "rf-api"
-version = "1.0.0-rc.2"
+version = "1.0.0-rc.3"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -7155,7 +7140,7 @@ dependencies = [
 
 [[package]]
 name = "rf-application"
-version = "1.0.0-rc.2"
+version = "1.0.0-rc.3"
 dependencies = [
  "anyhow",
  "argon2",
@@ -7199,7 +7184,7 @@ dependencies = [
 
 [[package]]
 name = "rf-assets"
-version = "1.0.0-rc.2"
+version = "1.0.0-rc.3"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -7216,7 +7201,7 @@ dependencies = [
 
 [[package]]
 name = "rf-async-bridge"
-version = "1.0.0-rc.2"
+version = "1.0.0-rc.3"
 dependencies = [
  "tokio",
 ]
@@ -7236,7 +7221,7 @@ dependencies = [
 
 [[package]]
 name = "rf-auth"
-version = "1.0.0-rc.2"
+version = "1.0.0-rc.3"
 dependencies = [
  "anyhow",
  "argon2",
@@ -7307,7 +7292,7 @@ dependencies = [
 
 [[package]]
 name = "rf-authorization"
-version = "1.0.0-rc.2"
+version = "1.0.0-rc.3"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -7356,7 +7341,7 @@ dependencies = [
 
 [[package]]
 name = "rf-broadcast"
-version = "1.0.0-rc.2"
+version = "1.0.0-rc.3"
 dependencies = [
  "async-trait",
  "axum 0.8.7",
@@ -7381,7 +7366,7 @@ dependencies = [
 
 [[package]]
 name = "rf-cache"
-version = "1.0.0-rc.2"
+version = "1.0.0-rc.3"
 dependencies = [
  "async-trait",
  "chrono",
@@ -7475,7 +7460,7 @@ dependencies = [
 
 [[package]]
 name = "rf-command-events"
-version = "1.0.0-rc.2"
+version = "1.0.0-rc.3"
 dependencies = [
  "async-trait",
  "chrono",
@@ -7488,7 +7473,7 @@ dependencies = [
 
 [[package]]
 name = "rf-command-executor"
-version = "1.0.0-rc.2"
+version = "1.0.0-rc.3"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -7503,7 +7488,7 @@ dependencies = [
 
 [[package]]
 name = "rf-command-pipeline"
-version = "1.0.0-rc.2"
+version = "1.0.0-rc.3"
 dependencies = [
  "async-trait",
  "futures",
@@ -7514,7 +7499,7 @@ dependencies = [
 
 [[package]]
 name = "rf-config"
-version = "1.0.0-rc.2"
+version = "1.0.0-rc.3"
 dependencies = [
  "anyhow",
  "config",
@@ -7531,7 +7516,7 @@ dependencies = [
 
 [[package]]
 name = "rf-console"
-version = "1.0.0-rc.2"
+version = "1.0.0-rc.3"
 dependencies = [
  "anyhow",
  "thiserror 1.0.69",
@@ -7539,7 +7524,7 @@ dependencies = [
 
 [[package]]
 name = "rf-container"
-version = "1.0.0-rc.2"
+version = "1.0.0-rc.3"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -7549,7 +7534,7 @@ dependencies = [
 
 [[package]]
 name = "rf-core"
-version = "1.0.0-rc.2"
+version = "1.0.0-rc.3"
 dependencies = [
  "anyhow",
  "axum 0.8.7",
@@ -7586,7 +7571,7 @@ dependencies = [
 
 [[package]]
 name = "rf-domain"
-version = "1.0.0-rc.2"
+version = "1.0.0-rc.3"
 dependencies = [
  "serde",
  "thiserror 1.0.69",
@@ -7594,7 +7579,7 @@ dependencies = [
 
 [[package]]
 name = "rf-dusk"
-version = "1.0.0-rc.2"
+version = "1.0.0-rc.3"
 dependencies = [
  "async-trait",
  "base64 0.21.7",
@@ -7615,7 +7600,7 @@ dependencies = [
 
 [[package]]
 name = "rf-echo"
-version = "1.0.0-rc.2"
+version = "1.0.0-rc.3"
 dependencies = [
  "async-trait",
  "dashmap",
@@ -7636,7 +7621,7 @@ dependencies = [
 
 [[package]]
 name = "rf-eloquent"
-version = "1.0.0-rc.2"
+version = "1.0.0-rc.3"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -7664,7 +7649,7 @@ dependencies = [
 
 [[package]]
 name = "rf-encryption"
-version = "1.0.0-rc.2"
+version = "1.0.0-rc.3"
 dependencies = [
  "aes-gcm",
  "base64 0.21.7",
@@ -7677,7 +7662,7 @@ dependencies = [
 
 [[package]]
 name = "rf-env"
-version = "1.0.0-rc.2"
+version = "1.0.0-rc.3"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -7693,7 +7678,7 @@ dependencies = [
 
 [[package]]
 name = "rf-envoy"
-version = "1.0.0-rc.2"
+version = "1.0.0-rc.3"
 dependencies = [
  "async-trait",
  "chrono",
@@ -7774,7 +7759,7 @@ dependencies = [
 
 [[package]]
 name = "rf-facades"
-version = "1.0.0-rc.2"
+version = "1.0.0-rc.3"
 dependencies = [
  "once_cell",
 ]
@@ -7792,7 +7777,7 @@ dependencies = [
 
 [[package]]
 name = "rf-forms"
-version = "1.0.0-rc.2"
+version = "1.0.0-rc.3"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -7806,6 +7791,31 @@ dependencies = [
  "tokio",
  "uuid 1.18.1",
  "validator",
+]
+
+[[package]]
+name = "rf-full"
+version = "1.0.0-rc.3"
+dependencies = [
+ "rf",
+ "rf-api-resources",
+ "rf-authorization",
+ "rf-blade",
+ "rf-cashier",
+ "rf-helpers",
+ "rf-horizon",
+ "rf-inertia",
+ "rf-mcp",
+ "rf-nightwatch",
+ "rf-nova",
+ "rf-pagination",
+ "rf-passport",
+ "rf-passport-facade",
+ "rf-pest",
+ "rf-requests",
+ "rf-sse",
+ "rf-testing",
+ "rf-upload",
 ]
 
 [[package]]
@@ -7830,7 +7840,7 @@ dependencies = [
 
 [[package]]
 name = "rf-graphql"
-version = "1.0.0-rc.2"
+version = "1.0.0-rc.3"
 dependencies = [
  "async-graphql",
  "async-graphql-axum",
@@ -7848,7 +7858,7 @@ dependencies = [
 
 [[package]]
 name = "rf-health"
-version = "1.0.0-rc.2"
+version = "1.0.0-rc.3"
 dependencies = [
  "async-trait",
  "axum 0.8.7",
@@ -7885,7 +7895,7 @@ dependencies = [
 
 [[package]]
 name = "rf-horizon"
-version = "1.0.0-rc.2"
+version = "1.0.0-rc.3"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -7910,7 +7920,7 @@ dependencies = [
 
 [[package]]
 name = "rf-http-client"
-version = "1.0.0-rc.2"
+version = "1.0.0-rc.3"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -7958,7 +7968,7 @@ dependencies = [
 
 [[package]]
 name = "rf-infra"
-version = "1.0.0-rc.2"
+version = "1.0.0-rc.3"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -7987,7 +7997,7 @@ dependencies = [
 
 [[package]]
 name = "rf-interactive"
-version = "1.0.0-rc.2"
+version = "1.0.0-rc.3"
 dependencies = [
  "anyhow",
  "dialoguer",
@@ -7997,7 +8007,7 @@ dependencies = [
 
 [[package]]
 name = "rf-jobs"
-version = "1.0.0-rc.2"
+version = "1.0.0-rc.3"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -8066,7 +8076,7 @@ dependencies = [
 
 [[package]]
 name = "rf-mail"
-version = "1.0.0-rc.2"
+version = "1.0.0-rc.3"
 dependencies = [
  "async-trait",
  "base64 0.21.7",
@@ -8103,7 +8113,7 @@ dependencies = [
 
 [[package]]
 name = "rf-maintenance"
-version = "1.0.0-rc.2"
+version = "1.0.0-rc.3"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -8203,7 +8213,7 @@ dependencies = [
 
 [[package]]
 name = "rf-nova"
-version = "1.0.0-rc.2"
+version = "1.0.0-rc.3"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -8231,7 +8241,7 @@ dependencies = [
 
 [[package]]
 name = "rf-nova-macros"
-version = "1.0.0-rc.2"
+version = "1.0.0-rc.3"
 dependencies = [
  "darling",
  "proc-macro2",
@@ -8241,7 +8251,7 @@ dependencies = [
 
 [[package]]
 name = "rf-observability"
-version = "1.0.0-rc.2"
+version = "1.0.0-rc.3"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -8271,7 +8281,7 @@ dependencies = [
 
 [[package]]
 name = "rf-orm"
-version = "1.0.0-rc.2"
+version = "1.0.0-rc.3"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -8300,7 +8310,7 @@ dependencies = [
 
 [[package]]
 name = "rf-package-dev"
-version = "1.0.0-rc.2"
+version = "1.0.0-rc.3"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -8375,7 +8385,7 @@ dependencies = [
 
 [[package]]
 name = "rf-plugins"
-version = "1.0.0-rc.2"
+version = "1.0.0-rc.3"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -8388,7 +8398,7 @@ dependencies = [
 
 [[package]]
 name = "rf-providers"
-version = "1.0.0-rc.2"
+version = "1.0.0-rc.3"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -8398,7 +8408,7 @@ dependencies = [
 
 [[package]]
 name = "rf-queue"
-version = "1.0.0-rc.2"
+version = "1.0.0-rc.3"
 dependencies = [
  "async-trait",
  "aws-config",
@@ -8421,7 +8431,7 @@ dependencies = [
 
 [[package]]
 name = "rf-ratelimit"
-version = "1.0.0-rc.2"
+version = "1.0.0-rc.3"
 dependencies = [
  "async-trait",
  "axum 0.8.7",
@@ -8466,7 +8476,7 @@ dependencies = [
 
 [[package]]
 name = "rf-resources"
-version = "1.0.0-rc.2"
+version = "1.0.0-rc.3"
 dependencies = [
  "async-trait",
  "axum 0.8.7",
@@ -8480,7 +8490,7 @@ dependencies = [
 
 [[package]]
 name = "rf-response"
-version = "1.0.0-rc.2"
+version = "1.0.0-rc.3"
 dependencies = [
  "axum 0.8.7",
  "bytes",
@@ -8541,7 +8551,7 @@ dependencies = [
 
 [[package]]
 name = "rf-sail"
-version = "1.0.0-rc.2"
+version = "1.0.0-rc.3"
 dependencies = [
  "async-trait",
  "bollard",
@@ -8612,7 +8622,7 @@ dependencies = [
 
 [[package]]
 name = "rf-scheduler"
-version = "1.0.0-rc.2"
+version = "1.0.0-rc.3"
 dependencies = [
  "async-trait",
  "chrono",
@@ -8656,7 +8666,7 @@ dependencies = [
 
 [[package]]
 name = "rf-service-container"
-version = "1.0.0-rc.2"
+version = "1.0.0-rc.3"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -8670,7 +8680,7 @@ dependencies = [
 
 [[package]]
 name = "rf-signal-handler"
-version = "1.0.0-rc.2"
+version = "1.0.0-rc.3"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -8684,7 +8694,7 @@ dependencies = [
 
 [[package]]
 name = "rf-socialite"
-version = "1.0.0-rc.2"
+version = "1.0.0-rc.3"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -8703,7 +8713,7 @@ dependencies = [
 
 [[package]]
 name = "rf-soft-deletes"
-version = "1.0.0-rc.2"
+version = "1.0.0-rc.3"
 dependencies = [
  "async-trait",
  "chrono",
@@ -8714,7 +8724,7 @@ dependencies = [
 
 [[package]]
 name = "rf-spark"
-version = "1.0.0-rc.2"
+version = "1.0.0-rc.3"
 dependencies = [
  "async-stripe",
  "async-trait",
@@ -8749,7 +8759,7 @@ dependencies = [
 
 [[package]]
 name = "rf-storage"
-version = "1.0.0-rc.2"
+version = "1.0.0-rc.3"
 dependencies = [
  "async-trait",
  "aws-config",
@@ -8781,7 +8791,7 @@ dependencies = [
 
 [[package]]
 name = "rf-stub-system"
-version = "1.0.0-rc.2"
+version = "1.0.0-rc.3"
 dependencies = [
  "heck 0.5.0",
  "regex",
@@ -8809,7 +8819,7 @@ dependencies = [
 
 [[package]]
 name = "rf-telescope"
-version = "1.0.0-rc.2"
+version = "1.0.0-rc.3"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -8826,7 +8836,7 @@ dependencies = [
 
 [[package]]
 name = "rf-tenancy"
-version = "1.0.0-rc.2"
+version = "1.0.0-rc.3"
 dependencies = [
  "async-trait",
  "axum 0.8.7",
@@ -8839,7 +8849,7 @@ dependencies = [
 
 [[package]]
 name = "rf-testing"
-version = "1.0.0-rc.2"
+version = "1.0.0-rc.3"
 dependencies = [
  "async-trait",
  "axum 0.8.7",
@@ -8861,7 +8871,7 @@ dependencies = [
 
 [[package]]
 name = "rf-tinker-enhanced"
-version = "1.0.0-rc.2"
+version = "1.0.0-rc.3"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -8895,7 +8905,7 @@ dependencies = [
 
 [[package]]
 name = "rf-validation"
-version = "1.0.0-rc.2"
+version = "1.0.0-rc.3"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -8918,7 +8928,7 @@ dependencies = [
 
 [[package]]
 name = "rf-validation-derive"
-version = "1.0.0-rc.2"
+version = "1.0.0-rc.3"
 dependencies = [
  "darling",
  "proc-macro2",
@@ -8933,7 +8943,7 @@ dependencies = [
 
 [[package]]
 name = "rf-vector"
-version = "1.0.0-rc.2"
+version = "1.0.0-rc.3"
 dependencies = [
  "serde",
  "serde_json",
@@ -8942,14 +8952,14 @@ dependencies = [
 
 [[package]]
 name = "rf-verbosity"
-version = "1.0.0-rc.2"
+version = "1.0.0-rc.3"
 dependencies = [
  "clap",
 ]
 
 [[package]]
 name = "rf-view"
-version = "1.0.0-rc.2"
+version = "1.0.0-rc.3"
 dependencies = [
  "anyhow",
  "axum 0.8.7",
@@ -9002,7 +9012,7 @@ dependencies = [
 
 [[package]]
 name = "rf-web"
-version = "1.0.0-rc.2"
+version = "1.0.0-rc.3"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -9267,19 +9277,15 @@ dependencies = [
 
 [[package]]
 name = "rustforge"
-version = "1.0.0-rc.2"
+version = "1.0.0-rc.3"
 dependencies = [
  "async-trait",
  "rf-auth-facade",
  "rf-cache-facade",
  "rf-db-facade",
  "rf-event-facade",
- "rf-horizon",
  "rf-macros",
  "rf-model-macro",
- "rf-nova",
- "rf-passport",
- "rf-passport-facade",
  "rf-request",
  "rf-response",
  "rf-route-facade",

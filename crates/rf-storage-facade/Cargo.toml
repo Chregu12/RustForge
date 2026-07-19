@@ -6,7 +6,7 @@ description = "Laravel-style Storage facade for RustForge (re-export of rf-stora
 license = "MIT OR Apache-2.0"
 
 [dependencies]
-rf-storage = { path = "../../crates/rf-storage" }
+rf-storage = { path = "../rf-storage" }
 
 [package.metadata.rustforge]
 tier = "stub"

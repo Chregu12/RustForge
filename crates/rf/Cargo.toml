@@ -22,7 +22,6 @@ categories = ["web-programming::http-server", "web-programming"]
 
 # Helpers & Macros
 rf-global-helpers = { path = "../rf-global-helpers" }
-rf-helpers = { path = "../../extensions/rf-helpers" }
 rf-macros = { path = "../rf-macros" }
 
 # Core
@@ -45,34 +44,26 @@ rf-model-macro = { path = "../rf-model-macro" }
 # `serde_json::`, `serde::` and `chrono::` by crate name, so the `rf` facade must
 # bring those names into scope (see `prelude`) for an `rf`-only consumer to use
 # the macros it advertises.
-rf-db-facade = { path = "../../extensions/rf-db-facade" }
+rf-db-facade = { path = "../rf-db-facade" }
 # Facade crates that the rf_macros helper macros (event!/send_mail!/cache!/auth!/
 # storage!/redirect!/session!/view!/back!) expand to by crate name. The `rf`
 # umbrella re-exports these (see `prelude`) so an `rf`-only consumer using
 # `use rf::prelude::*` can actually use the macros it advertises.
-rf-event-facade = { path = "../../extensions/rf-event-facade" }
-rf-mail-facade = { path = "../../extensions/rf-mail-facade" }
-rf-cache-facade = { path = "../../extensions/rf-cache-facade" }
-rf-auth-facade = { path = "../../extensions/rf-auth-facade" }
-rf-storage-facade = { path = "../../extensions/rf-storage-facade" }
-rf-route-facade = { path = "../../extensions/rf-route-facade" }
+rf-event-facade = { path = "../rf-event-facade" }
+rf-mail-facade = { path = "../rf-mail-facade" }
+rf-cache-facade = { path = "../rf-cache-facade" }
+rf-auth-facade = { path = "../rf-auth-facade" }
+rf-storage-facade = { path = "../rf-storage-facade" }
+rf-route-facade = { path = "../rf-route-facade" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 chrono = { version = "0.4", features = ["serde", "clock"] }
 
 # Auth & Security
 rf-auth = { path = "../rf-auth" }
-rf-authorization = { path = "../../extensions/rf-authorization" }
 rf-sanctum = { path = "../rf-sanctum" }
-rf-passport = { path = "../../extensions/rf-passport" }
 rf-validation = { path = "../rf-validation" }
 rf-validation-derive = { path = "../rf-validation-derive" }
-
-# HTTP & API
-rf-api-resources = { path = "../../extensions/rf-api-resources" }
-rf-requests = { path = "../../extensions/rf-requests" }
-rf-pagination = { path = "../../extensions/rf-pagination" }
-rf-collections = { path = "../../extensions/rf-collections" }
 
 # Jobs & Events
 rf-jobs = { path = "../rf-jobs" }
@@ -83,39 +74,23 @@ rf-notifications = { path = "../rf-notifications" }
 # Storage & Mail
 rf-storage = { path = "../rf-storage" }
 rf-mail = { path = "../rf-mail" }
-rf-upload = { path = "../../extensions/rf-upload" }
 
 # Cache & Session
 rf-cache = { path = "../rf-cache" }
 
-# Testing
-rf-testing = { path = "../../extensions/rf-testing" }
-
 # Views
-rf-blade = { path = "../../extensions/rf-blade" }
-rf-view = { path = "../../extensions/rf-view" }
-rf-inertia = { path = "../../extensions/rf-inertia" }
+rf-view = { path = "../rf-view" }
+
+# Collections & Errors (moved to crates/ in cycle-24)
+rf-collections = { path = "../rf-collections" }
+rf-errors = { path = "../rf-errors" }
 
 # Broadcasting
 rf-broadcast = { path = "../rf-broadcast" }
-rf-sse = { path = "../../extensions/rf-sse" }
 
 # Logging & Monitoring
 rf-logging = { path = "../rf-logging" }
 rf-metrics = { path = "../rf-metrics" }
-rf-nightwatch = { path = "../../extensions/rf-nightwatch" }
-
-# Errors
-rf-errors = { path = "../../extensions/rf-errors" }
-
-# Testing
-rf-pest = { path = "../../extensions/rf-pest" }
-
-# Payments
-rf-cashier = { path = "../../extensions/rf-cashier" }
-
-# AI Integration
-rf-mcp = { path = "../../extensions/rf-mcp" }
 
 [features]
 default = []

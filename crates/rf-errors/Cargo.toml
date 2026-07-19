@@ -35,10 +35,10 @@ uuid = { version = "1.11", features = ["v4", "serde"] }
 http = "1.1"
 
 # RustForge dependencies
-rf-core = { path = "../../crates/rf-core" }
+rf-core = { path = "../rf-core" }
 
 # Template rendering (optional for error pages)
-rf-blade = { path = "../rf-blade", optional = true }
+rf-blade = { path = "../../extensions/rf-blade", optional = true }
 
 # Async support
 tokio = { version = "1.42", features = ["full"] }
@@ -49,7 +49,7 @@ tokio-test = "0.4"
 tempfile = "3.14"
 
 [features]
-default = ["error-pages", "sentry-integration"]
+default = ["sentry-integration"]
 error-pages = ["rf-blade"]
 sentry-integration = ["sentry"]
 
