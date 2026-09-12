@@ -10,9 +10,9 @@ Please read and follow our [Code of Conduct](CODE_OF_CONDUCT.md) to ensure a wel
 
 ### Prerequisites
 
-- **Rust 1.70+** - Install from [rustup.rs](https://rustup.rs)
+- **Rust 1.96.0+** - Install from [rustup.rs](https://rustup.rs)
 - **Git** - For cloning and version control
-- **A database** - SQLite (recommended for dev), PostgreSQL, or MySQL
+- **A database** - SQLite (recommended for dev), PostgreSQL
 
 ### Local Development Setup
 

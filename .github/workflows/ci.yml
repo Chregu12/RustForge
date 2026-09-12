@@ -521,44 +521,40 @@ jobs:
         run: cargo test -p rf-web --lib
 
   # ===========================================
-  # MSRV Gate — builds the stable public surface on the declared MSRV
-  # ===========================================
-  #
-  # Verifies that the key public crates compile on the declared Minimum
-  # Supported Rust Version (MSRV = 1.79.0, documented in docs/RELEASING.md
-  # and declared via `rust-version` in each crate's Cargo.toml).
-  #
-  # Scope is limited to the stable public surface (rf-core, rf-web,
-  # rf-validation, rf-macros, rf-routing, rf) rather than the full workspace,
-  # because experimental/internal crates may pull in dependencies with their
-  # own, possibly higher, MSRV requirements.
-  #
-  # This job does NOT enforce -Dwarnings (new lints arrive with new compilers;
-  # the warning gate runs on the pinned toolchain in workspace-gate above).
+  # MSRV Gate — explicitly select the supported toolchain, including rf.
   msrv:
-    name: "MSRV (Rust 1.79.0) — stable public surface"
+    name: "MSRV (Rust 1.96.0) — public umbrella"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@1.79.0
+      - uses: dtolnay/rust-toolchain@1.96.0
       - uses: Swatinem/rust-cache@v2
         with:
-          key: msrv-1.79.0
+          key: msrv-1.96.0
+      - name: Verify the actual compiler and declared MSRV
+        run: |
+          rustc +1.96.0 --version
+          python3 - <<'PYTHON'
+          import pathlib, tomllib
+          manifest = tomllib.loads(pathlib.Path("Cargo.toml").read_text())
+          assert manifest["workspace"]["package"]["rust-version"] == "1.96.0"
+          PYTHON
+      - name: Compile the advertised consumer surface
+        run: cargo +1.96.0 check --locked -p rf -p rustforge
 
-      - name: cargo check rf-core (MSRV)
-        run: cargo check -p rf-core
-
-      - name: cargo check rf-web (MSRV)
-        run: cargo check -p rf-web
-
-      - name: cargo check rf-validation (MSRV)
-        run: cargo check -p rf-validation
-
-      - name: cargo check rf-macros (MSRV)
-        run: cargo check -p rf-macros
-
-      - name: cargo check rf-routing (MSRV)
-        run: cargo check -p rf-routing
+  getting-started:
+    name: "Getting started documentation and HTTP regression tests"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.96.0
+      - uses: Swatinem/rust-cache@v2
+      - name: Documentation matches executable source
+        run: python3 scripts/sync-getting-started.py --check
+      - name: Canonical application HTTP contract
+        run: cargo +1.96.0 test --locked -p blog-slice
+      - name: Core review regression tests
+        run: cargo +1.96.0 test --locked -p probe-sweep --test core_review_regressions
 
   # ===========================================
   # Sandbox Probe Sweep — committed integration-test crate

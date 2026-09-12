@@ -1,5 +1,14 @@
 # RustForge — Laravel-Style DX Reference
 
+> **API update:** See [Quick Start](Quick-Start) for the current tested entry
+> point. New apps use `App::new().database(db)` and share that pool with async
+> model calls. Synchronous I/O facade methods and older helper macros shown
+> below are blocking compatibility APIs; HTTP handlers use `_async` variants.
+> `validate!` returns only fields with rules; `bool` requires a JSON boolean.
+> Typed ORM reads now return mapping errors instead of dropping rows.
+> The supported compiler is Rust 1.96.0.
+
+
 RustForge's identity is the **Laravel-style DX layer**: terse handlers, `Model!` / `validate!`,
 global facades, and request helpers that let you write a full application in far less code than the
 explicit equivalent. Underneath that surface sits a fully **explicit Rust-native core** you can always

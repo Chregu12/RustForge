@@ -1,5 +1,14 @@
 # API Documentation — RustForge v1 Reference
 
+> **API update:** See [Quick Start](Quick-Start) for the current tested entry
+> point. New apps use `App::new().database(db)` and share that pool with async
+> model calls. Synchronous I/O facade methods and older helper macros shown
+> below are blocking compatibility APIs; HTTP handlers use `_async` variants.
+> `validate!` returns only fields with rules; `bool` requires a JSON boolean.
+> Typed ORM reads now return mapping errors instead of dropping rows.
+> The supported compiler is Rust 1.96.0.
+
+
 This page is the **reference-style companion** to [Laravel-Syntax.md](Laravel-Syntax.md).
 It lists the concrete types, function signatures, return types, and crate locations for every
 stable capability. All items below are grep-verified against the source tree.
