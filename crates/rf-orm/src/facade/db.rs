@@ -1,9 +1,9 @@
 //! DB facade providing Laravel-style static database API
 
 use crate::facade::db_manager::{
-    global_begin_transaction, global_commit, global_connection_name, global_delete,
-    global_insert, global_refresh, global_rollback, global_select, global_set_connection,
-    global_statement, global_update,
+    global_begin_transaction, global_commit, global_connection_name, global_delete, global_insert,
+    global_refresh, global_rollback, global_select, global_set_connection, global_statement,
+    global_update,
 };
 use crate::facade::query_builder::QueryBuilder;
 use serde_json::Value;
@@ -42,6 +42,35 @@ use serde_json::Value;
 pub struct DB;
 
 impl DB {
+    /// Non-blocking SELECT; uses the app's scoped pool when configured.
+    pub async fn select_async(query: &str, bindings: &[Value]) -> Result<Vec<Value>, String> {
+        super::async_db::select(query, bindings).await
+    }
+
+    pub async fn insert_async(query: &str, bindings: &[Value]) -> Result<u64, String> {
+        super::async_db::insert(query, bindings).await
+    }
+
+    pub async fn update_async(query: &str, bindings: &[Value]) -> Result<u64, String> {
+        super::async_db::update(query, bindings).await
+    }
+
+    pub async fn delete_async(query: &str, bindings: &[Value]) -> Result<u64, String> {
+        super::async_db::delete(query, bindings).await
+    }
+
+    pub async fn statement_async(query: &str) -> Result<(), String> {
+        super::async_db::execute_statement(query).await
+    }
+
+    /// Commit on success, roll back on error; requires an app database scope.
+    pub async fn transaction<F, T>(future: F) -> Result<T, String>
+    where
+        F: std::future::Future<Output = Result<T, String>>,
+    {
+        super::async_db::transaction(future).await
+    }
+
     /// Execute a select query
     ///
     /// # Examples
@@ -56,6 +85,7 @@ impl DB {
     /// # }
     /// ```
     pub fn select(query: &str, bindings: &[Value]) -> Result<Vec<Value>, String> {
+        super::async_db::ensure_sync_context()?;
         global_select(query, bindings)
     }
 
@@ -73,6 +103,7 @@ impl DB {
     /// # }
     /// ```
     pub fn insert(query: &str, bindings: &[Value]) -> Result<u64, String> {
+        super::async_db::ensure_sync_context()?;
         global_insert(query, bindings)
     }
 
@@ -90,6 +121,7 @@ impl DB {
     /// # }
     /// ```
     pub fn update(query: &str, bindings: &[Value]) -> Result<u64, String> {
+        super::async_db::ensure_sync_context()?;
         global_update(query, bindings)
     }
 
@@ -107,6 +139,7 @@ impl DB {
     /// # }
     /// ```
     pub fn delete(query: &str, bindings: &[Value]) -> Result<u64, String> {
+        super::async_db::ensure_sync_context()?;
         global_delete(query, bindings)
     }
 
@@ -123,6 +156,7 @@ impl DB {
     /// # }
     /// ```
     pub fn statement(query: &str) -> Result<bool, String> {
+        super::async_db::ensure_sync_context()?;
         global_statement(query)
     }
 
@@ -174,6 +208,7 @@ impl DB {
     /// # }
     /// ```
     pub fn refresh() -> Result<(), String> {
+        super::async_db::ensure_sync_context()?;
         global_refresh()
     }
 
@@ -192,21 +227,25 @@ impl DB {
     /// # }
     /// ```
     pub fn begin_transaction() -> Result<(), String> {
+        super::async_db::ensure_sync_context()?;
         global_begin_transaction()
     }
 
     /// Commit the current transaction
     pub fn commit() -> Result<(), String> {
+        super::async_db::ensure_sync_context()?;
         global_commit()
     }
 
     /// Rollback the current transaction
     pub fn rollback() -> Result<(), String> {
+        super::async_db::ensure_sync_context()?;
         global_rollback()
     }
 
     /// Set the database connection to use
     pub fn connection(name: &str) -> Result<(), String> {
+        super::async_db::ensure_sync_context()?;
         global_set_connection(name.to_string());
         Ok(())
     }
@@ -257,7 +296,12 @@ mod tests {
 
         let deleted = DB::delete("DELETE FROM facade_users WHERE id = ?", &[json!(1)]).unwrap();
         assert_eq!(deleted, 1);
-        assert_eq!(DB::select("SELECT id FROM facade_users", &[]).unwrap().len(), 0);
+        assert_eq!(
+            DB::select("SELECT id FROM facade_users", &[])
+                .unwrap()
+                .len(),
+            0
+        );
     }
 
     #[test]

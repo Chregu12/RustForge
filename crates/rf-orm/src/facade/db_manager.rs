@@ -215,13 +215,12 @@ fn push_pg_arg(args: &mut PgArguments, value: &Value) -> Result<(), String> {
             } else if let Some(u) = n.as_u64() {
                 args.add(u as i64).map_err(|e| e.to_string())?;
             } else {
-                args.add(n.as_f64().unwrap_or(0.0)).map_err(|e| e.to_string())?;
+                args.add(n.as_f64().unwrap_or(0.0))
+                    .map_err(|e| e.to_string())?;
             }
         }
         Value::String(s) => args.add(s.as_str()).map_err(|e| e.to_string())?,
-        other => args
-            .add(other.to_string())
-            .map_err(|e| e.to_string())?,
+        other => args.add(other.to_string()).map_err(|e| e.to_string())?,
     }
     Ok(())
 }
@@ -260,9 +259,7 @@ fn pg_col_to_json(row: &PgRow, idx: usize, type_name: &str) -> Value {
             _ => Value::Null,
         },
         "FLOAT8" => match row.try_get::<Option<f64>, _>(idx) {
-            Ok(Some(v)) => {
-                serde_json::Number::from_f64(v).map_or(Value::Null, Value::Number)
-            }
+            Ok(Some(v)) => serde_json::Number::from_f64(v).map_or(Value::Null, Value::Number),
             _ => Value::Null,
         },
         // Boolean
@@ -363,8 +360,7 @@ impl DBManager {
     pub fn new() -> Self {
         Self {
             backend: Backend::Sqlite(
-                Connection::open_in_memory()
-                    .expect("failed to open in-memory SQLite database"),
+                Connection::open_in_memory().expect("failed to open in-memory SQLite database"),
             ),
             connection: "default".to_string(),
         }
@@ -380,7 +376,11 @@ impl DBManager {
     pub fn select(&mut self, query: &str, bindings: &[Value]) -> Result<Vec<Value>, String> {
         match &mut self.backend {
             Backend::Sqlite(conn) => sqlite_select(conn, query, bindings),
-            Backend::Postgres { pool, bridge, txn_conn } => {
+            Backend::Postgres {
+                pool,
+                bridge,
+                txn_conn,
+            } => {
                 let pg_sql = translate_placeholders(query);
                 let args = build_pg_args(bindings)?;
 
@@ -428,14 +428,14 @@ impl DBManager {
                     .map_err(|e| e.to_string())?;
                 Ok(conn.last_insert_rowid() as u64)
             }
-            Backend::Postgres { pool, bridge, txn_conn } => {
+            Backend::Postgres {
+                pool,
+                bridge,
+                txn_conn,
+            } => {
                 let pg_sql = translate_placeholders(query);
                 // Append RETURNING id if needed.
-                let pg_sql_returning = if pg_sql
-                    .trim_end()
-                    .to_uppercase()
-                    .contains("RETURNING")
-                {
+                let pg_sql_returning = if pg_sql.trim_end().to_uppercase().contains("RETURNING") {
                     pg_sql
                 } else {
                     format!("{} RETURNING id", pg_sql.trim_end())
@@ -484,7 +484,11 @@ impl DBManager {
                     .map_err(|e| e.to_string())?;
                 Ok(affected as u64)
             }
-            Backend::Postgres { pool, bridge, txn_conn } => {
+            Backend::Postgres {
+                pool,
+                bridge,
+                txn_conn,
+            } => {
                 let pg_sql = translate_placeholders(query);
                 let args = build_pg_args(bindings)?;
 
@@ -528,7 +532,11 @@ impl DBManager {
                     .map_err(|e| e.to_string())?;
                 Ok(affected as u64)
             }
-            Backend::Postgres { pool, bridge, txn_conn } => {
+            Backend::Postgres {
+                pool,
+                bridge,
+                txn_conn,
+            } => {
                 let pg_sql = translate_placeholders(query);
                 let args = build_pg_args(bindings)?;
 
@@ -568,7 +576,11 @@ impl DBManager {
                 conn.execute_batch(query).map_err(|e| e.to_string())?;
                 Ok(true)
             }
-            Backend::Postgres { pool, bridge, txn_conn } => {
+            Backend::Postgres {
+                pool,
+                bridge,
+                txn_conn,
+            } => {
                 let sql = query.to_string();
 
                 if let Some(c) = txn_conn.take() {
@@ -649,12 +661,11 @@ impl DBManager {
                 let pool2 = pool.clone();
                 // Collect public table names.
                 let names: Vec<String> = bridge.block_on(async move {
-                    let rows = sqlx::query(
-                        "SELECT tablename FROM pg_tables WHERE schemaname = 'public'",
-                    )
-                    .fetch_all(&pool2)
-                    .await
-                    .map_err(|e| e.to_string())?;
+                    let rows =
+                        sqlx::query("SELECT tablename FROM pg_tables WHERE schemaname = 'public'")
+                            .fetch_all(&pool2)
+                            .await
+                            .map_err(|e| e.to_string())?;
                     let names: Vec<String> = rows
                         .into_iter()
                         .filter_map(|r| r.try_get::<String, _>("tablename").ok())
@@ -669,7 +680,12 @@ impl DBManager {
                 let pool2 = pool.clone();
                 let drop_sql = names
                     .iter()
-                    .map(|n| format!("DROP TABLE IF EXISTS \"{}\" CASCADE;", n.replace('"', "\"\"")))
+                    .map(|n| {
+                        format!(
+                            "DROP TABLE IF EXISTS \"{}\" CASCADE;",
+                            n.replace('"', "\"\"")
+                        )
+                    })
                     .collect::<Vec<_>>()
                     .join("\n");
 
@@ -693,19 +709,22 @@ impl DBManager {
     /// that connection until `commit()` or `rollback()` is called.
     pub fn begin_transaction(&mut self) -> Result<(), String> {
         match &mut self.backend {
-            Backend::Sqlite(conn) => {
-                conn.execute_batch("BEGIN").map_err(|e| e.to_string())
-            }
-            Backend::Postgres { pool, bridge, txn_conn } => {
+            Backend::Sqlite(conn) => conn.execute_batch("BEGIN").map_err(|e| e.to_string()),
+            Backend::Postgres {
+                pool,
+                bridge,
+                txn_conn,
+            } => {
                 if txn_conn.is_some() {
                     return Err(
-                        "Postgres: cannot begin a new transaction — one is already active".to_string(),
+                        "Postgres: cannot begin a new transaction — one is already active"
+                            .to_string(),
                     );
                 }
                 let pool = pool.clone();
                 // Acquire a dedicated connection and open the transaction on it.
-                let conn: Result<sqlx::pool::PoolConnection<sqlx::Postgres>, String> =
-                    bridge.block_on(async move {
+                let conn: Result<sqlx::pool::PoolConnection<sqlx::Postgres>, String> = bridge
+                    .block_on(async move {
                         let mut c = pool.acquire().await.map_err(|e| e.to_string())?;
                         sqlx::query("BEGIN")
                             .execute(&mut *c)
@@ -722,10 +741,10 @@ impl DBManager {
     /// Commit the current transaction.
     pub fn commit(&mut self) -> Result<(), String> {
         match &mut self.backend {
-            Backend::Sqlite(conn) => {
-                conn.execute_batch("COMMIT").map_err(|e| e.to_string())
-            }
-            Backend::Postgres { bridge, txn_conn, .. } => {
+            Backend::Sqlite(conn) => conn.execute_batch("COMMIT").map_err(|e| e.to_string()),
+            Backend::Postgres {
+                bridge, txn_conn, ..
+            } => {
                 let c = txn_conn
                     .take()
                     .ok_or_else(|| "Postgres: no active transaction to commit".to_string())?;
@@ -745,10 +764,10 @@ impl DBManager {
     /// Roll back the current transaction.
     pub fn rollback(&mut self) -> Result<(), String> {
         match &mut self.backend {
-            Backend::Sqlite(conn) => conn
-                .execute_batch("ROLLBACK")
-                .map_err(|e| e.to_string()),
-            Backend::Postgres { bridge, txn_conn, .. } => {
+            Backend::Sqlite(conn) => conn.execute_batch("ROLLBACK").map_err(|e| e.to_string()),
+            Backend::Postgres {
+                bridge, txn_conn, ..
+            } => {
                 let c = txn_conn
                     .take()
                     .ok_or_else(|| "Postgres: no active transaction to rollback".to_string())?;
@@ -794,7 +813,11 @@ impl DBManager {
                     .map_err(|e| e.to_string())
             });
             if let Ok(pool) = pool_result {
-                self.backend = Backend::Postgres { pool, bridge, txn_conn: None };
+                self.backend = Backend::Postgres {
+                    pool,
+                    bridge,
+                    txn_conn: None,
+                };
                 self.connection = connection;
             }
             // On error: keep the previous backend unchanged (matches SQLite behaviour).
@@ -842,9 +865,7 @@ fn sqlite_select(conn: &Connection, query: &str, bindings: &[Value]) -> Result<V
 
 fn sqlite_list_tables(conn: &Connection) -> Result<Vec<String>, String> {
     let mut stmt = conn
-        .prepare(
-            "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'",
-        )
+        .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'")
         .map_err(|e| e.to_string())?;
     let mut rows = stmt.query([]).map_err(|e| e.to_string())?;
     let mut names = Vec::new();
@@ -917,6 +938,10 @@ thread_local! {
     static THREAD_TXN: RefCell<TxnState> = const { RefCell::new(TxnState::None) };
 }
 
+pub(super) fn has_thread_transaction() -> bool {
+    THREAD_TXN.with(|txn| !matches!(*txn.borrow(), TxnState::None))
+}
+
 // ── ConcurrentDB — holds only pool configuration ──────────────────────────────
 
 /// Lightweight global DB state: Arc'd pool handles + connection name string.
@@ -973,9 +998,7 @@ impl ConcurrentDB {
                 // (readers don't block each other).
                 Pool::builder().max_size(8).build(
                     SqliteConnectionManager::file(&connection).with_init(|conn| {
-                        conn.execute_batch(
-                            "PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL;",
-                        )?;
+                        conn.execute_batch("PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL;")?;
                         Ok(())
                     }),
                 )
@@ -996,8 +1019,7 @@ impl ConcurrentDB {
 /// handles); no lock is held during actual SQL execution.  Previously this was
 /// `Lazy<Mutex<DBManager>>` which held the mutex for the full SQL round-trip,
 /// serialising every concurrent DB call in the process.
-pub static GLOBAL_DB: Lazy<RwLock<ConcurrentDB>> =
-    Lazy::new(|| RwLock::new(ConcurrentDB::new()));
+pub static GLOBAL_DB: Lazy<RwLock<ConcurrentDB>> = Lazy::new(|| RwLock::new(ConcurrentDB::new()));
 
 // ── Thread-local transaction helpers ─────────────────────────────────────────
 
@@ -1155,8 +1177,7 @@ pub fn global_insert(query: &str, bindings: &[Value]) -> Result<u64, String> {
     match snapshot_backend() {
         ConcurrentBackend::Sqlite(pool) => {
             let conn = pool.get().map_err(|e| e.to_string())?;
-            let params: Vec<rusqlite::types::Value> =
-                bindings.iter().map(json_to_sqlite).collect();
+            let params: Vec<rusqlite::types::Value> = bindings.iter().map(json_to_sqlite).collect();
             conn.execute(query, params_from_iter(params.iter()))
                 .map_err(|e| e.to_string())?;
             Ok(conn.last_insert_rowid() as u64)
@@ -1227,8 +1248,7 @@ pub fn global_update(query: &str, bindings: &[Value]) -> Result<u64, String> {
     match snapshot_backend() {
         ConcurrentBackend::Sqlite(pool) => {
             let conn = pool.get().map_err(|e| e.to_string())?;
-            let params: Vec<rusqlite::types::Value> =
-                bindings.iter().map(json_to_sqlite).collect();
+            let params: Vec<rusqlite::types::Value> = bindings.iter().map(json_to_sqlite).collect();
             conn.execute(query, params_from_iter(params.iter()))
                 .map_err(|e| e.to_string())
                 .map(|n| n as u64)
@@ -1298,8 +1318,7 @@ pub fn global_delete(query: &str, bindings: &[Value]) -> Result<u64, String> {
     match snapshot_backend() {
         ConcurrentBackend::Sqlite(pool) => {
             let conn = pool.get().map_err(|e| e.to_string())?;
-            let params: Vec<rusqlite::types::Value> =
-                bindings.iter().map(json_to_sqlite).collect();
+            let params: Vec<rusqlite::types::Value> = bindings.iter().map(json_to_sqlite).collect();
             conn.execute(query, params_from_iter(params.iter()))
                 .map_err(|e| e.to_string())
                 .map(|n| n as u64)
@@ -1324,7 +1343,11 @@ pub fn global_statement(query: &str) -> Result<bool, String> {
     {
         let maybe = THREAD_TXN.with(|txn| {
             if let TxnState::Sqlite(conn) = &*txn.borrow() {
-                Some(conn.execute_batch(query).map(|_| true).map_err(|e| e.to_string()))
+                Some(
+                    conn.execute_batch(query)
+                        .map(|_| true)
+                        .map_err(|e| e.to_string()),
+                )
             } else {
                 None
             }
@@ -1365,7 +1388,9 @@ pub fn global_statement(query: &str) -> Result<bool, String> {
     match snapshot_backend() {
         ConcurrentBackend::Sqlite(pool) => {
             let conn = pool.get().map_err(|e| e.to_string())?;
-            conn.execute_batch(query).map(|_| true).map_err(|e| e.to_string())
+            conn.execute_batch(query)
+                .map(|_| true)
+                .map_err(|e| e.to_string())
         }
         ConcurrentBackend::Postgres { pool, bridge } => {
             let sql = query.to_string();
@@ -1402,12 +1427,11 @@ pub fn global_refresh() -> Result<(), String> {
         ConcurrentBackend::Postgres { pool, bridge } => {
             let pool2 = pool.clone();
             let names: Vec<String> = bridge.block_on(async move {
-                let rows = sqlx::query(
-                    "SELECT tablename FROM pg_tables WHERE schemaname = 'public'",
-                )
-                .fetch_all(&pool2)
-                .await
-                .map_err(|e| e.to_string())?;
+                let rows =
+                    sqlx::query("SELECT tablename FROM pg_tables WHERE schemaname = 'public'")
+                        .fetch_all(&pool2)
+                        .await
+                        .map_err(|e| e.to_string())?;
                 Ok::<Vec<String>, String>(
                     rows.into_iter()
                         .filter_map(|r| r.try_get::<String, _>("tablename").ok())
@@ -1421,7 +1445,12 @@ pub fn global_refresh() -> Result<(), String> {
 
             let drop_sql = names
                 .iter()
-                .map(|n| format!("DROP TABLE IF EXISTS \"{}\" CASCADE;", n.replace('"', "\"\"")))
+                .map(|n| {
+                    format!(
+                        "DROP TABLE IF EXISTS \"{}\" CASCADE;",
+                        n.replace('"', "\"\"")
+                    )
+                })
                 .collect::<Vec<_>>()
                 .join("\n");
 
@@ -1456,8 +1485,8 @@ pub fn global_begin_transaction() -> Result<(), String> {
         }
         ConcurrentBackend::Postgres { pool, bridge } => {
             let bridge_store = bridge.clone();
-            let conn_result: Result<sqlx::pool::PoolConnection<sqlx::Postgres>, String> =
-                bridge.block_on(async move {
+            let conn_result: Result<sqlx::pool::PoolConnection<sqlx::Postgres>, String> = bridge
+                .block_on(async move {
                     let mut c = pool.acquire().await.map_err(|e| e.to_string())?;
                     sqlx::query("BEGIN")
                         .execute(&mut *c)
@@ -1467,7 +1496,10 @@ pub fn global_begin_transaction() -> Result<(), String> {
                 });
             let conn = conn_result?;
             THREAD_TXN.with(|txn| {
-                *txn.borrow_mut() = TxnState::Postgres { conn, bridge: bridge_store };
+                *txn.borrow_mut() = TxnState::Postgres {
+                    conn,
+                    bridge: bridge_store,
+                };
             });
             Ok(())
         }
@@ -1477,8 +1509,7 @@ pub fn global_begin_transaction() -> Result<(), String> {
 /// Commit the current thread's active transaction and return the connection
 /// to the pool.
 pub fn global_commit() -> Result<(), String> {
-    let state =
-        THREAD_TXN.with(|txn| std::mem::replace(&mut *txn.borrow_mut(), TxnState::None));
+    let state = THREAD_TXN.with(|txn| std::mem::replace(&mut *txn.borrow_mut(), TxnState::None));
     match state {
         TxnState::None => Err("no active transaction to commit".to_string()),
         TxnState::Sqlite(conn) => {
@@ -1500,13 +1531,10 @@ pub fn global_commit() -> Result<(), String> {
 /// Roll back the current thread's active transaction and return the connection
 /// to the pool.
 pub fn global_rollback() -> Result<(), String> {
-    let state =
-        THREAD_TXN.with(|txn| std::mem::replace(&mut *txn.borrow_mut(), TxnState::None));
+    let state = THREAD_TXN.with(|txn| std::mem::replace(&mut *txn.borrow_mut(), TxnState::None));
     match state {
         TxnState::None => Err("no active transaction to rollback".to_string()),
-        TxnState::Sqlite(conn) => {
-            conn.execute_batch("ROLLBACK").map_err(|e| e.to_string())
-        }
+        TxnState::Sqlite(conn) => conn.execute_batch("ROLLBACK").map_err(|e| e.to_string()),
         TxnState::Postgres { conn, bridge } => bridge.block_on(async move {
             let mut c = conn;
             sqlx::query("ROLLBACK")
@@ -1616,10 +1644,16 @@ mod tests {
     #[test]
     fn test_select_honors_bindings() {
         let mut m = seeded();
-        m.insert("INSERT INTO users (name) VALUES (?)", &[serde_json::json!("Alice")])
-            .unwrap();
-        m.insert("INSERT INTO users (name) VALUES (?)", &[serde_json::json!("Bob")])
-            .unwrap();
+        m.insert(
+            "INSERT INTO users (name) VALUES (?)",
+            &[serde_json::json!("Alice")],
+        )
+        .unwrap();
+        m.insert(
+            "INSERT INTO users (name) VALUES (?)",
+            &[serde_json::json!("Bob")],
+        )
+        .unwrap();
 
         let rows = m
             .select(
@@ -1648,7 +1682,10 @@ mod tests {
         assert_eq!(updated, 3);
 
         let deleted = m
-            .delete("DELETE FROM users WHERE name = ?", &[serde_json::json!("b")])
+            .delete(
+                "DELETE FROM users WHERE name = ?",
+                &[serde_json::json!("b")],
+            )
             .unwrap();
         assert_eq!(deleted, 1);
         assert_eq!(m.select("SELECT id FROM users", &[]).unwrap().len(), 2);
@@ -1658,8 +1695,11 @@ mod tests {
     fn test_transaction_rollback_discards_changes() {
         let mut m = seeded();
         m.begin_transaction().unwrap();
-        m.insert("INSERT INTO users (name) VALUES (?)", &[serde_json::json!("temp")])
-            .unwrap();
+        m.insert(
+            "INSERT INTO users (name) VALUES (?)",
+            &[serde_json::json!("temp")],
+        )
+        .unwrap();
         m.rollback().unwrap();
         assert_eq!(m.select("SELECT id FROM users", &[]).unwrap().len(), 0);
     }
@@ -1667,8 +1707,11 @@ mod tests {
     #[test]
     fn test_refresh_drops_all_user_tables() {
         let mut m = seeded();
-        m.insert("INSERT INTO users (name) VALUES (?)", &[serde_json::json!("x")])
-            .unwrap();
+        m.insert(
+            "INSERT INTO users (name) VALUES (?)",
+            &[serde_json::json!("x")],
+        )
+        .unwrap();
         m.statement("CREATE TABLE posts (id INTEGER PRIMARY KEY, body TEXT)")
             .unwrap();
         assert_eq!(m.select("SELECT id FROM users", &[]).unwrap().len(), 1);
@@ -1687,13 +1730,15 @@ mod tests {
         let mut m = DBManager::new();
         // Block A
         m.refresh().unwrap();
-        m.statement("CREATE TABLE t (id INTEGER PRIMARY KEY)").unwrap();
+        m.statement("CREATE TABLE t (id INTEGER PRIMARY KEY)")
+            .unwrap();
         m.insert("INSERT INTO t DEFAULT VALUES", &[]).unwrap();
         m.insert("INSERT INTO t DEFAULT VALUES", &[]).unwrap();
         assert_eq!(m.select("SELECT id FROM t", &[]).unwrap().len(), 2);
         // Block B must not see block A's rows.
         m.refresh().unwrap();
-        m.statement("CREATE TABLE t (id INTEGER PRIMARY KEY)").unwrap();
+        m.statement("CREATE TABLE t (id INTEGER PRIMARY KEY)")
+            .unwrap();
         m.insert("INSERT INTO t DEFAULT VALUES", &[]).unwrap();
         assert_eq!(m.select("SELECT id FROM t", &[]).unwrap().len(), 1);
     }
@@ -1742,9 +1787,7 @@ mod tests {
         // Spawn 8 threads all doing a SELECT via the global functions.
         let handles: Vec<_> = (0..8)
             .map(|_| {
-                std::thread::spawn(|| {
-                    global_select("SELECT id, v FROM conc_probe", &[]).unwrap()
-                })
+                std::thread::spawn(|| global_select("SELECT id, v FROM conc_probe", &[]).unwrap())
             })
             .collect();
 
@@ -2008,9 +2051,7 @@ mod tests {
             after_commit.len()
         );
         assert_eq!(after_commit[0]["val"], serde_json::json!("committed-row"));
-        println!(
-            "  PASS scenario B: committed row id={committed_id} persists after COMMIT"
-        );
+        println!("  PASS scenario B: committed row id={committed_id} persists after COMMIT");
 
         // ── Cleanup ───────────────────────────────────────────────────────────
         m.statement("DROP TABLE IF EXISTS rf_pg_txn_atomicity_test CASCADE")
@@ -2091,14 +2132,20 @@ mod tests {
 
         // ── SELECT + type mapping ──────────────────────────────────────────────
         let rows = m
-            .select("SELECT id, name, score, flag FROM rf_pg_probe ORDER BY id", &[])
+            .select(
+                "SELECT id, name, score, flag FROM rf_pg_probe ORDER BY id",
+                &[],
+            )
             .expect("SELECT all failed");
         println!("SELECT rows = {rows:#?}");
         assert_eq!(rows.len(), 2);
         assert_eq!(rows[0]["name"], serde_json::json!("Alice"));
         assert_eq!(rows[0]["id"], serde_json::json!(1i64));
         // FLOAT8 decoded as JSON Number
-        assert!(rows[0]["score"].is_number(), "score should decode as number");
+        assert!(
+            rows[0]["score"].is_number(),
+            "score should decode as number"
+        );
         assert_eq!(rows[0]["flag"], serde_json::json!(true));
 
         // ── SELECT with ? binding ──────────────────────────────────────────────
@@ -2124,7 +2171,10 @@ mod tests {
 
         // Verify the update took effect.
         let check = m
-            .select("SELECT flag FROM rf_pg_probe WHERE id = $1", &[serde_json::json!(1i64)])
+            .select(
+                "SELECT flag FROM rf_pg_probe WHERE id = $1",
+                &[serde_json::json!(1i64)],
+            )
             .expect("SELECT after UPDATE failed");
         assert_eq!(check[0]["flag"], serde_json::json!(false));
 

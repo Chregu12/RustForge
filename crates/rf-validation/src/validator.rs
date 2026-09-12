@@ -13,8 +13,10 @@ pub type RuleResult = Result<(), String>;
 
 /// Validated data wrapper
 ///
-/// Contains the original data after successful validation.
-#[derive(Debug, Clone)]
+/// Contains only fields covered by validation rules. This is a dynamic map;
+/// use `into_typed` or `ValidatedJson<T>` for a concrete DTO.
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(transparent)]
 pub struct ValidatedData {
     pub data: HashMap<String, Value>,
 }
@@ -53,6 +55,11 @@ impl ValidatedData {
     /// Get all data
     pub fn all(&self) -> &HashMap<String, Value> {
         &self.data
+    }
+
+    /// Deserialize the validated fields into a DTO, returning mapping errors.
+    pub fn into_typed<T: serde::de::DeserializeOwned>(self) -> Result<T, serde_json::Error> {
+        serde_json::from_value(Value::Object(self.data.into_iter().collect()))
     }
 }
 
@@ -191,7 +198,13 @@ impl Validator {
         }
 
         if errors.is_empty() {
-            Ok(ValidatedData::new(self.data.clone()))
+            let data = self
+                .data
+                .iter()
+                .filter(|(field, _)| self.rules.contains_key(field.as_str()))
+                .map(|(field, value)| (field.clone(), value.clone()))
+                .collect();
+            Ok(ValidatedData::new(data))
         } else {
             Err(errors)
         }

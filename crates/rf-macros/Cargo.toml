@@ -2,7 +2,7 @@
 name = "rf-macros"
 version.workspace = true
 edition = "2021"
-rust-version = "1.79.0"
+rust-version = "1.96.0"
 authors = ["Rust DX Framework Contributors"]
 description = "Procedural macros for Laravel-style syntax in Rust DX Framework"
 license = "MIT"

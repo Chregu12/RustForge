@@ -40,13 +40,18 @@ use tracing::{debug, info};
 /// # Ok(())
 /// # }
 /// ```
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct DatabaseManager {
     connection: DatabaseConnection,
     config: DatabaseConfig,
 }
 
 impl DatabaseManager {
+    /// Share this pool with Laravel-style model and DB calls for one async scope.
+    pub async fn scope<F: std::future::Future>(&self, future: F) -> F::Output {
+        crate::facade::async_db::with_database(self.connection.clone(), future).await
+    }
+
     /// Connect to database with given configuration
     ///
     /// # Errors

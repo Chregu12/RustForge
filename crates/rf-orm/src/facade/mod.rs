@@ -1,5 +1,6 @@
 //! DB facade module providing Laravel-style static database API
 
+pub mod async_db;
 pub mod db;
 pub mod db_manager;
 pub mod model;

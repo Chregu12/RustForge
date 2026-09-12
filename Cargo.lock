@@ -7002,6 +7002,7 @@ dependencies = [
 name = "rf"
 version = "1.0.0-rc.3"
 dependencies = [
+ "axum 0.8.7",
  "chrono",
  "rf-auth",
  "rf-auth-facade",

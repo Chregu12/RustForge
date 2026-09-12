@@ -283,10 +283,7 @@ fn validate_sql_identifier(name: &str) -> Result<(), String> {
     if name.is_empty() {
         return Err("SQL identifier cannot be empty".to_string());
     }
-    if !name
-        .chars()
-        .all(|c| c.is_ascii_alphanumeric() || c == '_')
-    {
+    if !name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
         return Err(format!(
             "SQL identifier '{}' contains invalid characters",
             name
@@ -569,8 +566,8 @@ impl Rule for SimpleUniqueRule {
 // `sea_orm::DatabaseConnection`. The `validate!` macro has no such handle, so
 // the rules below run their `COUNT(*)` query through the process-global
 // `rf_orm::DB` facade (the real rusqlite-backed connection). The DB facade is
-// sync, so these rules simply call it inline from within `validate` — no extra
-// runtime blocking machinery is needed.
+// synchronous only for explicit check(); async validation uses the shared
+// scoped database executor and never blocks the request worker.
 
 /// Run `SELECT COUNT(*) ... WHERE <column> = ?` through the `rf_orm::DB` facade
 /// and return the matched row count. Identifiers are validated up-front to
@@ -615,6 +612,58 @@ fn facade_count_ignoring(
         table, column, id_column
     );
     let rows = rf_orm::DB::select(&query, &[value.clone(), id_value.clone()])
+        .map_err(|e| format!("Database error: {}", e))?;
+
+    let count = rows
+        .first()
+        .and_then(|row| row.get("rf_count"))
+        .and_then(Value::as_i64)
+        .unwrap_or(0);
+    Ok(count)
+}
+
+async fn facade_count_async(table: &str, column: &str, value: &Value) -> Result<i64, String> {
+    validate_sql_identifier(table)?;
+    validate_sql_identifier(column)?;
+
+    let query = format!(
+        "SELECT COUNT(*) AS rf_count FROM {} WHERE {} = ?",
+        table, column
+    );
+    let rows = rf_orm::DB::select_async(&query, std::slice::from_ref(value))
+        .await
+        .map_err(|e| format!("Database error: {}", e))?;
+
+    let count = rows
+        .first()
+        .and_then(|row| row.get("rf_count"))
+        .and_then(Value::as_i64)
+        .unwrap_or(0);
+    Ok(count)
+}
+
+/// Run `SELECT COUNT(*) ... WHERE <column> = ? AND <id_column> != ?` through the
+/// `rf_orm::DB` facade and return the matched row count, EXCLUDING the row whose
+/// `<id_column>` equals `id_value`. This powers the update-form uniqueness check,
+/// where a record is allowed to keep its own value. All identifiers are validated
+/// up-front to prevent SQL injection through the table/column names.
+async fn facade_count_ignoring_async(
+    table: &str,
+    column: &str,
+    value: &Value,
+    id_column: &str,
+    id_value: &Value,
+) -> Result<i64, String> {
+    validate_sql_identifier(table)?;
+    validate_sql_identifier(column)?;
+    validate_sql_identifier(id_column)?;
+
+    let query = format!(
+        "SELECT COUNT(*) AS rf_count FROM {} WHERE {} = ? AND {} != ?",
+        table, column, id_column
+    );
+    let rows = rf_orm::DB::select_async(&query, &[value.clone(), id_value.clone()])
+        .await
         .map_err(|e| format!("Database error: {}", e))?;
 
     let count = rows
@@ -687,11 +736,27 @@ impl Rule for DbUniqueRule {
     }
 
     async fn validate(&self, value: &Value, _data: &HashMap<String, Value>) -> RuleResult {
-        self.check(value)
+        if value.is_null() {
+            return Ok(());
+        }
+        let count = match &self.ignore {
+            Some((column, id)) => {
+                facade_count_ignoring_async(&self.table, &self.column, value, column, id).await?
+            }
+            None => facade_count_async(&self.table, &self.column, value).await?,
+        };
+        if count == 0 {
+            Ok(())
+        } else {
+            Err(self.message())
+        }
     }
 
     fn message(&self) -> String {
-        format!("The {} has already been taken", self.column.replace('_', " "))
+        format!(
+            "The {} has already been taken",
+            self.column.replace('_', " ")
+        )
     }
 }
 
@@ -736,7 +801,15 @@ impl Rule for DbExistsRule {
     }
 
     async fn validate(&self, value: &Value, _data: &HashMap<String, Value>) -> RuleResult {
-        self.check(value)
+        if value.is_null() {
+            return Ok(());
+        }
+        let count = facade_count_async(&self.table, &self.column, value).await?;
+        if count >= 1 {
+            Ok(())
+        } else {
+            Err(self.message())
+        }
     }
 
     fn message(&self) -> String {

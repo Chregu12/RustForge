@@ -4,7 +4,7 @@ use crate::storage_manager::GLOBAL_STORAGE;
 
 /// The StorageFacade providing a static-like API for file storage.
 ///
-/// Simple, Laravel-style API - no `.await` needed anywhere!
+/// Synchronous calls are blocking. HTTP handlers use the `_async` variants.
 ///
 /// # Examples
 ///
@@ -31,6 +31,49 @@ use crate::storage_manager::GLOBAL_STORAGE;
 pub struct StorageFacade;
 
 impl StorageFacade {
+    /// Non-blocking facade write; the configured disk is shared with sync calls.
+    pub async fn put_async(path: &str, contents: Vec<u8>) -> Result<(), String> {
+        let path = path.to_owned();
+        tokio::task::spawn_blocking(move || Self::put(&path, contents))
+            .await
+            .map_err(|e| format!("Storage worker failed: {e}"))?
+    }
+
+    pub async fn get_async(path: &str) -> Result<Vec<u8>, String> {
+        let path = path.to_owned();
+        tokio::task::spawn_blocking(move || Self::get(&path))
+            .await
+            .map_err(|e| format!("Storage worker failed: {e}"))?
+    }
+
+    pub async fn get_string_async(path: &str) -> Result<String, String> {
+        let path = path.to_owned();
+        tokio::task::spawn_blocking(move || Self::get_string(&path))
+            .await
+            .map_err(|e| format!("Storage worker failed: {e}"))?
+    }
+
+    pub async fn delete_async(path: &str) -> Result<(), String> {
+        let path = path.to_owned();
+        tokio::task::spawn_blocking(move || Self::delete(&path))
+            .await
+            .map_err(|e| format!("Storage worker failed: {e}"))?
+    }
+
+    pub async fn size_async(path: &str) -> Result<u64, String> {
+        let path = path.to_owned();
+        tokio::task::spawn_blocking(move || Self::size(&path))
+            .await
+            .map_err(|e| format!("Storage worker failed: {e}"))?
+    }
+
+    pub async fn exists_async(path: &str) -> Result<bool, String> {
+        let path = path.to_owned();
+        tokio::task::spawn_blocking(move || Self::exists(&path))
+            .await
+            .map_err(|e| format!("Storage worker failed: {e}"))
+    }
+
     /// Put a file
     pub fn put(path: &str, contents: Vec<u8>) -> Result<(), String> {
         let mut manager = GLOBAL_STORAGE.write().unwrap();
@@ -46,8 +89,7 @@ impl StorageFacade {
     /// Get a file's contents as a string
     pub fn get_string(path: &str) -> Result<String, String> {
         let contents = Self::get(path)?;
-        String::from_utf8(contents)
-            .map_err(|e| format!("Failed to convert file to UTF-8: {}", e))
+        String::from_utf8(contents).map_err(|e| format!("Failed to convert file to UTF-8: {}", e))
     }
 
     /// Check if a file exists
