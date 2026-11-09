@@ -56,7 +56,8 @@ impl DatabaseManager {
     ///
     /// # Errors
     ///
-    /// Returns `DbError::ConnectionFailed` if connection fails
+    /// Returns `DbError::ConnectionFailed` if connection fails. Production
+    /// SQLite requires a linked runtime with SQLite 3.54.0 or newer.
     ///
     /// # Example
     ///
@@ -70,6 +71,9 @@ impl DatabaseManager {
     /// # }
     /// ```
     pub async fn connect(config: DatabaseConfig) -> DbResult<Self> {
+        if config.url.starts_with("sqlite:") {
+            validate_sqlite_runtime()?;
+        }
         info!("Connecting to database: {}", mask_password(&config.url));
 
         // Build connection options
@@ -201,6 +205,23 @@ impl DatabaseManager {
     }
 }
 
+pub(crate) fn validate_sqlite_runtime() -> DbResult<()> {
+    let production = std::env::var("APP_ENV")
+        .is_ok_and(|environment| environment.eq_ignore_ascii_case("production"));
+    if !sqlite_runtime_allowed(production, rusqlite::version_number()) {
+        return Err(DbError::InvalidConfig(format!(
+            "Production requires SQLite 3.54.0 or newer (linked {}). Configure PostgreSQL or rebuild with an updated SQLite runtime.",
+            rusqlite::version()
+        )));
+    }
+    Ok(())
+}
+
+fn sqlite_runtime_allowed(production: bool, version: i32) -> bool {
+    // CVE-2026-119375 can be triggered by opening a crafted database and WAL.
+    !production || version >= 3_054_000
+}
+
 /// Mask password in database URL for logging
 fn mask_password(url: &str) -> String {
     if let Some(at_pos) = url.rfind('@') {
@@ -235,6 +256,13 @@ fn parse_log_level(level: &str) -> log::LevelFilter {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn production_requires_a_patched_sqlite_runtime() {
+        assert!(!sqlite_runtime_allowed(true, 3_053_999));
+        assert!(sqlite_runtime_allowed(true, 3_054_000));
+        assert!(sqlite_runtime_allowed(false, 3_053_999));
+    }
 
     #[test]
     fn test_mask_password() {

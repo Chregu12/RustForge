@@ -17,6 +17,7 @@ const STARTER: &[(&str, &str)] = &[
     ("app/models/mod.rs", include_str!("../../starter/app/models/mod.rs")),
     ("app/models/post.rs", include_str!("../../starter/app/models/post.rs")),
     ("database/migrations/20260101000000_create_posts_table/up.sql", include_str!("../../starter/database/migrations/20260101000000_create_posts_table/up.sql")),
+    ("database/migrations/20260101000000_create_posts_table/up.postgres.sql", include_str!("../../starter/database/migrations/20260101000000_create_posts_table/up.postgres.sql")),
     ("database/migrations/20260101000000_create_posts_table/down.sql", include_str!("../../starter/database/migrations/20260101000000_create_posts_table/down.sql")),
     ("database/seeders/posts.sql", include_str!("../../starter/database/seeders/posts.sql")),
     ("resources/views/welcome.html", include_str!("../../starter/resources/views/welcome.html")),
@@ -58,7 +59,7 @@ pub async fn run_with_framework(name: &str, framework: Option<&Path>) -> Result<
     let root = Path::new(name);
     fs::create_dir(root).with_context(|| format!("Create project directory {name}"))?;
     fs::write(root.join("Cargo.toml"), format!(
-        "[package]\nname = \"{name}\"\nversion = \"0.1.0\"\nedition = \"2021\"\nrust-version = \"1.96.0\"\n\n[workspace]\nresolver = \"3\"\n\n[dependencies]\nrf = {dependency}\nanyhow = \"1\"\naxum = \"0.8\"\ndotenvy = \"0.15\"\nserde = {{ version = \"1\", features = [\"derive\"] }}\ntokio = {{ version = \"1\", features = [\"macros\", \"rt-multi-thread\", \"net\", \"signal\"] }}\n"
+        "[package]\nname = \"{name}\"\nversion = \"0.1.0\"\nedition = \"2021\"\nrust-version = \"1.96.0\"\n\n[workspace]\nresolver = \"3\"\n\n[dependencies]\nrf = {dependency}\nanyhow = \"1\"\naxum = \"0.8\"\ndotenvy = \"0.15\"\nserde = {{ version = \"1\", features = [\"derive\"] }}\ntokio = {{ version = \"1\", features = [\"macros\", \"rt-multi-thread\", \"net\", \"signal\", \"time\"] }}\n"
     ))?;
     for (relative, content) in STARTER {
         let path = root.join(relative);

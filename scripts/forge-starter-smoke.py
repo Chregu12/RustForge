@@ -13,6 +13,7 @@ import sys
 import tempfile
 import time
 from urllib.error import HTTPError
+from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -90,6 +91,9 @@ def smoke():
         else:
             forge(parent, "new", "blog-smoke", "--framework-path", str(ROOT))
         app = parent / "blog-smoke"
+        with server(app, "--port", "0") as url:
+            assert request(url, "GET", "/up")[0] == 200
+            assert request(url, "GET", "/ready")[0] == 503
         assert "Pending" in forge(app, "migrate:status")
         with sqlite3.connect(app / "database/database.sqlite") as db:
             assert db.execute("SELECT name FROM sqlite_schema WHERE name='migrations'").fetchone() is None
@@ -123,6 +127,7 @@ def smoke():
 
         with server(app, "--port", "0") as url:
             assert request(url, "GET", "/up")[0] == 200
+            assert request(url, "GET", "/ready")[0] == 200
             status, html = request(url, "GET", "/")
             assert status == 200 and b"RustForge" in html
             status, posts = request(url, "GET", "/api/posts")
@@ -160,5 +165,51 @@ def smoke():
     print("Generated application passed CLI, migration, HTTP CRUD, validation and restart checks.")
 
 
+def postgres_smoke(database_url):
+    target = urlparse(database_url)
+    assert target.hostname in {"localhost", "127.0.0.1", "::1"}
+    assert target.path == "/rustforge_starter", "Use a fresh local rustforge_starter database"
+    os.environ.setdefault("CARGO_TARGET_DIR", str(ROOT / "target"))
+    os.environ["DATABASE_URL"] = database_url
+    os.environ["APP_ENV"] = "production"
+    with tempfile.TemporaryDirectory(prefix="rustforge-postgres-starter-") as temp:
+        parent = Path(temp)
+        if os.environ.get("RF_SMOKE_GIT_DEPENDENCY"):
+            forge(parent, "new", "postgres-smoke")
+        else:
+            forge(parent, "new", "postgres-smoke", "--framework-path", str(ROOT))
+        app = parent / "postgres-smoke"
+        assert "Pending" in forge(app, "migrate:status")
+        assert "batch 1" in forge(app, "migrate", "--force")
+        assert "posts.sql" in forge(app, "db:seed", "--force")
+        forge(app, "make:model", "Topic", "--migration")
+        assert "batch 2" in forge(app, "migrate", "--force")
+        assert "topics" in forge(app, "migrate:rollback", "--force")
+
+        with server(app, "--host", "127.0.0.1", "--port", "0") as url:
+            assert request(url, "GET", "/ready")[0] == 200
+            status, posts = request(url, "GET", "/api/posts")
+            assert status == 200 and len(posts) == 1
+            status, post = request(url, "POST", "/api/posts", {"title": "Postgres", "body": "Ready"})
+            assert status == 201
+            path = f"/api/posts/{post['id']}"
+            status, updated = request(url, "PATCH", path, {"body": "Persisted"})
+            assert status == 200 and updated["body"] == "Persisted"
+
+        with server(app, "--host", "127.0.0.1", "--port", "0") as url:
+            assert request(url, "GET", path) == (200, updated)
+            assert request(url, "DELETE", path)[0] == 204
+            assert request(url, "GET", path)[0] == 404
+
+        assert "posts" in forge(app, "migrate:rollback", "--force")
+        with server(app, "--host", "127.0.0.1", "--port", "0") as url:
+            assert request(url, "GET", "/up")[0] == 200
+            assert request(url, "GET", "/ready")[0] == 503
+    print("Generated application passed PostgreSQL migration, HTTP and readiness checks.")
+
+
 if __name__ == "__main__":
-    smoke()
+    if postgres_url := os.environ.get("RF_SMOKE_POSTGRES_URL"):
+        postgres_smoke(postgres_url)
+    else:
+        smoke()

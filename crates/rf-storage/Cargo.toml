@@ -19,8 +19,8 @@ bytes = "1.5"
 futures = "0.3"
 
 # AWS S3 support
-aws-config = "1.5"
-aws-sdk-s3 = "1.68"
+aws-config = "1.13"
+aws-sdk-s3 = { version = "1.157", default-features = false, features = ["default-https-client", "http-1x", "rt-tokio", "sigv4a"] }
 aws-smithy-types = "1.2"
 
 # HTTP support for streaming

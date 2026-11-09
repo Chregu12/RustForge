@@ -601,7 +601,7 @@ impl Migrator {
         let batches: std::collections::BTreeSet<_> =
             executed.iter().map(|record| record.batch).collect();
         let steps = steps.unwrap_or(1);
-        if let Some(first) = batches.iter().rev().take(steps).last() {
+        if let Some(first) = batches.iter().rev().take(steps).next_back() {
             executed.retain(|record| record.batch >= *first);
         } else {
             executed.clear();

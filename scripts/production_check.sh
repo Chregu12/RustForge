@@ -141,7 +141,17 @@ if command_exists cargo-audit; then
         print_error "Security vulnerabilities found. Check /tmp/audit.log for details"
     fi
 else
-    print_warning "cargo-audit not installed. Run: cargo install cargo-audit"
+    print_error "cargo-audit is required. Run: cargo install cargo-audit --locked"
+fi
+
+if command_exists cargo-deny; then
+    if cargo deny --locked check 2>&1 | tee /tmp/deny.log; then
+        print_success "Dependency policy checks passed"
+    else
+        print_error "Dependency policy checks failed. Check /tmp/deny.log for details"
+    fi
+else
+    print_error "cargo-deny is required. Run: cargo install cargo-deny --locked"
 fi
 
 # 10. Check dependencies
