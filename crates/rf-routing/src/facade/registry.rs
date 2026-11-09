@@ -3,6 +3,7 @@
 //! This module provides a thread-safe global router that can be accessed
 //! from anywhere in the application.
 
+use crate::{NamedRoute, Route as RfRoute, RouteRegistry};
 use axum::handler::Handler;
 use axum::http::{Method, StatusCode};
 use axum::response::{IntoResponse, Response as AxumResponse};
@@ -10,7 +11,6 @@ use axum::routing::MethodRouter;
 use axum::Router;
 use once_cell::sync::Lazy;
 use parking_lot::RwLock;
-use crate::{Route as RfRoute, RouteRegistry, NamedRoute};
 use std::collections::HashMap;
 
 /// Information about a registered route
@@ -61,6 +61,22 @@ impl GlobalRouter {
             middleware: RwLock::new(HashMap::new()),
             handlers: RwLock::new(HashMap::new()),
         }
+    }
+
+    /// List executable routes as method and path pairs, sorted by path and method.
+    pub fn registered_handlers(&self) -> Vec<(Method, String)> {
+        let mut routes: Vec<_> = self
+            .handlers
+            .read()
+            .iter()
+            .flat_map(|(path, methods)| methods.keys().map(|method| (method.clone(), path.clone())))
+            .collect();
+        routes.sort_by(|(method_a, path_a), (method_b, path_b)| {
+            path_a
+                .cmp(path_b)
+                .then_with(|| method_a.as_str().cmp(method_b.as_str()))
+        });
+        routes
     }
 
     /// Register a real Axum handler for `path`+`method` as a single-method
@@ -367,8 +383,7 @@ mod tests {
     fn test_global_router_register() {
         let router = GlobalRouter::new();
 
-        let route = RfRoute::new("/test", vec![HttpMethod::Get])
-            .name("test.route");
+        let route = RfRoute::new("/test", vec![HttpMethod::Get]).name("test.route");
 
         router.register_route(route.clone());
 
@@ -381,8 +396,7 @@ mod tests {
     fn test_global_router_get_route() {
         let router = GlobalRouter::new();
 
-        let route = RfRoute::new("/users", vec![HttpMethod::Get])
-            .name("users.index");
+        let route = RfRoute::new("/users", vec![HttpMethod::Get]).name("users.index");
 
         router.register_route(route);
 
@@ -395,8 +409,7 @@ mod tests {
     fn test_global_router_url_generation() {
         let router = GlobalRouter::new();
 
-        let route = RfRoute::new("/users/{id}", vec![HttpMethod::Get])
-            .name("users.show");
+        let route = RfRoute::new("/users/{id}", vec![HttpMethod::Get]).name("users.show");
 
         router.register_route(route);
 

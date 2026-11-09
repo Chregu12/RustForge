@@ -147,6 +147,10 @@ impl DatabaseManager {
         &self.connection
     }
 
+    pub(crate) fn shared_connection(&self) -> Arc<DatabaseConnection> {
+        Arc::clone(&self.connection)
+    }
+
     /// Get configuration
     pub fn config(&self) -> &DatabaseConfig {
         &self.config

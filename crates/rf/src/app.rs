@@ -67,6 +67,11 @@ impl App {
         self
     }
 
+    /// Inspect the HTTP routes registered on this application before booting it.
+    pub fn routes(&self) -> Vec<(axum::http::Method, String)> {
+        self.routes.registered_handlers()
+    }
+
     /// Install the request context once, plus the optional application's pool.
     /// The pool is also exposed as `Extension<DatabaseManager>` for typed code.
     pub fn build(self) -> Router {
