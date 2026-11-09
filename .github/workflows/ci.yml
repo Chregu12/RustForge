@@ -712,6 +712,11 @@ jobs:
           cargo build --locked -p forge-cli
           python3 scripts/forge-starter-smoke.py
 
+      - name: Forge release rollback and PostgreSQL backup restore (live)
+        env:
+          RF_SMOKE_POSTGRES_RECOVERY: "1"
+        run: python3 -u scripts/forge-starter-smoke.py
+
       - name: Tear down backend services
         if: always()
         run: |
