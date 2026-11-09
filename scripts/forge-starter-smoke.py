@@ -100,6 +100,22 @@ def smoke():
         else:
             forge(parent, "new", "blog-smoke", "--framework-path", str(ROOT))
         app = parent / "blog-smoke"
+        forge(app, "deploy", "generate", "--kubernetes", "--port", "8081")
+        dockerfile = (app / "Dockerfile").read_text()
+        assert "FROM rust:1.96.0-bookworm" in dockerfile
+        assert "cargo build --release --locked --bin blog-smoke" in dockerfile
+        assert "USER 10001:10001" in dockerfile
+        assert "ENV HOST=0.0.0.0 PORT=8081" in dockerfile
+        deployment = app / "k8s/deployment.yaml"
+        assert "path: /up\n" in deployment.read_text()
+        assert "path: /ready\n" in deployment.read_text()
+        dockerignore = app / ".dockerignore"
+        assert ".env" in dockerignore.read_text().splitlines()
+        dockerignore.write_text("custom-fixture\n")
+        forge(app, "deploy", "generate", "--kubernetes", "--readiness-path", "/custom-ready")
+        assert "path: /custom-ready\n" in deployment.read_text()
+        assert dockerignore.read_text() == "custom-fixture\n"
+
         with server(app, "--port", "0") as url:
             assert request(url, "GET", "/up")[0] == 200
             assert request(url, "GET", "/ready")[0] == 503

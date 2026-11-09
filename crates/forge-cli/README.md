@@ -68,4 +68,12 @@ a production SQLite database. Use PostgreSQL or link SQLite 3.54.0 or later. App
 the migrations before serving traffic. `/ready` returns 503 when the posts schema
 is unavailable or the database check exceeds two seconds.
 
+In a generated application, run `cargo generate-lockfile` and
+`forge deploy generate --name my-app --postgres 16 --kubernetes`. The Dockerfile
+builds the binary declared in `Cargo.toml` with the lockfile, then runs it as a
+non-root user. Kubernetes probes use `/up` and `/ready` by default. Supply
+`APP_ENV=production` and `DATABASE_URL` from the target environment, and run
+`forge migrate --force` against that database before deploying the image. Use
+the generated Compose database for local testing with its sample credentials.
+
 The starter uses compiled routing and a static HTML view. The framework's optional packages and other CLI commands have separate maturity levels.

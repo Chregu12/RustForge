@@ -426,9 +426,8 @@ enum DeployCommands {
     /// Generate deployment artifact files (Dockerfile, docker-compose.yml, and
     /// optionally Kubernetes manifests) in the current project directory.
     ///
-    /// The generated Kubernetes manifests probe GET /health/live (liveness) and
-    /// GET /health/ready (readiness).  Your app must serve those routes (e.g.
-    /// via rf-health) or pass --liveness-path / --readiness-path to customise.
+    /// Kubernetes probes default to /up and /ready for a Forge starter and to
+    /// /health/live and /health/ready for other applications.
     Generate {
         /// Application name used in service names and image tags
         #[arg(long, default_value = "app")]
@@ -454,13 +453,13 @@ enum DeployCommands {
         #[arg(long)]
         image: Option<String>,
 
-        /// Liveness probe HTTP path (default: /health/live)
-        #[arg(long, default_value = "/health/live")]
-        liveness_path: String,
+        /// Override the liveness probe HTTP path
+        #[arg(long)]
+        liveness_path: Option<String>,
 
-        /// Readiness probe HTTP path (default: /health/ready)
-        #[arg(long, default_value = "/health/ready")]
-        readiness_path: String,
+        /// Override the readiness probe HTTP path
+        #[arg(long)]
+        readiness_path: Option<String>,
     },
 }
 
@@ -661,8 +660,8 @@ async fn main() -> Result<()> {
                     postgres.as_deref(),
                     redis,
                     kubernetes,
-                    &liveness_path,
-                    &readiness_path,
+                    liveness_path.as_deref(),
+                    readiness_path.as_deref(),
                     image.as_deref(),
                 )
                 .await?;

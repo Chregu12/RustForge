@@ -839,6 +839,60 @@ jobs:
           SMOKE_PORT: "3737"
           SMOKE_WAIT: "30"
 
+  forge-container-smoke:
+    name: "Generated Forge container on PostgreSQL"
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo build --locked -p forge-cli
+
+      - name: Build, migrate and probe the generated deployment
+        run: |
+          forge="$PWD/target/debug/forge"
+          project_root="$(mktemp -d)"
+          cd "$project_root"
+          "$forge" new container-smoke
+          cd container-smoke
+          cargo generate-lockfile
+          "$forge" deploy generate --name web --port 3817 --postgres 16 --kubernetes
+          cat > compose.smoke.yml <<'YAML'
+          services:
+            web:
+              environment:
+                APP_ENV: production
+          YAML
+          compose=(docker compose -f docker-compose.yml -f compose.smoke.yml)
+          cleanup() {
+            result=$?
+            if (( result != 0 )); then "${compose[@]}" logs || true; fi
+            "${compose[@]}" down -v
+          }
+          trap cleanup EXIT
+
+          "${compose[@]}" up -d postgres
+          for attempt in {1..30}; do
+            if "${compose[@]}" exec -T -e PGPASSWORD=postgres postgres \
+              psql -h 127.0.0.1 -U postgres -d app -tAc 'select 1'; then
+              break
+            fi
+            if (( attempt == 30 )); then exit 1; fi
+            sleep 2
+          done
+          export APP_ENV=production DATABASE_URL=postgres://postgres:postgres@127.0.0.1:5432/app
+          "$forge" migrate --force
+          "$forge" db:seed --class Posts --force
+
+          "${compose[@]}" up -d --build web
+          curl --fail --silent --show-error --max-time 5 --retry 30 \
+            --retry-all-errors --retry-delay 1 http://127.0.0.1:3817/ready
+          curl --fail --silent --show-error http://127.0.0.1:3817/up
+          curl --fail --silent --show-error http://127.0.0.1:3817/api/posts \
+            | python3 -c 'import json, sys; assert len(json.load(sys.stdin)) == 1'
+          test "$("${compose[@]}" exec -T web id -u)" = 10001
+
   # ===========================================
   # Reference App Smoke — hermetic binary probe
   # ===========================================
