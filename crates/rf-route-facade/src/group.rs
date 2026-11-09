@@ -347,8 +347,6 @@ mod tests {
 
     #[test]
     fn test_group_routes() {
-        global_router().clear();
-
         GroupBuilder::new()
             .prefix("/api")
             .middleware("auth")
@@ -358,33 +356,26 @@ mod tests {
             });
 
         let routes = global_router().routes();
-        assert!(routes.len() >= 2);
-
-        // Check that routes have the prefix
-        let uris: Vec<String> = routes.iter().map(|r| r.uri.clone()).collect();
-        assert!(uris.contains(&"/api/users".to_string()));
-        assert!(uris.contains(&"/api/posts".to_string()));
+        assert!(routes.iter().any(|route| route.uri == "/api/users"));
+        assert!(routes.iter().any(|route| route.uri == "/api/posts"));
     }
 
     #[test]
     fn test_group_applies_middleware() {
-        global_router().clear();
-
         GroupBuilder::new().middleware("auth").routes(|group| {
-            group.get("/users", "handler".to_string());
+            group.get("/middleware-test/users", "handler");
         });
 
         let routes = global_router().routes();
-        assert!(!routes.is_empty());
-
-        // Routes should have the group middleware
-        assert!(routes[0].has_middleware("auth"));
+        let route = routes
+            .iter()
+            .find(|route| route.uri == "/middleware-test/users")
+            .expect("group route was registered");
+        assert!(route.has_middleware("auth"));
     }
 
     #[test]
     fn test_nested_groups() {
-        global_router().clear();
-
         GroupBuilder::new()
             .prefix("/api")
             .middleware("auth")
@@ -399,14 +390,12 @@ mod tests {
             });
 
         let routes = global_router().routes();
-        assert!(!routes.is_empty());
-
-        // Check nested prefix
-        let uris: Vec<String> = routes.iter().map(|r| r.uri.clone()).collect();
-        println!("Generated URIs: {:?}", uris);
-        // The current implementation creates nested groups, so we just check that routes exist
-        // Full nested prefix support would require more complex group management
-        assert!(routes.len() >= 1);
+        let route = routes
+            .iter()
+            .find(|route| route.uri == "/v1/users")
+            .expect("nested group route was registered");
+        assert!(route.has_middleware("auth"));
+        assert!(route.has_middleware("throttle"));
     }
 
     #[test]

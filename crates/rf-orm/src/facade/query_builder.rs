@@ -2,7 +2,10 @@
 //!
 //! Provides a Laravel-style fluent query builder for database operations.
 
-use crate::facade::db_manager::{global_delete, global_insert, global_select, global_update};
+use crate::facade::async_db::{
+    delete as global_delete, insert as global_insert, select as global_select,
+    update as global_update,
+};
 use serde::Serialize;
 use serde_json::Value;
 
@@ -50,7 +53,13 @@ pub fn escape_like(input: &str) -> String {
 /// - `NOT BETWEEN` with a two-element `Value::Array([min, max])` →
 ///   `column NOT BETWEEN ? AND ?` (atomic; no precedence issue when ANDed with
 ///   other conditions).
-fn push_condition(out: &mut String, column: &str, op: &str, value: &Value, bindings: &mut Vec<Value>) {
+fn push_condition(
+    out: &mut String,
+    column: &str,
+    op: &str,
+    value: &Value,
+    bindings: &mut Vec<Value>,
+) {
     if value.is_null() {
         let op = if op == "IS NOT" || op == "!=" || op == "<>" {
             "IS NOT"
@@ -60,8 +69,15 @@ fn push_condition(out: &mut String, column: &str, op: &str, value: &Value, bindi
         out.push_str(&format!("{} {} NULL", column, op));
     } else if op == "LIKE ESCAPE" || op == "NOT LIKE ESCAPE" {
         bindings.push(value.clone());
-        let like_op = if op == "NOT LIKE ESCAPE" { "NOT LIKE" } else { "LIKE" };
-        out.push_str(&format!("{} {} ? ESCAPE '{}'", column, like_op, LIKE_ESCAPE_CHAR));
+        let like_op = if op == "NOT LIKE ESCAPE" {
+            "NOT LIKE"
+        } else {
+            "LIKE"
+        };
+        out.push_str(&format!(
+            "{} {} ? ESCAPE '{}'",
+            column, like_op, LIKE_ESCAPE_CHAR
+        ));
     } else if op == "IN" || op == "NOT IN" {
         // An IN/NOT IN value must be a JSON array; expand into individual `?`
         // placeholders so the SQL is valid across all backends.
@@ -199,7 +215,8 @@ impl QueryBuilder {
     /// }
     /// ```
     pub fn r#where<V: Into<Value>>(mut self, column: impl Into<String>, value: V) -> Self {
-        self.wheres.push((column.into(), "=".to_string(), value.into()));
+        self.wheres
+            .push((column.into(), "=".to_string(), value.into()));
         self
     }
 
@@ -236,14 +253,25 @@ impl QueryBuilder {
     ///         .get().await.unwrap();
     /// }
     /// ```
-    pub fn where_op<V: Into<Value>>(mut self, column: impl Into<String>, operator: impl Into<String>, value: V) -> Self {
-        self.wheres.push((column.into(), operator.into(), value.into()));
+    pub fn where_op<V: Into<Value>>(
+        mut self,
+        column: impl Into<String>,
+        operator: impl Into<String>,
+        value: V,
+    ) -> Self {
+        self.wheres
+            .push((column.into(), operator.into(), value.into()));
         self
     }
 
     /// Legacy method - use `r#where` instead
     #[deprecated(note = "Use `r#where` for Laravel-style syntax")]
-    pub fn where_clause(mut self, column: impl Into<String>, operator: impl Into<String>, value: Value) -> Self {
+    pub fn where_clause(
+        mut self,
+        column: impl Into<String>,
+        operator: impl Into<String>,
+        value: Value,
+    ) -> Self {
         self.wheres.push((column.into(), operator.into(), value));
         self
     }
@@ -255,13 +283,15 @@ impl QueryBuilder {
 
     /// Where column is null
     pub fn where_null(mut self, column: impl Into<String>) -> Self {
-        self.wheres.push((column.into(), "IS".to_string(), Value::Null));
+        self.wheres
+            .push((column.into(), "IS".to_string(), Value::Null));
         self
     }
 
     /// Where column is not null
     pub fn where_not_null(mut self, column: impl Into<String>) -> Self {
-        self.wheres.push((column.into(), "IS NOT".to_string(), Value::Null));
+        self.wheres
+            .push((column.into(), "IS NOT".to_string(), Value::Null));
         self
     }
 
@@ -280,21 +310,33 @@ impl QueryBuilder {
     /// ```
     pub fn where_in<V: Into<Value>>(mut self, column: impl Into<String>, values: Vec<V>) -> Self {
         let values: Vec<Value> = values.into_iter().map(|v| v.into()).collect();
-        self.wheres.push((column.into(), "IN".to_string(), Value::Array(values)));
+        self.wheres
+            .push((column.into(), "IN".to_string(), Value::Array(values)));
         self
     }
 
     /// Where column is not in a list
-    pub fn where_not_in<V: Into<Value>>(mut self, column: impl Into<String>, values: Vec<V>) -> Self {
+    pub fn where_not_in<V: Into<Value>>(
+        mut self,
+        column: impl Into<String>,
+        values: Vec<V>,
+    ) -> Self {
         let values: Vec<Value> = values.into_iter().map(|v| v.into()).collect();
-        self.wheres.push((column.into(), "NOT IN".to_string(), Value::Array(values)));
+        self.wheres
+            .push((column.into(), "NOT IN".to_string(), Value::Array(values)));
         self
     }
 
     /// Where column is between two values
-    pub fn where_between<V: Into<Value>>(mut self, column: impl Into<String>, min: V, max: V) -> Self {
+    pub fn where_between<V: Into<Value>>(
+        mut self,
+        column: impl Into<String>,
+        min: V,
+        max: V,
+    ) -> Self {
         let col = column.into();
-        self.wheres.push((col.clone(), ">=".to_string(), min.into()));
+        self.wheres
+            .push((col.clone(), ">=".to_string(), min.into()));
         self.wheres.push((col, "<=".to_string(), max.into()));
         self
     }
@@ -307,7 +349,11 @@ impl QueryBuilder {
     /// which treats the term as a literal substring (a user term of `%` or `_`,
     /// or an empty term, will otherwise match far more rows than intended).
     pub fn where_like(mut self, column: impl Into<String>, pattern: impl Into<String>) -> Self {
-        self.wheres.push((column.into(), "LIKE".to_string(), Value::String(pattern.into())));
+        self.wheres.push((
+            column.into(),
+            "LIKE".to_string(),
+            Value::String(pattern.into()),
+        ));
         self
     }
 
@@ -337,11 +383,16 @@ impl QueryBuilder {
             // An empty term would build the `%%` pattern, which matches every
             // row. Emit an always-false predicate so an empty search matches
             // nothing instead of leaking the whole table.
-            self.wheres.push(("1".to_string(), "=".to_string(), Value::from(0)));
+            self.wheres
+                .push(("1".to_string(), "=".to_string(), Value::from(0)));
             return self;
         }
         let pattern = format!("%{}%", escape_like(term));
-        self.wheres.push((column.into(), "LIKE ESCAPE".to_string(), Value::String(pattern)));
+        self.wheres.push((
+            column.into(),
+            "LIKE ESCAPE".to_string(),
+            Value::String(pattern),
+        ));
         self
     }
 
@@ -511,28 +562,37 @@ impl QueryBuilder {
     /// ```
     #[allow(non_snake_case)]
     pub fn orWhere<V: Into<Value>>(mut self, column: impl Into<String>, value: V) -> Self {
-        self.or_wheres.push((column.into(), "=".to_string(), value.into()));
+        self.or_wheres
+            .push((column.into(), "=".to_string(), value.into()));
         self
     }
 
     /// orWhere with custom operator
     #[allow(non_snake_case)]
-    pub fn orWhereOp<V: Into<Value>>(mut self, column: impl Into<String>, operator: impl Into<String>, value: V) -> Self {
-        self.or_wheres.push((column.into(), operator.into(), value.into()));
+    pub fn orWhereOp<V: Into<Value>>(
+        mut self,
+        column: impl Into<String>,
+        operator: impl Into<String>,
+        value: V,
+    ) -> Self {
+        self.or_wheres
+            .push((column.into(), operator.into(), value.into()));
         self
     }
 
     /// orWhereNull - column IS NULL with OR
     #[allow(non_snake_case)]
     pub fn orWhereNull(mut self, column: impl Into<String>) -> Self {
-        self.or_wheres.push((column.into(), "IS".to_string(), Value::Null));
+        self.or_wheres
+            .push((column.into(), "IS".to_string(), Value::Null));
         self
     }
 
     /// orWhereNotNull - column IS NOT NULL with OR
     #[allow(non_snake_case)]
     pub fn orWhereNotNull(mut self, column: impl Into<String>) -> Self {
-        self.or_wheres.push((column.into(), "IS NOT".to_string(), Value::Null));
+        self.or_wheres
+            .push((column.into(), "IS NOT".to_string(), Value::Null));
         self
     }
 
@@ -540,7 +600,8 @@ impl QueryBuilder {
     #[allow(non_snake_case)]
     pub fn orWhereIn<V: Into<Value>>(mut self, column: impl Into<String>, values: Vec<V>) -> Self {
         let values: Vec<Value> = values.into_iter().map(|v| v.into()).collect();
-        self.or_wheres.push((column.into(), "IN".to_string(), Value::Array(values)));
+        self.or_wheres
+            .push((column.into(), "IN".to_string(), Value::Array(values)));
         self
     }
 
@@ -583,8 +644,14 @@ impl QueryBuilder {
     ///         .get().await.unwrap();
     /// }
     /// ```
-    pub fn having<V: Into<Value>>(mut self, column: impl Into<String>, operator: impl Into<String>, value: V) -> Self {
-        self.having.push((column.into(), operator.into(), value.into()));
+    pub fn having<V: Into<Value>>(
+        mut self,
+        column: impl Into<String>,
+        operator: impl Into<String>,
+        value: V,
+    ) -> Self {
+        self.having
+            .push((column.into(), operator.into(), value.into()));
         self
     }
 
@@ -601,7 +668,11 @@ impl QueryBuilder {
     /// ```
     #[allow(non_snake_case)]
     pub fn whereDate(mut self, column: impl Into<String>, date: impl Into<String>) -> Self {
-        self.wheres.push((format!("DATE({})", column.into()), "=".to_string(), Value::String(date.into())));
+        self.wheres.push((
+            format!("DATE({})", column.into()),
+            "=".to_string(),
+            Value::String(date.into()),
+        ));
         self
     }
 
@@ -614,7 +685,11 @@ impl QueryBuilder {
     /// ```
     #[allow(non_snake_case)]
     pub fn whereYear<V: Into<Value>>(mut self, column: impl Into<String>, year: V) -> Self {
-        self.wheres.push((format!("YEAR({})", column.into()), "=".to_string(), year.into()));
+        self.wheres.push((
+            format!("YEAR({})", column.into()),
+            "=".to_string(),
+            year.into(),
+        ));
         self
     }
 
@@ -627,7 +702,11 @@ impl QueryBuilder {
     /// ```
     #[allow(non_snake_case)]
     pub fn whereMonth<V: Into<Value>>(mut self, column: impl Into<String>, month: V) -> Self {
-        self.wheres.push((format!("MONTH({})", column.into()), "=".to_string(), month.into()));
+        self.wheres.push((
+            format!("MONTH({})", column.into()),
+            "=".to_string(),
+            month.into(),
+        ));
         self
     }
 
@@ -640,7 +719,11 @@ impl QueryBuilder {
     /// ```
     #[allow(non_snake_case)]
     pub fn whereDay<V: Into<Value>>(mut self, column: impl Into<String>, day: V) -> Self {
-        self.wheres.push((format!("DAY({})", column.into()), "=".to_string(), day.into()));
+        self.wheres.push((
+            format!("DAY({})", column.into()),
+            "=".to_string(),
+            day.into(),
+        ));
         self
     }
 
@@ -652,8 +735,17 @@ impl QueryBuilder {
     /// let users = User::whereTime("created_at", ">=", "09:00:00").get().await?;
     /// ```
     #[allow(non_snake_case)]
-    pub fn whereTime(mut self, column: impl Into<String>, operator: impl Into<String>, time: impl Into<String>) -> Self {
-        self.wheres.push((format!("TIME({})", column.into()), operator.into(), Value::String(time.into())));
+    pub fn whereTime(
+        mut self,
+        column: impl Into<String>,
+        operator: impl Into<String>,
+        time: impl Into<String>,
+    ) -> Self {
+        self.wheres.push((
+            format!("TIME({})", column.into()),
+            operator.into(),
+            Value::String(time.into()),
+        ));
         self
     }
 
@@ -665,9 +757,18 @@ impl QueryBuilder {
     /// let users = User::whereColumn("updated_at", ">", "created_at").get().await?;
     /// ```
     #[allow(non_snake_case)]
-    pub fn whereColumn(mut self, first: impl Into<String>, operator: impl Into<String>, second: impl Into<String>) -> Self {
+    pub fn whereColumn(
+        mut self,
+        first: impl Into<String>,
+        operator: impl Into<String>,
+        second: impl Into<String>,
+    ) -> Self {
         // Store as special column comparison marker
-        self.wheres.push((first.into(), format!("COLUMN:{}", operator.into()), Value::String(second.into())));
+        self.wheres.push((
+            first.into(),
+            format!("COLUMN:{}", operator.into()),
+            Value::String(second.into()),
+        ));
         self
     }
 
@@ -713,7 +814,11 @@ impl QueryBuilder {
         } else {
             self.select_columns.join(", ")
         };
-        let select_kw = if self.distinct { "SELECT DISTINCT" } else { "SELECT" };
+        let select_kw = if self.distinct {
+            "SELECT DISTINCT"
+        } else {
+            "SELECT"
+        };
         let mut sql = format!("{} {} FROM {}", select_kw, columns, self.table);
 
         let where_clause = self.build_where(&mut bindings);
@@ -752,7 +857,7 @@ impl QueryBuilder {
 
     pub async fn get(self) -> Result<Vec<Value>, String> {
         let (sql, bindings) = self.build_select_sql();
-        global_select(&sql, &bindings)
+        global_select(&sql, &bindings).await
     }
 
     /// Get the first result
@@ -951,7 +1056,12 @@ impl QueryBuilder {
     /// let users = User::whereNotBetween("age", 18, 65).get().await?;
     /// ```
     #[allow(non_snake_case)]
-    pub fn whereNotBetween<V: Into<Value> + Clone>(mut self, column: impl Into<String>, min: V, max: V) -> Self {
+    pub fn whereNotBetween<V: Into<Value> + Clone>(
+        mut self,
+        column: impl Into<String>,
+        min: V,
+        max: V,
+    ) -> Self {
         // Pack [min, max] into a JSON array so push_condition can emit the
         // atomic `NOT BETWEEN ? AND ?` form in a single AND slot.
         self.wheres.push((
@@ -963,7 +1073,12 @@ impl QueryBuilder {
     }
 
     /// snake_case alias for whereNotBetween
-    pub fn where_not_between<V: Into<Value> + Clone>(self, column: impl Into<String>, min: V, max: V) -> Self {
+    pub fn where_not_between<V: Into<Value> + Clone>(
+        self,
+        column: impl Into<String>,
+        min: V,
+        max: V,
+    ) -> Self {
         self.whereNotBetween(column, min, max)
     }
 
@@ -976,7 +1091,11 @@ impl QueryBuilder {
     /// ```
     #[allow(non_snake_case)]
     pub fn whereNotLike(mut self, column: impl Into<String>, pattern: impl Into<String>) -> Self {
-        self.wheres.push((column.into(), "NOT LIKE".to_string(), Value::String(pattern.into())));
+        self.wheres.push((
+            column.into(),
+            "NOT LIKE".to_string(),
+            Value::String(pattern.into()),
+        ));
         self
     }
 
@@ -994,7 +1113,8 @@ impl QueryBuilder {
     /// ```
     #[allow(non_snake_case)]
     pub fn whereRaw(mut self, sql: impl Into<String>, _bindings: Vec<Value>) -> Self {
-        self.wheres.push((sql.into(), "RAW".to_string(), Value::Null));
+        self.wheres
+            .push((sql.into(), "RAW".to_string(), Value::Null));
         self
     }
 
@@ -1006,7 +1126,8 @@ impl QueryBuilder {
     /// Laravel-style orWhereRaw - add raw SQL OR where clause
     #[allow(non_snake_case)]
     pub fn orWhereRaw(mut self, sql: impl Into<String>, _bindings: Vec<Value>) -> Self {
-        self.or_wheres.push((sql.into(), "RAW".to_string(), Value::Null));
+        self.or_wheres
+            .push((sql.into(), "RAW".to_string(), Value::Null));
         self
     }
 
@@ -1027,7 +1148,7 @@ impl QueryBuilder {
             sql.push_str(&format!(" WHERE {}", where_clause));
         }
 
-        global_update(&sql, &bindings)
+        global_update(&sql, &bindings).await
     }
 
     /// Laravel-style decrement - decrement a column value
@@ -1075,7 +1196,10 @@ impl QueryBuilder {
         match results.len() {
             0 => Err(format!("No records found in {}", table)),
             1 => Ok(results.into_iter().next().unwrap()),
-            _ => Err(format!("Multiple records found in {} when one expected", table)),
+            _ => Err(format!(
+                "Multiple records found in {} when one expected",
+                table
+            )),
         }
     }
 
@@ -1097,7 +1221,8 @@ impl QueryBuilder {
     {
         let mut page = 1;
         loop {
-            let results = self.clone()
+            let results = self
+                .clone()
                 .limit(size)
                 .offset((page - 1) * size)
                 .get()
@@ -1138,7 +1263,8 @@ impl QueryBuilder {
                 }
             }
             true
-        }).await
+        })
+        .await
     }
 
     /// Laravel-style lazy - returns an iterator for memory-efficient processing
@@ -1193,8 +1319,13 @@ impl QueryBuilder {
     /// ```
     #[allow(non_snake_case)]
     pub fn toSql(&self) -> String {
-        let mut sql = format!("{} {} FROM {}",
-            if self.distinct { "SELECT DISTINCT" } else { "SELECT" },
+        let mut sql = format!(
+            "{} {} FROM {}",
+            if self.distinct {
+                "SELECT DISTINCT"
+            } else {
+                "SELECT"
+            },
             if self.select_columns.is_empty() {
                 "*".to_string()
             } else {
@@ -1204,14 +1335,18 @@ impl QueryBuilder {
         );
 
         if !self.wheres.is_empty() {
-            let conditions: Vec<String> = self.wheres.iter()
+            let conditions: Vec<String> = self
+                .wheres
+                .iter()
                 .map(|(col, op, val)| format!("{} {} {:?}", col, op, val))
                 .collect();
             sql.push_str(&format!(" WHERE {}", conditions.join(" AND ")));
         }
 
         if !self.or_wheres.is_empty() {
-            let or_conditions: Vec<String> = self.or_wheres.iter()
+            let or_conditions: Vec<String> = self
+                .or_wheres
+                .iter()
                 .map(|(col, op, val)| format!("{} {} {:?}", col, op, val))
                 .collect();
             sql.push_str(&format!(" OR {}", or_conditions.join(" OR ")));
@@ -1222,7 +1357,9 @@ impl QueryBuilder {
         }
 
         if !self.order_by.is_empty() {
-            let orders: Vec<String> = self.order_by.iter()
+            let orders: Vec<String> = self
+                .order_by
+                .iter()
                 .map(|(col, dir)| format!("{} {}", col, dir))
                 .collect();
             sql.push_str(&format!(" ORDER BY {}", orders.join(", ")));
@@ -1266,7 +1403,11 @@ impl QueryBuilder {
     /// ).await?;
     /// ```
     #[allow(non_snake_case)]
-    pub async fn firstOrCreate<S: Serialize, C: Serialize>(self, search: S, create: C) -> Result<Value, String> {
+    pub async fn firstOrCreate<S: Serialize, C: Serialize>(
+        self,
+        search: S,
+        create: C,
+    ) -> Result<Value, String> {
         let search_value = serde_json::to_value(search).map_err(|e| e.to_string())?;
         let create_value = serde_json::to_value(create).map_err(|e| e.to_string())?;
 
@@ -1284,7 +1425,11 @@ impl QueryBuilder {
     }
 
     /// snake_case alias for firstOrCreate
-    pub async fn first_or_create<S: Serialize, C: Serialize>(self, search: S, create: C) -> Result<Value, String> {
+    pub async fn first_or_create<S: Serialize, C: Serialize>(
+        self,
+        search: S,
+        create: C,
+    ) -> Result<Value, String> {
         self.firstOrCreate(search, create).await
     }
 
@@ -1346,7 +1491,11 @@ impl QueryBuilder {
     /// ).await?;
     /// ```
     #[allow(non_snake_case)]
-    pub async fn updateOrCreate<S: Serialize, U: Serialize>(self, search: S, update: U) -> Result<Value, String> {
+    pub async fn updateOrCreate<S: Serialize, U: Serialize>(
+        self,
+        search: S,
+        update: U,
+    ) -> Result<Value, String> {
         let search_value = serde_json::to_value(search).map_err(|e| e.to_string())?;
         let update_value = serde_json::to_value(update).map_err(|e| e.to_string())?;
 
@@ -1375,7 +1524,11 @@ impl QueryBuilder {
     }
 
     /// snake_case alias for updateOrCreate
-    pub async fn update_or_create<S: Serialize, U: Serialize>(self, search: S, update: U) -> Result<Value, String> {
+    pub async fn update_or_create<S: Serialize, U: Serialize>(
+        self,
+        search: S,
+        update: U,
+    ) -> Result<Value, String> {
         self.updateOrCreate(search, update).await
     }
 
@@ -1492,7 +1645,7 @@ impl QueryBuilder {
             );
             let bindings: Vec<Value> = obj.values().cloned().collect();
 
-            global_update(&sql, &bindings)?;
+            global_update(&sql, &bindings).await?;
             affected += 1;
         }
 
@@ -1509,7 +1662,8 @@ impl QueryBuilder {
     pub async fn touch(self) -> Result<u64, String> {
         self.update(serde_json::json!({
             "updated_at": chrono::Utc::now().to_rfc3339()
-        })).await
+        }))
+        .await
     }
 
     /// Laravel-style destroy - delete by IDs
@@ -1572,10 +1726,7 @@ impl QueryBuilder {
             // No fields supplied: let the database assign all defaults.
             // This supports create!(Model) with no arguments for tables where
             // every non-PK column is nullable or has a DEFAULT value.
-            (
-                format!("INSERT INTO {} DEFAULT VALUES", self.table),
-                vec![],
-            )
+            (format!("INSERT INTO {} DEFAULT VALUES", self.table), vec![])
         } else {
             let columns: Vec<&str> = obj.keys().map(String::as_str).collect();
             let placeholders = vec!["?"; columns.len()].join(", ");
@@ -1590,7 +1741,7 @@ impl QueryBuilder {
             )
         };
 
-        global_insert(&sql, &bindings)
+        global_insert(&sql, &bindings).await
     }
 
     /// Create a record and return it - Laravel-style!
@@ -1722,7 +1873,7 @@ impl QueryBuilder {
             sql.push_str(&format!(" WHERE {}", where_clause));
         }
 
-        global_update(&sql, &bindings)
+        global_update(&sql, &bindings).await
     }
 
     /// Delete records matching the where clauses
@@ -1746,7 +1897,7 @@ impl QueryBuilder {
             sql.push_str(&format!(" WHERE {}", where_clause));
         }
 
-        global_delete(&sql, &bindings)
+        global_delete(&sql, &bindings).await
     }
 
     /// Count the results
@@ -1757,7 +1908,7 @@ impl QueryBuilder {
         if !where_clause.is_empty() {
             sql.push_str(&format!(" WHERE {}", where_clause));
         }
-        let rows = global_select(&sql, &bindings)?;
+        let rows = global_select(&sql, &bindings).await?;
         let count = rows
             .first()
             .and_then(|row| row.get("count"))
@@ -1864,7 +2015,9 @@ impl LazyCollection {
         if self.current_items.is_empty() {
             // Fetch next chunk
             self.current_page += 1;
-            let results = self.builder.clone()
+            let results = self
+                .builder
+                .clone()
                 .limit(self.chunk_size)
                 .offset((self.current_page - 1) * self.chunk_size)
                 .get()
@@ -1918,8 +2071,8 @@ mod tests {
 
     #[test]
     fn test_query_builder_where() {
-        let builder = QueryBuilder::new("users")
-            .where_clause("active", "=", serde_json::json!(true));
+        let builder =
+            QueryBuilder::new("users").where_clause("active", "=", serde_json::json!(true));
 
         assert_eq!(builder.where_clauses().len(), 1);
         assert_eq!(builder.where_clauses()[0].0, "active");
@@ -1928,8 +2081,7 @@ mod tests {
 
     #[test]
     fn test_query_builder_limit() {
-        let builder = QueryBuilder::new("users")
-            .limit(10);
+        let builder = QueryBuilder::new("users").limit(10);
 
         assert_eq!(builder.limit_val(), Some(10));
     }
@@ -1958,10 +2110,16 @@ mod tests {
 
     #[tokio::test]
     async fn test_query_builder_get_returns_real_rows() {
-        crate::DB::statement("CREATE TABLE IF NOT EXISTS qb_rows (id INTEGER PRIMARY KEY, active INTEGER)")
-            .unwrap();
+        crate::DB::statement(
+            "CREATE TABLE IF NOT EXISTS qb_rows (id INTEGER PRIMARY KEY, active INTEGER)",
+        )
+        .unwrap();
         crate::DB::statement("DELETE FROM qb_rows").unwrap();
-        crate::DB::insert("INSERT INTO qb_rows (id, active) VALUES (1, 1), (2, 0)", &[]).unwrap();
+        crate::DB::insert(
+            "INSERT INTO qb_rows (id, active) VALUES (1, 1), (2, 0)",
+            &[],
+        )
+        .unwrap();
         let rows = QueryBuilder::new("qb_rows")
             .where_clause("active", "=", serde_json::json!(1))
             .get()
@@ -1973,7 +2131,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_query_builder_count() {
-        crate::DB::statement("CREATE TABLE IF NOT EXISTS qb_count (id INTEGER PRIMARY KEY)").unwrap();
+        crate::DB::statement("CREATE TABLE IF NOT EXISTS qb_count (id INTEGER PRIMARY KEY)")
+            .unwrap();
         crate::DB::statement("DELETE FROM qb_count").unwrap();
         assert_eq!(QueryBuilder::new("qb_count").count().await.unwrap(), 0);
         crate::DB::insert("INSERT INTO qb_count (id) VALUES (1), (2), (3)", &[]).unwrap();
@@ -2006,7 +2165,10 @@ mod tests {
         let (sql, bindings) = QueryBuilder::new("tasks")
             .where_like_escaped("title", "")
             .build_select_sql();
-        assert!(sql.contains("WHERE 1 = ?"), "expected always-false clause, got: {sql}");
+        assert!(
+            sql.contains("WHERE 1 = ?"),
+            "expected always-false clause, got: {sql}"
+        );
         assert_eq!(bindings, vec![Value::from(0)]);
     }
 
@@ -2017,7 +2179,12 @@ mod tests {
         )
         .unwrap();
         crate::DB::statement("DELETE FROM qb_like").unwrap();
-        for title in ["Write report", "50% off sale", "snake_case docs", "Read book"] {
+        for title in [
+            "Write report",
+            "50% off sale",
+            "snake_case docs",
+            "Read book",
+        ] {
             crate::DB::insert(
                 "INSERT INTO qb_like (title) VALUES (?)",
                 &[serde_json::json!(title)],
@@ -2054,7 +2221,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_query_builder_exists() {
-        crate::DB::statement("CREATE TABLE IF NOT EXISTS qb_exists (id INTEGER PRIMARY KEY)").unwrap();
+        crate::DB::statement("CREATE TABLE IF NOT EXISTS qb_exists (id INTEGER PRIMARY KEY)")
+            .unwrap();
         crate::DB::statement("DELETE FROM qb_exists").unwrap();
         assert!(!QueryBuilder::new("qb_exists").exists().await.unwrap());
         crate::DB::insert("INSERT INTO qb_exists (id) VALUES (1)", &[]).unwrap();

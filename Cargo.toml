@@ -284,7 +284,7 @@ resolver = "2"
 [workspace.package]
 edition = "2021"
 version = "1.0.0-rc.3"
-rust-version = "1.79.0"
+rust-version = "1.96.0"
 license = "MIT OR Apache-2.0"
 authors = ["chregu12"]
 repository = "https://github.com/Chregu12/RustForge"
@@ -307,7 +307,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
 tokio = { version = "1.37", features = ["macros", "rt-multi-thread", "signal"] }
 dotenvy = "0.15"
 chrono = { version = "0.4", features = ["serde", "clock"] }
-sea-orm = { version = "1.1", default-features = false, features = ["runtime-tokio-rustls", "sqlx-sqlite", "sqlx-postgres", "macros", "with-rust_decimal", "with-chrono"] }
+sea-orm = { version = "1.1", default-features = false, features = ["runtime-tokio-rustls", "sqlx-sqlite", "sqlx-postgres", "macros", "with-rust_decimal", "with-chrono", "with-json"] }
 axum = { version = "0.8", features = ["macros", "json", "multipart", "ws"] }
 toml = "0.8"
 rustyline = "14.0"

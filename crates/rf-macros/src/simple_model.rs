@@ -81,8 +81,12 @@ use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
 use syn::{
-    braced, ext::IdentExt, parse::{Parse, ParseStream}, parse_macro_input,
-    punctuated::Punctuated, Ident, Token, Type,
+    braced,
+    ext::IdentExt,
+    parse::{Parse, ParseStream},
+    parse_macro_input,
+    punctuated::Punctuated,
+    Ident, Token, Type,
 };
 
 mod kw {
@@ -274,7 +278,12 @@ impl Parse for SimpleField {
             }
         }
 
-        Ok(SimpleField { hidden, name, ty, overrides })
+        Ok(SimpleField {
+            hidden,
+            name,
+            ty,
+            overrides,
+        })
     }
 }
 
@@ -388,9 +397,11 @@ impl Scope {
             let method = Ident::parse_any(input)?;
             let content;
             syn::parenthesized!(content in input);
-            let args: Punctuated<syn::Lit, Token![,]> =
-                Punctuated::parse_terminated(&content)?;
-            calls.push(ScopeCall { method, args: args.into_iter().collect() });
+            let args: Punctuated<syn::Lit, Token![,]> = Punctuated::parse_terminated(&content)?;
+            calls.push(ScopeCall {
+                method,
+                args: args.into_iter().collect(),
+            });
         }
 
         if calls.is_empty() {
@@ -417,7 +428,12 @@ fn emit_scope_call(call: &ScopeCall) -> syn::Result<TokenStream2> {
         if args.len() != n {
             Err(syn::Error::new(
                 span,
-                format!("scope method `{}` expects {} argument(s), got {}", method, n, args.len()),
+                format!(
+                    "scope method `{}` expects {} argument(s), got {}",
+                    method,
+                    n,
+                    args.len()
+                ),
             ))
         } else {
             Ok(())
@@ -425,25 +441,80 @@ fn emit_scope_call(call: &ScopeCall) -> syn::Result<TokenStream2> {
     };
     let ts = match method.as_str() {
         // `where("col", val)` -> the real `r#where` (2-arg equality).
-        "where" => { expect(2)?; let a = &args[0]; let b = &args[1]; quote! { .r#where(#a, #b) } }
+        "where" => {
+            expect(2)?;
+            let a = &args[0];
+            let b = &args[1];
+            quote! { .r#where(#a, #b) }
+        }
         // `filter("col", val)` -> alias of `r#where`.
-        "filter" => { expect(2)?; let a = &args[0]; let b = &args[1]; quote! { .filter(#a, #b) } }
+        "filter" => {
+            expect(2)?;
+            let a = &args[0];
+            let b = &args[1];
+            quote! { .filter(#a, #b) }
+        }
         // `where_eq("col", val)` -> alias of `r#where`.
-        "where_eq" => { expect(2)?; let a = &args[0]; let b = &args[1]; quote! { .where_eq(#a, #b) } }
+        "where_eq" => {
+            expect(2)?;
+            let a = &args[0];
+            let b = &args[1];
+            quote! { .where_eq(#a, #b) }
+        }
         // `where_op("col", "op", val)` -> custom operator.
-        "where_op" => { expect(3)?; let a = &args[0]; let b = &args[1]; let c = &args[2]; quote! { .where_op(#a, #b, #c) } }
+        "where_op" => {
+            expect(3)?;
+            let a = &args[0];
+            let b = &args[1];
+            let c = &args[2];
+            quote! { .where_op(#a, #b, #c) }
+        }
         // `where_like("col", "pattern")`.
-        "where_like" => { expect(2)?; let a = &args[0]; let b = &args[1]; quote! { .where_like(#a, #b) } }
+        "where_like" => {
+            expect(2)?;
+            let a = &args[0];
+            let b = &args[1];
+            quote! { .where_like(#a, #b) }
+        }
         // `where_null("col")` / `where_not_null("col")`.
-        "where_null" => { expect(1)?; let a = &args[0]; quote! { .where_null(#a) } }
-        "where_not_null" => { expect(1)?; let a = &args[0]; quote! { .where_not_null(#a) } }
+        "where_null" => {
+            expect(1)?;
+            let a = &args[0];
+            quote! { .where_null(#a) }
+        }
+        "where_not_null" => {
+            expect(1)?;
+            let a = &args[0];
+            quote! { .where_not_null(#a) }
+        }
         // `order_by("col", "DIR")` + shorthands.
-        "order_by" => { expect(2)?; let a = &args[0]; let b = &args[1]; quote! { .order_by(#a, #b) } }
-        "order_by_asc" => { expect(1)?; let a = &args[0]; quote! { .order_by_asc(#a) } }
-        "order_by_desc" => { expect(1)?; let a = &args[0]; quote! { .order_by_desc(#a) } }
+        "order_by" => {
+            expect(2)?;
+            let a = &args[0];
+            let b = &args[1];
+            quote! { .order_by(#a, #b) }
+        }
+        "order_by_asc" => {
+            expect(1)?;
+            let a = &args[0];
+            quote! { .order_by_asc(#a) }
+        }
+        "order_by_desc" => {
+            expect(1)?;
+            let a = &args[0];
+            quote! { .order_by_desc(#a) }
+        }
         // `limit(N)` / `offset(N)` — usize literals.
-        "limit" => { expect(1)?; let a = &args[0]; quote! { .limit(#a) } }
-        "offset" => { expect(1)?; let a = &args[0]; quote! { .offset(#a) } }
+        "limit" => {
+            expect(1)?;
+            let a = &args[0];
+            quote! { .limit(#a) }
+        }
+        "offset" => {
+            expect(1)?;
+            let a = &args[0];
+            quote! { .offset(#a) }
+        }
         other => {
             return Err(syn::Error::new(
                 span,
@@ -527,8 +598,7 @@ impl Parse for ModelDef {
         if input.peek(Token![:]) && !input.peek2(Token![:]) {
             // Simple syntax: Model!(User: name, email)
             input.parse::<Token![:]>()?;
-            let fields: Punctuated<InferredField, Token![,]> =
-                Punctuated::parse_terminated(input)?;
+            let fields: Punctuated<InferredField, Token![,]> = Punctuated::parse_terminated(input)?;
             Ok(ModelDef::Simple {
                 name,
                 fields: fields.into_iter().collect(),
@@ -639,7 +709,17 @@ impl Parse for ModelDef {
                 let _ = content.parse::<Token![,]>();
             }
 
-            Ok(ModelDef::Full { name, table, fields, relationships, scopes, timestamps, soft_deletes, validated, guarded })
+            Ok(ModelDef::Full {
+                name,
+                table,
+                fields,
+                relationships,
+                scopes,
+                timestamps,
+                soft_deletes,
+                validated,
+                guarded,
+            })
         }
     }
 }
@@ -648,12 +728,28 @@ pub fn simple_model_impl(input: TokenStream) -> TokenStream {
     let model = parse_macro_input!(input as ModelDef);
 
     match model {
-        ModelDef::Full { name, table, fields, relationships, scopes, timestamps, soft_deletes, validated, guarded } => {
-            generate_full_model(name, table, fields, relationships, scopes, timestamps, soft_deletes, validated, guarded)
-        }
-        ModelDef::Simple { name, fields } => {
-            generate_simple_model(name, fields)
-        }
+        ModelDef::Full {
+            name,
+            table,
+            fields,
+            relationships,
+            scopes,
+            timestamps,
+            soft_deletes,
+            validated,
+            guarded,
+        } => generate_full_model(
+            name,
+            table,
+            fields,
+            relationships,
+            scopes,
+            timestamps,
+            soft_deletes,
+            validated,
+            guarded,
+        ),
+        ModelDef::Simple { name, fields } => generate_simple_model(name, fields),
     }
 }
 
@@ -685,27 +781,35 @@ fn generate_full_model(
         Err(e) => return e.to_compile_error().into(),
     };
 
-    let field_defs: Vec<TokenStream2> = fields.iter().map(|f| {
-        let fname = &f.name;
-        let ftype = &f.ty;
-        if f.hidden {
-            quote! { #[serde(skip_serializing)] pub #fname: #ftype }
-        } else {
-            quote! { pub #fname: #ftype }
-        }
-    }).collect();
+    let field_defs: Vec<TokenStream2> = fields
+        .iter()
+        .map(|f| {
+            let fname = &f.name;
+            let ftype = &f.ty;
+            if f.hidden {
+                quote! { #[serde(skip_serializing)] pub #fname: #ftype }
+            } else {
+                quote! { pub #fname: #ftype }
+            }
+        })
+        .collect();
 
-    let field_defaults: Vec<TokenStream2> = fields.iter().map(|f| {
-        let fname = &f.name;
-        quote! { #fname: Default::default() }
-    }).collect();
+    let field_defaults: Vec<TokenStream2> = fields
+        .iter()
+        .map(|f| {
+            let fname = &f.name;
+            quote! { #fname: Default::default() }
+        })
+        .collect();
 
-    let fillable: Vec<String> = fields.iter()
+    let fillable: Vec<String> = fields
+        .iter()
         .filter(|f| !f.hidden)
         .map(|f| f.name.to_string())
         .collect();
 
-    let hidden: Vec<String> = fields.iter()
+    let hidden: Vec<String> = fields
+        .iter()
         .filter(|f| f.hidden)
         .map(|f| f.name.to_string())
         .collect();
@@ -716,18 +820,19 @@ fn generate_full_model(
     // `password` are legitimate INPUTS (mirroring the Create DTO, which also
     // keeps them), so they stay mass-assignable — `hidden` only affects the
     // model's serialization, not what may be submitted.
-    let mass_assignable: Vec<String> = fields.iter()
-        .map(|f| f.name.to_string())
-        .collect();
+    let mass_assignable: Vec<String> = fields.iter().map(|f| f.name.to_string()).collect();
 
     // Infer validation rules from declared field types (convention over
     // configuration). Every declared field (including `hidden` ones like
     // passwords) contributes a `(name, type_keyword, required)` tuple.
-    let validation_rules: Vec<TokenStream2> = fields.iter().map(|f| {
-        let fname = f.name.to_string();
-        let (kw, required) = infer_field_rule(&f.ty);
-        quote! { (#fname, #kw, #required) }
-    }).collect();
+    let validation_rules: Vec<TokenStream2> = fields
+        .iter()
+        .map(|f| {
+            let fname = f.name.to_string();
+            let (kw, required) = infer_field_rule(&f.ty);
+            quote! { (#fname, #kw, #required) }
+        })
+        .collect();
 
     // ---- Companion request DTOs (convention over configuration) ----------
     // A single Model! declaration also emits `Create<Name>` (all declared,
@@ -742,28 +847,37 @@ fn generate_full_model(
     // Create-DTO fields: every declared field verbatim (hidden fields such as
     // `password` are legitimate *inputs*, so they are kept — `hidden` only
     // affects the model's serialization, not what may be submitted).
-    let create_field_defs: Vec<TokenStream2> = fields.iter().map(|f| {
-        let fname = &f.name;
-        let ftype = &f.ty;
-        quote! { pub #fname: #ftype }
-    }).collect();
+    let create_field_defs: Vec<TokenStream2> = fields
+        .iter()
+        .map(|f| {
+            let fname = &f.name;
+            let ftype = &f.ty;
+            quote! { pub #fname: #ftype }
+        })
+        .collect();
 
     // Update-DTO fields: same names, Option-wrapped (partial update semantics).
-    let update_field_defs: Vec<TokenStream2> = fields.iter().map(|f| {
-        let fname = &f.name;
-        let wrapped = option_wrap(&f.ty);
-        quote! { pub #fname: #wrapped }
-    }).collect();
+    let update_field_defs: Vec<TokenStream2> = fields
+        .iter()
+        .map(|f| {
+            let fname = &f.name;
+            let wrapped = option_wrap(&f.ty);
+            quote! { pub #fname: #wrapped }
+        })
+        .collect();
 
     // Create-DTO rules mirror the entity's inferred rules (required as declared).
     let create_validation_rules = validation_rules.clone();
     // Update-DTO rules: every field is optional, so requiredness is dropped but
     // the inferred TYPE keyword is preserved (still type-checked when present).
-    let update_validation_rules: Vec<TokenStream2> = fields.iter().map(|f| {
-        let fname = f.name.to_string();
-        let (kw, _required) = infer_field_rule(&f.ty);
-        quote! { (#fname, #kw, false) }
-    }).collect();
+    let update_validation_rules: Vec<TokenStream2> = fields
+        .iter()
+        .map(|f| {
+            let fname = f.name.to_string();
+            let (kw, _required) = infer_field_rule(&f.ty);
+            quote! { (#fname, #kw, false) }
+        })
+        .collect();
 
     let dto_defs = quote! {
         /// Request DTO for creating a `#name` (generated from the single Model!
@@ -821,16 +935,22 @@ fn generate_full_model(
     let emit_validate = validated || fields.iter().any(|f| !f.overrides.is_empty());
     let dto_validate_impls = if emit_validate {
         // Create DTO: fields verbatim (Option<T> stays optional).
-        let create_checks: Vec<TokenStream2> = fields.iter().map(|f| {
-            let is_opt = is_option_type(&f.ty);
-            let (kw, _) = infer_field_rule(&f.ty);
-            dto_field_checks(&f.name, is_opt, &kw, &f.overrides)
-        }).collect();
+        let create_checks: Vec<TokenStream2> = fields
+            .iter()
+            .map(|f| {
+                let is_opt = is_option_type(&f.ty);
+                let (kw, _) = infer_field_rule(&f.ty);
+                dto_field_checks(&f.name, is_opt, &kw, &f.overrides)
+            })
+            .collect();
         // Update DTO: every field Option-wrapped -> all optional.
-        let update_checks: Vec<TokenStream2> = fields.iter().map(|f| {
-            let (kw, _) = infer_field_rule(&f.ty);
-            dto_field_checks(&f.name, true, &kw, &f.overrides)
-        }).collect();
+        let update_checks: Vec<TokenStream2> = fields
+            .iter()
+            .map(|f| {
+                let (kw, _) = infer_field_rule(&f.ty);
+                dto_field_checks(&f.name, true, &kw, &f.overrides)
+            })
+            .collect();
 
         quote! {
             #[automatically_derived]
@@ -897,42 +1017,48 @@ fn generate_full_model(
     // (`load_<name>_for`) generated further below alongside the plural accessors.
     let model_name_lower = to_snake_case(&name.to_string());
 
-    let relation_field_defs: Vec<TokenStream2> = relationships.iter().map(|rel| {
-        let field_name = &rel.name;
-        let related_type = &rel.related;
-        match rel.rel_type {
-            RelationType::BelongsTo | RelationType::HasOne => quote! {
-                #[serde(default, skip_serializing_if = "Option::is_none")]
-                pub #field_name: ::std::option::Option<#related_type>
-            },
-            // Eager plural relation FIELD: a populated `Vec<Child>` (default empty
-            // vec, `serde(default)` so it deserializes from rows lacking the key
-            // AND keeps `Default` derivable). Populated by the `load_<name>_for`
-            // grouping batch loader emitted below.
-            // Eager MANY-to-many relation FIELD: a populated `Vec<Related>`
-            // hydrated THROUGH the pivot table by `load_<name>_for` (below).
-            // Same shape as hasMany (default empty vec, `serde(default)` so it
-            // deserializes from rows lacking the key AND keeps `Default`
-            // derivable) — the difference is purely how it is loaded (via the
-            // pivot), not how it is stored.
-            RelationType::HasMany | RelationType::BelongsToMany => quote! {
-                #[serde(default)]
-                pub #field_name: ::std::vec::Vec<#related_type>
-            },
-        }
-    }).collect();
+    let relation_field_defs: Vec<TokenStream2> = relationships
+        .iter()
+        .map(|rel| {
+            let field_name = &rel.name;
+            let related_type = &rel.related;
+            match rel.rel_type {
+                RelationType::BelongsTo | RelationType::HasOne => quote! {
+                    #[serde(default, skip_serializing_if = "Option::is_none")]
+                    pub #field_name: ::std::option::Option<#related_type>
+                },
+                // Eager plural relation FIELD: a populated `Vec<Child>` (default empty
+                // vec, `serde(default)` so it deserializes from rows lacking the key
+                // AND keeps `Default` derivable). Populated by the `load_<name>_for`
+                // grouping batch loader emitted below.
+                // Eager MANY-to-many relation FIELD: a populated `Vec<Related>`
+                // hydrated THROUGH the pivot table by `load_<name>_for` (below).
+                // Same shape as hasMany (default empty vec, `serde(default)` so it
+                // deserializes from rows lacking the key AND keeps `Default`
+                // derivable) — the difference is purely how it is loaded (via the
+                // pivot), not how it is stored.
+                RelationType::HasMany | RelationType::BelongsToMany => quote! {
+                    #[serde(default)]
+                    pub #field_name: ::std::vec::Vec<#related_type>
+                },
+            }
+        })
+        .collect();
 
-    let relation_field_defaults: Vec<TokenStream2> = relationships.iter().map(|rel| {
-        let field_name = &rel.name;
-        match rel.rel_type {
-            RelationType::BelongsTo | RelationType::HasOne => quote! {
-                #field_name: ::std::option::Option::None
-            },
-            RelationType::HasMany | RelationType::BelongsToMany => quote! {
-                #field_name: ::std::vec::Vec::new()
-            },
-        }
-    }).collect();
+    let relation_field_defaults: Vec<TokenStream2> = relationships
+        .iter()
+        .map(|rel| {
+            let field_name = &rel.name;
+            match rel.rel_type {
+                RelationType::BelongsTo | RelationType::HasOne => quote! {
+                    #field_name: ::std::option::Option::None
+                },
+                RelationType::HasMany | RelationType::BelongsToMany => quote! {
+                    #field_name: ::std::vec::Vec::new()
+                },
+            }
+        })
+        .collect();
 
     // Generate relationship methods (plural accessors) + singular batch loaders.
     let relationship_methods: Vec<TokenStream2> = relationships.iter().map(|rel| {
@@ -977,7 +1103,7 @@ fn generate_full_model(
                         let sql = format!("SELECT * FROM {} WHERE {} IN ({})", #related_table, #hasmany_fk, placeholders);
                         let bindings: Vec<serde_json::Value> =
                             ids.iter().map(|&i| serde_json::Value::from(i)).collect();
-                        let children = rf_db_facade::DB::select(&sql, &bindings)?;
+                        let children = rf_db_facade::DB::select_async(&sql, &bindings).await?;
                         // Group children by their foreign key value.
                         let mut by_key: HashMap<i64, Vec<#related_type>> = HashMap::new();
                         for child in children {
@@ -1024,7 +1150,7 @@ fn generate_full_model(
                         let mut bindings: Vec<serde_json::Value> =
                             ids.iter().map(|&i| serde_json::Value::from(i)).collect();
                         bindings.push(value);
-                        let children = rf_db_facade::DB::select(&sql, &bindings)?;
+                        let children = rf_db_facade::DB::select_async(&sql, &bindings).await?;
                         let mut by_key: HashMap<i64, Vec<#related_type>> = HashMap::new();
                         for child in children {
                             if let Some(k) = child.get(#hasmany_fk).and_then(|v| v.as_i64()) {
@@ -1069,7 +1195,7 @@ fn generate_full_model(
                         let sql = format!("SELECT * FROM {} WHERE {} IN ({})", #related_table, #hasone_fk, placeholders);
                         let bindings: Vec<serde_json::Value> =
                             ids.iter().map(|&i| serde_json::Value::from(i)).collect();
-                        let children = rf_db_facade::DB::select(&sql, &bindings)?;
+                        let children = rf_db_facade::DB::select_async(&sql, &bindings).await?;
                         let mut by_key: HashMap<i64, #related_type> = HashMap::new();
                         for child in children {
                             if let Some(k) = child.get(#hasone_fk).and_then(|v| v.as_i64()) {
@@ -1113,7 +1239,7 @@ fn generate_full_model(
                         let mut bindings: Vec<serde_json::Value> =
                             ids.iter().map(|&i| serde_json::Value::from(i)).collect();
                         bindings.push(value);
-                        let children = rf_db_facade::DB::select(&sql, &bindings)?;
+                        let children = rf_db_facade::DB::select_async(&sql, &bindings).await?;
                         let mut by_key: HashMap<i64, #related_type> = HashMap::new();
                         for child in children {
                             if let Some(k) = child.get(#hasone_fk).and_then(|v| v.as_i64()) {
@@ -1163,7 +1289,7 @@ fn generate_full_model(
                         let sql = format!("SELECT * FROM {} WHERE id IN ({})", #related_table, placeholders);
                         let bindings: Vec<serde_json::Value> =
                             ids.iter().map(|&i| serde_json::Value::from(i)).collect();
-                        let parents = rf_db_facade::DB::select(&sql, &bindings)?;
+                        let parents = rf_db_facade::DB::select_async(&sql, &bindings).await?;
                         let mut by_id: HashMap<i64, #related_type> = HashMap::new();
                         for parent in parents {
                             if let Some(id) = parent.get("id").and_then(|v| v.as_i64()) {
@@ -1208,7 +1334,7 @@ fn generate_full_model(
                         let mut bindings: Vec<serde_json::Value> =
                             ids.iter().map(|&i| serde_json::Value::from(i)).collect();
                         bindings.push(value);
-                        let parents = rf_db_facade::DB::select(&sql, &bindings)?;
+                        let parents = rf_db_facade::DB::select_async(&sql, &bindings).await?;
                         let mut by_id: HashMap<i64, #related_type> = HashMap::new();
                         for parent in parents {
                             if let Some(id) = parent.get("id").and_then(|v| v.as_i64()) {
@@ -1276,7 +1402,7 @@ fn generate_full_model(
                         );
                         let bindings: Vec<serde_json::Value> =
                             ids.iter().map(|&i| serde_json::Value::from(i)).collect();
-                        let pivot_rows = rf_db_facade::DB::select(&sql, &bindings)?;
+                        let pivot_rows = rf_db_facade::DB::select_async(&sql, &bindings).await?;
                         // Per-parent list of related ids + the distinct related ids.
                         let mut parent_to_related: HashMap<i64, Vec<i64>> = HashMap::new();
                         let mut related_ids: Vec<i64> = Vec::new();
@@ -1302,7 +1428,7 @@ fn generate_full_model(
                         );
                         let bindings2: Vec<serde_json::Value> =
                             related_ids.iter().map(|&i| serde_json::Value::from(i)).collect();
-                        let related_records = rf_db_facade::DB::select(&sql2, &bindings2)?;
+                        let related_records = rf_db_facade::DB::select_async(&sql2, &bindings2).await?;
                         // Index related models by id.
                         let mut by_id: HashMap<i64, #related_type> = HashMap::new();
                         for rec in related_records {
@@ -1355,7 +1481,7 @@ fn generate_full_model(
                         );
                         let bindings: Vec<serde_json::Value> =
                             ids.iter().map(|&i| serde_json::Value::from(i)).collect();
-                        let pivot_rows = rf_db_facade::DB::select(&sql, &bindings)?;
+                        let pivot_rows = rf_db_facade::DB::select_async(&sql, &bindings).await?;
                         let mut parent_to_related: HashMap<i64, Vec<i64>> = HashMap::new();
                         let mut related_ids: Vec<i64> = Vec::new();
                         for pr in pivot_rows {
@@ -1379,7 +1505,7 @@ fn generate_full_model(
                         let mut bindings2: Vec<serde_json::Value> =
                             related_ids.iter().map(|&i| serde_json::Value::from(i)).collect();
                         bindings2.push(value);
-                        let related_records = rf_db_facade::DB::select(&sql2, &bindings2)?;
+                        let related_records = rf_db_facade::DB::select_async(&sql2, &bindings2).await?;
                         let mut by_id: HashMap<i64, #related_type> = HashMap::new();
                         for rec in related_records {
                             if let Some(id) = rec.get("id").and_then(|v| v.as_i64()) {
@@ -1418,25 +1544,29 @@ fn generate_full_model(
     // belongsToMany) generates a field-populating loader, so all are
     // dispatchable. Unknown names are a clean error naming the offending
     // relation, matching Laravel's "call to undefined relationship".
-    let with_relations_arms: Vec<TokenStream2> = relationships.iter().map(|rel| {
-        match rel.rel_type {
-            // Every eager relation FAMILY now generates a field-populating
-            // `load_<name>_for` batch loader (belongsTo / hasOne / hasMany
-            // direct-FK, belongsToMany through the pivot), so all four are
-            // dispatchable here — each still costs its own batched queries, never
-            // N+1.
-            RelationType::BelongsTo
-            | RelationType::HasOne
-            | RelationType::HasMany
-            | RelationType::BelongsToMany => {
-                let name_str = rel.name.to_string();
-                let loader = syn::Ident::new(&format!("load_{}_for", rel.name), rel.name.span());
-                quote! {
-                    #name_str => { Self::#loader(rows).await?; }
+    let with_relations_arms: Vec<TokenStream2> = relationships
+        .iter()
+        .map(|rel| {
+            match rel.rel_type {
+                // Every eager relation FAMILY now generates a field-populating
+                // `load_<name>_for` batch loader (belongsTo / hasOne / hasMany
+                // direct-FK, belongsToMany through the pivot), so all four are
+                // dispatchable here — each still costs its own batched queries, never
+                // N+1.
+                RelationType::BelongsTo
+                | RelationType::HasOne
+                | RelationType::HasMany
+                | RelationType::BelongsToMany => {
+                    let name_str = rel.name.to_string();
+                    let loader =
+                        syn::Ident::new(&format!("load_{}_for", rel.name), rel.name.span());
+                    quote! {
+                        #name_str => { Self::#loader(rows).await?; }
+                    }
                 }
             }
-        }
-    }).collect();
+        })
+        .collect();
 
     // ---- Constrained eager-load dispatch (`with_where`) ----------------------
     // One match arm per declared relation, inlined into the fetch-time builder's
@@ -1447,15 +1577,19 @@ fn generate_full_model(
     // (belongsTo / hasOne / hasMany / belongsToMany) generates a `_where` loader,
     // so all are dispatchable; the value is a `serde_json::Value` bound exactly
     // like the base loader's `WHERE IN` params.
-    let with_where_arms: Vec<TokenStream2> = relationships.iter().map(|rel| {
-        let name_str = rel.name.to_string();
-        let loader_where = syn::Ident::new(&format!("load_{}_where", rel.name), rel.name.span());
-        quote! {
-            #name_str => {
-                #name::#loader_where(&mut rows, __rf_col.as_str(), __rf_val.clone()).await?;
+    let with_where_arms: Vec<TokenStream2> = relationships
+        .iter()
+        .map(|rel| {
+            let name_str = rel.name.to_string();
+            let loader_where =
+                syn::Ident::new(&format!("load_{}_where", rel.name), rel.name.span());
+            quote! {
+                #name_str => {
+                    #name::#loader_where(&mut rows, __rf_col.as_str(), __rf_val.clone()).await?;
+                }
             }
-        }
-    }).collect();
+        })
+        .collect();
 
     // ---- Nested dot-notation eager loads (Laravel `with("a.b")`) -------------
     // One level of nesting `a.b`: (1) load the first segment `a` with THIS
@@ -1471,68 +1605,71 @@ fn generate_full_model(
     // futures stays a finite, sized type. Because step (3) re-enters
     // `with_relations`, a deeper `rest` (e.g. `a.b.c`) is handled recursively
     // by the child level — the leading arm here only owns the FIRST segment.
-    let nested_arms: Vec<TokenStream2> = relationships.iter().map(|rel| {
-        let name_str = rel.name.to_string();
-        let field_name = &rel.name;
-        let child = &rel.related;
-        let loader = syn::Ident::new(&format!("load_{}_for", rel.name), rel.name.span());
-        let (collect_stmt, regroup_stmt) = match rel.rel_type {
-            RelationType::HasMany | RelationType::BelongsToMany => (
-                quote! { for c in row.#field_name.iter() { children.push(c.clone()); } },
-                quote! {
-                    for c in row.#field_name.iter_mut() {
-                        if let ::std::option::Option::Some(cid) = c.id {
-                            if let ::std::option::Option::Some(h) = by_id.get(&cid) {
-                                *c = h.clone();
+    let nested_arms: Vec<TokenStream2> = relationships
+        .iter()
+        .map(|rel| {
+            let name_str = rel.name.to_string();
+            let field_name = &rel.name;
+            let child = &rel.related;
+            let loader = syn::Ident::new(&format!("load_{}_for", rel.name), rel.name.span());
+            let (collect_stmt, regroup_stmt) = match rel.rel_type {
+                RelationType::HasMany | RelationType::BelongsToMany => (
+                    quote! { for c in row.#field_name.iter() { children.push(c.clone()); } },
+                    quote! {
+                        for c in row.#field_name.iter_mut() {
+                            if let ::std::option::Option::Some(cid) = c.id {
+                                if let ::std::option::Option::Some(h) = by_id.get(&cid) {
+                                    *c = h.clone();
+                                }
                             }
                         }
-                    }
-                },
-            ),
-            RelationType::BelongsTo | RelationType::HasOne => (
-                quote! {
-                    if let ::std::option::Option::Some(c) = row.#field_name.as_ref() {
-                        children.push(c.clone());
-                    }
-                },
-                quote! {
-                    if let ::std::option::Option::Some(c) = row.#field_name.as_mut() {
-                        if let ::std::option::Option::Some(cid) = c.id {
-                            if let ::std::option::Option::Some(h) = by_id.get(&cid) {
-                                *c = h.clone();
+                    },
+                ),
+                RelationType::BelongsTo | RelationType::HasOne => (
+                    quote! {
+                        if let ::std::option::Option::Some(c) = row.#field_name.as_ref() {
+                            children.push(c.clone());
+                        }
+                    },
+                    quote! {
+                        if let ::std::option::Option::Some(c) = row.#field_name.as_mut() {
+                            if let ::std::option::Option::Some(cid) = c.id {
+                                if let ::std::option::Option::Some(h) = by_id.get(&cid) {
+                                    *c = h.clone();
+                                }
                             }
                         }
+                    },
+                ),
+            };
+            quote! {
+                #name_str => {
+                    // (1) load the first segment with THIS model's own loader.
+                    Self::#loader(rows).await?;
+                    // (2) collect the hydrated children into one flat vec.
+                    let mut children: ::std::vec::Vec<#child> = ::std::vec::Vec::new();
+                    for row in rows.iter() { #collect_stmt }
+                    // (3) hydrate the remaining path on the CHILD type. The child's
+                    // `with_relations` now itself returns a CONCRETE boxed
+                    // `Pin<Box<dyn Future + Send>>` (see its definition), so the
+                    // mutual `with_relations` recursion is already a finite, sized,
+                    // NAMED type — no extra boxing needed here, and the opaque-type
+                    // inference cycle that a bidirectional model graph would
+                    // otherwise form (E0391) never arises. The one-element name
+                    // slice is bound to a `let` so it outlives the future.
+                    let rest_names = [rest];
+                    #child::with_relations(&mut children, &rest_names).await?;
+                    // (4) regroup the hydrated children back by their own id.
+                    let mut by_id: ::std::collections::HashMap<i64, #child> =
+                        ::std::collections::HashMap::new();
+                    for c in children {
+                        if let ::std::option::Option::Some(cid) = c.id { by_id.insert(cid, c); }
                     }
-                },
-            ),
-        };
-        quote! {
-            #name_str => {
-                // (1) load the first segment with THIS model's own loader.
-                Self::#loader(rows).await?;
-                // (2) collect the hydrated children into one flat vec.
-                let mut children: ::std::vec::Vec<#child> = ::std::vec::Vec::new();
-                for row in rows.iter() { #collect_stmt }
-                // (3) hydrate the remaining path on the CHILD type. The child's
-                // `with_relations` now itself returns a CONCRETE boxed
-                // `Pin<Box<dyn Future + Send>>` (see its definition), so the
-                // mutual `with_relations` recursion is already a finite, sized,
-                // NAMED type — no extra boxing needed here, and the opaque-type
-                // inference cycle that a bidirectional model graph would
-                // otherwise form (E0391) never arises. The one-element name
-                // slice is bound to a `let` so it outlives the future.
-                let rest_names = [rest];
-                #child::with_relations(&mut children, &rest_names).await?;
-                // (4) regroup the hydrated children back by their own id.
-                let mut by_id: ::std::collections::HashMap<i64, #child> =
-                    ::std::collections::HashMap::new();
-                for c in children {
-                    if let ::std::option::Option::Some(cid) = c.id { by_id.insert(cid, c); }
+                    for row in rows.iter_mut() { #regroup_stmt }
                 }
-                for row in rows.iter_mut() { #regroup_stmt }
             }
-        }
-    }).collect();
+        })
+        .collect();
 
     // ---- Constrained nested dot-notation eager loads -------------------------
     // Same one-level nesting as `nested_arms`, but the FIRST segment is loaded
@@ -1543,61 +1680,65 @@ fn generate_full_model(
     // hydrate the remaining path `b` on the CHILD type, regroup by child id.
     // Constraining DEEPER segments (`b`) stays a documented follow-up; the first
     // segment's constraint is what these arms guarantee.
-    let nested_where_arms: Vec<TokenStream2> = relationships.iter().map(|rel| {
-        let name_str = rel.name.to_string();
-        let field_name = &rel.name;
-        let child = &rel.related;
-        let loader_where = syn::Ident::new(&format!("load_{}_where", rel.name), rel.name.span());
-        let (collect_stmt, regroup_stmt) = match rel.rel_type {
-            RelationType::HasMany | RelationType::BelongsToMany => (
-                quote! { for c in row.#field_name.iter() { children.push(c.clone()); } },
-                quote! {
-                    for c in row.#field_name.iter_mut() {
-                        if let ::std::option::Option::Some(cid) = c.id {
-                            if let ::std::option::Option::Some(h) = by_id.get(&cid) {
-                                *c = h.clone();
+    let nested_where_arms: Vec<TokenStream2> = relationships
+        .iter()
+        .map(|rel| {
+            let name_str = rel.name.to_string();
+            let field_name = &rel.name;
+            let child = &rel.related;
+            let loader_where =
+                syn::Ident::new(&format!("load_{}_where", rel.name), rel.name.span());
+            let (collect_stmt, regroup_stmt) = match rel.rel_type {
+                RelationType::HasMany | RelationType::BelongsToMany => (
+                    quote! { for c in row.#field_name.iter() { children.push(c.clone()); } },
+                    quote! {
+                        for c in row.#field_name.iter_mut() {
+                            if let ::std::option::Option::Some(cid) = c.id {
+                                if let ::std::option::Option::Some(h) = by_id.get(&cid) {
+                                    *c = h.clone();
+                                }
                             }
                         }
-                    }
-                },
-            ),
-            RelationType::BelongsTo | RelationType::HasOne => (
-                quote! {
-                    if let ::std::option::Option::Some(c) = row.#field_name.as_ref() {
-                        children.push(c.clone());
-                    }
-                },
-                quote! {
-                    if let ::std::option::Option::Some(c) = row.#field_name.as_mut() {
-                        if let ::std::option::Option::Some(cid) = c.id {
-                            if let ::std::option::Option::Some(h) = by_id.get(&cid) {
-                                *c = h.clone();
+                    },
+                ),
+                RelationType::BelongsTo | RelationType::HasOne => (
+                    quote! {
+                        if let ::std::option::Option::Some(c) = row.#field_name.as_ref() {
+                            children.push(c.clone());
+                        }
+                    },
+                    quote! {
+                        if let ::std::option::Option::Some(c) = row.#field_name.as_mut() {
+                            if let ::std::option::Option::Some(cid) = c.id {
+                                if let ::std::option::Option::Some(h) = by_id.get(&cid) {
+                                    *c = h.clone();
+                                }
                             }
                         }
+                    },
+                ),
+            };
+            quote! {
+                #name_str => {
+                    // (1) load the FIRST segment CONSTRAINED so `with_where` applies.
+                    #name::#loader_where(&mut rows, __rf_col.as_str(), __rf_val.clone()).await?;
+                    // (2) collect the (constrained) hydrated children into one vec.
+                    let mut children: ::std::vec::Vec<#child> = ::std::vec::Vec::new();
+                    for row in rows.iter() { #collect_stmt }
+                    // (3) hydrate the remaining path on the CHILD type.
+                    let rest_names = [__rf_rest];
+                    #child::with_relations(&mut children, &rest_names).await?;
+                    // (4) regroup the hydrated children back by their own id.
+                    let mut by_id: ::std::collections::HashMap<i64, #child> =
+                        ::std::collections::HashMap::new();
+                    for c in children {
+                        if let ::std::option::Option::Some(cid) = c.id { by_id.insert(cid, c); }
                     }
-                },
-            ),
-        };
-        quote! {
-            #name_str => {
-                // (1) load the FIRST segment CONSTRAINED so `with_where` applies.
-                #name::#loader_where(&mut rows, __rf_col.as_str(), __rf_val.clone()).await?;
-                // (2) collect the (constrained) hydrated children into one vec.
-                let mut children: ::std::vec::Vec<#child> = ::std::vec::Vec::new();
-                for row in rows.iter() { #collect_stmt }
-                // (3) hydrate the remaining path on the CHILD type.
-                let rest_names = [__rf_rest];
-                #child::with_relations(&mut children, &rest_names).await?;
-                // (4) regroup the hydrated children back by their own id.
-                let mut by_id: ::std::collections::HashMap<i64, #child> =
-                    ::std::collections::HashMap::new();
-                for c in children {
-                    if let ::std::option::Option::Some(cid) = c.id { by_id.insert(cid, c); }
+                    for row in rows.iter_mut() { #regroup_stmt }
                 }
-                for row in rows.iter_mut() { #regroup_stmt }
             }
-        }
-    }).collect();
+        })
+        .collect();
 
     // Generate soft delete methods
     let soft_delete_methods = if soft_deletes {
@@ -1769,8 +1910,7 @@ fn generate_full_model(
 
             /// Run the fetch and return typed rows with the requested relations
             /// eagerly populated. ONE `SELECT` (this builder's QueryBuilder) is
-            /// deserialized into `Vec<#name>` (rows that fail to deserialize are
-            /// skipped, mirroring the loaders), then `#name::with_relations`
+            /// deserialized into `Vec<#name>` (mapping failures return an error), then `#name::with_relations`
             /// hydrates each requested relation with its own batched query — so
             /// K relations + 1 fetch = K+1 queries, never N+1. With no requested
             /// relations this is a plain typed fetch.
@@ -1779,8 +1919,9 @@ fn generate_full_model(
                 let values = query.get().await?;
                 let mut rows: ::std::vec::Vec<#name> = values
                     .into_iter()
-                    .filter_map(|v| serde_json::from_value(v).ok())
-                    .collect();
+                    .map(serde_json::from_value)
+                    .collect::<::std::result::Result<_, _>>()
+                    .map_err(|e| format!("Failed to decode {} row: {}", stringify!(#name), e))?;
                 // Per-relation dispatch: a relation carrying a `with_where`
                 // constraint is hydrated by its constrained `load_<name>_where`
                 // loader (batched query + `AND column = value`); every other
@@ -1878,16 +2019,16 @@ fn generate_full_model(
             /// (Laravel's `Model::all()`, but concrete rows instead of the
             /// trait's `Vec<serde_json::Value>`). Runs ONE `SELECT *` through the
             /// real `rf_db_facade::QueryBuilder` then deserializes each `Value`
-            /// into `Self` (rows that fail to deserialize are skipped, mirroring
-            /// the `with(...).get()` builder). Named `all_typed` so it does NOT
+            /// into `Self`, returning an error if any row cannot be decoded. Named `all_typed` so it does NOT
             /// shadow the `Model` trait's `all()`.
             pub async fn all_typed() -> ::std::result::Result<::std::vec::Vec<#name>, String> {
                 let values = rf_db_facade::QueryBuilder::new(#table_name).get().await?;
                 ::std::result::Result::Ok(
                     values
                         .into_iter()
-                        .filter_map(|v| serde_json::from_value(v).ok())
-                        .collect(),
+                        .map(serde_json::from_value)
+                        .collect::<::std::result::Result<_, _>>()
+                        .map_err(|e| format!("Failed to decode {} row: {}", stringify!(#name), e))?,
                 )
             }
 
@@ -1895,8 +2036,7 @@ fn generate_full_model(
             /// `Model::paginate($perPage, $page)` — no `query()` chaining needed).
             /// Delegates to the real `rf_db_facade::QueryBuilder::paginate`, which
             /// runs the limited/offset fetch AND a `COUNT(*)`, then deserializes
-            /// the page's `Value` items into `Self` (undeserializable rows
-            /// skipped, mirroring `all_typed`/`with(...).get()`) while preserving
+            /// the page's `Value` items into `Self` (mapping failures return an error) while preserving
             /// the engine's real `total` / `per_page` / `current_page` /
             /// `last_page` metadata. `page` is 1-based.
             pub async fn paginate(per_page: usize, page: usize) -> ::std::result::Result<#page_name, String> {
@@ -1906,8 +2046,9 @@ fn generate_full_model(
                 let data: ::std::vec::Vec<#name> = result
                     .data
                     .into_iter()
-                    .filter_map(|v| serde_json::from_value(v).ok())
-                    .collect();
+                    .map(serde_json::from_value)
+                    .collect::<::std::result::Result<_, _>>()
+                    .map_err(|e| format!("Failed to decode {} row: {}", stringify!(#name), e))?;
                 ::std::result::Result::Ok(#page_name {
                     data,
                     total: result.total,
@@ -2172,26 +2313,34 @@ fn generate_full_model(
 fn generate_simple_model(name: Ident, fields: Vec<InferredField>) -> TokenStream {
     let table_name = format!("{}s", to_snake_case(&name.to_string()));
 
-    let field_defs: Vec<TokenStream2> = fields.iter().map(|f| {
-        let fname = &f.name;
-        if f.hidden {
-            quote! { #[serde(skip_serializing)] pub #fname: String }
-        } else {
-            quote! { pub #fname: String }
-        }
-    }).collect();
+    let field_defs: Vec<TokenStream2> = fields
+        .iter()
+        .map(|f| {
+            let fname = &f.name;
+            if f.hidden {
+                quote! { #[serde(skip_serializing)] pub #fname: String }
+            } else {
+                quote! { pub #fname: String }
+            }
+        })
+        .collect();
 
-    let field_defaults: Vec<TokenStream2> = fields.iter().map(|f| {
-        let fname = &f.name;
-        quote! { #fname: String::new() }
-    }).collect();
+    let field_defaults: Vec<TokenStream2> = fields
+        .iter()
+        .map(|f| {
+            let fname = &f.name;
+            quote! { #fname: String::new() }
+        })
+        .collect();
 
-    let fillable: Vec<String> = fields.iter()
+    let fillable: Vec<String> = fields
+        .iter()
         .filter(|f| !f.hidden)
         .map(|f| f.name.to_string())
         .collect();
 
-    let hidden: Vec<String> = fields.iter()
+    let hidden: Vec<String> = fields
+        .iter()
         .filter(|f| f.hidden)
         .map(|f| f.name.to_string())
         .collect();
@@ -2199,16 +2348,17 @@ fn generate_simple_model(name: Ident, fields: Vec<InferredField>) -> TokenStream
     // Mass-assignable (Laravel's `$fillable`): every declared field. `hidden`
     // fields are legitimate inputs, so they stay mass-assignable. See
     // `generate_full_model` for the full rationale.
-    let mass_assignable: Vec<String> = fields.iter()
-        .map(|f| f.name.to_string())
-        .collect();
+    let mass_assignable: Vec<String> = fields.iter().map(|f| f.name.to_string()).collect();
 
     // Simple-syntax fields are all `String`, so every one infers a required
     // string validation rule.
-    let validation_rules: Vec<TokenStream2> = fields.iter().map(|f| {
-        let fname = f.name.to_string();
-        quote! { (#fname, "string", true) }
-    }).collect();
+    let validation_rules: Vec<TokenStream2> = fields
+        .iter()
+        .map(|f| {
+            let fname = f.name.to_string();
+            quote! { (#fname, "string", true) }
+        })
+        .collect();
 
     // ---- Companion request DTOs (see generate_full_model) ----------------
     // Simple-syntax fields are all `String`, so Create<Name> takes `String`
@@ -2216,21 +2366,30 @@ fn generate_simple_model(name: Ident, fields: Vec<InferredField>) -> TokenStream
     let create_name = syn::Ident::new(&format!("Create{}", name), name.span());
     let update_name = syn::Ident::new(&format!("Update{}", name), name.span());
 
-    let create_field_defs: Vec<TokenStream2> = fields.iter().map(|f| {
-        let fname = &f.name;
-        quote! { pub #fname: String }
-    }).collect();
+    let create_field_defs: Vec<TokenStream2> = fields
+        .iter()
+        .map(|f| {
+            let fname = &f.name;
+            quote! { pub #fname: String }
+        })
+        .collect();
 
-    let update_field_defs: Vec<TokenStream2> = fields.iter().map(|f| {
-        let fname = &f.name;
-        quote! { pub #fname: ::std::option::Option<String> }
-    }).collect();
+    let update_field_defs: Vec<TokenStream2> = fields
+        .iter()
+        .map(|f| {
+            let fname = &f.name;
+            quote! { pub #fname: ::std::option::Option<String> }
+        })
+        .collect();
 
     let create_validation_rules = validation_rules.clone();
-    let update_validation_rules: Vec<TokenStream2> = fields.iter().map(|f| {
-        let fname = f.name.to_string();
-        quote! { (#fname, "string", false) }
-    }).collect();
+    let update_validation_rules: Vec<TokenStream2> = fields
+        .iter()
+        .map(|f| {
+            let fname = f.name.to_string();
+            quote! { (#fname, "string", false) }
+        })
+        .collect();
 
     let dto_defs = quote! {
         /// Request DTO for creating a `#name` (generated from the single Model!
@@ -2305,8 +2464,9 @@ fn generate_simple_model(name: Ident, fields: Vec<InferredField>) -> TokenStream
                 ::std::result::Result::Ok(
                     values
                         .into_iter()
-                        .filter_map(|v| serde_json::from_value(v).ok())
-                        .collect(),
+                        .map(serde_json::from_value)
+                        .collect::<::std::result::Result<_, _>>()
+                        .map_err(|e| format!("Failed to decode {} row: {}", stringify!(#name), e))?,
                 )
             }
 
@@ -2322,8 +2482,9 @@ fn generate_simple_model(name: Ident, fields: Vec<InferredField>) -> TokenStream
                 let data: ::std::vec::Vec<#name> = result
                     .data
                     .into_iter()
-                    .filter_map(|v| serde_json::from_value(v).ok())
-                    .collect();
+                    .map(serde_json::from_value)
+                    .collect::<::std::result::Result<_, _>>()
+                    .map_err(|e| format!("Failed to decode {} row: {}", stringify!(#name), e))?;
                 ::std::result::Result::Ok(#page_name {
                     data,
                     total: result.total,
@@ -2551,7 +2712,10 @@ fn dto_field_checks(
         match ov {
             FieldOverride::Max(n) if is_string => {
                 let n = *n;
-                let msg = msg_for(format!("The {} field must be at most {} characters.", name_str, n));
+                let msg = msg_for(format!(
+                    "The {} field must be at most {} characters.",
+                    name_str, n
+                ));
                 inner.push(quote! {
                     if value.len() > #n {
                         let mut error = rf_validation::ext_validator::ValidationError::new("length");
@@ -2562,7 +2726,10 @@ fn dto_field_checks(
             }
             FieldOverride::Min(n) if is_string => {
                 let n = *n;
-                let msg = msg_for(format!("The {} field must be at least {} characters.", name_str, n));
+                let msg = msg_for(format!(
+                    "The {} field must be at least {} characters.",
+                    name_str, n
+                ));
                 inner.push(quote! {
                     if value.len() < #n {
                         let mut error = rf_validation::ext_validator::ValidationError::new("length");
@@ -2572,7 +2739,10 @@ fn dto_field_checks(
                 });
             }
             FieldOverride::Email => {
-                let msg = msg_for(format!("The {} field must be a valid email address.", name_str));
+                let msg = msg_for(format!(
+                    "The {} field must be a valid email address.",
+                    name_str
+                ));
                 inner.push(quote! {
                     if !rf_validation::validators::email::validate_email(value) {
                         let mut error = rf_validation::ext_validator::ValidationError::new("email");
@@ -2608,7 +2778,10 @@ fn dto_field_checks(
             // `@ ip` parallels `@ url`, reusing the real rf_validation ip
             // validator (accepts IPv4 OR IPv6). String fields only.
             FieldOverride::Ip if is_string => {
-                let msg = msg_for(format!("The {} field must be a valid IP address.", name_str));
+                let msg = msg_for(format!(
+                    "The {} field must be a valid IP address.",
+                    name_str
+                ));
                 inner.push(quote! {
                     if !rf_validation::validators::ip::validate_ip(value) {
                         let mut error = rf_validation::ext_validator::ValidationError::new("ip");
@@ -2668,7 +2841,10 @@ fn dto_field_checks(
             // `@ alphanumeric` parallels `@ alpha`: letters+digits check inlined
             // exactly as rf_validation `AlphaNumericRule`. String fields only.
             FieldOverride::AlphaNumeric if is_string => {
-                let msg = msg_for(format!("The {} field must contain only letters and numbers.", name_str));
+                let msg = msg_for(format!(
+                    "The {} field must contain only letters and numbers.",
+                    name_str
+                ));
                 inner.push(quote! {
                     if value.is_empty() || !value.chars().all(|c| c.is_alphanumeric()) {
                         let mut error = rf_validation::ext_validator::ValidationError::new("alpha_numeric");
@@ -2680,7 +2856,10 @@ fn dto_field_checks(
             // `@ starts_with("prefix")` parallels `@ regex`: prefix check inlined
             // exactly as rf_validation `StartsWithRule`. String fields only.
             FieldOverride::StartsWith(prefix) if is_string => {
-                let msg = msg_for(format!("The {} field must start with '{}'.", name_str, prefix));
+                let msg = msg_for(format!(
+                    "The {} field must start with '{}'.",
+                    name_str, prefix
+                ));
                 inner.push(quote! {
                     if !value.starts_with(#prefix) {
                         let mut error = rf_validation::ext_validator::ValidationError::new("starts_with");
@@ -2692,7 +2871,10 @@ fn dto_field_checks(
             // `@ ends_with("suffix")` parallels `@ starts_with`: suffix check
             // inlined exactly as rf_validation `EndsWithRule`. String fields only.
             FieldOverride::EndsWith(suffix) if is_string => {
-                let msg = msg_for(format!("The {} field must end with '{}'.", name_str, suffix));
+                let msg = msg_for(format!(
+                    "The {} field must end with '{}'.",
+                    name_str, suffix
+                ));
                 inner.push(quote! {
                     if !value.ends_with(#suffix) {
                         let mut error = rf_validation::ext_validator::ValidationError::new("ends_with");
@@ -2749,8 +2931,8 @@ fn dto_field_checks(
 fn keyword_for_ident(ident: &str) -> String {
     match ident {
         "String" | "str" => "string",
-        "i8" | "i16" | "i32" | "i64" | "i128" | "isize" | "u8" | "u16" | "u32" | "u64"
-        | "u128" | "usize" => "integer",
+        "i8" | "i16" | "i32" | "i64" | "i128" | "isize" | "u8" | "u16" | "u32" | "u64" | "u128"
+        | "usize" => "integer",
         "f32" | "f64" => "numeric",
         "bool" => "boolean",
         _ => "",

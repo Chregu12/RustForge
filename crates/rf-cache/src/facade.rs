@@ -82,6 +82,65 @@ impl IntoTtl for Duration {
 pub struct Cache;
 
 impl Cache {
+    /// Non-blocking facade access for HTTP handlers; uses the same cache manager.
+    pub async fn get_async<T: DeserializeOwned + Send + 'static>(
+        key: &str,
+    ) -> CacheResult<Option<T>> {
+        let key = key.to_owned();
+        tokio::task::spawn_blocking(move || Self::get(&key))
+            .await
+            .map_err(|e| crate::CacheError::Backend(e.to_string()))?
+    }
+
+    pub async fn put_async<T: Serialize + Sync, TTL: IntoTtl>(
+        key: &str,
+        value: T,
+        ttl: TTL,
+    ) -> CacheResult<()> {
+        let key = key.to_owned();
+        let value = serde_json::to_value(value)
+            .map_err(|e| crate::CacheError::Serialization(e.to_string()))?;
+        let ttl = ttl.into_duration();
+        tokio::task::spawn_blocking(move || Self::put(&key, value, ttl))
+            .await
+            .map_err(|e| crate::CacheError::Backend(e.to_string()))?
+    }
+
+    pub async fn remember_async<T, F, Fut, TTL>(key: &str, ttl: TTL, callback: F) -> CacheResult<T>
+    where
+        T: Serialize + DeserializeOwned + Send + Sync + 'static,
+        F: FnOnce() -> Fut,
+        Fut: std::future::Future<Output = CacheResult<T>>,
+        TTL: IntoTtl,
+    {
+        if let Some(value) = Self::get_async(key).await? {
+            return Ok(value);
+        }
+        let value = callback().await?;
+        Self::put_async(key, &value, ttl).await?;
+        Ok(value)
+    }
+
+    pub async fn forget_async(key: &str) -> CacheResult<()> {
+        let key = key.to_owned();
+        tokio::task::spawn_blocking(move || Self::forget(&key))
+            .await
+            .map_err(|e| crate::CacheError::Backend(e.to_string()))?
+    }
+
+    pub async fn has_async(key: &str) -> CacheResult<bool> {
+        let key = key.to_owned();
+        tokio::task::spawn_blocking(move || Self::has(&key))
+            .await
+            .map_err(|e| crate::CacheError::Backend(e.to_string()))?
+    }
+
+    pub async fn flush_async() -> CacheResult<()> {
+        tokio::task::spawn_blocking(Self::flush)
+            .await
+            .map_err(|e| crate::CacheError::Backend(e.to_string()))?
+    }
+
     /// Get a value from cache
     ///
     /// # Examples
@@ -243,11 +302,7 @@ impl Cache {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn remember<T, F, Fut, TTL: IntoTtl>(
-        key: &str,
-        ttl: TTL,
-        f: F,
-    ) -> CacheResult<T>
+    pub fn remember<T, F, Fut, TTL: IntoTtl>(key: &str, ttl: TTL, f: F) -> CacheResult<T>
     where
         T: Serialize + DeserializeOwned + Send + Sync + 'static,
         F: FnOnce() -> Fut + Send,
@@ -271,10 +326,7 @@ impl Cache {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn remember_forever<T, F, Fut>(
-        key: &str,
-        f: F,
-    ) -> CacheResult<T>
+    pub fn remember_forever<T, F, Fut>(key: &str, f: F) -> CacheResult<T>
     where
         T: Serialize + DeserializeOwned + Send + Sync + 'static,
         F: FnOnce() -> Fut + Send,

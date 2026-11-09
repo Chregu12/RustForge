@@ -114,28 +114,14 @@ Experimental crates are tracked in the `members` list of the workspace
 
 ## MSRV policy
 
-### Declared MSRV
+### Declared and tested MSRV
 
-**Minimum Supported Rust Version: 1.79.0**
+**Minimum Supported Rust Version: 1.96.0**
 
-This MSRV is declared via `rust-version = "1.79.0"` in the key public crates
-(see `[workspace.package]` in the root `Cargo.toml`, and the individual crate
-`Cargo.toml` files for `rf-core`, `rf-web`, `rf-validation`, `rf-macros`,
-`rf-routing`, and the `rf` / `rustforge` umbrella crates).
-
-When a user's toolchain is older than 1.79.0, `cargo` will refuse to build
-and print a clear "toolchain is older than MSRV" error.
-
-### Tested toolchain
-
-The workspace is **pinned to Rust 1.96.0** via `rust-toolchain.toml`. All CI
-jobs and local `cargo check --workspace` runs use this pinned toolchain.
-1.79.0 is the MINIMUM we claim to support; 1.96.0 is the version we
-actually test on.
-
-The CI `msrv` job (`.github/workflows/ci.yml`) verifies the Stable surface
-compiles on Rust 1.79.0 using `dtolnay/rust-toolchain@1.79.0`. It does not
-run `-Dwarnings` because newer lints may not exist on older compilers.
+The workspace and public package manifests declare 1.96.0. The `msrv` CI job
+explicitly runs `cargo +1.96.0 check --locked -p rf -p rustforge`. The earlier
+1.79 declaration was not verified: rust-toolchain.toml selected 1.96 even after
+the job installed 1.79. The development snapshot withdraws that claim.
 
 ### MSRV bump policy
 
@@ -220,7 +206,7 @@ rf-cache      = { git = "https://github.com/Chregu12/RustForge", tag = "v1.0.0-r
 
 ### Version scheme
 
-All Stable crates share a single version number (currently `1.0.0-rc.1`)
+All Stable crates share a single version number (currently `1.0.0-rc.3`)
 defined in `[workspace.package].version` in the root `Cargo.toml`. Internal
 and experimental crates also inherit this version for consistency, even though
 they carry no semver guarantee. The rationale: all crates are released

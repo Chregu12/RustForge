@@ -13,6 +13,7 @@ keywords = ["web", "framework", "laravel", "rust", "prelude"]
 categories = ["web-programming::http-server", "web-programming"]
 
 [dependencies]
+axum.workspace = true
 # All facades are now merged into their main crates:
 # - Route facade → rf-routing/src/facade/
 # - DB facade → rf-orm/src/facade/

@@ -74,7 +74,10 @@ impl Parse for Field {
             } else {
                 Vec::new()
             };
-            ops.push(Op { name: op_name, args });
+            ops.push(Op {
+                name: op_name,
+                args,
+            });
         }
 
         Ok(Field { name, ty, ops })
@@ -110,7 +113,7 @@ fn base_rule(ty: &str) -> Option<Ident> {
         "float" | "decimal" | "number" => "NumericRule",
         "date" | "datetime" => "DateRule",
         "array" => "ArrayRule",
-        "bool" | "boolean" => return None, // present-only (no boolean rule yet)
+        "bool" | "boolean" => "BooleanRule",
         _ => return None,
     };
     Some(Ident::new(name, proc_macro2::Span::call_site()))
@@ -294,6 +297,14 @@ pub fn validate_impl(input: TokenStream) -> TokenStream {
             match op.name.to_string().as_str() {
                 "optional" | "nullable" => {}
                 "min" => {
+                    if op.args.len() != 1 {
+                        return syn::Error::new(
+                            op.name.span(),
+                            "validate!: .min requires 1 argument(s)",
+                        )
+                        .to_compile_error()
+                        .into();
+                    }
                     let arg = &op.args[0];
                     if numeric {
                         rule_exprs.push(boxed(
@@ -306,6 +317,14 @@ pub fn validate_impl(input: TokenStream) -> TokenStream {
                     }
                 }
                 "max" => {
+                    if op.args.len() != 1 {
+                        return syn::Error::new(
+                            op.name.span(),
+                            "validate!: .max requires 1 argument(s)",
+                        )
+                        .to_compile_error()
+                        .into();
+                    }
                     let arg = &op.args[0];
                     if numeric {
                         rule_exprs.push(boxed(
@@ -318,6 +337,14 @@ pub fn validate_impl(input: TokenStream) -> TokenStream {
                     }
                 }
                 "between" => {
+                    if op.args.len() != 2 {
+                        return syn::Error::new(
+                            op.name.span(),
+                            "validate!: .between requires 2 argument(s)",
+                        )
+                        .to_compile_error()
+                        .into();
+                    }
                     let lo = &op.args[0];
                     let hi = &op.args[1];
                     rule_exprs.push(boxed(

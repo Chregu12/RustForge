@@ -98,26 +98,28 @@
 
 // Standard library re-exports
 pub use std::time::Duration;
+pub mod app;
+pub use app::App;
 
 // Facades (from merged locations in main crates)
-pub use rf_routing::{RouteFacade as Route, global_router, GlobalRouter};
 pub use rf_auth::Auth;
+pub use rf_routing::{global_router, GlobalRouter, RouteFacade as Route};
 // Ready-made bearer-auth guard: `route_layer(from_fn(rf::require_auth))` rejects
 // unauthenticated requests with a JSON 401 before the handler + its body extractors.
 pub use rf_auth::require_auth;
-pub use rf_orm::DB;
 pub use rf_cache::CacheFacade as Cache;
 pub use rf_events::EventFacade as Event;
-pub use rf_storage::StorageFacade as Storage;
 pub use rf_logging::Log;
 pub use rf_mail::MailFacade as Mail;
+pub use rf_orm::DB;
+pub use rf_storage::StorageFacade as Storage;
 // Process-global broadcasting facade: `Broadcast::event(channel, name, data)`
 // (and `Broadcast::to(..).event(..).with(..)`) publish over the global default
 // broadcaster with no `Arc` threaded — callable from inside a background job.
 pub use rf_broadcast::Broadcast;
-pub use rf_web::SessionFacade as Session;
 pub use rf_config::Config;
 pub use rf_view::ViewFacade as View;
+pub use rf_web::SessionFacade as Session;
 
 // Ambient request globals (behind the `capture_request` middleware):
 // callable as `rf::input("field")`, `rf::file("upload")`, `rf::has("field")`,
@@ -131,40 +133,40 @@ pub use rf_request::{all, file, has, input};
 pub use rf_web::{in_session_scope, session_scope};
 
 // Helpers
-pub use rf_global_helpers::Hash;
-pub use rf_global_helpers::redirect;
 pub use rf_global_helpers::csrf_token;
+pub use rf_global_helpers::redirect;
+pub use rf_global_helpers::Hash;
 
 // Collections
-pub use rf_collections::Collection;
 pub use rf_collections::collect;
+pub use rf_collections::Collection;
 
 // Macros
-pub use rf_macros::rules;
-pub use rf_macros::route;
 pub use rf_macros::controller;
+pub use rf_macros::route;
+pub use rf_macros::rules;
 pub use rf_macros::Model;
 
 // Eloquent CRUD Macros (Laravel-style without json! or .await!)
-pub use rf_macros::update;
 pub use rf_macros::create;
-pub use rf_macros::find;
 pub use rf_macros::delete;
+pub use rf_macros::find;
+pub use rf_macros::update;
 
 // Laravel Helper Macros (Phase 23)
-pub use rf_macros::routes;        // Route definition without || (German keyboard friendly)
-pub use rf_macros::migration;     // Database migration DSL
-pub use rf_macros::request;       // Form request validation
-pub use rf_macros::send_mail;     // Email sending
-pub use rf_macros::dispatch;      // Event dispatching
-pub use rf_macros::job;           // Background job definition
+pub use rf_macros::dispatch; // Event dispatching
+pub use rf_macros::job;
+pub use rf_macros::migration; // Database migration DSL
+pub use rf_macros::request; // Form request validation
+pub use rf_macros::routes; // Route definition without || (German keyboard friendly)
+pub use rf_macros::send_mail; // Email sending // Background job definition
 
 // Validation
 pub use rf_validation_derive::Validate;
 
 // Errors
-pub use rf_errors::RustForgeError;
 pub use rf_errors::Result;
+pub use rf_errors::RustForgeError;
 
 // Response
 pub use rf_response::Response;
@@ -181,6 +183,8 @@ pub use rf_response::Response;
 ///
 /// Includes: Route, Auth, DB, Cache, Hash, Collection, Response, etc.
 pub mod prelude {
+    pub use crate::App;
+    pub use rf_orm::{DatabaseConfig, DatabaseManager};
     // Standard library
     pub use std::time::Duration;
 
@@ -195,30 +199,30 @@ pub mod prelude {
     pub use rf_routing::resource;
     // Implicit-request global helpers (behind the `capture_request` middleware):
     // `file("image")`, `input("title")`, `has("title")`, `all()`.
-    pub use rf_request::{all, file, has, input};
     pub use rf_auth::Auth;
+    pub use rf_request::{all, file, has, input};
     // Ready-made bearer-auth guard middleware for protected routes:
     // `.route_layer(axum::middleware::from_fn(require_auth))` returns a JSON 401
     // before the handler and its body extractors run (so auth precedes any 422).
     pub use rf_auth::require_auth;
-    pub use rf_orm::DB;
     pub use rf_cache::CacheFacade as Cache;
     pub use rf_events::EventFacade as Event;
-    pub use rf_storage::StorageFacade as Storage;
     pub use rf_logging::Log;
     pub use rf_mail::MailFacade as Mail;
+    pub use rf_orm::DB;
+    pub use rf_storage::StorageFacade as Storage;
     // Process-global broadcasting facade (handle-free, job-safe): mirrors the
     // Cache/Mail/Event facades. `Broadcast::event(channel, name, data)` publishes
     // over the global default broadcaster that `websocket_router_default()`
     // serves, so a background job can broadcast with no `Arc` threaded.
     pub use rf_broadcast::Broadcast;
-    pub use rf_web::SessionFacade as Session;
     pub use rf_config::Config;
     pub use rf_view::ViewFacade as View;
+    pub use rf_web::SessionFacade as Session;
 
     // Helpers
-    pub use rf_global_helpers::{Hash, redirect, csrf_token, csrf_field};
-    pub use rf_collections::{Collection, collect};
+    pub use rf_collections::{collect, Collection};
+    pub use rf_global_helpers::{csrf_field, csrf_token, redirect, Hash};
 
     // Real Response global helpers. `json(data)` builds an `application/json`
     // response from any `Serialize` value; `back()` redirects to the previous
@@ -232,24 +236,24 @@ pub mod prelude {
     pub use rf_response::{back, download, json, view};
 
     // Macros
-    pub use rf_macros::{rules, route, controller, Model};
+    pub use rf_macros::{controller, route, rules, Model};
     // `controller_block!` — the vision controller syntax (function-like macro that
     // generates a struct + async, argument-less handler methods returning
     // `IntoResponse`). Its expansion names `rf_response::IntoResponse` by path,
     // which the `rf_response` re-export further below resolves.
     pub use rf_macros::controller_block;
-    pub use rf_macros::{update, create, find, delete};  // Eloquent CRUD macros
-    pub use rf_macros::{routes, migration, request, send_mail, dispatch};  // Laravel helper macros
-    pub use rf_macros::validate;  // typed validation DSL (validates the current request)
-    // Laravel-style facade helper macros. Only the ones whose expansion actually
-    // compiles against an existing facade are re-exported here. `view!` expands to
-    // `rf_response::Response::view(name, data)` — a real file+interpolate renderer
-    // (loads `resources/views/<name>.blade.html`, fills `{{ var }}`). `event!`
-    // expands to `rf_event_facade::event(payload)` — the real type-keyed sync event
-    // bus (fires every listener registered for the payload's concrete type). Still
-    // NOT advertised until their engines/signatures are fixed (see VISION_GAP.md):
-    // `back!` (needs Response::back wiring), `session!` (targets a non-existent
-    // `rf_session` crate), `job!` (targets a missing `rf_job_facade`).
+    pub use rf_macros::validate;
+    pub use rf_macros::{create, delete, find, update}; // Eloquent CRUD macros
+    pub use rf_macros::{dispatch, migration, request, routes, send_mail}; // Laravel helper macros // typed validation DSL (validates the current request)
+                                                                                                   // Laravel-style facade helper macros. Only the ones whose expansion actually
+                                                                                                   // compiles against an existing facade are re-exported here. `view!` expands to
+                                                                                                   // `rf_response::Response::view(name, data)` — a real file+interpolate renderer
+                                                                                                   // (loads `resources/views/<name>.blade.html`, fills `{{ var }}`). `event!`
+                                                                                                   // expands to `rf_event_facade::event(payload)` — the real type-keyed sync event
+                                                                                                   // bus (fires every listener registered for the payload's concrete type). Still
+                                                                                                   // NOT advertised until their engines/signatures are fixed (see VISION_GAP.md):
+                                                                                                   // `back!` (needs Response::back wiring), `session!` (targets a non-existent
+                                                                                                   // `rf_session` crate), `job!` (targets a missing `rf_job_facade`).
     pub use rf_macros::{auth, cache, event, redirect, storage, view};
     pub use rf_validation_derive::Validate;
 
@@ -293,8 +297,8 @@ pub mod prelude {
     // code now means `std::result::Result` again. The one-parameter rf alias is
     // still available under a distinct, non-shadowing name for those who want
     // it (or use `rf_core::AppResult` / `rf::services::errors::Result`).
-    pub use rf_errors::RustForgeError;
     pub use rf_errors::Result as RfResult;
+    pub use rf_errors::RustForgeError;
 
     // Terse `?`-based handler path (the honest, first-class Result story).
     //
@@ -375,13 +379,13 @@ pub mod data {
     }
 
     // Collections (re-export at data level)
-    pub use rf_collections::{Collection, collect, LazyCollection};
+    pub use rf_collections::{collect, Collection, LazyCollection};
 
     // Validation
     pub mod validation {
+        pub use rf_macros::rules;
         pub use rf_validation::*;
         pub use rf_validation_derive::Validate;
-        pub use rf_macros::rules;
     }
 
     // Cache
@@ -406,8 +410,8 @@ pub mod data {
 pub mod background {
     // Jobs
     pub use rf_jobs::{
-        Job, JobPayload, JobContext, JobError, JobResult,
-        JobBatch, JobChain, Scheduler, QueueManager,
+        Job, JobBatch, JobChain, JobContext, JobError, JobPayload, JobResult, QueueManager,
+        Scheduler,
     };
 
     // Queue
@@ -491,17 +495,17 @@ pub mod services {
 /// use rf::facades::*;
 /// ```
 pub mod facades {
-    pub use rf_routing::RouteFacade as Route;
     pub use rf_auth::Auth;
-    pub use rf_orm::DB;
     pub use rf_cache::CacheFacade as Cache;
+    pub use rf_config::Config;
     pub use rf_events::EventFacade as Event;
-    pub use rf_storage::StorageFacade as Storage;
     pub use rf_logging::Log;
     pub use rf_mail::MailFacade as Mail;
-    pub use rf_web::SessionFacade as Session;
-    pub use rf_config::Config;
+    pub use rf_orm::DB;
+    pub use rf_routing::RouteFacade as Route;
+    pub use rf_storage::StorageFacade as Storage;
     pub use rf_view::ViewFacade as View;
+    pub use rf_web::SessionFacade as Session;
 
     // Sanctum
     pub use rf_sanctum::Sanctum;
@@ -529,7 +533,7 @@ pub mod helpers {
 
 /// Core framework types (rarely needed directly).
 pub mod core {
+    pub use rf_config::*;
     pub use rf_core::*;
     pub use rf_web::*;
-    pub use rf_config::*;
 }

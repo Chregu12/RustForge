@@ -1,5 +1,14 @@
 # Features
 
+> **API update:** See [Quick Start](Quick-Start) for the current tested entry
+> point. New apps use `App::new().database(db)` and share that pool with async
+> model calls. Synchronous I/O facade methods and older helper macros shown
+> below are blocking compatibility APIs; HTTP handlers use `_async` variants.
+> `validate!` returns only fields with rules; `bool` requires a JSON boolean.
+> Typed ORM reads now return mapping errors instead of dropping rows.
+> The supported compiler is Rust 1.96.0.
+
+
 This page lists RustForge's capabilities grouped by area, each tagged with its
 maturity tier per [docs/TIERS.md](../../TIERS.md):
 

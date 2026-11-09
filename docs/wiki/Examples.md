@@ -1,5 +1,14 @@
 # Examples
 
+> **API update:** See [Quick Start](Quick-Start) for the current tested entry
+> point. New apps use `App::new().database(db)` and share that pool with async
+> model calls. Synchronous I/O facade methods and older helper macros shown
+> below are blocking compatibility APIs; HTTP handlers use `_async` variants.
+> `validate!` returns only fields with rules; `bool` requires a JSON boolean.
+> Typed ORM reads now return mapping errors instead of dropping rows.
+> The supported compiler is Rust 1.96.0.
+
+
 A curated tour of the real example applications under `examples/`. Every
 directory listed here was verified to exist on disk at the time of writing.
 Each example is runnable with `cargo run -p <name>` (some require environment

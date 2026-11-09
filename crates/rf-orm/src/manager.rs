@@ -2,7 +2,7 @@
 
 use crate::{DatabaseConfig, DbError, DbResult};
 use sea_orm::{ConnectOptions, Database, DatabaseConnection};
-use std::time::Duration;
+use std::{sync::Arc, time::Duration};
 use tracing::{debug, info};
 
 /// Database connection manager
@@ -40,13 +40,18 @@ use tracing::{debug, info};
 /// # Ok(())
 /// # }
 /// ```
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct DatabaseManager {
-    connection: DatabaseConnection,
+    connection: Arc<DatabaseConnection>,
     config: DatabaseConfig,
 }
 
 impl DatabaseManager {
+    /// Share this pool with Laravel-style model and DB calls for one async scope.
+    pub async fn scope<F: std::future::Future>(&self, future: F) -> F::Output {
+        crate::facade::async_db::with_database(Arc::clone(&self.connection), future).await
+    }
+
     /// Connect to database with given configuration
     ///
     /// # Errors
@@ -92,7 +97,10 @@ impl DatabaseManager {
 
         debug!("Database connection established");
 
-        Ok(Self { connection, config })
+        Ok(Self {
+            connection: Arc::new(connection),
+            config,
+        })
     }
 
     /// Create database manager from rf-config DatabaseConfig
@@ -167,7 +175,7 @@ impl DatabaseManager {
             .map_err(|source| DbError::ConnectionFailed { source })
     }
 
-    /// Close database connection gracefully
+    /// Close the pool for this manager and its clones.
     ///
     /// # Example
     ///
@@ -181,7 +189,7 @@ impl DatabaseManager {
     pub async fn close(self) -> DbResult<()> {
         info!("Closing database connection");
         self.connection
-            .close()
+            .close_by_ref()
             .await
             .map_err(|source| DbError::ConnectionFailed { source })?;
         debug!("Database connection closed");
@@ -268,6 +276,17 @@ mod tests {
 
         let conn = db.connection();
         assert!(conn.ping().await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_closing_a_clone_closes_the_shared_pool() {
+        let db = DatabaseManager::connect(DatabaseConfig::default())
+            .await
+            .unwrap();
+
+        db.clone().close().await.unwrap();
+
+        assert!(db.ping().await.is_err());
     }
 
     #[tokio::test]

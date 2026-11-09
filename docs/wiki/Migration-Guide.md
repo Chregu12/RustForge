@@ -1,5 +1,14 @@
 # Migration Guide: Laravel to RustForge
 
+> **API update:** See [Quick Start](Quick-Start) for the current tested entry
+> point. New apps use `App::new().database(db)` and share that pool with async
+> model calls. Synchronous I/O facade methods and older helper macros shown
+> below are blocking compatibility APIs; HTTP handlers use `_async` variants.
+> `validate!` returns only fields with rules; `bool` requires a JSON boolean.
+> Typed ORM reads now return mapping errors instead of dropping rows.
+> The supported compiler is Rust 1.96.0.
+
+
 This guide is for Laravel PHP developers moving to RustForge. It maps Laravel
 concepts to their RustForge equivalents concept by concept, shows you what the
 DX layer hides and where Rust surfaces real differences, and links to the

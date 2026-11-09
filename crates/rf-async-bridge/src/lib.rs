@@ -13,13 +13,11 @@
 //! - `futures::executor::block_on` on a Tokio future can deadlock, because the
 //!   future may depend on Tokio's reactor/timer which isn't being driven.
 //!
-//! [`AsyncBridge`] sidesteps both problems. It owns **one dedicated, long-lived
-//! OS thread** running its own *current-thread* Tokio runtime. Sync callers submit
-//! an async job over a channel and block on a reply channel. Because the future
-//! runs on a *separate* thread with a *separate* runtime, blocking the caller
-//! thread never blocks the executor that is making progress — so it is safe to
-//! call [`AsyncBridge::block_on`] from **plain sync code** *and* from **inside an
-//! existing Tokio runtime** (a request handler, a spawned task, `#[tokio::main]`).
+//! [`AsyncBridge::run`] awaits a reply without blocking the caller. HTTP and
+//! async services should use it (or native async drivers). [`AsyncBridge::block_on`]
+//! is an explicitly blocking compatibility API for synchronous code. Calling it
+//! directly in a Tokio task blocks that worker, even though the dedicated runtime
+//! continues making progress. Use `run` or `spawn_blocking` at async boundaries.
 //!
 //! This is the single, shared implementation extracted from what used to be
 //! duplicated verbatim in `rf-cache`, `rf-mail` and `rf-storage`; each of those
@@ -81,6 +79,27 @@ impl Drop for WorkerGuard {
 }
 
 impl AsyncBridge {
+    /// Run I/O on the bridge runtime without blocking the caller's Tokio worker.
+    /// Cancelling this future cancels the submitted job when it next yields.
+    pub async fn run<F>(&self, fut: F) -> F::Output
+    where
+        F: Future + Send + 'static,
+        F::Output: Send + 'static,
+    {
+        let (mut reply_tx, reply_rx) = tokio::sync::oneshot::channel();
+        self.sender
+            .send(Box::pin(async move {
+                tokio::select! {
+                    _ = reply_tx.closed() => {},
+                    output = fut => { let _ = reply_tx.send(output); }
+                }
+            }))
+            .expect("rf-async-bridge worker is not running");
+        reply_rx
+            .await
+            .expect("rf-async-bridge job dropped the reply")
+    }
+
     /// Spawn the dedicated worker thread and its current-thread Tokio runtime.
     ///
     /// # Panics
@@ -121,8 +140,7 @@ impl AsyncBridge {
     ///
     /// Safe to call from plain sync code *and* from inside a running Tokio
     /// runtime: unlike `Runtime::block_on`, it never touches the caller's
-    /// ambient runtime, so it cannot panic with "runtime within a runtime" nor
-    /// deadlock the executor.
+    /// ambient runtime, so it cannot panic with "runtime within a runtime" but it DOES block the calling worker. Use `run` from async code.
     ///
     /// # Panics
     ///
@@ -164,6 +182,23 @@ mod tests {
     use std::sync::atomic::{AtomicU32, Ordering};
     use std::sync::Arc;
     use std::time::Duration;
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn async_bridge_keeps_the_callers_runtime_responsive() {
+        let bridge = AsyncBridge::new();
+        let progressed = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let observed = progressed.clone();
+        let (ran, ()) = tokio::join!(
+            bridge.run(async move {
+                tokio::time::sleep(Duration::from_millis(30)).await;
+                observed.load(Ordering::SeqCst)
+            }),
+            async {
+                progressed.store(true, Ordering::SeqCst);
+            }
+        );
+        assert!(ran, "bridge I/O blocked the caller's only runtime worker");
+    }
 
     #[test]
     fn block_on_from_plain_sync_runs_real_async_op() {

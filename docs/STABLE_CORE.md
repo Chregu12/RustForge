@@ -1,5 +1,14 @@
 # RustForge v1 Stable Core — API Contract
 
+> Development-snapshot update: the canonical entry point is `rf::App`, which
+> owns routes and can scope async model operations to an injected
+> `DatabaseManager` pool. Use `DB::*_async`, `Cache::*_async`, `Mail::*_async` and
+> `Storage::*_async` for HTTP I/O; sync APIs remain blocking compatibility calls.
+> `ValidatedData` contains only ruled fields and supports `into_typed<T>()`.
+> Boolean DSL types are checked; typed row decoding errors propagate.
+> See [core review migration notes](CORE_REVIEW_FIXES.md).
+
+
 > **Cross-references:** [docs/TIERS.md](TIERS.md) — tier definitions and the full crate roster;
 > [docs/RELEASING.md](RELEASING.md) — SemVer policy and the canonical stable surface list.
 >

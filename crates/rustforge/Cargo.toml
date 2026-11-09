@@ -2,7 +2,7 @@
 name = "rustforge"
 version = "1.0.0-rc.3"
 edition = "2021"
-rust-version = "1.79.0"
+rust-version = "1.96.0"
 description = "RustForge - The Laravel of Rust. Import everything with one line."
 license = "MIT"
 repository = "https://github.com/Chregu12/RustForge"

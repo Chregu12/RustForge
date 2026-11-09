@@ -20,18 +20,20 @@
 //! # }
 //! ```
 
-use once_cell::sync::Lazy;
 use crate::bridge::BridgedSmtpMailer;
-use crate::{Address, FileMailer, Mail as MailMessage, MailBuilder, MemoryMailer, MailResult, Mailable, SmtpConfig};
+use crate::{
+    Address, FileMailer, Mail as MailMessage, MailBuilder, MailResult, Mailable, MemoryMailer,
+    SmtpConfig,
+};
+use once_cell::sync::Lazy;
 use std::path::PathBuf;
 use std::sync::RwLock;
 
 /// Global in-memory mailer instance (kept for backwards-compatible inspection).
 ///
 /// Uses `std::sync::RwLock` for synchronous access (no `.await` needed).
-pub static GLOBAL_MAILER: Lazy<RwLock<MemoryMailer>> = Lazy::new(|| {
-    RwLock::new(MemoryMailer::new())
-});
+pub static GLOBAL_MAILER: Lazy<RwLock<MemoryMailer>> =
+    Lazy::new(|| RwLock::new(MemoryMailer::new()));
 
 /// Default mailbox directory used by the file transport when `MAIL_MAILBOX`
 /// is not set.
@@ -83,6 +85,24 @@ fn default_from() -> String {
 pub struct Mail;
 
 impl Mail {
+    /// Send through the configured transport without blocking an async worker.
+    pub async fn send_async<M: Mailable + Send + 'static>(mailable: M) -> MailResult<()> {
+        tokio::task::spawn_blocking(move || Self::send(mailable))
+            .await
+            .map_err(|e| crate::MailError::SendFailed(e.to_string()))?
+    }
+
+    pub async fn raw_async(
+        to: impl Into<String>,
+        subject: impl Into<String>,
+        body: impl Into<String>,
+    ) -> MailResult<()> {
+        let (to, subject, body) = (to.into(), subject.into(), body.into());
+        tokio::task::spawn_blocking(move || Self::raw(to, subject, body))
+            .await
+            .map_err(|e| crate::MailError::SendFailed(e.to_string()))?
+    }
+
     /// Send a mailable
     ///
     /// # Examples
@@ -334,6 +354,12 @@ pub struct DraftMail {
 }
 
 impl DraftMail {
+    pub async fn send_async(self) -> MailResult<()> {
+        tokio::task::spawn_blocking(move || self.send())
+            .await
+            .map_err(|e| crate::MailError::SendFailed(e.to_string()))?
+    }
+
     fn new(to: String) -> Self {
         Self {
             to,
@@ -490,8 +516,12 @@ mod tests {
         Mail::from("sender@rustforge.test");
 
         // (1) The `raw` one-liner.
-        Mail::raw("recipient@example.com", "Upload complete", "Your file is ready.")
-            .expect("Mail::raw should deliver a message");
+        Mail::raw(
+            "recipient@example.com",
+            "Upload complete",
+            "Your file is ready.",
+        )
+        .expect("Mail::raw should deliver a message");
         crate::testing::assert_sent(|m| {
             m.subject == "Upload complete"
                 && m.from.email == "sender@rustforge.test"
@@ -538,8 +568,14 @@ mod tests {
         assert_eq!(path.extension().and_then(|e| e.to_str()), Some("eml"));
 
         let eml = std::fs::read_to_string(&path).expect("written .eml should be readable");
-        assert!(eml.contains("Subject: Smoke Subject"), "eml missing subject: {eml}");
-        assert!(eml.contains("recipient@example.com"), "eml missing recipient: {eml}");
+        assert!(
+            eml.contains("Subject: Smoke Subject"),
+            "eml missing subject: {eml}"
+        );
+        assert!(
+            eml.contains("recipient@example.com"),
+            "eml missing recipient: {eml}"
+        );
         assert!(eml.contains("smoke body"), "eml missing body: {eml}");
 
         let _ = std::fs::remove_dir_all(&dir);

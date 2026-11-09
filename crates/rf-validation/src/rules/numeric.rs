@@ -8,6 +8,29 @@ use async_trait::async_trait;
 use serde_json::Value;
 use std::collections::HashMap;
 
+/// A JSON boolean. Null is allowed only when no RequiredRule is present.
+/// Strings and integers are deliberately not coerced into booleans.
+pub struct BooleanRule;
+
+#[async_trait]
+impl Rule for BooleanRule {
+    fn name(&self) -> &str {
+        "boolean"
+    }
+
+    async fn validate(&self, value: &Value, _data: &HashMap<String, Value>) -> RuleResult {
+        if value.is_null() || value.is_boolean() {
+            Ok(())
+        } else {
+            Err(self.message())
+        }
+    }
+
+    fn message(&self) -> String {
+        "This field must be a boolean".to_string()
+    }
+}
+
 /// Computes the comparable "size" of a value for the `min`/`max` rules,
 /// following Laravel's size semantics:
 ///   - numbers   -> their numeric value
@@ -539,12 +562,21 @@ mod tests {
         assert!(rule.validate(&json!("25"), &HashMap::new()).await.is_err());
 
         let rule3 = MinRule::new(3);
-        assert!(rule3.validate(&json!("Alice"), &HashMap::new()).await.is_ok());
+        assert!(rule3
+            .validate(&json!("Alice"), &HashMap::new())
+            .await
+            .is_ok());
         assert!(rule3.validate(&json!("Al"), &HashMap::new()).await.is_err());
 
         // Array -> element count.
-        assert!(rule3.validate(&json!([1, 2, 3]), &HashMap::new()).await.is_ok());
-        assert!(rule3.validate(&json!([1, 2]), &HashMap::new()).await.is_err());
+        assert!(rule3
+            .validate(&json!([1, 2, 3]), &HashMap::new())
+            .await
+            .is_ok());
+        assert!(rule3
+            .validate(&json!([1, 2]), &HashMap::new())
+            .await
+            .is_err());
     }
 
     #[tokio::test]
@@ -557,12 +589,24 @@ mod tests {
 
         // String -> character length.
         let rule5 = MaxRule::new(5);
-        assert!(rule5.validate(&json!("Alice"), &HashMap::new()).await.is_ok());
-        assert!(rule5.validate(&json!("Alexander"), &HashMap::new()).await.is_err());
+        assert!(rule5
+            .validate(&json!("Alice"), &HashMap::new())
+            .await
+            .is_ok());
+        assert!(rule5
+            .validate(&json!("Alexander"), &HashMap::new())
+            .await
+            .is_err());
 
         // Array -> element count.
-        assert!(rule5.validate(&json!([1, 2, 3]), &HashMap::new()).await.is_ok());
-        assert!(rule5.validate(&json!([1, 2, 3, 4, 5, 6]), &HashMap::new()).await.is_err());
+        assert!(rule5
+            .validate(&json!([1, 2, 3]), &HashMap::new())
+            .await
+            .is_ok());
+        assert!(rule5
+            .validate(&json!([1, 2, 3, 4, 5, 6]), &HashMap::new())
+            .await
+            .is_err());
     }
 
     #[tokio::test]

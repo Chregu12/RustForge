@@ -81,10 +81,7 @@ use once_cell::sync::Lazy;
 use serde_json::Value;
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
-use std::sync::{
-    atomic::{AtomicU64, Ordering},
-    Once, RwLock,
-};
+use std::sync::{Once, RwLock};
 use std::time::{Duration, Instant};
 
 /// Cookie name carrying the per-client session id.
@@ -96,21 +93,21 @@ const DEFAULT_SESSION_LIFETIME_SECS: u64 = 86_400;
 /// How often the background sweeper wakes up to evict expired sessions.
 const GC_INTERVAL: Duration = Duration::from_secs(15 * 60); // 15 minutes
 
-/// Overridable session lifetime in nanoseconds.  `0` means "use the env var /
-/// hard-coded default".  Tests override this via [`set_test_session_lifetime`]
-/// so they do not need to sleep for 24 hours.
-static SESSION_LIFETIME_NANOS: AtomicU64 = AtomicU64::new(0);
+#[cfg(test)]
+tokio::task_local! {
+    static TEST_SESSION_LIFETIME: Duration;
+}
 
 /// Return the currently configured session idle lifetime.
 ///
 /// Resolution order:
-/// 1. In-process override (tests only, via [`set_test_session_lifetime`]).
+/// 1. Scope-local override in unit tests.
 /// 2. `SESSION_LIFETIME_SECS` environment variable.
 /// 3. Hard-coded 24-hour default.
 fn session_lifetime() -> Duration {
-    let nanos = SESSION_LIFETIME_NANOS.load(Ordering::Relaxed);
-    if nanos > 0 {
-        return Duration::from_nanos(nanos);
+    #[cfg(test)]
+    if let Ok(lifetime) = TEST_SESSION_LIFETIME.try_with(|lifetime| *lifetime) {
+        return lifetime;
     }
     let secs = std::env::var("SESSION_LIFETIME_SECS")
         .ok()
@@ -556,30 +553,18 @@ mod tests {
         CURRENT_SESSION_ID.sync_scope(RefCell::new(id.to_string()), f)
     }
 
-    /// Override the session idle lifetime for a test, returning the previous value.
-    /// Callers must restore via [`restore_session_lifetime`] when done.
-    fn set_test_session_lifetime(d: Duration) -> u64 {
-        let nanos = d.as_nanos() as u64;
-        SESSION_LIFETIME_NANOS.swap(nanos, Ordering::SeqCst)
+    fn with_test_session_lifetime(f: impl FnOnce()) {
+        // Expiry tests share the store. Keep one sweep from evicting another
+        // test's artificially aged entries before that test checks them.
+        static EXPIRY_TESTS: std::sync::Mutex<()> = std::sync::Mutex::new(());
+        let _guard = EXPIRY_TESTS.lock().unwrap();
+        TEST_SESSION_LIFETIME.sync_scope(Duration::from_secs(5), f);
     }
 
-    /// Restore the session lifetime previously returned by [`set_test_session_lifetime`].
-    fn restore_session_lifetime(prev: u64) {
-        SESSION_LIFETIME_NANOS.store(prev, Ordering::SeqCst);
-    }
-
-    /// Artificially age a session entry so that it appears to have been idle for
-    /// `age`.  Used in tests to simulate expiry without sleeping.
-    ///
-    /// Uses `Instant::checked_sub` — callers must pass an `age` that is shorter
-    /// than the system uptime (any value ≤ a few hours is always safe).
-    fn age_session_for_test(id: &str, age: Duration) {
+    /// Simulate expiry without sleeping.
+    fn expire_session_for_test(id: &str) {
         let mut store = SESSIONS.write().unwrap();
-        if let Some(data) = store.get_mut(id) {
-            if let Some(past) = Instant::now().checked_sub(age) {
-                data.last_activity = past;
-            }
-        }
+        store.get_mut(id).unwrap().last_activity = Instant::now() - session_lifetime() * 2;
     }
 
     // -----------------------------------------------------------------------
@@ -853,33 +838,29 @@ mod tests {
     /// silently created on access), proving opportunistic eviction in with_session.
     #[test]
     fn test_expired_session_treated_as_absent() {
-        let id = "ttl_expired_session";
+        with_test_session_lifetime(|| {
+            let id = "ttl_expired_session";
 
-        // Set a short lifetime (100 ms) so we can age the session well past it.
-        let prev = set_test_session_lifetime(Duration::from_millis(100));
-
-        // Insert a session entry with a known value.
-        in_session(id, || {
-            SessionFacade::put("key", json!("should_disappear"));
-        });
-        assert!(
-            SESSIONS.read().unwrap().contains_key(id),
-            "session must be in the store after insert"
-        );
-
-        // Age the entry by 200 ms (well past the 100 ms lifetime).
-        age_session_for_test(id, Duration::from_millis(200));
-
-        // Now access the session: with_session must detect the expired entry,
-        // evict it, and create a fresh one — so the old value is gone.
-        in_session(id, || {
+            // Insert a session entry with a known value.
+            in_session(id, || {
+                SessionFacade::put("key", json!("should_disappear"));
+            });
             assert!(
-                !SessionFacade::has("key"),
-                "expired session must be treated as absent — old value must not leak"
+                SESSIONS.read().unwrap().contains_key(id),
+                "session must be in the store after insert"
             );
-        });
 
-        restore_session_lifetime(prev);
+            expire_session_for_test(id);
+
+            // Now access the session: with_session must detect the expired entry,
+            // evict it, and create a fresh one — so the old value is gone.
+            in_session(id, || {
+                assert!(
+                    !SessionFacade::has("key"),
+                    "expired session must be treated as absent — old value must not leak"
+                );
+            });
+        });
     }
 
     /// (b) sweep_sessions() removes expired entries and shrinks the map.
@@ -888,122 +869,122 @@ mod tests {
     /// verify the map has shrunk by exactly M.
     #[test]
     fn test_gc_sweep_removes_expired_entries() {
-        let prefix = "sweep_test_";
+        with_test_session_lifetime(|| {
+            let prefix = "sweep_test_";
 
-        // Use a 100 ms lifetime for this test.
-        let prev = set_test_session_lifetime(Duration::from_millis(100));
+            let total = 6usize;
+            let to_expire = 4usize;
 
-        let total = 6usize;
-        let to_expire = 4usize;
+            // Insert `total` distinct sessions.
+            for i in 0..total {
+                let id = format!("{}{}", prefix, i);
+                in_session(&id, || {
+                    SessionFacade::put("v", json!(i));
+                });
+            }
 
-        // Insert `total` distinct sessions.
-        for i in 0..total {
-            let id = format!("{}{}", prefix, i);
-            in_session(&id, || {
-                SessionFacade::put("v", json!(i));
-            });
-        }
+            // Record store size before eviction (may include other test sessions, so
+            // count only the ones we just inserted).
+            {
+                let store = SESSIONS.read().unwrap();
+                let our_count = (0..total)
+                    .filter(|i| store.contains_key(&format!("{prefix}{i}")))
+                    .count();
+                assert_eq!(
+                    our_count, total,
+                    "all {total} sessions must be present before sweep"
+                );
+            }
 
-        // Record store size before eviction (may include other test sessions, so
-        // count only the ones we just inserted).
-        {
-            let store = SESSIONS.read().unwrap();
-            let our_count = (0..total).filter(|i| store.contains_key(&format!("{}{}", prefix, i))).count();
-            assert_eq!(our_count, total, "all {total} sessions must be present before sweep");
-        }
-
-        // Age the first `to_expire` sessions past the lifetime.
-        for i in 0..to_expire {
-            let id = format!("{}{}", prefix, i);
-            age_session_for_test(&id, Duration::from_millis(200));
-        }
-
-        // Run the sweeper directly (no tokio runtime required in this sync test).
-        sweep_sessions();
-
-        // The expired sessions must be gone; the live ones must remain.
-        {
-            let store = SESSIONS.read().unwrap();
+            // Age the first `to_expire` sessions past the lifetime.
             for i in 0..to_expire {
                 let id = format!("{}{}", prefix, i);
-                assert!(
-                    !store.contains_key(&id),
-                    "session {id} was expired and must have been removed by sweep"
-                );
+                expire_session_for_test(&id);
             }
-            for i in to_expire..total {
-                let id = format!("{}{}", prefix, i);
-                assert!(
-                    store.contains_key(&id),
-                    "session {id} was NOT expired and must still be present after sweep"
-                );
-            }
-        }
 
-        restore_session_lifetime(prev);
+            // Run the sweeper directly (no tokio runtime required in this sync test).
+            sweep_sessions();
+
+            // The expired sessions must be gone; the live ones must remain.
+            {
+                let store = SESSIONS.read().unwrap();
+                for i in 0..to_expire {
+                    let id = format!("{}{}", prefix, i);
+                    assert!(
+                        !store.contains_key(&id),
+                        "session {id} was expired and must have been removed by sweep"
+                    );
+                }
+                for i in to_expire..total {
+                    let id = format!("{}{}", prefix, i);
+                    assert!(
+                        store.contains_key(&id),
+                        "session {id} was NOT expired and must still be present after sweep"
+                    );
+                }
+            }
+        });
     }
 
     /// (c) A live (non-expired) session is unaffected by sweep and remains fully
     /// accessible with all its data intact, and remains isolated from other clients.
     #[test]
     fn test_live_session_survives_sweep_and_stays_isolated() {
-        let live_id   = "live_session_survives";
-        let dead_id   = "dead_session_evicted";
-        let other_id  = "other_live_session";
+        with_test_session_lifetime(|| {
+            let live_id = "live_session_survives";
+            let dead_id = "dead_session_evicted";
+            let other_id = "other_live_session";
 
-        let prev = set_test_session_lifetime(Duration::from_millis(100));
+            // Insert three sessions.
+            in_session(live_id, || {
+                SessionFacade::put("role", json!("admin"));
+                SessionFacade::put("user", json!(7));
+            });
+            in_session(dead_id, || {
+                SessionFacade::put("secret", json!("gone"));
+            });
+            in_session(other_id, || {
+                SessionFacade::put("data", json!("also_survives"));
+            });
 
-        // Insert three sessions.
-        in_session(live_id, || {
-            SessionFacade::put("role", json!("admin"));
-            SessionFacade::put("user", json!(7));
-        });
-        in_session(dead_id, || {
-            SessionFacade::put("secret", json!("gone"));
-        });
-        in_session(other_id, || {
-            SessionFacade::put("data", json!("also_survives"));
-        });
+            // Age only the dead session.
+            expire_session_for_test(dead_id);
 
-        // Age only the dead session.
-        age_session_for_test(dead_id, Duration::from_millis(200));
+            // Sweep: dead_id should be evicted, others remain.
+            sweep_sessions();
 
-        // Sweep: dead_id should be evicted, others remain.
-        sweep_sessions();
-
-        // The dead session is gone.
-        assert!(
-            !SESSIONS.read().unwrap().contains_key(dead_id),
-            "expired session must be removed by sweep"
-        );
-
-        // The live session still has all its data.
-        in_session(live_id, || {
-            assert_eq!(
-                SessionFacade::get("role"),
-                Some(json!("admin")),
-                "live session: 'role' must survive sweep"
-            );
-            assert_eq!(
-                SessionFacade::get("user"),
-                Some(json!(7)),
-                "live session: 'user' must survive sweep"
-            );
-        });
-
-        // The other live session is also intact and isolated from live_id.
-        in_session(other_id, || {
-            assert_eq!(
-                SessionFacade::get("data"),
-                Some(json!("also_survives")),
-                "other live session must survive sweep"
-            );
+            // The dead session is gone.
             assert!(
-                !SessionFacade::has("role"),
-                "other session must not see live_id's 'role'"
+                !SESSIONS.read().unwrap().contains_key(dead_id),
+                "expired session must be removed by sweep"
             );
-        });
 
-        restore_session_lifetime(prev);
+            // The live session still has all its data.
+            in_session(live_id, || {
+                assert_eq!(
+                    SessionFacade::get("role"),
+                    Some(json!("admin")),
+                    "live session: 'role' must survive sweep"
+                );
+                assert_eq!(
+                    SessionFacade::get("user"),
+                    Some(json!(7)),
+                    "live session: 'user' must survive sweep"
+                );
+            });
+
+            // The other live session is also intact and isolated from live_id.
+            in_session(other_id, || {
+                assert_eq!(
+                    SessionFacade::get("data"),
+                    Some(json!("also_survives")),
+                    "other live session must survive sweep"
+                );
+                assert!(
+                    !SessionFacade::has("role"),
+                    "other session must not see live_id's 'role'"
+                );
+            });
+        });
     }
 }
