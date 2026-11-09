@@ -242,10 +242,14 @@ Before tagging, verify the supply-chain and runtime checks on the exact release 
 - Run `cargo audit` and `cargo deny --locked check`. The supply-chain job runs
   both so that a failing advisory check still surfaces policy violations.
 - Confirm the live PostgreSQL, Redis, S3 and SMTP probes. Run the generated
-  Forge application tests for SQLite and PostgreSQL.
+  Forge application tests for SQLite and PostgreSQL. The live PostgreSQL job
+  builds two Forge releases, rolls back the binary after an additive migration,
+  and checks that both writes are still readable. It also restores a `pg_dump`
+  into a fresh database and checks the restored data, migration ledger and new
+  writes through the application.
 - Deploy the release build to a staging environment with production settings.
-  Check readiness, persistence across a restart, backup restoration and rollback
-  with the chosen database. A passing local suite is one input to that decision.
+  Repeat the readiness, persistence, backup and rollback checks with the target
+  deployment tooling and database. The CI recovery test uses disposable databases.
 
 5. **Commit** with message `release: vX.Y.Z` followed by the standard trailer.
 

@@ -138,7 +138,7 @@ mod tests {
     /// return `None` when outside such a span (honest fail-open).
     #[test]
     fn test_trace_id_correlation_inside_otel_span() {
-        use opentelemetry_sdk::trace::TracerProvider as SdkProvider;
+        use opentelemetry_sdk::trace::SdkTracerProvider;
         use tracing_subscriber::layer::SubscriberExt;
 
         // Outside any otel-wired span: should be None, not fabricated.
@@ -149,7 +149,7 @@ mod tests {
         );
 
         // Build a real in-process tracer provider (no exporter needed for id tests).
-        let provider = SdkProvider::builder().build();
+        let provider = SdkTracerProvider::builder().build();
         let tracer = opentelemetry::trace::TracerProvider::tracer(&provider, "test-tracer");
         let otel_layer = tracing_opentelemetry::layer().with_tracer(tracer);
         let sub = tracing_subscriber::registry().with(otel_layer);

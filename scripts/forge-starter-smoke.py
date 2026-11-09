@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 import re
 import selectors
+import shutil
 import signal
 import sqlite3
 import subprocess
@@ -30,9 +31,16 @@ def forge(cwd, *args, succeeds=True):
 
 @contextmanager
 def server(cwd, *args):
+    with running_app(cwd, [FORGE, "serve", *args]) as url:
+        yield url
+
+
+@contextmanager
+def running_app(cwd, command, env=None):
     with tempfile.TemporaryFile() as log, subprocess.Popen(
-        [FORGE, "serve", *args],
+        command,
         cwd=cwd,
+        env=env,
         start_new_session=True,
         stdout=subprocess.PIPE,
         stderr=log,
@@ -63,6 +71,7 @@ def server(cwd, *args):
                 pass
             except subprocess.TimeoutExpired:
                 os.killpg(process.pid, signal.SIGKILL)
+                process.wait()
 
 
 def request(base, method, path, payload=None):
@@ -91,6 +100,22 @@ def smoke():
         else:
             forge(parent, "new", "blog-smoke", "--framework-path", str(ROOT))
         app = parent / "blog-smoke"
+        forge(app, "deploy", "generate", "--kubernetes", "--port", "8081")
+        dockerfile = (app / "Dockerfile").read_text()
+        assert "FROM rust:1.96.0-bookworm" in dockerfile
+        assert "cargo build --release --locked --bin blog-smoke" in dockerfile
+        assert "USER 10001:10001" in dockerfile
+        assert "ENV HOST=0.0.0.0 PORT=8081" in dockerfile
+        deployment = app / "k8s/deployment.yaml"
+        assert "path: /up\n" in deployment.read_text()
+        assert "path: /ready\n" in deployment.read_text()
+        dockerignore = app / ".dockerignore"
+        assert ".env" in dockerignore.read_text().splitlines()
+        dockerignore.write_text("custom-fixture\n")
+        forge(app, "deploy", "generate", "--kubernetes", "--readiness-path", "/custom-ready")
+        assert "path: /custom-ready\n" in deployment.read_text()
+        assert dockerignore.read_text() == "custom-fixture\n"
+
         with server(app, "--port", "0") as url:
             assert request(url, "GET", "/up")[0] == 200
             assert request(url, "GET", "/ready")[0] == 503
@@ -208,8 +233,91 @@ def postgres_smoke(database_url):
     print("Generated application passed PostgreSQL migration, HTTP and readiness checks.")
 
 
+def postgres_recovery():
+    source = "rustforge_recovery"
+    restored = "rustforge_recovery_restored"
+    database_url = f"postgres://rustforge:testpass@127.0.0.1:5432/{source}"
+    os.environ.update(DATABASE_URL=database_url, APP_ENV="production", HOST="127.0.0.1", PORT="0")
+    target = Path(os.environ.get("CARGO_TARGET_DIR", ROOT / "target")).resolve()
+    compose = [
+        "docker", "compose", "-f", "docker-compose.test.yml", "-f", "docker-compose.ci.yml",
+        "exec", "-T", "postgres",
+    ]
+
+    def pg(command, *args, **streams):
+        subprocess.run([*compose, command, "-U", "rustforge", *args],
+                       cwd=ROOT, check=True, timeout=60, **streams)
+
+    pg("createdb", source)
+    pg("createdb", restored)
+    with tempfile.TemporaryDirectory(prefix="rustforge-recovery-") as temp:
+        parent = Path(temp)
+        forge(parent, "new", "recovery-smoke", "--framework-path", str(ROOT))
+        app = parent / "recovery-smoke"
+        build = ["cargo", "build", "--release", "--target-dir", str(target)]
+        binary = target / "release/recovery-smoke"
+        previous = parent / "release-v1"
+
+        subprocess.run(build, cwd=app, check=True, timeout=900)
+        shutil.copy2(binary, previous)
+        assert "batch 1" in forge(app, "migrate", "--force")
+
+        with running_app(app, [previous]) as url:
+            assert request(url, "GET", "/ready")[0] == 200
+            assert b"<h1>RustForge</h1>" in request(url, "GET", "/")[1]
+            status, original = request(url, "POST", "/api/posts", {
+                "title": "Before backup", "body": "Must be restored",
+            })
+            assert status == 201
+        original_path = f"/api/posts/{original['id']}"
+        backup = parent / "postgres.dump"
+        with backup.open("wb") as dump:
+            pg("pg_dump", "--format=custom", source, stdout=dump)
+
+        view = app / "resources/views/welcome.html"
+        view.write_text(view.read_text().replace("<h1>RustForge</h1>", "<h1>RustForge v2</h1>"))
+        forge(app, "make:model", "Topic", "--migration")
+        subprocess.run([*build, "--locked"], cwd=app, check=True, timeout=900)
+        assert "batch 2" in forge(app, "migrate", "--force")
+        with running_app(app, [binary]) as url:
+            assert request(url, "GET", "/ready")[0] == 200
+            assert b"<h1>RustForge v2</h1>" in request(url, "GET", "/")[1]
+            assert request(url, "GET", original_path) == (200, original)
+            status, newer = request(url, "POST", "/api/posts", {
+                "title": "After backup", "body": "Must survive binary rollback",
+            })
+            assert status == 201
+        newer_path = f"/api/posts/{newer['id']}"
+
+        # Roll back the binary while keeping the forward schema and both writes.
+        with running_app(app, [previous]) as url:
+            assert request(url, "GET", "/ready")[0] == 200
+            assert b"<h1>RustForge</h1>" in request(url, "GET", "/")[1]
+            assert request(url, "GET", original_path) == (200, original)
+            assert request(url, "GET", newer_path) == (200, newer)
+
+        with backup.open("rb") as dump:
+            pg("pg_restore", "--exit-on-error", "--single-transaction", "--dbname", restored,
+               stdin=dump)
+        os.environ["DATABASE_URL"] = database_url.rsplit("/", 1)[0] + "/" + restored
+        migration_status = forge(app, "migrate:status")
+        assert any("posts" in line and "Ran" in line for line in migration_status.splitlines())
+        assert any("topics" in line and "Pending" in line for line in migration_status.splitlines())
+        with running_app(app, [previous]) as url:
+            assert request(url, "GET", "/ready")[0] == 200
+            assert request(url, "GET", original_path) == (200, original)
+            assert request(url, "GET", newer_path)[0] == 404
+            status, created = request(url, "POST", "/api/posts", {
+                "title": "After restore", "body": "The restored database accepts writes",
+            })
+            assert status == 201 and created["id"] > original["id"]
+    print("Forge release rollback and PostgreSQL backup restore passed.")
+
+
 if __name__ == "__main__":
-    if postgres_url := os.environ.get("RF_SMOKE_POSTGRES_URL"):
+    if os.environ.get("RF_SMOKE_POSTGRES_RECOVERY") == "1":
+        postgres_recovery()
+    elif postgres_url := os.environ.get("RF_SMOKE_POSTGRES_URL"):
         postgres_smoke(postgres_url)
     else:
         smoke()

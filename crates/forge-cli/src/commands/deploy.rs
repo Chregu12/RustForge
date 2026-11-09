@@ -6,15 +6,33 @@
 //!
 //! ## Health-check paths
 //!
-//! The generated Kubernetes manifests assume `GET /health/live` (liveness) and
-//! `GET /health/ready` (readiness) are served by your application (e.g. via the
-//! `rf-health` crate).  Pass `--liveness-path` / `--readiness-path` if your app
-//! uses different routes.
+//! The Forge starter probes `/up` and `/ready`. Other applications default to
+//! `/health/live` and `/health/ready`. Both paths are configurable.
 
-use anyhow::Result;
+use anyhow::{ensure, Context, Result};
 use colored::Colorize;
 use rf_deploy::{DockerComposeBuilder, DockerfileBuilder, KubernetesBuilder};
-use std::fs;
+use std::{
+    fs,
+    io::{self, Write},
+    path::Path,
+};
+
+const DOCKER_IGNORE: &str = ".git\ntarget\n.env\n.env.*\ndatabase/*.sqlite\ndatabase/*.sqlite-*\n";
+
+fn standalone_binary() -> Result<Option<String>> {
+    if !Path::new("src/main.rs").is_file() {
+        return Ok(None);
+    }
+    let manifest: toml::Value = fs::read_to_string("Cargo.toml")?
+        .parse()
+        .context("Read application Cargo.toml")?;
+    let package = manifest.get("package");
+    Ok(package
+        .and_then(|package| package.get("default-run").or_else(|| package.get("name")))
+        .and_then(toml::Value::as_str)
+        .map(str::to_owned))
+}
 
 /// Generate deployment configuration files for the current project.
 pub async fn generate(
@@ -23,17 +41,28 @@ pub async fn generate(
     with_postgres: Option<&str>,
     with_redis: bool,
     kubernetes: bool,
-    liveness_path: &str,
-    readiness_path: &str,
+    liveness_path: Option<&str>,
+    readiness_path: Option<&str>,
     image: Option<&str>,
 ) -> Result<()> {
+    ensure!(port != 0, "Deployment port must be between 1 and 65535");
     println!("{}", "Generating deployment artifacts…".bold());
 
     // --- Dockerfile -------------------------------------------------------
-    let dockerfile = DockerfileBuilder::new()
-        .rust_version("1.82")
-        .port(port)
-        .build()?;
+    let mut builder = DockerfileBuilder::new().rust_version("1.96.0").port(port);
+    if let Some(binary) = standalone_binary()? {
+        builder = builder.binary_name(binary);
+        match fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(".dockerignore")
+        {
+            Ok(mut file) => file.write_all(DOCKER_IGNORE.as_bytes())?,
+            Err(error) if error.kind() == io::ErrorKind::AlreadyExists => {}
+            Err(error) => return Err(error).context("Create .dockerignore"),
+        }
+    }
+    let dockerfile = builder.build()?;
 
     fs::write("Dockerfile", &dockerfile)?;
     println!("  {} Dockerfile", "created".green());
@@ -56,6 +85,11 @@ pub async fn generate(
 
     // --- Kubernetes manifests (optional) ----------------------------------
     if kubernetes {
+        let starter =
+            Path::new("bootstrap/app.rs").is_file() && Path::new("config/app.rs").is_file();
+        let liveness_path = liveness_path.unwrap_or(if starter { "/up" } else { "/health/live" });
+        let readiness_path =
+            readiness_path.unwrap_or(if starter { "/ready" } else { "/health/ready" });
         let default_image = format!("{app_name}:latest");
         let img = image.unwrap_or(&default_image);
         let k8s = KubernetesBuilder::new(app_name, img)

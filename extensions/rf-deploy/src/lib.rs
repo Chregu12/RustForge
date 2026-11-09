@@ -34,6 +34,7 @@ pub type DeployResult<T> = Result<T, DeployError>;
 /// Dockerfile builder
 pub struct DockerfileBuilder {
     rust_version: String,
+    binary_name: Option<String>,
     features: Vec<String>,
     optimize_size: bool,
     port: u16,
@@ -44,6 +45,7 @@ impl DockerfileBuilder {
     pub fn new() -> Self {
         Self {
             rust_version: "1.75".to_string(),
+            binary_name: None,
             features: Vec::new(),
             optimize_size: false,
             port: 8000,
@@ -53,6 +55,12 @@ impl DockerfileBuilder {
     /// Set Rust version
     pub fn rust_version(mut self, version: impl Into<String>) -> Self {
         self.rust_version = version.into();
+        self
+    }
+
+    /// Build the named binary from a standalone Cargo project.
+    pub fn binary_name(mut self, name: impl Into<String>) -> Self {
+        self.binary_name = Some(name.into());
         self
     }
 
@@ -77,19 +85,38 @@ impl DockerfileBuilder {
     /// Build the Dockerfile
     pub fn build(&self) -> DeployResult<String> {
         let mut dockerfile = String::new();
+        let binary = self.binary_name.as_deref().unwrap_or("app");
+        if binary.is_empty()
+            || !binary
+                .bytes()
+                .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_'))
+        {
+            return Err(DeployError::InvalidConfig(
+                "Invalid Cargo binary name".into(),
+            ));
+        }
 
         // Build stage
+        let standalone = self.binary_name.is_some();
+        let variant = if standalone { "-bookworm" } else { "" };
         dockerfile.push_str(&format!(
-            "# Build stage\nFROM rust:{} as builder\n\n",
-            self.rust_version
+            "# Build stage\nFROM rust:{}{} as builder\n\n",
+            self.rust_version, variant
         ));
         dockerfile.push_str("WORKDIR /app\n\n");
-        dockerfile.push_str("# Copy manifests\n");
-        dockerfile.push_str("COPY Cargo.toml Cargo.lock ./\n");
-        dockerfile.push_str("COPY crates ./crates\n\n");
+        if standalone {
+            dockerfile.push_str("COPY . .\n\n");
+        } else {
+            dockerfile.push_str("# Copy manifests\n");
+            dockerfile.push_str("COPY Cargo.toml Cargo.lock ./\n");
+            dockerfile.push_str("COPY crates ./crates\n\n");
+        }
 
         dockerfile.push_str("# Build application\n");
         let mut build_cmd = "RUN cargo build --release".to_string();
+        if standalone {
+            build_cmd.push_str(&format!(" --locked --bin {binary}"));
+        }
         if !self.features.is_empty() {
             build_cmd.push_str(&format!(" --features {}", self.features.join(",")));
         }
@@ -98,7 +125,7 @@ impl DockerfileBuilder {
 
         if self.optimize_size {
             dockerfile.push_str("# Strip binary\n");
-            dockerfile.push_str("RUN strip target/release/app\n\n");
+            dockerfile.push_str(&format!("RUN strip target/release/{binary}\n\n"));
         }
 
         // Runtime stage
@@ -112,7 +139,16 @@ impl DockerfileBuilder {
 
         dockerfile.push_str("WORKDIR /app\n\n");
         dockerfile.push_str("# Copy binary from builder\n");
-        dockerfile.push_str("COPY --from=builder /app/target/release/app /app/app\n\n");
+        dockerfile.push_str(&format!(
+            "COPY --from=builder /app/target/release/{binary} /app/app\n\n"
+        ));
+
+        if standalone {
+            dockerfile.push_str("RUN install -d -o 10001 -g 10001 /app/database\n");
+            dockerfile.push_str("USER 10001:10001\n");
+            dockerfile.push_str("STOPSIGNAL SIGINT\n");
+            dockerfile.push_str(&format!("ENV HOST=0.0.0.0 PORT={}\n\n", self.port));
+        }
 
         dockerfile.push_str(&format!("EXPOSE {}\n\n", self.port));
         dockerfile.push_str("CMD [\"/app/app\"]\n");

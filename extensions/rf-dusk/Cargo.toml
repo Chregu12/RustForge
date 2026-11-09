@@ -22,7 +22,6 @@ tracing.workspace = true
 
 # WebDriver protocol
 fantoccini = "0.21"
-webdriver = "0.50"
 
 # Screenshot comparison
 image = { version = "0.25", default-features = false, features = ["png", "jpeg"] }
