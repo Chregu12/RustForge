@@ -7,7 +7,6 @@ on:
   push:
     branches: [main, master, develop]
   pull_request:
-    branches: [main, master, develop]
 
 permissions:
   contents: read
@@ -327,7 +326,9 @@ jobs:
       - name: rf-console
         run: cargo build -p rf-console
       - name: forge-cli
-        run: cargo build -p forge-cli
+        run: cargo build --locked -p forge-cli
+      - name: Generated Forge application (CLI, SQLite and HTTP)
+        run: python3 scripts/forge-starter-smoke.py
 
   # ===========================================
   # Additional Crates
@@ -702,6 +703,15 @@ jobs:
         run: |
           cargo test -p rf-orm test_postgres_transaction_atomicity -- --nocapture
 
+      - name: Generated Forge application on PostgreSQL (live)
+        env:
+          RF_SMOKE_POSTGRES_URL: postgres://rustforge:testpass@127.0.0.1:5432/rustforge_starter
+        run: |
+          docker compose -f docker-compose.test.yml -f docker-compose.ci.yml \
+            exec -T postgres createdb -U rustforge rustforge_starter
+          cargo build --locked -p forge-cli
+          python3 scripts/forge-starter-smoke.py
+
       - name: Tear down backend services
         if: always()
         run: |
@@ -737,8 +747,8 @@ jobs:
   live-cloud:
     name: "Live Cloud Integration (secrets-gated)"
     runs-on: ubuntu-latest
-    # Run unconditionally so that absent-secret skips produce a green job,
-    # proving the skip path itself is solid.
+    # Only run cloud tests with credentials on the reviewed main branch.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -887,13 +897,15 @@ jobs:
       - uses: Swatinem/rust-cache@v2
 
       - name: Install cargo-audit
-        run: cargo install cargo-audit --locked
+        run: cargo install cargo-audit --version 0.22.2 --locked
 
       - name: Install cargo-deny
-        run: cargo install cargo-deny --locked
+        id: install_deny
+        run: cargo install cargo-deny --version 0.20.2 --locked
 
       - name: cargo audit
         run: cargo audit
 
       - name: cargo deny check
-        run: cargo deny check
+        if: ${{ !cancelled() && steps.install_deny.outcome == 'success' }}
+        run: cargo deny --locked check

@@ -1,14 +1,6 @@
-mod aliases;
-mod commands;
-mod completion;
-mod config;
-mod errors;
-mod help;
-mod interactive;
-mod progress;
-
 use anyhow::Result;
 use clap::{CommandFactory, Parser, Subcommand};
+use forge_cli::{aliases, commands, completion, config, errors, help};
 
 #[derive(Parser)]
 #[command(name = "forge")]
@@ -25,6 +17,9 @@ enum Commands {
     New {
         /// Name of the new project
         name: String,
+        /// Use a local RustForge checkout in the generated Cargo manifest
+        #[arg(long)]
+        framework_path: Option<std::path::PathBuf>,
     },
 
     /// Generate code scaffolding
@@ -58,12 +53,12 @@ enum Commands {
     /// Start the development server
     Serve {
         /// Port to listen on
-        #[arg(short, long, default_value = "8000")]
-        port: u16,
+        #[arg(short, long)]
+        port: Option<u16>,
 
         /// Host to bind to
-        #[arg(long, default_value = "0.0.0.0")]
-        host: String,
+        #[arg(long)]
+        host: Option<String>,
     },
 
     /// Interactive REPL for the application
@@ -243,19 +238,32 @@ enum MakeCommands {
 #[derive(Subcommand)]
 enum MigrateCommands {
     /// Run pending migrations
-    Run,
+    Run {
+        #[arg(long)]
+        force: bool,
+        /// Put each migration in its own batch
+        #[arg(long)]
+        step: bool,
+    },
 
     /// Rollback the last batch of migrations
     Rollback {
-        /// Number of batches to rollback (defaults to 1)
+        /// Number of individual migrations to roll back (defaults to the last batch)
         #[arg(long)]
         step: Option<usize>,
+        /// Roll back a specific batch
+        #[arg(long, conflicts_with = "step")]
+        batch: Option<usize>,
+        #[arg(long)]
+        force: bool,
     },
 
     /// Rollback a specific batch
     RollbackBatch {
         /// Batch number to rollback
         batch: usize,
+        #[arg(long)]
+        force: bool,
     },
 
     /// Drop all tables and re-run all migrations
@@ -263,10 +271,27 @@ enum MigrateCommands {
         /// Also seed the database after migrating
         #[arg(long)]
         seed: bool,
+        /// Confirm dropping every table in the target database
+        #[arg(long)]
+        force: bool,
     },
 
-    /// Reset and re-run all migrations
-    Reset,
+    /// Roll back all migrations
+    Reset {
+        #[arg(long)]
+        force: bool,
+    },
+
+    /// Roll back and reapply migrations
+    Refresh {
+        /// Roll back only the last N migrations
+        #[arg(long)]
+        step: Option<usize>,
+        #[arg(long)]
+        seed: bool,
+        #[arg(long)]
+        force: bool,
+    },
 
     /// Show the status of each migration
     Status,
@@ -439,16 +464,46 @@ enum DeployCommands {
     },
 }
 
+// Accept Artisan's namespace:command syntax alongside Clap's nested commands.
+fn artisan_args(args: impl IntoIterator<Item = std::ffi::OsString>) -> Vec<std::ffi::OsString> {
+    let mut args: Vec<_> = args.into_iter().collect();
+    if let Some((group, command)) = args
+        .get(1)
+        .and_then(|arg| arg.to_str())
+        .and_then(|arg| arg.split_once(':'))
+    {
+        if matches!(
+            group,
+            "make" | "migrate" | "db" | "route" | "cache" | "config" | "queue"
+        ) {
+            let command = std::ffi::OsString::from(command);
+            args[1] = group.into();
+            args.insert(2, command);
+        }
+    } else if args.get(1).is_some_and(|arg| arg == "migrate")
+        && (args.len() == 2
+            || args
+                .get(2)
+                .is_some_and(|arg| arg == "--force" || arg == "--step"))
+    {
+        args.insert(2, "run".into());
+    }
+    args
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
     // Load configuration
     let config = config::ForgeConfig::load().unwrap_or_default();
 
-    let cli = Cli::parse();
+    let cli = Cli::parse_from(artisan_args(std::env::args_os()));
 
     match cli.command {
-        Commands::New { name } => {
-            commands::new::run(&name).await?;
+        Commands::New {
+            name,
+            framework_path,
+        } => {
+            commands::new::run_with_framework(&name, framework_path.as_deref()).await?;
         }
         Commands::Make(make_cmd) => match make_cmd {
             MakeCommands::Model { name, migration } => {
@@ -511,20 +566,24 @@ async fn main() -> Result<()> {
             }
         },
         Commands::Migrate(migrate_cmd) => match migrate_cmd {
-            MigrateCommands::Run => {
-                commands::migrate::run().await?;
+            MigrateCommands::Run { force, step } => {
+                commands::migrate::run(force, step).await?;
             }
-            MigrateCommands::Rollback { step } => {
-                commands::migrate::rollback(step).await?;
+            MigrateCommands::Rollback { step, batch, force } => match batch {
+                Some(batch) => commands::migrate::rollback_batch(batch, force).await?,
+                None => commands::migrate::rollback(step, force).await?,
+            },
+            MigrateCommands::RollbackBatch { batch, force } => {
+                commands::migrate::rollback_batch(batch, force).await?;
             }
-            MigrateCommands::RollbackBatch { batch } => {
-                commands::migrate::rollback_batch(batch).await?;
+            MigrateCommands::Fresh { seed, force } => {
+                commands::migrate::fresh(seed, force).await?;
             }
-            MigrateCommands::Fresh { seed } => {
-                commands::migrate::fresh(seed).await?;
+            MigrateCommands::Reset { force } => {
+                commands::migrate::reset(force).await?;
             }
-            MigrateCommands::Reset => {
-                commands::migrate::reset().await?;
+            MigrateCommands::Refresh { step, seed, force } => {
+                commands::migrate::refresh(step, seed, force).await?;
             }
             MigrateCommands::Status => {
                 commands::migrate::status().await?;
@@ -532,7 +591,7 @@ async fn main() -> Result<()> {
         },
         Commands::Db(db_cmd) => match db_cmd {
             DbCommands::Seed { class, force } => {
-                commands::make::seed(class.as_deref(), force).await?;
+                commands::migrate::seed(class.as_deref(), force).await?;
             }
         },
         Commands::Route(route_cmd) => match route_cmd {
@@ -610,7 +669,7 @@ async fn main() -> Result<()> {
             }
         },
         Commands::Serve { port, host } => {
-            commands::serve::run(&host, port).await?;
+            commands::serve::run_configured(host.as_deref(), port).await?;
         }
         Commands::Tinker => {
             commands::tinker::run().await?;

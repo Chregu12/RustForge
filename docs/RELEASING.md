@@ -237,6 +237,16 @@ Because we do NOT publish to crates.io, the release procedure is:
    cargo test --workspace
    ```
 
+Before tagging, verify the supply-chain and runtime checks on the exact release commit:
+
+- Run `cargo audit` and `cargo deny --locked check`. The supply-chain job runs
+  both so that a failing advisory check still surfaces policy violations.
+- Confirm the live PostgreSQL, Redis, S3 and SMTP probes. Run the generated
+  Forge application tests for SQLite and PostgreSQL.
+- Deploy the release build to a staging environment with production settings.
+  Check readiness, persistence across a restart, backup restoration and rollback
+  with the chosen database. A passing local suite is one input to that decision.
+
 5. **Commit** with message `release: vX.Y.Z` followed by the standard trailer.
 
 6. **Tag** the release commit:

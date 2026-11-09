@@ -2,7 +2,7 @@
 
 use crate::facade::db_manager::{
     global_begin_transaction, global_commit, global_connection_name, global_delete, global_insert,
-    global_refresh, global_rollback, global_select, global_set_connection, global_statement,
+    global_refresh, global_rollback, global_select, global_statement, global_try_set_connection,
     global_update,
 };
 use crate::facade::query_builder::QueryBuilder;
@@ -246,8 +246,7 @@ impl DB {
     /// Set the database connection to use
     pub fn connection(name: &str) -> Result<(), String> {
         super::async_db::ensure_sync_context()?;
-        global_set_connection(name.to_string());
-        Ok(())
+        global_try_set_connection(name.to_string())
     }
 
     /// Get the current connection name
@@ -260,6 +259,12 @@ impl DB {
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn connection_reports_a_rejected_database_url() {
+        let result = DB::connection("postgres://127.0.0.1:not-a-port/database");
+        assert!(result.is_err());
+    }
 
     // Keep GLOBAL_DB in scope so the type is still reachable from tests that
     // reference it (e.g. to confirm it compiles as RwLock<ConcurrentDB>).

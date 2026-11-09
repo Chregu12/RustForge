@@ -60,13 +60,13 @@
 
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
-use sea_orm::{ConnectionTrait, DatabaseConnection, DbBackend, DbErr, Statement};
+use sea_orm::{ConnectionTrait, DatabaseConnection, DbBackend, DbErr, Statement, TransactionTrait};
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::sync::Arc;
 use thiserror::Error;
 
-use crate::schema_builder::Schema;
+use crate::{schema_builder::Schema, DatabaseManager};
 
 /// Schema context for migrations
 ///
@@ -291,12 +291,30 @@ struct MigrationRecord {
     pub executed_at: DateTime<Utc>,
 }
 
+enum RegisteredMigration {
+    Rust(Box<dyn Migration>),
+    Sql {
+        name: String,
+        up: String,
+        down: String,
+    },
+}
+
+impl RegisteredMigration {
+    fn name(&self) -> &str {
+        match self {
+            Self::Rust(migration) => migration.name(),
+            Self::Sql { name, .. } => name,
+        }
+    }
+}
+
 /// Migration manager
 ///
 /// Manages the execution, tracking, and rollback of database migrations.
 pub struct Migrator {
     db: Arc<DatabaseConnection>,
-    migrations: Vec<Box<dyn Migration>>,
+    migrations: Vec<RegisteredMigration>,
 }
 
 impl Migrator {
@@ -312,13 +330,21 @@ impl Migrator {
         }
     }
 
+    /// Use the same connection pool as the application's database manager.
+    pub fn from_manager(manager: &DatabaseManager) -> Self {
+        Self {
+            db: manager.shared_connection(),
+            migrations: Vec::new(),
+        }
+    }
+
     /// Add a migration to the migrator
     ///
     /// # Arguments
     ///
     /// * `migration` - Boxed migration implementation
     pub fn add_migration(&mut self, migration: Box<dyn Migration>) {
-        self.migrations.push(migration);
+        self.migrations.push(RegisteredMigration::Rust(migration));
     }
 
     /// Add multiple migrations at once
@@ -327,7 +353,16 @@ impl Migrator {
     ///
     /// * `migrations` - Vector of boxed migrations
     pub fn add_migrations(&mut self, migrations: Vec<Box<dyn Migration>>) {
-        self.migrations.extend(migrations);
+        self.migrations
+            .extend(migrations.into_iter().map(RegisteredMigration::Rust));
+    }
+
+    /// Register a pair of SQL scripts. Each script and its ledger change run
+    /// in one transaction on SQLite or PostgreSQL. Scripts must omit explicit
+    /// transaction control and use the SQL dialect of the configured database.
+    pub fn add_sql_migration(&mut self, name: String, up: String, down: String) {
+        self.migrations
+            .push(RegisteredMigration::Sql { name, up, down });
     }
 
     /// Ensure the migrations table exists
@@ -377,10 +412,14 @@ impl Migrator {
     /// Get all executed migrations from the database
     async fn get_executed_migrations(&self) -> MigrationResult<Vec<MigrationRecord>> {
         let backend = self.db.get_database_backend();
-        let query = Statement::from_string(
-            backend,
-            "SELECT id, migration, batch, executed_at FROM migrations ORDER BY id",
-        );
+        let integer_type = if backend == DbBackend::MySql {
+            "SIGNED"
+        } else {
+            "BIGINT"
+        };
+        let query = Statement::from_string(backend, format!(
+            "SELECT CAST(id AS {integer_type}) AS id, migration, CAST(batch AS {integer_type}) AS batch, executed_at FROM migrations ORDER BY id"
+        ));
 
         let results = self.db.query_all(query).await?;
 
@@ -413,225 +452,105 @@ impl Migrator {
         Ok(records)
     }
 
-    /// Get the next batch number
-    async fn get_next_batch(&self) -> MigrationResult<usize> {
-        let backend = self.db.get_database_backend();
-        let query =
-            Statement::from_string(backend, "SELECT MAX(batch) as max_batch FROM migrations");
-
-        let result = self.db.query_one(query).await?;
-
-        if let Some(row) = result {
-            let max_batch: Option<i64> = row.try_get("", "max_batch").ok();
-            Ok(max_batch.map(|b| b as usize + 1).unwrap_or(1))
+    async fn update_ledger(
+        db: &impl ConnectionTrait,
+        name: &str,
+        batch: Option<usize>,
+    ) -> MigrationResult<()> {
+        let backend = db.get_database_backend();
+        let (name_param, batch_param) = if backend == DbBackend::Postgres {
+            ("$1", "$2")
         } else {
-            Ok(1)
+            ("?", "?")
+        };
+        let statement = if let Some(batch) = batch {
+            let batch = i32::try_from(batch).map_err(|_| {
+                MigrationError::InvalidState("Migration batch limit reached".into())
+            })?;
+            Statement::from_sql_and_values(
+                backend,
+                format!("INSERT INTO migrations (migration, batch) VALUES ({name_param}, {batch_param})"),
+                [name.into(), batch.into()],
+            )
+        } else {
+            Statement::from_sql_and_values(
+                backend,
+                format!("DELETE FROM migrations WHERE migration = {name_param}"),
+                [name.into()],
+            )
+        };
+        if db.execute(statement).await?.rows_affected() != 1 {
+            return Err(MigrationError::InvalidState(format!(
+                "Migration record for '{name}' changed concurrently"
+            )));
+        }
+        Ok(())
+    }
+
+    async fn apply(
+        &self,
+        migration: &RegisteredMigration,
+        batch: Option<usize>,
+    ) -> MigrationResult<()> {
+        match migration {
+            RegisteredMigration::Rust(migration) => {
+                let schema = SchemaContext::new(self.db.clone()).await;
+                if batch.is_some() {
+                    migration.up(&schema).await?;
+                } else {
+                    migration.down(&schema).await?;
+                }
+                Self::update_ledger(self.db.as_ref(), migration.name(), batch).await
+            }
+            RegisteredMigration::Sql { name, up, down } => {
+                if self.db.get_database_backend() == DbBackend::MySql {
+                    return Err(MigrationError::InvalidState(
+                        "Transactional SQL migrations require SQLite or PostgreSQL".into(),
+                    ));
+                }
+                let tx = self.db.begin().await?;
+                // Claim the ledger entry before touching schema so competing
+                // runners cannot apply or undo the same migration twice.
+                Self::update_ledger(&tx, name, batch).await?;
+                tx.execute_unprepared(if batch.is_some() { up } else { down })
+                    .await?;
+                tx.commit().await?;
+                Ok(())
+            }
         }
     }
 
-    /// Record a migration execution
-    async fn record_migration(&self, name: &str, batch: usize) -> MigrationResult<()> {
-        let backend = self.db.get_database_backend();
-
-        let insert_sql = match backend {
-            DbBackend::Postgres | DbBackend::MySql => {
-                format!(
-                    "INSERT INTO migrations (migration, batch) VALUES ('{}', {})",
-                    name, batch
-                )
-            }
-            DbBackend::Sqlite => {
-                format!(
-                    "INSERT INTO migrations (migration, batch, executed_at) VALUES ('{}', {}, datetime('now'))",
-                    name, batch
-                )
-            }
-        };
-
-        self.db
-            .execute(Statement::from_string(backend, insert_sql))
-            .await?;
-
-        Ok(())
-    }
-
-    /// Remove a migration record
-    async fn remove_migration(&self, name: &str) -> MigrationResult<()> {
-        let backend = self.db.get_database_backend();
-        let escaped_name = name.replace('\'', "''");
-        let delete_sql = format!("DELETE FROM migrations WHERE migration = '{}'", escaped_name);
-
-        self.db
-            .execute(Statement::from_string(backend, delete_sql))
-            .await?;
-
-        Ok(())
-    }
-
-    /// Run all pending migrations
-    ///
-    /// Executes all migrations that haven't been run yet in a single batch.
-    ///
-    /// # Returns
-    ///
-    /// `BatchResult` containing the results of the migration run
+    /// Run all pending migrations as a single numbered batch.
     pub async fn run(&self) -> MigrationResult<BatchResult> {
+        self.run_pending(false).await
+    }
+
+    /// Run pending migrations, giving each one its own batch number.
+    pub async fn run_stepwise(&self) -> MigrationResult<BatchResult> {
+        self.run_pending(true).await
+    }
+
+    async fn run_pending(&self, stepwise: bool) -> MigrationResult<BatchResult> {
         self.ensure_migrations_table().await?;
-
         let executed = self.get_executed_migrations().await?;
-        let executed_names: Vec<String> = executed.iter().map(|r| r.migration.clone()).collect();
-
-        let batch = self.get_next_batch().await?;
+        let batch = executed
+            .iter()
+            .map(|record| record.batch as usize)
+            .max()
+            .unwrap_or(0)
+            + 1;
         let mut result = BatchResult::new(batch);
 
         for migration in &self.migrations {
             let name = migration.name();
-
-            if executed_names.contains(&name.to_string()) {
-                continue; // Skip already executed migrations
+            if executed.iter().any(|record| record.migration == name) {
+                continue;
             }
-
-            let schema_ctx = SchemaContext::new(self.db.clone()).await;
-            match migration.up(&schema_ctx).await {
-                Ok(_) => match self.record_migration(name, batch).await {
-                    Ok(_) => {
-                        result.add_success(name.to_string());
-                        tracing::info!("Migration '{}' executed successfully", name);
-                    }
-                    Err(e) => {
-                        let error = format!("Failed to record migration: {}", e);
-                        result.add_failure(name.to_string(), error.clone());
-                        tracing::error!("Failed to record migration '{}': {}", name, e);
-                    }
-                },
-                Err(e) => {
-                    let error = e.to_string();
-                    result.add_failure(name.to_string(), error.clone());
-                    tracing::error!("Migration '{}' failed: {}", name, error);
-                    break; // Stop on first error
-                }
-            }
-        }
-
-        Ok(result)
-    }
-
-    /// Rollback migrations
-    ///
-    /// Rolls back the last N batches of migrations.
-    ///
-    /// # Arguments
-    ///
-    /// * `steps` - Number of batches to rollback (None = rollback last batch)
-    pub async fn rollback(&self, steps: Option<usize>) -> MigrationResult<BatchResult> {
-        self.ensure_migrations_table().await?;
-
-        let executed = self.get_executed_migrations().await?;
-
-        if executed.is_empty() {
-            return Err(MigrationError::NoMigrationsToRollback);
-        }
-
-        // Determine which batches to rollback
-        let max_batch = executed.iter().map(|r| r.batch).max().unwrap_or(0);
-        let steps = steps.unwrap_or(1);
-        let min_batch = (max_batch - steps as i64 + 1).max(1);
-
-        let to_rollback: Vec<_> = executed
-            .into_iter()
-            .filter(|r| r.batch >= min_batch)
-            .collect();
-
-        let mut result = BatchResult::new(max_batch as usize);
-
-        // Rollback in reverse order
-        for record in to_rollback.iter().rev() {
-            let migration = self
-                .migrations
-                .iter()
-                .find(|m| m.name() == record.migration)
-                .ok_or_else(|| MigrationError::NotFound(record.migration.clone()))?;
-
-            let schema_ctx = SchemaContext::new(self.db.clone()).await;
-            match migration.down(&schema_ctx).await {
-                Ok(_) => match self.remove_migration(&record.migration).await {
-                    Ok(_) => {
-                        result.add_success(record.migration.clone());
-                        tracing::info!("Migration '{}' rolled back successfully", record.migration);
-                    }
-                    Err(e) => {
-                        let error = format!("Failed to remove migration record: {}", e);
-                        result.add_failure(record.migration.clone(), error.clone());
-                        tracing::error!(
-                            "Failed to remove migration record '{}': {}",
-                            record.migration,
-                            e
-                        );
-                    }
-                },
-                Err(e) => {
-                    let error = e.to_string();
-                    result.add_failure(record.migration.clone(), error.clone());
-                    tracing::error!(
-                        "Migration '{}' rollback failed: {}",
-                        record.migration,
-                        error
-                    );
-                    break; // Stop on first error
-                }
-            }
-        }
-
-        Ok(result)
-    }
-
-    /// Rollback a specific batch
-    ///
-    /// # Arguments
-    ///
-    /// * `batch` - The batch number to rollback
-    pub async fn rollback_batch(&self, batch: usize) -> MigrationResult<BatchResult> {
-        self.ensure_migrations_table().await?;
-
-        let executed = self.get_executed_migrations().await?;
-
-        let to_rollback: Vec<_> = executed
-            .into_iter()
-            .filter(|r| r.batch == batch as i64)
-            .collect();
-
-        if to_rollback.is_empty() {
-            return Err(MigrationError::InvalidState(format!(
-                "No migrations found in batch {}",
-                batch
-            )));
-        }
-
-        let mut result = BatchResult::new(batch);
-
-        // Rollback in reverse order
-        for record in to_rollback.iter().rev() {
-            let migration = self
-                .migrations
-                .iter()
-                .find(|m| m.name() == record.migration)
-                .ok_or_else(|| MigrationError::NotFound(record.migration.clone()))?;
-
-            let schema_ctx = SchemaContext::new(self.db.clone()).await;
-            match migration.down(&schema_ctx).await {
-                Ok(_) => match self.remove_migration(&record.migration).await {
-                    Ok(_) => {
-                        result.add_success(record.migration.clone());
-                        tracing::info!("Migration '{}' rolled back successfully", record.migration);
-                    }
-                    Err(e) => {
-                        let error = format!("Failed to remove migration record: {}", e);
-                        result.add_failure(record.migration.clone(), error);
-                    }
-                },
-                Err(e) => {
-                    let error = e.to_string();
-                    result.add_failure(record.migration.clone(), error);
+            let migration_batch = batch + if stepwise { result.migrations_run } else { 0 };
+            match self.apply(migration, Some(migration_batch)).await {
+                Ok(()) => result.add_success(name.to_owned()),
+                Err(error) => {
+                    result.add_failure(name.to_owned(), error.to_string());
                     break;
                 }
             }
@@ -640,37 +559,94 @@ impl Migrator {
         Ok(result)
     }
 
-    /// Fresh migration - rollback all and re-run
-    ///
-    /// Rolls back all migrations and then re-runs them from scratch.
-    /// Useful for development environments.
-    pub async fn fresh(&self) -> MigrationResult<BatchResult> {
-        self.ensure_migrations_table().await?;
-
-        let executed = self.get_executed_migrations().await?;
-
-        // Rollback all migrations
-        if !executed.is_empty() {
-            let _rollback_result = BatchResult::new(0);
-
-            for record in executed.iter().rev() {
-                let migration = self
-                    .migrations
+    async fn rollback_records(
+        &self,
+        records: Vec<MigrationRecord>,
+        batch: usize,
+    ) -> MigrationResult<BatchResult> {
+        // Resolve every script first. A missing file must not leave an
+        // otherwise valid rollback only partly completed.
+        let migrations = records
+            .iter()
+            .rev()
+            .map(|record| {
+                self.migrations
                     .iter()
-                    .find(|m| m.name() == record.migration)
-                    .ok_or_else(|| MigrationError::NotFound(record.migration.clone()))?;
-
-                let schema_ctx = SchemaContext::new(self.db.clone()).await;
-                if let Err(e) = migration.down(&schema_ctx).await {
-                    tracing::warn!("Failed to rollback migration '{}': {}", record.migration, e);
-                    // Continue anyway
+                    .find(|migration| migration.name() == record.migration)
+                    .ok_or_else(|| MigrationError::NotFound(record.migration.clone()))
+            })
+            .collect::<MigrationResult<Vec<_>>>()?;
+        let mut result = BatchResult::new(batch);
+        for migration in migrations {
+            match self.apply(migration, None).await {
+                Ok(()) => result.add_success(migration.name().to_owned()),
+                Err(error) => {
+                    result.add_failure(migration.name().to_owned(), error.to_string());
+                    break;
                 }
-
-                let _ = self.remove_migration(&record.migration).await;
             }
         }
+        Ok(result)
+    }
 
-        // Re-run all migrations
+    /// Roll back the last N numbered batches (defaults to the last batch).
+    pub async fn rollback(&self, steps: Option<usize>) -> MigrationResult<BatchResult> {
+        self.ensure_migrations_table().await?;
+        let mut executed = self.get_executed_migrations().await?;
+        let batch = executed
+            .iter()
+            .map(|record| record.batch)
+            .max()
+            .ok_or(MigrationError::NoMigrationsToRollback)?;
+        let batches: std::collections::BTreeSet<_> =
+            executed.iter().map(|record| record.batch).collect();
+        let steps = steps.unwrap_or(1);
+        if let Some(first) = batches.iter().rev().take(steps).next_back() {
+            executed.retain(|record| record.batch >= *first);
+        } else {
+            executed.clear();
+        }
+        self.rollback_records(executed, batch as usize).await
+    }
+
+    /// Roll back a specific batch in reverse application order.
+    pub async fn rollback_batch(&self, batch: usize) -> MigrationResult<BatchResult> {
+        self.ensure_migrations_table().await?;
+        let executed: Vec<_> = self
+            .get_executed_migrations()
+            .await?
+            .into_iter()
+            .filter(|record| record.batch as usize == batch)
+            .collect();
+        if executed.is_empty() {
+            return Err(MigrationError::InvalidState(format!(
+                "No migrations found in batch {batch}"
+            )));
+        }
+        self.rollback_records(executed, batch).await
+    }
+
+    /// Roll back up to `count` migrations in reverse application order.
+    pub async fn rollback_latest(&self, count: usize) -> MigrationResult<BatchResult> {
+        self.ensure_migrations_table().await?;
+        let mut records = self.get_executed_migrations().await?;
+        let latest = records.split_off(records.len().saturating_sub(count));
+        self.rollback_records(latest, 0).await
+    }
+
+    /// Roll back every recorded migration.
+    pub async fn reset(&self) -> MigrationResult<BatchResult> {
+        self.ensure_migrations_table().await?;
+        let executed = self.get_executed_migrations().await?;
+        self.rollback_records(executed, 0).await
+    }
+
+    /// Roll back every recorded migration, then reapply all registered migrations.
+    pub async fn fresh(&self) -> MigrationResult<BatchResult> {
+        let rollback = self.reset().await?;
+        if !rollback.is_successful() {
+            return Ok(rollback);
+        }
         self.run().await
     }
 
@@ -678,9 +654,22 @@ impl Migrator {
     ///
     /// Returns the status of all migrations (executed and pending).
     pub async fn status(&self) -> MigrationResult<Vec<MigrationStatus>> {
-        self.ensure_migrations_table().await?;
-
-        let executed = self.get_executed_migrations().await?;
+        let backend = self.db.get_database_backend();
+        let table_exists = match backend {
+            DbBackend::Sqlite => "SELECT 1 FROM sqlite_schema WHERE type = 'table' AND name = 'migrations'",
+            DbBackend::Postgres => "SELECT 1 WHERE to_regclass('migrations') IS NOT NULL",
+            DbBackend::MySql => "SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'migrations'",
+        };
+        let executed = if self
+            .db
+            .query_one(Statement::from_string(backend, table_exists))
+            .await?
+            .is_some()
+        {
+            self.get_executed_migrations().await?
+        } else {
+            Vec::new()
+        };
 
         let mut statuses = Vec::new();
 
@@ -716,7 +705,47 @@ impl Migrator {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::DatabaseConfig;
     use sea_orm::Database;
+
+    #[tokio::test]
+    async fn failed_sql_script_leaves_schema_and_ledger_consistent() {
+        let db = DatabaseManager::connect(DatabaseConfig {
+            max_connections: 1,
+            min_connections: 1,
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+        let mut migrator = Migrator::from_manager(&db);
+        migrator.add_sql_migration(
+            "test_sql".into(),
+            "CREATE TABLE posts (id INTEGER PRIMARY KEY); INVALID SQL;".into(),
+            "DROP TABLE posts;".into(),
+        );
+        assert!(!migrator.run().await.unwrap().is_successful());
+        assert!(!migrator.status().await.unwrap()[0].executed);
+        assert!(db
+            .connection()
+            .execute_unprepared("SELECT * FROM posts")
+            .await
+            .is_err());
+
+        let mut migrator = Migrator::from_manager(&db);
+        migrator.add_sql_migration(
+            "test_sql".into(),
+            "CREATE TABLE posts (id INTEGER PRIMARY KEY); INSERT INTO posts VALUES (1);".into(),
+            "DROP TABLE posts; INVALID SQL;".into(),
+        );
+        assert_eq!(migrator.run().await.unwrap().migrations_run, 1);
+        assert!(!migrator.rollback(None).await.unwrap().is_successful());
+        assert!(migrator.status().await.unwrap()[0].executed);
+        assert!(db
+            .connection()
+            .execute_unprepared("SELECT * FROM posts")
+            .await
+            .is_ok());
+    }
 
     struct TestMigration1;
 
