@@ -249,7 +249,9 @@ def postgres_recovery():
         with running_app(app, [previous]) as url:
             assert request(url, "GET", "/ready")[0] == 200
             assert b"<h1>RustForge</h1>" in request(url, "GET", "/")[1]
-            status, original = request(url, "POST", "/api/posts", {"title": "Before backup"})
+            status, original = request(url, "POST", "/api/posts", {
+                "title": "Before backup", "body": "Must be restored",
+            })
             assert status == 201
         original_path = f"/api/posts/{original['id']}"
         backup = parent / "postgres.dump"
@@ -265,7 +267,9 @@ def postgres_recovery():
             assert request(url, "GET", "/ready")[0] == 200
             assert b"<h1>RustForge v2</h1>" in request(url, "GET", "/")[1]
             assert request(url, "GET", original_path) == (200, original)
-            status, newer = request(url, "POST", "/api/posts", {"title": "After backup"})
+            status, newer = request(url, "POST", "/api/posts", {
+                "title": "After backup", "body": "Must survive binary rollback",
+            })
             assert status == 201
         newer_path = f"/api/posts/{newer['id']}"
 
@@ -287,7 +291,9 @@ def postgres_recovery():
             assert request(url, "GET", "/ready")[0] == 200
             assert request(url, "GET", original_path) == (200, original)
             assert request(url, "GET", newer_path)[0] == 404
-            status, created = request(url, "POST", "/api/posts", {"title": "After restore"})
+            status, created = request(url, "POST", "/api/posts", {
+                "title": "After restore", "body": "The restored database accepts writes",
+            })
             assert status == 201 and created["id"] > original["id"]
     print("Forge release rollback and PostgreSQL backup restore passed.")
 
