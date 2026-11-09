@@ -19,11 +19,10 @@ axum.workspace = true
 tower.workspace = true
 
 # OpenTelemetry dependencies
-opentelemetry = { version = "0.22", features = ["trace", "metrics"] }
-opentelemetry-otlp = { version = "0.15", features = ["trace", "metrics", "tonic"] }
-opentelemetry-semantic-conventions = "0.14"
-opentelemetry_sdk = { version = "0.22", features = ["rt-tokio", "trace", "metrics"] }
-tracing-opentelemetry = "0.23"
+opentelemetry = { version = "0.33", features = ["trace", "metrics"] }
+opentelemetry-otlp = { version = "0.33.1", default-features = false, features = ["trace", "grpc-tonic"] }
+opentelemetry_sdk = { version = "0.33", features = ["trace", "metrics"] }
+tracing-opentelemetry = "0.34"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt", "json"] }
 
 # Prometheus dependencies
@@ -40,8 +39,11 @@ uuid.workspace = true
 rf-plugins = { path = "../rf-plugins" }
 
 [dev-dependencies]
+opentelemetry-proto = { version = "0.33", default-features = false, features = ["gen-tonic", "trace"] }
 tempfile = "3.10"
 tokio-test = "0.4"
+tokio-stream = { version = "0.1", features = ["net"] }
+tonic = { version = "0.14", default-features = false, features = ["router", "transport"] }
 
 # [[example]]
 # name = "basic_usage_foundry_observability"
