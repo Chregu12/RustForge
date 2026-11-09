@@ -565,38 +565,31 @@ mod tests {
 
     #[test]
     fn test_route_resource() {
-        // Clear any existing routes
-        global_router().clear();
-
-        Route::resource("posts", "PostController");
+        Route::resource("test-posts", "PostController");
 
         let routes = global_router().routes();
-
-        // Should have 8 routes (index, create, store, show, edit, update, patch update, destroy)
-        assert!(routes.len() >= 8);
-
-        // Check some route names
-        let names: Vec<Option<String>> = routes.iter().map(|r| r.name.clone()).collect();
-        assert!(names.contains(&Some("posts.index".to_string())));
-        assert!(names.contains(&Some("posts.store".to_string())));
-        assert!(names.contains(&Some("posts.show".to_string())));
+        let names: Vec<_> = routes
+            .iter()
+            .filter_map(|route| route.name.as_deref()?.strip_prefix("test-posts."))
+            .collect();
+        assert_eq!(names.len(), 8);
+        assert!(names.contains(&"index"));
+        assert!(names.contains(&"store"));
+        assert!(names.contains(&"show"));
     }
 
     #[test]
     fn test_route_api_resource() {
-        global_router().clear();
-
-        Route::api_resource("users", "UserController");
+        Route::api_resource("test-users", "UserController");
 
         let routes = global_router().routes();
-
-        // Should have 6 routes (index, store, show, update, patch update, destroy)
-        // No create or edit routes
-        assert!(routes.len() >= 6);
-
-        let names: Vec<Option<String>> = routes.iter().map(|r| r.name.clone()).collect();
-        assert!(names.contains(&Some("users.index".to_string())));
-        assert!(!names.contains(&Some("users.create".to_string())));
-        assert!(!names.contains(&Some("users.edit".to_string())));
+        let names: Vec<_> = routes
+            .iter()
+            .filter_map(|route| route.name.as_deref()?.strip_prefix("test-users."))
+            .collect();
+        assert_eq!(names.len(), 6);
+        assert!(names.contains(&"index"));
+        assert!(!names.contains(&"create"));
+        assert!(!names.contains(&"edit"));
     }
 }
