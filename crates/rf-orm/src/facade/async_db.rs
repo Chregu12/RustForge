@@ -14,7 +14,7 @@ use std::{future::Future, sync::Arc};
 
 #[derive(Clone)]
 enum Executor {
-    Pool(DatabaseConnection),
+    Pool(Arc<DatabaseConnection>),
     Transaction(Arc<DatabaseTransaction>),
 }
 
@@ -33,8 +33,13 @@ pub(super) fn ensure_sync_context() -> Result<(), String> {
 /// Run model/facade operations against an application's owned connection pool.
 /// Nested scopes restore the previous connection. Spawned tasks must establish
 /// their own scope explicitly; there is no process-global reconfiguration.
-pub async fn with_database<F: Future>(connection: DatabaseConnection, future: F) -> F::Output {
-    DATABASE.scope(Executor::Pool(connection), future).await
+pub async fn with_database<F: Future>(
+    connection: impl Into<Arc<DatabaseConnection>>,
+    future: F,
+) -> F::Output {
+    DATABASE
+        .scope(Executor::Pool(connection.into()), future)
+        .await
 }
 
 /// Run an async operation atomically on the scoped pool. Nested calls use
@@ -159,7 +164,7 @@ async fn legacy<T: Send + 'static>(
 
 pub async fn select(sql: &str, bindings: &[Value]) -> Result<Vec<Value>, String> {
     match DATABASE.try_with(Clone::clone).ok() {
-        Some(Executor::Pool(conn)) => select_on(&conn, sql, bindings).await,
+        Some(Executor::Pool(conn)) => select_on(conn.as_ref(), sql, bindings).await,
         Some(Executor::Transaction(tx)) => select_on(tx.as_ref(), sql, bindings).await,
         None => legacy(sql, bindings, db_manager::global_select).await,
     }
@@ -171,7 +176,7 @@ pub async fn insert(sql: &str, bindings: &[Value]) -> Result<u64, String> {
 
 pub async fn execute(sql: &str, bindings: &[Value], insert: bool) -> Result<u64, String> {
     match DATABASE.try_with(Clone::clone).ok() {
-        Some(Executor::Pool(conn)) => execute_on(&conn, sql, bindings, insert).await,
+        Some(Executor::Pool(conn)) => execute_on(conn.as_ref(), sql, bindings, insert).await,
         Some(Executor::Transaction(tx)) => execute_on(tx.as_ref(), sql, bindings, insert).await,
         None => {
             legacy(

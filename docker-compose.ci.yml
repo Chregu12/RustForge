@@ -1,18 +1,11 @@
-# CI-only override layered on top of docker-compose.test.yml.
-#
-# Purpose: the rf-storage live S3 test (`s3::tests::test_s3_operations`) is
-# hard-coded to authenticate against MinIO with access_key/secret_key
-# "minioadmin"/"minioadmin". The base docker-compose.test.yml ships a
-# different root password (minioadmin123) which is fine for the console but
-# would make that live round-trip fail with an auth error in CI.
-#
-# This override aligns the MinIO root credentials to what the test expects so
-# the put/get/size/delete round-trip actually executes for real. It is applied
-# ONLY in CI via:
-#   docker compose -f docker-compose.test.yml -f docker-compose.ci.yml up -d
-# Local developers using scripts/test-env-up.sh keep the base file untouched.
+# S3 backend for the GitHub Actions live tests. The test client expects
+# minioadmin credentials and connects to localhost:9000.
 services:
-  minio:
+  rustfs:
+    image: rustfs/rustfs:1.0.4@sha256:ed9210d6411d77ffceb70d94b964a3cb7d225983368bc25bebe01e995293dcc2
+    ports:
+      - "127.0.0.1:9000:9000"
     environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
+      RUSTFS_ACCESS_KEY: minioadmin
+      RUSTFS_SECRET_KEY: minioadmin
+      RUSTFS_CONSOLE_ENABLE: "false"

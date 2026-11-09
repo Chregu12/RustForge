@@ -502,6 +502,10 @@ jobs:
       - name: rf-validation lib tests
         run: cargo test -p rf-validation --lib
 
+      # Notification tests enable SeaORM's mock feature for both crates.
+      - name: rf-orm and rf-notifications lib tests with shared SeaORM features
+        run: cargo test --locked -p rf-orm -p rf-notifications --lib
+
       - name: rf-macros lib tests
         run: cargo test -p rf-macros --lib
 
@@ -618,18 +622,16 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
 
-      # Bring up only the services these tests need. The CI override aligns
-      # MinIO's root credentials with the minioadmin/minioadmin the rf-storage
-      # test authenticates with (the base file ships minioadmin123).
+      # CI supplies its own S3 service because the MinIO image can no longer
+      # be pulled from Docker Hub.
       - name: Start backend services
         run: |
           docker compose -f docker-compose.test.yml -f docker-compose.ci.yml \
-            up -d redis mailhog minio postgres
+            up -d redis mailhog rustfs postgres
 
       # Wait on the raw TCP ports rather than the compose healthchecks: the
-      # MailHog / MinIO images do not all ship nc/curl, and the tests probe the
-      # ports directly anyway. If a port never opens we fail here (rather than
-      # silently letting the test skip and defeat the purpose of this job).
+      # tests probe the ports directly and skip if they are unavailable.
+      # Fail here if a service does not start so the tests run against it.
       # Postgres (5432) is included so RF_PG_TEST_URL can be used without race.
       - name: Wait for service ports
         run: |
@@ -648,17 +650,14 @@ jobs:
             fi
           done
 
-      # test_s3_operations does a real put/get/delete against a bucket that must
-      # exist first. Create it with the MinIO client using the aligned creds.
-      - name: Create MinIO test bucket
+      # Create the bucket with a signed S3 request and wait for the API to
+      # accept it, which may take longer than opening the TCP port.
+      - name: Create S3 test bucket
         run: |
-          docker run --rm --network host --entrypoint /bin/sh minio/mc -c '
-            for i in $(seq 1 30); do
-              mc alias set local http://127.0.0.1:9000 minioadmin minioadmin && break
-              sleep 2
-            done
-            mc mb --ignore-existing local/test-bucket
-          '
+          curl --fail-with-body --silent --show-error \
+            --retry 15 --retry-all-errors --retry-delay 2 --max-time 5 \
+            --aws-sigv4 'aws:amz:us-east-1:s3' --user 'minioadmin:minioadmin' \
+            --request PUT http://127.0.0.1:9000/test-bucket
 
       - name: rf-cache Redis Pub/Sub round-trip (live)
         run: |
@@ -676,7 +675,7 @@ jobs:
           cargo test -p rf-mail \
             test_smtp_send_via_mailhog -- --nocapture
 
-      - name: rf-storage S3 round-trip via MinIO (live)
+      - name: rf-storage S3 round-trip via RustFS (live)
         run: |
           cargo test -p rf-storage test_signed_url -- --nocapture
           cargo test -p rf-storage test_s3_operations -- --nocapture
