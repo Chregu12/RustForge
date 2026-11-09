@@ -1,515 +1,298 @@
-//! Migration CLI commands
-//!
-//! Provides CLI commands for managing database migrations:
-//! - Run pending migrations
-//! - Rollback migrations by batch
-//! - Fresh migrations (drop all and re-run)
-//! - Show migration status
+//! Execute project migration and seed scripts against the application's database.
 
-use anyhow::Result;
-use colored::*;
-use std::fs;
-use std::path::Path;
+use anyhow::{bail, ensure, Context, Result};
+use rf_orm::{
+    sea_orm::{DbBackend, Statement, TransactionTrait},
+    BatchResult, ConnectionTrait, DatabaseConfig, DatabaseManager, MigrationError, Migrator,
+};
+use std::{
+    collections::BTreeMap,
+    env, fs, io,
+    path::{Path, PathBuf},
+};
 
 use super::ensure_forge_project;
 
-/// Run all pending migrations
-pub async fn run() -> Result<()> {
+const MIGRATION_DIRS: &[&str] = &["database/migrations", "src/migrations", "migrations"];
+
+pub(super) fn migration_directory() -> &'static str {
+    MIGRATION_DIRS
+        .iter()
+        .copied()
+        .find(|dir| Path::new(dir).is_dir())
+        .unwrap_or("database/migrations")
+}
+
+async fn database(force: bool, mutates: bool) -> Result<DatabaseManager> {
     ensure_forge_project()?;
-
-    println!("{}", "Running migrations...".green().bold());
-    println!();
-
-    // Note: This is a placeholder implementation
-    // In a real application, you would:
-    // 1. Load database configuration from config file
-    // 2. Connect to the database
-    // 3. Load all migration files
-    // 4. Create a Migrator instance
-    // 5. Add all migrations to the migrator
-    // 6. Call migrator.run()
-
-    println!("  {} Checking for pending migrations...", "•".cyan());
-
-    // Check if migrations directory exists
-    if !Path::new("src/migrations").exists() {
-        println!("  {} No migrations directory found", "ℹ".blue());
-        println!();
-        println!("  {} Create migrations with:", "ℹ".blue());
-        println!("    forge make:migration <name>");
-        return Ok(());
+    match dotenvy::from_path(".env") {
+        Ok(()) => {}
+        Err(dotenvy::Error::Io(error)) if error.kind() == io::ErrorKind::NotFound => {}
+        Err(error) => return Err(error).context("Load project .env"),
     }
+    if mutates && env::var("APP_ENV").is_ok_and(|env| env.eq_ignore_ascii_case("production")) {
+        ensure!(force, "Use --force to change a production database");
+    }
+    let url = env::var("DATABASE_URL")
+        .unwrap_or_else(|_| "sqlite://database/database.sqlite?mode=rwc".into());
+    if url == "sqlite://database/database.sqlite?mode=rwc" {
+        fs::create_dir_all("database")?;
+    }
+    DatabaseManager::connect(DatabaseConfig {
+        url,
+        ..Default::default()
+    })
+    .await
+    .context("Connect to the project database")
+}
 
-    // Canonical convention: each migration is a subdirectory containing up.sql + down.sql.
-    // Runner: DB::statement(include_str!("up.sql")).expect("migration failed");
-    let mut migrations: Vec<String> = fs::read_dir("src/migrations")?
-        .filter_map(|entry| {
-            let entry = entry.ok()?;
+fn load_migrations(db: &DatabaseManager) -> Result<Migrator> {
+    let mut files = BTreeMap::new();
+    for root in MIGRATION_DIRS {
+        let entries = match fs::read_dir(root) {
+            Ok(entries) => entries,
+            Err(error) if error.kind() == io::ErrorKind::NotFound => continue,
+            Err(error) => return Err(error).with_context(|| format!("Read {root}")),
+        };
+        for entry in entries {
+            let entry = entry?;
             let path = entry.path();
-            // Accept subdirectories that contain an up.sql file
-            if path.is_dir() && path.join("up.sql").exists() {
-                Some(path.file_name()?.to_string_lossy().to_string())
-            } else {
-                None
+            if !path.is_dir()
+                || (!path.join("up.sql").is_file() && !path.join("down.sql").is_file())
+            {
+                continue;
             }
-        })
-        .collect();
-
-    migrations.sort();
-
-    if migrations.is_empty() {
-        println!("  {} No migrations found", "ℹ".blue());
-        return Ok(());
-    }
-
-    println!("  {} Found {} migration(s)", "•".cyan(), migrations.len());
-    println!();
-
-    // Example implementation (would use real migrator in practice):
-    /*
-    use rf_orm::migrations::Migrator;
-    use rf_orm::DatabaseManager;
-
-    let config = load_database_config()?;
-    let db = DatabaseManager::connect(config).await?;
-
-    let mut migrator = Migrator::new(db.connection().clone());
-
-    // Load and add all migrations
-    for migration_name in &migrations {
-        let migration = load_migration(migration_name)?;
-        migrator.add_migration(migration);
-    }
-
-    // Run migrations
-    let result = migrator.run().await?;
-
-    if result.is_successful() {
-        println!();
-        println!("{} Migrated {} migration(s) in batch {}",
-            "✓".green().bold(),
-            result.migrations_run,
-            result.batch
-        );
-
-        for name in &result.successful {
-            println!("  {} {}", "→".green(), name);
-        }
-    } else {
-        println!();
-        println!("{} Migration failed!", "✗".red().bold());
-
-        for (name, error) in &result.failed {
-            println!("  {} {}: {}", "✗".red(), name, error);
-        }
-    }
-    */
-
-    // Placeholder output
-    for migration in &migrations {
-        println!("  {} Migrating: {}", "→".green(), migration);
-    }
-
-    println!();
-    println!(
-        "{} All migrations completed successfully!",
-        "✓".green().bold()
-    );
-    println!();
-    println!(
-        "  {} To rollback, use: {}",
-        "ℹ".blue(),
-        "forge migrate:rollback".yellow()
-    );
-
-    Ok(())
-}
-
-/// Rollback the last N batches of migrations
-pub async fn rollback(steps: Option<usize>) -> Result<()> {
-    ensure_forge_project()?;
-
-    let steps = steps.unwrap_or(1);
-
-    println!(
-        "{}",
-        format!("Rolling back {} batch(es)...", steps)
-            .yellow()
-            .bold()
-    );
-    println!();
-
-    // Note: This is a placeholder implementation
-    // In a real application, you would:
-    // 1. Load database configuration
-    // 2. Connect to the database
-    // 3. Load all migration files
-    // 4. Create a Migrator instance
-    // 5. Call migrator.rollback(Some(steps))
-
-    println!("  {} Checking for migrations to rollback...", "•".cyan());
-
-    // Example implementation (would use real migrator in practice):
-    /*
-    use rf_orm::migrations::Migrator;
-    use rf_orm::DatabaseManager;
-
-    let config = load_database_config()?;
-    let db = DatabaseManager::connect(config).await?;
-
-    let mut migrator = Migrator::new(db.connection().clone());
-
-    // Load and add all migrations
-    load_all_migrations(&mut migrator)?;
-
-    // Rollback
-    match migrator.rollback(Some(steps)).await {
-        Ok(result) => {
-            if result.is_successful() {
-                println!();
-                println!("{} Rolled back {} migration(s)",
-                    "✓".green().bold(),
-                    result.migrations_run
-                );
-
-                for name in &result.successful {
-                    println!("  {} {}", "←".yellow(), name);
-                }
-            } else {
-                println!();
-                println!("{} Rollback failed!", "✗".red().bold());
-
-                for (name, error) in &result.failed {
-                    println!("  {} {}: {}", "✗".red(), name, error);
-                }
-            }
-        }
-        Err(e) => {
-            println!();
-            println!("{} {}", "✗".red().bold(), e);
-        }
-    }
-    */
-
-    // Placeholder output
-    println!("  {} Rolling back batch {}...", "←".yellow(), steps);
-    println!();
-    println!("{} Rollback completed successfully!", "✓".green().bold());
-
-    Ok(())
-}
-
-/// Rollback a specific batch number
-pub async fn rollback_batch(batch: usize) -> Result<()> {
-    ensure_forge_project()?;
-
-    println!(
-        "{}",
-        format!("Rolling back batch {}...", batch).yellow().bold()
-    );
-    println!();
-
-    // Note: This is a placeholder implementation
-    // In a real application, you would:
-    // 1. Load database configuration
-    // 2. Connect to the database
-    // 3. Load all migration files
-    // 4. Create a Migrator instance
-    // 5. Call migrator.rollback_batch(batch)
-
-    println!("  {} Checking batch {}...", "•".cyan(), batch);
-
-    // Example implementation (would use real migrator in practice):
-    /*
-    use rf_orm::migrations::Migrator;
-    use rf_orm::DatabaseManager;
-
-    let config = load_database_config()?;
-    let db = DatabaseManager::connect(config).await?;
-
-    let mut migrator = Migrator::new(db.connection().clone());
-
-    // Load and add all migrations
-    load_all_migrations(&mut migrator)?;
-
-    // Rollback specific batch
-    match migrator.rollback_batch(batch).await {
-        Ok(result) => {
-            if result.is_successful() {
-                println!();
-                println!("{} Rolled back {} migration(s) from batch {}",
-                    "✓".green().bold(),
-                    result.migrations_run,
-                    batch
-                );
-
-                for name in &result.successful {
-                    println!("  {} {}", "←".yellow(), name);
-                }
-            } else {
-                println!();
-                println!("{} Rollback failed!", "✗".red().bold());
-
-                for (name, error) in &result.failed {
-                    println!("  {} {}: {}", "✗".red(), name, error);
-                }
-            }
-        }
-        Err(e) => {
-            println!();
-            println!("{} {}", "✗".red().bold(), e);
-        }
-    }
-    */
-
-    // Placeholder output
-    println!("  {} Rolling back batch {}...", "←".yellow(), batch);
-    println!();
-    println!("{} Rollback completed successfully!", "✓".green().bold());
-
-    Ok(())
-}
-
-/// Drop all tables and re-run all migrations
-pub async fn fresh(seed: bool) -> Result<()> {
-    ensure_forge_project()?;
-
-    println!("{}", "Running fresh migrations...".yellow().bold());
-    println!(
-        "  {} This will drop all tables and re-run migrations",
-        "⚠".red()
-    );
-    if seed {
-        println!("  {} Database will be seeded after migration", "ℹ".blue());
-    }
-    println!();
-
-    // Note: This is a placeholder implementation
-    // In a real application, you would:
-    // 1. Load database configuration
-    // 2. Connect to the database
-    // 3. Load all migration files
-    // 4. Create a Migrator instance
-    // 5. Call migrator.fresh()
-
-    println!("  {} Rolling back all migrations...", "•".cyan());
-
-    // Example implementation (would use real migrator in practice):
-    /*
-    use rf_orm::migrations::Migrator;
-    use rf_orm::DatabaseManager;
-
-    let config = load_database_config()?;
-    let db = DatabaseManager::connect(config).await?;
-
-    let mut migrator = Migrator::new(db.connection().clone());
-
-    // Load and add all migrations
-    load_all_migrations(&mut migrator)?;
-
-    // Fresh migrations
-    let result = migrator.fresh().await?;
-
-    if result.is_successful() {
-        println!();
-        println!("{} Fresh migration completed!", "✓".green().bold());
-        println!("  {} {} migrations run in batch {}",
-            "•".cyan(),
-            result.migrations_run,
-            result.batch
-        );
-
-        for name in &result.successful {
-            println!("    {} {}", "→".green(), name);
-        }
-    } else {
-        println!();
-        println!("{} Fresh migration failed!", "✗".red().bold());
-
-        for (name, error) in &result.failed {
-            println!("  {} {}: {}", "✗".red(), name, error);
-        }
-    }
-    */
-
-    // Placeholder output
-    println!("  {} Re-running all migrations...", "•".cyan());
-    println!();
-    println!(
-        "{} Fresh migration completed successfully!",
-        "✓".green().bold()
-    );
-
-    // Run seeder if requested
-    if seed {
-        println!();
-        println!("{}", "Seeding database...".green().bold());
-        println!("  {} Running seeders...", "•".cyan());
-        // This would call the seed function from make.rs
-        // For now, just placeholder output
-        println!();
-        println!("{} Database seeded successfully!", "✓".green().bold());
-    }
-
-    Ok(())
-}
-
-/// Reset all migrations (rollback all then re-run)
-pub async fn reset() -> Result<()> {
-    ensure_forge_project()?;
-
-    println!("{}", "Resetting migrations...".yellow().bold());
-    println!(
-        "  {} This will rollback all migrations and re-run them",
-        "⚠".red()
-    );
-    println!();
-
-    // Rollback all migrations
-    println!("  {} Rolling back all migrations...", "•".cyan());
-    println!();
-
-    // Note: This is a placeholder implementation
-    // In a real application, you would:
-    // 1. Load database configuration
-    // 2. Connect to the database
-    // 3. Load all migration files
-    // 4. Create a Migrator instance
-    // 5. Call migrator.rollback(None) to rollback all
-    // 6. Then call migrator.run() to run all again
-
-    // Placeholder output
-    println!("  {} All migrations rolled back", "✓".green());
-    println!();
-    println!("  {} Re-running all migrations...", "•".cyan());
-    println!();
-    println!(
-        "{} Migration reset completed successfully!",
-        "✓".green().bold()
-    );
-
-    Ok(())
-}
-
-/// Show the status of each migration
-pub async fn status() -> Result<()> {
-    ensure_forge_project()?;
-
-    println!("{}", "Migration Status".cyan().bold());
-    println!();
-
-    // Note: This is a placeholder implementation
-    // In a real application, you would:
-    // 1. Load database configuration
-    // 2. Connect to the database
-    // 3. Load all migration files
-    // 4. Create a Migrator instance
-    // 5. Call migrator.status()
-
-    // Check if migrations directory exists
-    if !Path::new("src/migrations").exists() {
-        println!("  {} No migrations directory found", "ℹ".blue());
-        return Ok(());
-    }
-
-    // Example implementation (would use real migrator in practice):
-    /*
-    use rf_orm::migrations::Migrator;
-    use rf_orm::DatabaseManager;
-
-    let config = load_database_config()?;
-    let db = DatabaseManager::connect(config).await?;
-
-    let mut migrator = Migrator::new(db.connection().clone());
-
-    // Load and add all migrations
-    load_all_migrations(&mut migrator)?;
-
-    // Get status
-    let statuses = migrator.status().await?;
-
-    if statuses.is_empty() {
-        println!("  {} No migrations found", "ℹ".blue());
-        return Ok(());
-    }
-
-    println!("  {:<60} {:<10} {:<6} {}",
-        "Migration".bold(),
-        "Status".bold(),
-        "Batch".bold(),
-        "Executed At".bold()
-    );
-    println!("  {}", "-".repeat(100));
-
-    for status in statuses {
-        let status_icon = if status.executed { "✓".green() } else { "·".bright_black() };
-        let status_text = if status.executed { "Ran".green() } else { "Pending".bright_black() };
-        let batch_text = status.batch.map(|b| b.to_string()).unwrap_or_else(|| "-".to_string());
-        let executed_text = status.executed_at
-            .map(|dt| dt.format("%Y-%m-%d %H:%M:%S").to_string())
-            .unwrap_or_else(|| "-".to_string());
-
-        println!("  {} {:<58} {:<10} {:<6} {}",
-            status_icon,
-            status.name,
-            status_text,
-            batch_text,
-            executed_text
-        );
-    }
-    */
-
-    // Placeholder output
-    println!(
-        "  {:<60} {:<10} {:<6} {}",
-        "Migration".bold(),
-        "Status".bold(),
-        "Batch".bold(),
-        "Executed At".bold()
-    );
-    println!("  {}", "-".repeat(100));
-
-    // Canonical convention: each migration is a subdirectory containing up.sql + down.sql.
-    // Runner: DB::statement(include_str!("up.sql")).expect("migration failed");
-    let mut migrations: Vec<String> = fs::read_dir("src/migrations")?
-        .filter_map(|entry| {
-            let entry = entry.ok()?;
-            let path = entry.path();
-            // Accept subdirectories that contain an up.sql file
-            if path.is_dir() && path.join("up.sql").exists() {
-                Some(path.file_name()?.to_string_lossy().to_string())
-            } else {
-                None
-            }
-        })
-        .collect();
-
-    migrations.sort();
-
-    if migrations.is_empty() {
-        println!("  {} No migrations found", "ℹ".blue());
-    } else {
-        for migration in migrations {
-            println!(
-                "  {} {:<58} {:<10} {:<6} {}",
-                "·".bright_black(),
-                migration,
-                "Pending".bright_black(),
-                "-",
-                "-"
+            let name = entry
+                .file_name()
+                .into_string()
+                .map_err(|_| anyhow::anyhow!("Invalid migration name in {root}"))?;
+            ensure!(
+                files.insert(name.clone(), path).is_none(),
+                "Duplicate migration '{name}'"
             );
         }
     }
+    let mut migrator = Migrator::from_manager(db);
+    for (name, path) in files {
+        let read = |file: &str| {
+            fs::read_to_string(path.join(file))
+                .with_context(|| format!("Read {}", path.join(file).display()))
+        };
+        migrator.add_sql_migration(name, read("up.sql")?, read("down.sql")?);
+    }
+    Ok(migrator)
+}
 
-    println!();
-    println!(
-        "  {} Database connection not configured in this placeholder",
-        "ℹ".blue()
-    );
-    println!(
-        "  {} Use rf-orm Migrator in your application for full functionality",
-        "ℹ".blue()
-    );
-
+fn report(result: BatchResult, action: &str) -> Result<()> {
+    for name in &result.successful {
+        if result.batch == 0 {
+            println!("{action} {name}");
+        } else {
+            println!("{action} {name} (batch {})", result.batch);
+        }
+    }
+    if let Some((name, error)) = result.failed.first() {
+        bail!("{name}: {error}");
+    }
+    if result.migrations_run == 0 {
+        println!("Nothing to migrate.");
+    }
     Ok(())
+}
+
+pub async fn run(force: bool, step: bool) -> Result<()> {
+    let db = database(force, true).await?;
+    let migrator = load_migrations(&db)?;
+    if step {
+        let result = migrator.run_stepwise().await?;
+        for (offset, name) in result.successful.iter().enumerate() {
+            println!("Migrated {name} (batch {})", result.batch + offset);
+        }
+        report(
+            BatchResult {
+                successful: Vec::new(),
+                ..result
+            },
+            "Migrated",
+        )
+    } else {
+        report(migrator.run().await?, "Migrated")
+    }
+}
+
+pub async fn rollback(steps: Option<usize>, force: bool) -> Result<()> {
+    ensure!(steps != Some(0), "--step must be greater than zero");
+    let db = database(force, true).await?;
+    let migrator = load_migrations(&db)?;
+    let result = if let Some(steps) = steps {
+        migrator.rollback_latest(steps).await
+    } else {
+        migrator.rollback(None).await
+    };
+    match result {
+        Ok(result) => report(result, "Rolled back"),
+        Err(MigrationError::NoMigrationsToRollback) => {
+            println!("Nothing to roll back.");
+            Ok(())
+        }
+        Err(error) => Err(error.into()),
+    }
+}
+
+pub async fn rollback_batch(batch: usize, force: bool) -> Result<()> {
+    let db = database(force, true).await?;
+    report(
+        load_migrations(&db)?.rollback_batch(batch).await?,
+        "Rolled back",
+    )
+}
+
+pub async fn reset(force: bool) -> Result<()> {
+    let db = database(force, true).await?;
+    report(load_migrations(&db)?.reset().await?, "Rolled back")
+}
+
+pub async fn refresh(step: Option<usize>, with_seed: bool, force: bool) -> Result<()> {
+    ensure!(step != Some(0), "--step must be greater than zero");
+    let db = database(force, true).await?;
+    let migrator = load_migrations(&db)?;
+    let seeds = if with_seed {
+        load_seeds(None)?
+    } else {
+        Vec::new()
+    };
+    let rollback = match step {
+        Some(step) => migrator.rollback_latest(step).await?,
+        None => migrator.reset().await?,
+    };
+    report(rollback, "Rolled back")?;
+    report(migrator.run().await?, "Migrated")?;
+    if with_seed {
+        run_seeds(&db, seeds).await?;
+    }
+    Ok(())
+}
+
+pub async fn status() -> Result<()> {
+    let db = database(false, false).await?;
+    let statuses = load_migrations(&db)?.status().await?;
+    println!("{:<58} {:<8} Batch", "Migration", "Status");
+    for migration in statuses {
+        let status = if migration.executed { "Ran" } else { "Pending" };
+        let batch = migration
+            .batch
+            .map(|n| n.to_string())
+            .unwrap_or_else(|| "-".into());
+        println!("{:<58} {status:<8} {batch}", migration.name);
+    }
+    Ok(())
+}
+
+pub async fn fresh(with_seed: bool, force: bool) -> Result<()> {
+    ensure!(
+        force,
+        "migrate:fresh drops all tables in the configured database. Pass --force to proceed"
+    );
+    let db = database(force, true).await?;
+    let migrator = load_migrations(&db)?;
+    let seeds = if with_seed {
+        load_seeds(None)?
+    } else {
+        Vec::new()
+    };
+    let tx = db.connection().begin().await?;
+    let backend = tx.get_database_backend();
+    let tables_sql = match backend {
+        DbBackend::Sqlite => {
+            tx.execute_unprepared("PRAGMA defer_foreign_keys = ON")
+                .await?;
+            "SELECT name FROM sqlite_schema WHERE type = 'table' AND name NOT GLOB 'sqlite_*'"
+        }
+        DbBackend::Postgres => {
+            "SELECT tablename AS name FROM pg_tables WHERE schemaname = current_schema()"
+        }
+        DbBackend::MySql => bail!("migrate:fresh supports SQLite and PostgreSQL"),
+    };
+    let names = tx
+        .query_all(Statement::from_string(backend, tables_sql))
+        .await?
+        .into_iter()
+        .map(|row| row.try_get::<String>("", "name"))
+        .collect::<std::result::Result<Vec<_>, _>>()?;
+    let quoted: Vec<_> = names
+        .into_iter()
+        .map(|name| format!("\"{}\"", name.replace('"', "\"\"")))
+        .collect();
+    match backend {
+        DbBackend::Postgres if !quoted.is_empty() => {
+            tx.execute_unprepared(&format!("DROP TABLE {}", quoted.join(", ")))
+                .await?;
+        }
+        _ => {
+            for table in quoted {
+                tx.execute_unprepared(&format!("DROP TABLE IF EXISTS {table}"))
+                    .await?;
+            }
+        }
+    }
+    tx.commit().await?;
+    report(migrator.run().await?, "Migrated")?;
+    if with_seed {
+        run_seeds(&db, seeds).await?;
+    }
+    Ok(())
+}
+
+fn load_seeds(class: Option<&str>) -> Result<Vec<(PathBuf, String)>> {
+    let root = Path::new("database/seeders");
+    let mut paths = Vec::new();
+    if let Some(name) = class {
+        use inflector::Inflector;
+        ensure!(
+            name.bytes().all(|c| c.is_ascii_alphanumeric() || c == b'_') && !name.is_empty(),
+            "Invalid seeder name"
+        );
+        let name = name.to_snake_case();
+        paths.push(root.join(format!("{name}.sql")));
+    } else {
+        for entry in fs::read_dir(root).with_context(|| format!("Read {}", root.display()))? {
+            let path = entry?.path();
+            if path.extension().is_some_and(|ext| ext == "sql") && path.is_file() {
+                paths.push(path);
+            }
+        }
+        paths.sort();
+    }
+    ensure!(
+        !paths.is_empty(),
+        "No SQL seeders found in {}",
+        root.display()
+    );
+    paths
+        .into_iter()
+        .map(|path| {
+            let sql =
+                fs::read_to_string(&path).with_context(|| format!("Read {}", path.display()))?;
+            Ok((path, sql))
+        })
+        .collect()
+}
+
+async fn run_seeds(db: &DatabaseManager, seeds: Vec<(PathBuf, String)>) -> Result<()> {
+    let tx = db.connection().begin().await?;
+    for (path, sql) in &seeds {
+        tx.execute_unprepared(sql)
+            .await
+            .with_context(|| format!("Execute {}", path.display()))?;
+    }
+    tx.commit().await?;
+    for (path, _) in seeds {
+        println!("Seeded {}", path.display());
+    }
+    Ok(())
+}
+
+pub async fn seed(class: Option<&str>, force: bool) -> Result<()> {
+    let db = database(force, true).await?;
+    run_seeds(&db, load_seeds(class)?).await
 }

@@ -522,6 +522,15 @@ impl Migrator {
 
     /// Run all pending migrations as a single numbered batch.
     pub async fn run(&self) -> MigrationResult<BatchResult> {
+        self.run_pending(false).await
+    }
+
+    /// Run pending migrations, giving each one its own batch number.
+    pub async fn run_stepwise(&self) -> MigrationResult<BatchResult> {
+        self.run_pending(true).await
+    }
+
+    async fn run_pending(&self, stepwise: bool) -> MigrationResult<BatchResult> {
         self.ensure_migrations_table().await?;
         let executed = self.get_executed_migrations().await?;
         let batch = executed
@@ -537,7 +546,8 @@ impl Migrator {
             if executed.iter().any(|record| record.migration == name) {
                 continue;
             }
-            match self.apply(migration, Some(batch)).await {
+            let migration_batch = batch + if stepwise { result.migrations_run } else { 0 };
+            match self.apply(migration, Some(migration_batch)).await {
                 Ok(()) => result.add_success(name.to_owned()),
                 Err(error) => {
                     result.add_failure(name.to_owned(), error.to_string());
@@ -616,6 +626,14 @@ impl Migrator {
         self.rollback_records(executed, batch).await
     }
 
+    /// Roll back up to `count` migrations in reverse application order.
+    pub async fn rollback_latest(&self, count: usize) -> MigrationResult<BatchResult> {
+        self.ensure_migrations_table().await?;
+        let mut records = self.get_executed_migrations().await?;
+        let latest = records.split_off(records.len().saturating_sub(count));
+        self.rollback_records(latest, 0).await
+    }
+
     /// Roll back every recorded migration.
     pub async fn reset(&self) -> MigrationResult<BatchResult> {
         self.ensure_migrations_table().await?;
@@ -636,9 +654,22 @@ impl Migrator {
     ///
     /// Returns the status of all migrations (executed and pending).
     pub async fn status(&self) -> MigrationResult<Vec<MigrationStatus>> {
-        self.ensure_migrations_table().await?;
-
-        let executed = self.get_executed_migrations().await?;
+        let backend = self.db.get_database_backend();
+        let table_exists = match backend {
+            DbBackend::Sqlite => "SELECT 1 FROM sqlite_schema WHERE type = 'table' AND name = 'migrations'",
+            DbBackend::Postgres => "SELECT 1 WHERE to_regclass('migrations') IS NOT NULL",
+            DbBackend::MySql => "SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'migrations'",
+        };
+        let executed = if self
+            .db
+            .query_one(Statement::from_string(backend, table_exists))
+            .await?
+            .is_some()
+        {
+            self.get_executed_migrations().await?
+        } else {
+            Vec::new()
+        };
 
         let mut statuses = Vec::new();
 

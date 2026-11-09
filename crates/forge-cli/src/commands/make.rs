@@ -9,6 +9,18 @@ use std::path::Path;
 use super::ensure_forge_project;
 use crate::{errors, interactive, progress};
 
+fn models_directory() -> &'static str {
+    if Path::new("app/models/mod.rs").is_file() { "app/models" } else { "src/models" }
+}
+
+fn controllers_directory() -> &'static str {
+    if Path::new("app/http/controllers/mod.rs").is_file() {
+        "app/http/controllers"
+    } else {
+        "src/controllers"
+    }
+}
+
 pub async fn model(name: &str, with_migration: bool) -> Result<()> {
     ensure_forge_project()?;
 
@@ -18,7 +30,7 @@ pub async fn model(name: &str, with_migration: bool) -> Result<()> {
     let table_name = name.to_snake_case().to_plural();
 
     // Create model file
-    let model_path = format!("src/models/{}.rs", name.to_snake_case());
+    let model_path = format!("{}/{}.rs", models_directory(), name.to_snake_case());
 
     if Path::new(&model_path).exists() {
         anyhow::bail!("Model already exists: {}", model_path);
@@ -27,7 +39,7 @@ pub async fn model(name: &str, with_migration: bool) -> Result<()> {
     let model_content = generate_model_content(&model_name, &table_name)?;
 
     // Ensure models directory exists
-    fs::create_dir_all("src/models")?;
+    fs::create_dir_all(models_directory())?;
     fs::write(&model_path, model_content)?;
 
     println!("  {} Created: {}", "✓".green(), model_path);
@@ -61,7 +73,7 @@ pub async fn controller(name: &str, api: bool) -> Result<()> {
         format!("{}Controller", name.to_pascal_case())
     };
 
-    let controller_path = format!("src/controllers/{}.rs", controller_name.to_snake_case());
+    let controller_path = format!("{}/{}.rs", controllers_directory(), controller_name.to_snake_case());
 
     if Path::new(&controller_path).exists() {
         anyhow::bail!("Controller already exists: {}", controller_path);
@@ -74,7 +86,7 @@ pub async fn controller(name: &str, api: bool) -> Result<()> {
     };
 
     // Ensure controllers directory exists
-    fs::create_dir_all("src/controllers")?;
+    fs::create_dir_all(controllers_directory())?;
     fs::write(&controller_path, controller_content)?;
 
     println!("  {} Created: {}", "✓".green(), controller_path);
@@ -101,9 +113,8 @@ pub async fn migration(name: &str) -> Result<()> {
     let migration_name = name.to_snake_case();
 
     // Canonical convention: a timestamped directory with up.sql + down.sql.
-    // All three generators (forge-cli, rf-scaffold, foundry-cli) emit this format.
-    // Runner: DB::statement(include_str!("up.sql")).expect("migration failed");
-    let migration_dir = format!("src/migrations/{}_{}", timestamp, migration_name);
+    let root = super::migrate::migration_directory();
+    let migration_dir = format!("{root}/{timestamp}_{migration_name}");
     let up_file = format!("{migration_dir}/up.sql");
     let down_file = format!("{migration_dir}/down.sql");
 
@@ -111,10 +122,11 @@ pub async fn migration(name: &str) -> Result<()> {
         anyhow::bail!("Migration already exists: {}", migration_dir);
     }
 
-    let (up_content, down_content) = generate_migration_sql(name);
+    let (up_content, down_content) = generate_migration_sql(&migration_name);
 
     // Create migration directory and write up.sql / down.sql
-    fs::create_dir_all(&migration_dir)?;
+    fs::create_dir_all(root)?;
+    fs::create_dir(&migration_dir)?;
     fs::write(&up_file, up_content)?;
     fs::write(&down_file, down_content)?;
 
@@ -158,6 +170,14 @@ pub async fn command(name: &str) -> Result<()> {
 // Helper functions for content generation
 
 fn generate_model_content(model_name: &str, table_name: &str) -> Result<String> {
+    if models_directory() == "app/models" {
+        return Ok(format!(
+            "use rf::prelude::*;
+
+Model!({model_name} {{ table = \"{table_name}\" }});
+"
+        ));
+    }
     let template = r#"use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use chrono::{DateTime, Utc};
@@ -296,8 +316,7 @@ impl {{controller_name}} {
 /// All three generators (forge-cli, rf-scaffold, foundry-cli) now emit this same
 /// convention: plain SQLite DDL files in a timestamped directory.
 ///
-/// Runner (the only path that runs against the real DB):
-///   `DB::statement(include_str!("up.sql")).expect("migration failed")`
+/// The Forge migrator applies the scripts and records their batch.
 ///
 /// Returns `(up_sql, down_sql)`.
 fn generate_migration_sql(name: &str) -> (String, String) {
@@ -312,7 +331,7 @@ fn generate_migration_sql(name: &str) -> (String, String) {
         let up = format!(
             "-- Up migration: {name}\n\
              -- Canonical RustForge plain-SQL migration.\n\
-             -- Runner: DB::statement(include_str!(\"up.sql\")).expect(\"migration failed\");\n\
+             -- Run: forge migrate\n\
              \n\
              CREATE TABLE IF NOT EXISTS {table_name} (\n\
              \x20   id INTEGER PRIMARY KEY AUTOINCREMENT,\n\
@@ -329,7 +348,7 @@ fn generate_migration_sql(name: &str) -> (String, String) {
         let up = format!(
             "-- Up migration: {name}\n\
              -- Canonical RustForge plain-SQL migration.\n\
-             -- Runner: DB::statement(include_str!(\"up.sql\")).expect(\"migration failed\");\n\
+             -- Run: forge migrate\n\
              --\n\
              -- TODO: Write your migration SQL here.\n"
         );
@@ -358,7 +377,7 @@ mod tests {
             "up.sql must include id column; got:\n{up}"
         );
         assert!(
-            up.contains("DB::statement"),
+            up.contains("forge migrate"),
             "up.sql must reference the canonical runner; got:\n{up}"
         );
         // No Rust code in the SQL file
@@ -415,7 +434,7 @@ impl {{command_name}} {
 }
 
 fn update_models_mod(file_name: &str, model_name: &str) -> Result<()> {
-    let mod_file = "src/models/mod.rs";
+    let mod_file = &format!("{}/mod.rs", models_directory());
 
     let mut content = if Path::new(mod_file).exists() {
         fs::read_to_string(mod_file)?
@@ -430,7 +449,7 @@ fn update_models_mod(file_name: &str, model_name: &str) -> Result<()> {
     }
 
     // Add pub use
-    let use_line = format!("pub use {}::{{{{{}}}}};\n", file_name, model_name);
+    let use_line = format!("pub use {file_name}::{model_name};\n");
     if !content.contains(&use_line) {
         content.push_str(&use_line);
     }
@@ -442,7 +461,7 @@ fn update_models_mod(file_name: &str, model_name: &str) -> Result<()> {
 }
 
 fn update_controllers_mod(file_name: &str) -> Result<()> {
-    let mod_file = "src/controllers/mod.rs";
+    let mod_file = &format!("{}/mod.rs", controllers_directory());
 
     let mut content = if Path::new(mod_file).exists() {
         fs::read_to_string(mod_file)?
@@ -519,59 +538,18 @@ pub async fn seeder(name: &str) -> Result<()> {
         format!("{}Seeder", name.to_pascal_case())
     };
 
-    let seeder_path = format!("database/seeders/{}.rs", seeder_name.to_snake_case());
-
-    if Path::new(&seeder_path).exists() {
-        anyhow::bail!("Seeder already exists: {}", seeder_path);
-    }
-
-    let seeder_content = generate_seeder_content(&seeder_name)?;
-
-    // Ensure seeders directory exists
+    let seeder_path = format!("database/seeders/{}.sql", seeder_name.to_snake_case());
     fs::create_dir_all("database/seeders")?;
-    fs::write(&seeder_path, seeder_content)?;
-
-    println!("  {} Created: {}", "✓".green(), seeder_path);
-
-    // Update database/seeders/mod.rs
-    update_seeders_mod(&seeder_name.to_snake_case(), &seeder_name)?;
-
-    println!();
-    println!("{}", "Seeder generated successfully!".green().bold());
-    println!();
-    println!("Next steps:");
-    println!("  1. Implement the run() method");
-    println!("  2. Add to DatabaseSeeder if needed");
-    println!("  3. Run with: forge db:seed --class={}", seeder_name);
-
+    use std::io::Write;
+    let mut file = fs::OpenOptions::new().write(true).create_new(true).open(&seeder_path)?;
+    writeln!(file, "-- Add the INSERT statements for {seeder_name} here.")?;
+    println!("Created {seeder_path}");
+    println!("Run with: forge db:seed --class={seeder_name}");
     Ok(())
 }
 
 pub async fn seed(class: Option<&str>, force: bool) -> Result<()> {
-    ensure_forge_project()?;
-
-    if !force {
-        // Check if production environment
-        if let Ok(env) = std::env::var("APP_ENV") {
-            if env == "production" {
-                anyhow::bail!("Cannot seed production database without --force flag");
-            }
-        }
-    }
-
-    if let Some(seeder_class) = class {
-        println!("{}", format!("Seeding: {}", seeder_class).green().bold());
-        // TODO: Load and run specific seeder
-        println!("  {} Running {}...", "→".blue(), seeder_class);
-        println!("  {} Completed!", "✓".green());
-    } else {
-        println!("{}", "Seeding database...".green().bold());
-        // TODO: Run all seeders from DatabaseSeeder
-        println!("  {} Running DatabaseSeeder...", "→".blue());
-        println!("  {} Database seeded successfully!", "✓".green());
-    }
-
-    Ok(())
+    super::migrate::seed(class, force).await
 }
 
 fn generate_factory_content(factory_name: &str, model_name: &str) -> Result<String> {
@@ -648,53 +626,6 @@ mod tests {
     Ok(handlebars.render("factory", &data)?)
 }
 
-fn generate_seeder_content(seeder_name: &str) -> Result<String> {
-    let template = r#"use rf_testing::{Seeder, SeederError};
-use async_trait::async_trait;
-// use crate::factories::*;
-
-/// Seeder for populating {{seeder_name}} data
-pub struct {{seeder_name}};
-
-#[async_trait]
-impl Seeder for {{seeder_name}} {
-    fn name(&self) -> &str {
-        "{{seeder_name}}"
-    }
-
-    async fn run(&self) -> Result<(), SeederError> {
-        println!("Seeding {{seeder_name}}...");
-
-        // TODO: Implement seeder logic
-        // Example:
-        // let users = UserFactory::create_many(50).await?;
-
-        Ok(())
-    }
-
-    // Optional: Add dependencies
-    // fn dependencies(&self) -> Vec<&str> {
-    //     vec!["UserSeeder"]
-    // }
-
-    // Optional: Add conditional execution
-    // async fn should_run(&self) -> bool {
-    //     // Only run if some condition is met
-    //     true
-    // }
-}
-"#;
-
-    let mut handlebars = Handlebars::new();
-    handlebars.register_template_string("seeder", template)?;
-
-    let data = json!({
-        "seeder_name": seeder_name,
-    });
-
-    Ok(handlebars.render("seeder", &data)?)
-}
-
 fn update_factories_mod(file_name: &str) -> Result<()> {
     let mod_file = "tests/factories/mod.rs";
 
@@ -715,35 +646,6 @@ fn update_factories_mod(file_name: &str) -> Result<()> {
 
     Ok(())
 }
-
-fn update_seeders_mod(file_name: &str, seeder_name: &str) -> Result<()> {
-    let mod_file = "database/seeders/mod.rs";
-
-    let mut content = if Path::new(mod_file).exists() {
-        fs::read_to_string(mod_file)?
-    } else {
-        String::new()
-    };
-
-    // Add module declaration
-    let mod_line = format!("pub mod {};\n", file_name);
-    if !content.contains(&mod_line) {
-        content.push_str(&mod_line);
-    }
-
-    // Add pub use
-    let use_line = format!("pub use {}::{{{}}};\n", file_name, seeder_name);
-    if !content.contains(&use_line) {
-        content.push_str(&use_line);
-    }
-
-    fs::write(mod_file, content)?;
-    println!("  {} Updated: {}", "✓".green(), mod_file);
-
-    Ok(())
-}
-
-// New make commands
 
 pub async fn request(name: &str) -> Result<()> {
     ensure_forge_project()?;
@@ -1788,7 +1690,7 @@ pub async fn model_interactive() -> Result<()> {
         gen_progress.add_task(&format!("app/models/{}.rs", config.name.to_snake_case()));
     let model_name = config.name.to_pascal_case();
     let table_name = config.name.to_snake_case().to_plural();
-    let model_path = format!("src/models/{}.rs", config.name.to_snake_case());
+    let model_path = format!("{}/{}.rs", models_directory(), config.name.to_snake_case());
 
     if Path::new(&model_path).exists() {
         gen_progress.fail_task(model_task, &model_path, "File already exists");
@@ -1796,7 +1698,7 @@ pub async fn model_interactive() -> Result<()> {
     }
 
     let model_content = generate_model_content(&model_name, &table_name)?;
-    fs::create_dir_all("src/models")?;
+    fs::create_dir_all(models_directory())?;
     fs::write(&model_path, model_content)?;
     update_models_mod(&config.name.to_snake_case(), &model_name)?;
     gen_progress.complete_task(model_task, &model_path);
@@ -1825,13 +1727,13 @@ pub async fn model_interactive() -> Result<()> {
     // Generate seeder if requested
     if config.create_seeder {
         let seeder_task = gen_progress.add_task(&format!(
-            "database/seeders/{}_seeder.rs",
+            "database/seeders/{}_seeder.sql",
             config.name.to_snake_case()
         ));
         seeder(&config.name).await?;
         gen_progress.complete_task(
             seeder_task,
-            &format!("database/seeders/{}_seeder.rs", config.name.to_snake_case()),
+            &format!("database/seeders/{}_seeder.sql", config.name.to_snake_case()),
         );
     }
 
@@ -1868,7 +1770,7 @@ pub async fn controller_interactive() -> Result<()> {
         "app/controllers/{}.rs",
         controller_name.to_snake_case()
     ));
-    let controller_path = format!("src/controllers/{}.rs", controller_name.to_snake_case());
+    let controller_path = format!("{}/{}.rs", controllers_directory(), controller_name.to_snake_case());
 
     if Path::new(&controller_path).exists() {
         gen_progress.fail_task(controller_task, &controller_path, "File already exists");
@@ -1884,7 +1786,7 @@ pub async fn controller_interactive() -> Result<()> {
         }
     };
 
-    fs::create_dir_all("src/controllers")?;
+    fs::create_dir_all(controllers_directory())?;
     fs::write(&controller_path, controller_content)?;
     update_controllers_mod(&controller_name.to_snake_case())?;
     gen_progress.complete_task(controller_task, &controller_path);

@@ -327,7 +327,9 @@ jobs:
       - name: rf-console
         run: cargo build -p rf-console
       - name: forge-cli
-        run: cargo build -p forge-cli
+        run: cargo build --locked -p forge-cli
+      - name: Generated Forge application (CLI, SQLite and HTTP)
+        run: python3 scripts/forge-starter-smoke.py
 
   # ===========================================
   # Additional Crates

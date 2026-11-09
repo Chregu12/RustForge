@@ -1,37 +1,26 @@
-use anyhow::Result;
-use colored::*;
-use std::process::Command;
+use anyhow::{ensure, Context, Result};
+use tokio::process::Command;
 
 use super::ensure_forge_project;
 
 pub async fn run(host: &str, port: u16) -> Result<()> {
+    run_configured(Some(host), Some(port)).await
+}
+
+pub async fn run_configured(host: Option<&str>, port: Option<u16>) -> Result<()> {
     ensure_forge_project()?;
-
-    println!("{}", "Starting development server...".green().bold());
-    println!();
-    println!("  {} Host: {}", "•".cyan(), host);
-    println!("  {} Port: {}", "•".cyan(), port);
-    println!();
-    println!(
-        "{}",
-        format!("🚀 Server will start at http://{}:{}", host, port)
-            .bright_cyan()
-            .bold()
-    );
-    println!();
-    println!("{}", "Press Ctrl+C to stop".yellow());
-    println!();
-
-    // Run cargo run with environment variables
-    let status = Command::new("cargo")
-        .arg("run")
-        .env("HOST", host)
-        .env("PORT", port.to_string())
-        .status()?;
-
-    if !status.success() {
-        anyhow::bail!("Server failed to start");
+    let mut command = Command::new("cargo");
+    command.arg("run").kill_on_drop(true);
+    if let Some(host) = host {
+        command.env("HOST", host);
     }
-
+    if let Some(port) = port {
+        command.env("PORT", port.to_string());
+    }
+    let status = command
+        .status()
+        .await
+        .context("Run the RustForge application")?;
+    ensure!(status.success(), "Application exited with {status}");
     Ok(())
 }

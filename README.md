@@ -110,6 +110,22 @@ snippets match and tests the application's HTTP behavior and app isolation.
 - `DatabaseManager::scope` shares an injected pool with model/facade calls.
   `DB::transaction(async { ... })` commits on success and rolls back on error.
 
+## Start a Laravel-style project
+
+Install the `forge` CLI from this checkout and generate a standalone app.
+
+```bash
+cargo install --path crates/forge-cli --locked
+forge new blog
+cd blog
+forge migrate
+forge serve
+```
+
+The starter includes a posts API, a persistent SQLite database and reversible
+migrations. See the [Forge CLI guide](crates/forge-cli/README.md) for the project
+layout and commands.
+
 ## Documentation and checks
 
 See [the Wiki](https://github.com/Chregu12/RustForge/wiki),
