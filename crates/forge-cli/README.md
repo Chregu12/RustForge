@@ -11,7 +11,7 @@ forge db:seed
 forge serve
 ```
 
-The server listens on `127.0.0.1:8000` by default. The welcome page is at `/`, the health check at `/up`, and the JSON posts resource at `/api/posts`.
+The server listens on `127.0.0.1:8000` by default. The welcome page is at `/`, liveness at `/up`, database readiness at `/ready`, and the JSON posts resource at `/api/posts`.
 
 ```bash
 forge route:list --path api
@@ -34,7 +34,7 @@ The generated project pins a RustForge Git revision. Use `forge new blog --frame
 | `database/migrations`, `database/seeders` | Store reversible SQL migrations and seed data |
 | `resources/views` | Store the starter's HTML template |
 
-Copy `.env.example` to `.env` to set `DATABASE_URL`, `HOST`, or `PORT`. Exported variables take precedence. The starter uses file-backed SQLite at `database/database.sqlite`. PostgreSQL requires migrations written for PostgreSQL.
+Copy `.env.example` to `.env` to set `DATABASE_URL`, `HOST`, or `PORT`. Exported variables take precedence. The starter uses file-backed SQLite at `database/database.sqlite`. The starter can also use PostgreSQL. Forge selects `up.postgres.sql` or `down.postgres.sql` when present, and otherwise uses the common script.
 
 ## Database commands
 
@@ -62,4 +62,10 @@ cargo build --locked -p forge-cli
 python3 scripts/forge-starter-smoke.py
 ```
 
-The starter uses SQLite, compiled routing and a static HTML view. The framework's optional packages and other CLI commands have separate maturity levels.
+For a production application, supply the connection URL through `DATABASE_URL` and
+set `APP_ENV=production`. The ORM checks the linked SQLite version before opening
+a production SQLite database. Use PostgreSQL or link SQLite 3.54.0 or later. Apply
+the migrations before serving traffic. `/ready` returns 503 when the posts schema
+is unavailable or the database check exceeds two seconds.
+
+The starter uses compiled routing and a static HTML view. The framework's optional packages and other CLI commands have separate maturity levels.

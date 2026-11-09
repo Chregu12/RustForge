@@ -58,7 +58,9 @@ fn load_migrations(db: &DatabaseManager) -> Result<Migrator> {
             let entry = entry?;
             let path = entry.path();
             if !path.is_dir()
-                || (!path.join("up.sql").is_file() && !path.join("down.sql").is_file())
+                || !["up.sql", "down.sql", "up.postgres.sql", "down.postgres.sql"]
+                    .iter()
+                    .any(|file| path.join(file).is_file())
             {
                 continue;
             }
@@ -73,12 +75,18 @@ fn load_migrations(db: &DatabaseManager) -> Result<Migrator> {
         }
     }
     let mut migrator = Migrator::from_manager(db);
+    let postgres = db.connection().get_database_backend() == DbBackend::Postgres;
     for (name, path) in files {
-        let read = |file: &str| {
-            fs::read_to_string(path.join(file))
-                .with_context(|| format!("Read {}", path.join(file).display()))
+        let read = |direction: &str| {
+            let postgres_file = path.join(format!("{direction}.postgres.sql"));
+            let file = if postgres && postgres_file.is_file() {
+                postgres_file
+            } else {
+                path.join(format!("{direction}.sql"))
+            };
+            fs::read_to_string(&file).with_context(|| format!("Read {}", file.display()))
         };
-        migrator.add_sql_migration(name, read("up.sql")?, read("down.sql")?);
+        migrator.add_sql_migration(name, read("up")?, read("down")?);
     }
     Ok(migrator)
 }

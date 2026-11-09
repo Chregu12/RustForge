@@ -791,48 +791,36 @@ impl DBManager {
         &self.connection
     }
 
-    /// Point the manager at a different database.
-    ///
-    /// - `"default"` or `":memory:"` → fresh in-memory **SQLite**.
-    /// - A `postgres://…` or `postgresql://…` URL → **Postgres** backend via
-    ///   `sqlx::PgPool`. Connection errors are returned and the previous
-    ///   backend is kept.
-    /// - Any other string → **SQLite** file path.
-    ///
-    /// If opening fails the previous connection is kept unchanged.
+    /// Point the manager at a different database. On failure, log the error
+    /// and retain the previous connection. Use `try_set_connection` to handle errors.
     pub fn set_connection(&mut self, connection: String) {
-        if connection.starts_with("postgres://") || connection.starts_with("postgresql://") {
-            // Postgres path — create pool over the bridge.
-            let bridge = AsyncBridge::new();
-            let url = connection.clone();
-            let pool_result: Result<sqlx::PgPool, String> = bridge.block_on(async move {
-                sqlx::postgres::PgPoolOptions::new()
-                    .max_connections(5)
-                    .connect(&url)
-                    .await
-                    .map_err(|e| e.to_string())
-            });
-            if let Ok(pool) = pool_result {
-                self.backend = Backend::Postgres {
-                    pool,
-                    bridge,
-                    txn_conn: None,
-                };
-                self.connection = connection;
+        if let Err(error) = self.try_set_connection(connection) {
+            tracing::error!(%error, "Failed to configure database connection");
+        }
+    }
+
+    /// Open PostgreSQL, an SQLite file path, or in-memory SQLite. Only replace
+    /// the current connection after the new target opens successfully.
+    pub fn try_set_connection(&mut self, connection: String) -> Result<(), String> {
+        let backend = if is_postgres_url(&connection) {
+            let (pool, bridge) = connect_postgres(&connection)?;
+            Backend::Postgres {
+                pool,
+                bridge,
+                txn_conn: None,
             }
-            // On error: keep the previous backend unchanged (matches SQLite behaviour).
         } else {
-            // SQLite path (unchanged behaviour).
+            crate::manager::validate_sqlite_runtime().map_err(|error| error.to_string())?;
             let opened = if connection == "default" || connection == ":memory:" {
                 Connection::open_in_memory()
             } else {
                 Connection::open(&connection)
             };
-            if let Ok(conn) = opened {
-                self.backend = Backend::Sqlite(conn);
-            }
-            self.connection = connection;
-        }
+            Backend::Sqlite(opened.map_err(|error| error.to_string())?)
+        };
+        self.backend = backend;
+        self.connection = connection;
+        Ok(())
     }
 }
 
@@ -971,31 +959,23 @@ impl ConcurrentDB {
     }
 
     pub fn set_connection(&mut self, connection: String) {
-        if connection.starts_with("postgres://") || connection.starts_with("postgresql://") {
-            let bridge = AsyncBridge::new();
-            let url = connection.clone();
-            let pool_result: Result<sqlx::PgPool, String> = bridge.block_on(async move {
-                sqlx::postgres::PgPoolOptions::new()
-                    .max_connections(5)
-                    .connect(&url)
-                    .await
-                    .map_err(|e| e.to_string())
-            });
-            if let Ok(pool) = pool_result {
-                self.backend = ConcurrentBackend::Postgres { pool, bridge };
-                self.connection = connection;
-            }
-            // On error: keep previous backend unchanged.
+        match Self::connect(connection) {
+            Ok(connected) => *self = connected,
+            Err(error) => tracing::error!(%error, "Failed to configure database connection"),
+        }
+    }
+
+    fn connect(connection: String) -> Result<Self, String> {
+        let backend = if is_postgres_url(&connection) {
+            let (pool, bridge) = connect_postgres(&connection)?;
+            ConcurrentBackend::Postgres { pool, bridge }
         } else {
-            let is_memory = connection == "default" || connection == ":memory:";
-            let pool_result = if is_memory {
-                // Single connection for in-memory: all ops see the same DB.
+            crate::manager::validate_sqlite_runtime().map_err(|error| error.to_string())?;
+            let pool = if connection == "default" || connection == ":memory:" {
                 Pool::builder()
                     .max_size(1)
                     .build(SqliteConnectionManager::memory())
             } else {
-                // File DB: up to 8 concurrent connections with WAL journal mode
-                // (readers don't block each other).
                 Pool::builder().max_size(8).build(
                     SqliteConnectionManager::file(&connection).with_init(|conn| {
                         conn.execute_batch("PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL;")?;
@@ -1003,12 +983,31 @@ impl ConcurrentDB {
                     }),
                 )
             };
-            if let Ok(pool) = pool_result {
-                self.backend = ConcurrentBackend::Sqlite(pool);
-            }
-            self.connection = connection;
-        }
+            ConcurrentBackend::Sqlite(pool.map_err(|error| error.to_string())?)
+        };
+        Ok(Self {
+            backend,
+            connection,
+        })
     }
+}
+
+fn is_postgres_url(connection: &str) -> bool {
+    connection.starts_with("postgres://") || connection.starts_with("postgresql://")
+}
+
+fn connect_postgres(connection: &str) -> Result<(sqlx::PgPool, AsyncBridge), String> {
+    let bridge = AsyncBridge::new();
+    let url = connection.to_owned();
+    let pool = bridge
+        .block_on(async move {
+            sqlx::postgres::PgPoolOptions::new()
+                .max_connections(5)
+                .connect(&url)
+                .await
+        })
+        .map_err(|error| error.to_string())?;
+    Ok((pool, bridge))
 }
 
 // ── Global instance ───────────────────────────────────────────────────────────
@@ -1546,10 +1545,22 @@ pub fn global_rollback() -> Result<(), String> {
     }
 }
 
-/// Reconfigure the global DB to point at a different database.
-/// Acquires the write lock briefly.
+/// Reconfigure the global DB and log any connection failure.
 pub fn global_set_connection(connection: String) {
-    GLOBAL_DB.write().unwrap().set_connection(connection);
+    if let Err(error) = global_try_set_connection(connection) {
+        tracing::error!(%error, "Failed to configure database connection");
+    }
+}
+
+pub(super) fn global_try_set_connection(connection: String) -> Result<(), String> {
+    if has_thread_transaction() {
+        return Err("Cannot switch the database during a transaction".into());
+    }
+    // Open the new pool before taking the write lock, so active callers can
+    // continue using the existing pool while the connection is established.
+    let connected = ConcurrentDB::connect(connection)?;
+    *GLOBAL_DB.write().unwrap() = connected;
+    Ok(())
 }
 
 /// Return the current global connection name / URL (brief read lock).
